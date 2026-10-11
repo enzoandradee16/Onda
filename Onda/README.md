@@ -1,5 +1,24 @@
 # Onda — vídeo e áudio
 
+## Windows: portátil ou instalação completa
+
+- **Abrir Onda.bat** ou **Onda.exe**: abre sem instalar Python ou ferramentas.
+  Mantenha a pasta `_runtime` e a pasta `Onda` junto do executável.
+- **Onda-Setup.exe**: abre o assistente de instalação
+  para Windows, com atalhos, registro em Aplicativos instalados e desinstalador.
+  A instalação usa `%LOCALAPPDATA%\Programs\Onda`, sem exigir administrador.
+- **Instalar Onda.bat**: instalação rápida e silenciosa no local padrão,
+  com atalhos, sem abrir o assistente nem iniciar o app ao terminar. O BAT e
+  `Onda-Setup.exe` precisam ficar juntos. Não reinicia o PC. Em caso de falha,
+  consulte `%TEMP%\Onda-instalacao.log`.
+- Python, FFmpeg/ffprobe/ffplay, Node e bibliotecas já vêm no pacote. Internet
+  é necessária para buscar/baixar conteúdo e atualizar o yt-dlp.
+- Downloads novos ficam em `Downloads\Onda`, respeitando uma pasta salva nas
+  preferências. Desinstalar não remove músicas nem os dados em `%LOCALAPPDATA%\Onda`.
+
+As instruções de ambiente virtual mais abaixo se destinam ao desenvolvimento
+a partir do código-fonte. Para gerar novos pacotes, veja `empacotamento`.
+
 Aplicativo Python com interface Tkinter em português, tema escuro, fila de links,
 barra de progresso, velocidade, estimativa de tempo, cancelamento, nova tentativa
 e seleção de pasta. Usa yt-dlp para obter mídia e FFmpeg para processá-la.

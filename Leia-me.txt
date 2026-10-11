@@ -1,0 +1,37 @@
+ONDA PARA WINDOWS 10/11 (64 BITS)
+
+SEM INSTALAR
+Abra Onda.exe ou Abrir Onda.bat. Python, FFmpeg, ffprobe, ffplay e Node
+ja estao incluidos. Nao e necessario instalar dependencias nem ter
+permissao de administrador para usar a versao portatil.
+Mantenha Onda.exe, onda.ico, Onda e _runtime na mesma pasta.
+Voce pode mover a pasta completa para outro local.
+Internet e necessaria para pesquisar/baixar conteudo e atualizar o yt-dlp.
+
+INSTALAR NO WINDOWS
+Execute Onda-Setup.exe para abrir o assistente de instalacao, escolher
+o destino e os atalhos e acompanhar o progresso.
+O instalador copia o programa para uma pasta propria, cria um atalho
+no Menu Iniciar e oferece um atalho na Area de Trabalho. O programa
+aparece em Aplicativos instalados e inclui um desinstalador.
+Nao altera o Python do sistema nem instala dependencias globalmente.
+
+INSTALACAO RAPIDA E SILENCIOSA
+Execute Instalar Onda.bat ao lado de Onda-Setup.exe. Instala no local
+padrao com atalhos, sem assistente, sem reiniciar o PC e sem abrir o
+aplicativo ao terminar. Um console pode aparecer enquanto instala.
+Se ocorrer uma falha, consulte %TEMP%\Onda-instalacao.log.
+
+SEUS ARQUIVOS
+Novos downloads usam Downloads\Onda por padrao. Preferencias existentes
+continuam sendo respeitadas. Configuracoes, credenciais protegidas e
+historico permanecem em %LOCALAPPDATA%\Onda.
+Desinstalar o programa nao apaga musicas, configuracoes ou historico.
+
+LICENCAS
+Python: _runtime\python\LICENSE.txt
+FFmpeg (GPLv3, build gyan.dev): _runtime\ffmpeg\LICENSE.txt e README.txt
+FFmpeg: https://github.com/FFmpeg/FFmpeg/commit/946fcce07b
+Node: _runtime\node\LICENSE.txt
+Pacotes Python: arquivos de licenca nas respectivas pastas .dist-info
+em _runtime\python\Lib\site-packages.

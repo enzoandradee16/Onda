@@ -52,7 +52,7 @@ class App(UiMixin, tk.Tk):
         self.height = tk.StringVar(value="1080p")
         self.fps = tk.StringVar(value="Original")
         self.catalog_provider = tk.StringVar(value="Deezer")
-        self.folder = tk.StringVar(value=str(BASE / "downloads"))
+        self.folder = tk.StringVar(value=os.environ.get("ONDA_DOWNLOADS", str(BASE / "downloads")))
         self.ffmpeg = tk.StringVar()
         self.playlist = tk.BooleanVar(value=False)
         self.mp3_quality = tk.StringVar(value="320 kbps")

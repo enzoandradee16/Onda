@@ -18,3 +18,10 @@ downloads/
 # Windows
 Thumbs.db
 Desktop.ini
+
+# Distribuicoes Windows (publicar em Releases)
+_runtime/
+dist/
+build/
+*.exe
+
