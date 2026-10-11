@@ -1,0 +1,327 @@
+"""Desktop presentation, kept separate from download and queue behavior."""
+import tkinter as tk
+from tkinter import ttk
+
+from engine import MODES, HEIGHTS, FPS_OPTIONS, MP3_QUALITIES, M4A_QUALITIES
+
+BG = "#101419"
+SURFACE = "#191f27"
+INPUT = "#222a35"
+TEXT = "#eef3f8"
+MUTED = "#91a0b3"
+ACCENT = "#79e2c4"
+LINE = "#2a3441"
+FORMAT_LABELS = {"Vídeo (MKV)": "video", "MP3": "mp3", "M4A": "m4a", "FLAC": "flac", "Áudio original": "original"}
+
+
+class UiMixin:
+    def _style(self):
+        style = ttk.Style(self)
+        style.theme_use("clam")
+        style.configure(".", background=BG, foreground=TEXT, font=("Segoe UI", 10),
+                        bordercolor=LINE, lightcolor=LINE, darkcolor=LINE)
+        style.configure("TFrame", background=BG)
+        style.configure("Card.TFrame", background=SURFACE)
+        style.configure("TNotebook", background=BG, borderwidth=0)
+        style.configure("TNotebook.Tab", background=SURFACE, foreground=MUTED, padding=(20, 9))
+        style.map("TNotebook.Tab", background=[("selected", INPUT)], foreground=[("selected", ACCENT)])
+        style.configure("TLabel", background=BG)
+        style.configure("Muted.TLabel", foreground=MUTED)
+        style.configure("Card.TLabel", background=SURFACE)
+        style.configure("CardMuted.TLabel", background=SURFACE, foreground=MUTED)
+        style.configure("TButton", background=INPUT, foreground=TEXT, padding=(14, 9), borderwidth=0,
+                        focusthickness=0, relief="flat")
+        style.map("TButton", background=[("active", "#303d4d"), ("disabled", SURFACE)],
+                  foreground=[("disabled", "#566373")])
+        style.configure("Quiet.TButton", background=BG, foreground=MUTED, padding=(10, 7))
+        style.map("Quiet.TButton", background=[("active", SURFACE), ("disabled", BG)],
+                  foreground=[("active", TEXT), ("disabled", "#566373")])
+        style.configure("Accent.TButton", background=ACCENT, foreground=BG, font=("Segoe UI", 10, "bold"))
+        style.map("Accent.TButton", background=[("active", "#a0edd7"), ("disabled", "#2b4841")],
+                  foreground=[("disabled", "#7eaa9e")])
+        style.configure("TEntry", fieldbackground=INPUT, foreground=TEXT, insertcolor=TEXT,
+                        padding=8, borderwidth=0)
+        style.configure("TCombobox", fieldbackground=INPUT, background=INPUT, arrowcolor=MUTED,
+                        foreground=TEXT, padding=(10, 7), borderwidth=0)
+        style.map("TCombobox", fieldbackground=[("readonly", INPUT)],
+                  foreground=[("readonly", TEXT), ("disabled", MUTED)],
+                  background=[("active", LINE), ("readonly", INPUT)])
+        style.configure("TCheckbutton", background=BG, foreground=MUTED)
+        style.map("TCheckbutton", background=[("active", BG)])
+        style.configure("Treeview", background=SURFACE, fieldbackground=SURFACE, foreground=TEXT,
+                        rowheight=44, borderwidth=0, relief="flat")
+        style.layout("Treeview", [("Treeview.treearea", {"sticky": "nswe"})])
+        style.configure("Treeview.Heading", background=SURFACE, foreground=MUTED,
+                        font=("Segoe UI", 9), padding=(12, 12), borderwidth=0, relief="flat")
+        style.map("Treeview.Heading", background=[("active", SURFACE)])
+        style.map("Treeview", background=[("selected", "#2b3d47")], foreground=[("selected", TEXT)])
+        style.configure("Horizontal.TProgressbar", background=ACCENT, troughcolor=LINE,
+                        borderwidth=0, thickness=4, lightcolor=ACCENT, darkcolor=ACCENT)
+        style.configure("Vertical.TScrollbar", background=LINE, troughcolor=SURFACE,
+                        arrowcolor=MUTED, borderwidth=0, arrowsize=12)
+        self.option_add("*TCombobox*Listbox.background", INPUT)
+        self.option_add("*TCombobox*Listbox.foreground", TEXT)
+        self.option_add("*TCombobox*Listbox.selectBackground", "#345048")
+
+    def _layout(self):
+        self.configure(bg=BG)
+        main = ttk.Frame(self, padding=(24, 12, 24, 12))
+        main.pack(fill="both", expand=True)
+        main.columnconfigure(0, weight=1)
+        main.rowconfigure(1, weight=1)
+        top = ttk.Frame(main)
+        top.grid(row=0, column=0, sticky="ew", pady=(0, 12))
+        mark = tk.Canvas(top, width=28, height=34, bg=BG, highlightthickness=0)
+        mark.pack(side="left", padx=(0, 9))
+        for x, y in ((4, 13), (10, 7), (16, 2), (22, 10)):
+            mark.create_line(x, y + 4, x, 32 - y, width=3, fill=ACCENT, capstyle="round")
+        ttk.Label(top, text="onda", font=("Segoe UI", 22, "bold"), foreground=ACCENT).pack(side="left")
+        ttk.Button(top, text="Configurações", style="Quiet.TButton", command=self.show_settings).pack(side="right")
+        ttk.Button(top, text="Metadados", style="Quiet.TButton", command=self.open_metadata).pack(side="right", padx=6)
+
+        self.pages = ttk.Notebook(main)
+        self.pages.grid(row=1, column=0, sticky="nsew")
+        self.download_page = ttk.Frame(self.pages, padding=(0, 14, 0, 0))
+        from catalog_ui import CatalogPane
+        self.catalog_page = CatalogPane(self.pages, self)
+        self.pages.add(self.catalog_page, text="Pesquisar músicas")
+        self.pages.add(self.download_page, text="Links e fila")
+        from effects_ui import EffectsPane
+        from playlist_ui import PlaylistPane
+        from history_ui import HistoryPane
+        self.effects_page = EffectsPane(self.pages, self)
+        self.playlist_page = PlaylistPane(self.pages, self)
+        self.history_page = HistoryPane(self.pages, self)
+        self.pages.add(self.playlist_page, text="Playlists")
+        self.pages.add(self.history_page, text="Histórico")
+        self.pages.add(self.effects_page, text="Slowed + Reverb")
+        self.pages.bind("<<NotebookTabChanged>>", self.tab_changed)
+        main = self.download_page
+        main.columnconfigure(0, weight=1)
+        main.rowconfigure(4, weight=1, minsize=90)
+
+        heading = ttk.Frame(main)
+        heading.grid(row=1, column=0, sticky="ew", pady=(0, 8))
+        ttk.Label(heading, text="Do link para sua biblioteca.", font=("Segoe UI", 21, "bold"), anchor="center").pack(fill="x")
+        ttk.Label(heading, text="Músicas e vídeos, organizados do seu jeito.", style="Muted.TLabel", anchor="center").pack(fill="x", pady=(5, 0))
+
+        card = ttk.Frame(main, style="Card.TFrame", padding=14)
+        card.grid(row=2, column=0, sticky="ew")
+        card.columnconfigure(0, weight=1)
+        ttk.Label(card, text="LINKS", style="CardMuted.TLabel", font=("Segoe UI", 9, "bold")).grid(row=0, column=0, sticky="w", pady=(0, 8))
+        entry = tk.Frame(card, bg=INPUT)
+        entry.grid(row=1, column=0, sticky="ew")
+        self.urls = tk.Text(entry, height=2, bg=INPUT, fg=TEXT, insertbackground=ACCENT,
+                            selectbackground="#345048", relief="flat", borderwidth=0, highlightthickness=0,
+                            font=("Segoe UI", 11), padx=12, pady=8, wrap="word", undo=True)
+        self.urls.pack(fill="x")
+        self.url_hint = tk.Label(entry, text="Cole um ou mais links aqui…", bg=INPUT, fg=MUTED,
+                                 font=("Segoe UI", 11), cursor="xterm")
+        self.url_hint.place(x=12, y=12)
+        self.url_hint.bind("<Button-1>", lambda _: self.urls.focus_set())
+        self.urls.bind("<FocusIn>", lambda _: self.url_hint.place_forget())
+        self.urls.bind("<FocusOut>", lambda _: self.refresh_placeholder())
+        self.urls.bind("<<Modified>>", self.on_link_edit)
+        actions = ttk.Frame(card, style="Card.TFrame")
+        actions.grid(row=2, column=0, sticky="ew", pady=(12, 0))
+        actions.columnconfigure(3, weight=1)
+        ttk.Label(actions, text="Formato", style="CardMuted.TLabel").grid(row=0, column=0, sticky="w", pady=(0, 5))
+        self.format_label = tk.StringVar()
+        self.format_box = ttk.Combobox(actions, textvariable=self.format_label, values=list(FORMAT_LABELS), state="readonly", width=14)
+        self.format_box.grid(row=1, column=0, sticky="w", padx=(0, 14))
+        self.format_box.bind("<<ComboboxSelected>>", self.change_format)
+        self.quality_caption = ttk.Label(actions, text="Resolução", style="CardMuted.TLabel")
+        self.quality_caption.grid(row=0, column=1, sticky="w", pady=(0, 5))
+        self.quality_selector = ttk.Combobox(actions, state="readonly", width=18)
+        self.quality_selector.grid(row=1, column=1, sticky="w", padx=(0, 14))
+        self.fps_label = ttk.Label(actions, text="FPS máximo", style="CardMuted.TLabel")
+        self.fps_label.grid(row=0, column=2, sticky="w", pady=(0, 5))
+        self.fps_selector = ttk.Combobox(actions, textvariable=self.fps, values=list(FPS_OPTIONS), state="readonly", width=10)
+        self.fps_selector.grid(row=1, column=2, sticky="w", padx=(0, 14))
+        self.fixed_quality = tk.StringVar()
+        self.add_button = ttk.Button(actions, text="Adicionar à fila  +", command=self.add)
+        self.add_button.grid(row=1, column=3, sticky="e")
+        ttk.Checkbutton(card, text="Revisar metadados antes de baixar", variable=self.review_metadata).grid(row=3, column=0, sticky="w", pady=(8, 0))
+
+        queue_head = ttk.Frame(main)
+        queue_head.grid(row=3, column=0, sticky="ew", pady=(14, 10))
+        ttk.Label(queue_head, text="Seus downloads", font=("Segoe UI", 12, "bold")).pack(side="left")
+        self.queue_count = tk.StringVar(value="0 itens")
+        ttk.Label(queue_head, textvariable=self.queue_count, style="Muted.TLabel").pack(side="left", padx=12)
+        self.retry_button = ttk.Button(queue_head, text="Tentar novamente", style="Quiet.TButton", command=self.retry, state="disabled")
+        self.retry_button.pack(side="right")
+        self.remove_button = ttk.Button(queue_head, text="Remover", style="Quiet.TButton", command=self.remove, state="disabled")
+        self.remove_button.pack(side="right", padx=4)
+        table = ttk.Frame(main, style="Card.TFrame")
+        table.grid(row=4, column=0, sticky="nsew")
+        self.tree = ttk.Treeview(table, columns=("name", "format", "size", "status"), show="headings", height=5)
+        for column, label, width in (("name", "NOME", 350), ("format", "FORMATO", 100), ("size", "TAMANHO", 125), ("status", "STATUS", 140)):
+            self.tree.heading(column, text=label, anchor="w")
+            self.tree.column(column, width=width, minwidth=80, stretch=column == "name", anchor="w")
+        self.tree.pack(side="left", fill="both", expand=True)
+        scroll = ttk.Scrollbar(table, orient="vertical", command=self.tree.yview)
+        scroll.pack(side="right", fill="y")
+        self.tree.configure(yscrollcommand=scroll.set)
+        self.tree.tag_configure("Concluído", foreground=ACCENT)
+        self.tree.tag_configure("Falhou", foreground="#f2a198")
+        self.tree.tag_configure("Cancelado", foreground=MUTED)
+        self.tree.bind("<<TreeviewSelect>>", lambda _: self.refresh_queue())
+        self.empty_queue = ttk.Frame(table, style="Card.TFrame")
+        ttk.Label(self.empty_queue, text="Sua fila começa aqui", style="Card.TLabel", font=("Segoe UI", 12, "bold")).pack()
+        ttk.Label(self.empty_queue, text="Adicione um link para começar.", style="CardMuted.TLabel").pack(pady=(5, 0))
+        self.empty_queue.place(relx=.5, rely=.58, anchor="center")
+
+        progress = ttk.Frame(main)
+        progress.grid(row=5, column=0, sticky="ew", pady=(12, 0))
+        progress.columnconfigure(0, weight=1)
+        self.status_label = ttk.Label(progress, textvariable=self.status, font=("Segoe UI", 10, "bold"), wraplength=760)
+        self.status_label.grid(row=0, column=0, sticky="w")
+        self.progress_text = tk.StringVar(value="")
+        ttk.Label(progress, textvariable=self.progress_text, foreground=ACCENT).grid(row=0, column=1, sticky="e", padx=(12, 0))
+        self.bar = ttk.Progressbar(progress, mode="determinate", maximum=100)
+        self.bar.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(10, 8))
+        self.detail_label = ttk.Label(progress, textvariable=self.detail, style="Muted.TLabel", wraplength=760)
+        self.detail_label.grid(row=2, column=0, columnspan=2, sticky="w")
+
+        footer = ttk.Frame(main)
+        footer.grid(row=6, column=0, sticky="ew", pady=(12, 0))
+        self.start_button = ttk.Button(footer, text="Baixar fila", style="Accent.TButton", command=self.start)
+        self.start_button.pack(side="right")
+        self.cancel_button = ttk.Button(footer, text="Parar", command=self.cancel, state="disabled")
+        self.cancel_button.pack(side="right", padx=10)
+        ttk.Button(footer, text="Abrir pasta", style="Quiet.TButton", command=self.open_folder).pack(side="left")
+        ttk.Button(footer, text="Ver detalhes", style="Quiet.TButton", command=self.show_log).pack(side="left", padx=4)
+
+        self._build_settings()
+        self._build_log()
+        self.mode.trace_add("write", lambda *_: self.sync_format())
+        self.sync_format()
+        main.bind("<Configure>", lambda e: (self.status_label.configure(wraplength=max(400, e.width-110)),
+                                           self.detail_label.configure(wraplength=max(400, e.width-60))))
+
+    def sync_format(self):
+        mode = MODES[self.mode.get()]
+        self.format_label.set(next(label for label, value in FORMAT_LABELS.items() if value == mode))
+        self.mode_changed()
+
+    def change_format(self, _=None):
+        value = FORMAT_LABELS[self.format_label.get()]
+        self.mode.set(next(label for label, mode in MODES.items() if mode == value))
+
+    def update_quality_selector(self):
+        mode = MODES[self.mode.get()]
+        self.quality_caption.configure(text="Resolução" if mode == "video" else "Qualidade")
+        for widget in (self.fps_label, self.fps_selector):
+            widget.grid() if mode == "video" else widget.grid_remove()
+        if mode == "video":
+            self.quality_selector.configure(textvariable=self.height, values=list(HEIGHTS), state="readonly")
+        elif mode in ("mp3", "m4a"):
+            variable, choices = (self.mp3_quality, MP3_QUALITIES) if mode == "mp3" else (self.m4a_quality, M4A_QUALITIES)
+            self.quality_selector.configure(textvariable=variable, values=choices, state="readonly")
+        else:
+            self.fixed_quality.set("Sem perdas (fonte)" if mode == "flac" else "Qualidade da fonte")
+            self.quality_selector.configure(textvariable=self.fixed_quality, values=(), state="disabled")
+
+    def refresh_placeholder(self):
+        if not self.urls.get("1.0", "end").strip() and self.focus_get() != self.urls:
+            self.url_hint.place(x=12, y=12)
+        else:
+            self.url_hint.place_forget()
+
+    def on_link_edit(self, _=None):
+        if self.urls.edit_modified():
+            self.refresh_placeholder()
+            self.urls.edit_modified(False)
+
+    def refresh_queue(self):
+        count = len(self.jobs)
+        self.queue_count.set(f"{count} {'item' if count == 1 else 'itens'}")
+        if count:
+            self.empty_queue.place_forget()
+        else:
+            self.empty_queue.place(relx=.5, rely=.58, anchor="center")
+        selected = self.tree.selection()
+        self.remove_button.configure(state="normal" if any(i != self.active for i in selected) else "disabled")
+        self.retry_button.configure(state="normal" if any(self.jobs.get(i, {}).get("state") in ("Falhou", "Cancelado") for i in selected) else "disabled")
+
+    def _build_settings(self):
+        self.settings_window = tk.Toplevel(self)
+        self.settings_window.withdraw()
+        self.settings_window.title("Onda • Configurações")
+        self.settings_window.configure(bg=BG)
+        self.settings_window.geometry("650x640")
+        self.settings_window.minsize(600, 620)
+        self.settings_window.protocol("WM_DELETE_WINDOW", self.settings_window.withdraw)
+        panel = ttk.Frame(self.settings_window)
+        panel.pack(fill="both", expand=True)
+        canvas = tk.Canvas(panel, bg=BG, highlightthickness=0)
+        scroll = ttk.Scrollbar(panel, command=canvas.yview)
+        scroll.pack(side="right", fill="y")
+        canvas.pack(side="left", fill="both", expand=True)
+        canvas.configure(yscrollcommand=scroll.set)
+        body = ttk.Frame(canvas, padding=24)
+        window = canvas.create_window((0, 0), window=body, anchor="nw")
+        canvas.bind("<Configure>", lambda event: canvas.itemconfigure(window, width=event.width))
+        body.bind("<Configure>", lambda _: canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas.bind("<MouseWheel>", lambda event: canvas.yview_scroll(-int(event.delta / 120), "units"))
+        self.settings_window.bind("<MouseWheel>", lambda event: canvas.yview_scroll(-int(event.delta / 120), "units"))
+        ttk.Label(body, text="Do seu jeito.", font=("Segoe UI", 20, "bold")).pack(anchor="w")
+        ttk.Label(body, text="As opções são aplicadas aos próximos links adicionados.", style="Muted.TLabel").pack(anchor="w", pady=(4, 20))
+        self.remember_checkbox = ttk.Checkbutton(body, text="Lembrar configurações", variable=self.remember_settings,
+                                                command=self.toggle_remember_settings)
+        self.remember_checkbox.pack(anchor="w")
+        ttk.Label(body, textvariable=self.preference_status, style="Muted.TLabel", wraplength=550).pack(anchor="w", pady=(4, 16))
+        ttk.Checkbutton(body, text="Revisar metadados antes de baixar", variable=self.review_metadata).pack(anchor="w", pady=(0, 14))
+        ttk.Label(body, text="Pasta de destino", font=("Segoe UI", 10, "bold")).pack(anchor="w")
+        row = ttk.Frame(body)
+        row.pack(fill="x", pady=(8, 18))
+        ttk.Entry(row, textvariable=self.folder).pack(side="left", fill="x", expand=True)
+        ttk.Button(row, text="Alterar", command=self.choose_folder).pack(side="right", padx=(8, 0))
+        ttk.Checkbutton(body, text="Baixar playlist de vídeo (até 100 itens)", variable=self.playlist).pack(anchor="w", pady=(0, 18))
+        from file_output import ORGANIZATIONS, DUPLICATES
+        ttk.Label(body, text="Organizar músicas em", style="Muted.TLabel").pack(anchor="w")
+        ttk.Combobox(body, textvariable=self.organization, values=ORGANIZATIONS, state="readonly").pack(fill="x", pady=(6, 12))
+        ttk.Label(body, text="Quando o arquivo já existir", style="Muted.TLabel").pack(anchor="w")
+        ttk.Combobox(body, textvariable=self.duplicates, values=list(DUPLICATES), state="readonly").pack(fill="x", pady=(6, 12))
+        ttk.Label(body, text="Ferramentas", font=("Segoe UI", 12, "bold")).pack(anchor="w", pady=(8, 6))
+        ttk.Label(body, text="Pasta do FFmpeg · opcional quando já configurado", style="Muted.TLabel").pack(anchor="w")
+        tools = ttk.Frame(body)
+        tools.pack(fill="x", pady=(8, 16))
+        ttk.Entry(tools, textvariable=self.ffmpeg).pack(side="left", fill="x", expand=True)
+        ttk.Button(tools, text="Escolher", command=self.choose_ffmpeg).pack(side="right", padx=(8, 0))
+        ttk.Button(body, text="Configurar Spotify / consultar metadados", command=self.open_metadata).pack(anchor="w")
+        self.update_button = ttk.Button(body, text="Atualizar ferramenta de download (yt-dlp)", command=self.update_downloader)
+        self.update_button.pack(anchor="w", pady=(14, 4))
+        ttk.Label(body, textvariable=self.update_status, style="Muted.TLabel", wraplength=540).pack(anchor="w")
+        ttk.Label(body, text="FLAC preserva a qualidade disponível; não melhora uma fonte com perdas.", style="Muted.TLabel", wraplength=560).pack(anchor="w", pady=(18, 0))
+        bottom = ttk.Frame(body)
+        bottom.pack(side="bottom", fill="x", pady=(16, 0))
+        ttk.Button(bottom, text="Ajuda", style="Quiet.TButton", command=self.help).pack(side="left")
+        ttk.Button(bottom, text="Pronto", style="Accent.TButton", command=self.settings_window.withdraw).pack(side="right")
+
+    def _build_log(self):
+        self.log_window = tk.Toplevel(self)
+        self.log_window.withdraw()
+        self.log_window.title("Onda • Detalhes dos downloads")
+        self.log_window.configure(bg=BG)
+        self.log_window.geometry("800x420")
+        self.log_window.protocol("WM_DELETE_WINDOW", self.log_window.withdraw)
+        body = ttk.Frame(self.log_window, padding=20)
+        body.pack(fill="both", expand=True)
+        ttk.Label(body, text="Detalhes dos downloads", font=("Segoe UI", 16, "bold")).pack(anchor="w", pady=(0, 14))
+        panel = ttk.Frame(body)
+        panel.pack(fill="both", expand=True)
+        self.log = tk.Text(panel, bg=SURFACE, fg=MUTED, relief="flat", borderwidth=0, highlightthickness=0,
+                           font=("Consolas", 10), padx=12, pady=12, state="disabled", wrap="word")
+        self.log.pack(side="left", fill="both", expand=True)
+        scroll = ttk.Scrollbar(panel, orient="vertical", command=self.log.yview)
+        scroll.pack(side="right", fill="y")
+        self.log.configure(yscrollcommand=scroll.set)
+
+    def show_settings(self):
+        self.settings_window.deiconify()
+        self.settings_window.lift()
+
+    def show_log(self):
+        self.log_window.deiconify()
+        self.log_window.lift()

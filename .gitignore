@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Downloads e arquivos gerados
+downloads/
+.onda-work/
+.onda-render-*
+*.zip
+
+# Configuracao local
+.env
+.env.*
+!.env.example
+
+# Windows
+Thumbs.db
+Desktop.ini
