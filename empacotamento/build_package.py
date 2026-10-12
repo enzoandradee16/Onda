@@ -26,7 +26,7 @@ for name in ('Lib', 'DLLs', 'tcl'):
 shutil.copytree(args.python_home / 'Lib/site-packages', runtime / 'Lib/site-packages', dirs_exist_ok=True,
                 ignore=shutil.ignore_patterns('__pycache__'))
 shutil.copytree(args.source, out / 'Onda', dirs_exist_ok=True,
-                ignore=shutil.ignore_patterns('__pycache__', 'downloads', '.venv', 'test_*.py'))
+                ignore=shutil.ignore_patterns('__pycache__', 'downloads', '.venv', 'test_*.py', '*.bat'))
 ffmpeg = out / '_runtime/ffmpeg'
 shutil.copytree(args.ffmpeg_home / 'bin', ffmpeg, dirs_exist_ok=True)
 shutil.copy2(args.ffmpeg_home / 'LICENSE', ffmpeg / 'LICENSE.txt')

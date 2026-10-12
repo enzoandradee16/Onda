@@ -1,7 +1,7 @@
-ONDA PARA WINDOWS 10/11 (64 BITS)
+﻿ONDA PARA WINDOWS 10/11 (64 BITS)
 
 SEM INSTALAR
-Abra Onda.exe ou Abrir Onda.bat. Python, FFmpeg, ffprobe, ffplay e Node
+Abra Onda.exe. Python, FFmpeg, ffprobe, ffplay e Node
 ja estao incluidos. Nao e necessario instalar dependencias nem ter
 permissao de administrador para usar a versao portatil.
 Mantenha Onda.exe, onda.ico, Onda e _runtime na mesma pasta.
@@ -9,7 +9,7 @@ Voce pode mover a pasta completa para outro local.
 Internet e necessaria para pesquisar/baixar conteudo e atualizar o yt-dlp.
 
 INSTALAR NO WINDOWS
-Execute Onda-Setup.exe para abrir o assistente de instalacao, escolher
+Execute ..\Instalador\Onda-Setup.exe para abrir o assistente de instalacao, escolher
 o destino e os atalhos e acompanhar o progresso.
 O instalador copia o programa para uma pasta propria, cria um atalho
 no Menu Iniciar e oferece um atalho na Area de Trabalho. O programa
@@ -17,7 +17,7 @@ aparece em Aplicativos instalados e inclui um desinstalador.
 Nao altera o Python do sistema nem instala dependencias globalmente.
 
 INSTALACAO RAPIDA E SILENCIOSA
-Execute Instalar Onda.bat ao lado de Onda-Setup.exe. Instala no local
+Execute Instalação Silenciosa Onda.bat na pasta Instalador. Instala no local
 padrao com atalhos, sem assistente, sem reiniciar o PC e sem abrir o
 aplicativo ao terminar. Um console pode aparecer enquanto instala.
 Se ocorrer uma falha, consulte %TEMP%\Onda-instalacao.log.

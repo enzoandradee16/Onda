@@ -25,3 +25,10 @@ dist/
 build/
 *.exe
 
+
+# Pacotes prontos para uso
+/Portatil/
+/Instalador/
+
+# Ferramentas locais de empacotamento
+/empacotamento/

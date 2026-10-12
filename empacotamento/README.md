@@ -1,4 +1,4 @@
-# Gerar os executáveis do Onda
+﻿# Gerar os executáveis do Onda
 
 Onda.exe é um inicializador Windows compilado em C#. Ele abre o Python privado
 do pacote, sem instalar ou usar o Python do computador. Downloads e exportações
@@ -17,7 +17,7 @@ Execute no PowerShell a partir da raiz do projeto:
 .\empacotamento\Build-Windows.ps1 -PythonHome 'C:\Python311' -FFmpegHome 'C:\ferramentas\ffmpeg' -NodeExe 'C:\ferramentas\node.exe' -InnoCompiler 'C:\ferramentas\Inno Setup\ISCC.exe'
 ```
 
-O resultado fica em `dist\Onda-portatil` e `dist\Onda-Setup.exe`. Não envie
+O resultado fica em `dist\Portatil` e `dist\Instalador\Onda-Setup.exe`. Não envie
 `_runtime`, arquivos EXE nem pastas de build em commits de código; distribua
 os binários como anexos de uma versão no GitHub Releases.
 
@@ -27,3 +27,13 @@ músicas, configurações, credenciais ou histórico ao desinstalar.
 
 Referências: https://docs.python.org/3.11/using/windows.html e
 https://jrsoftware.org/ishelp/.
+
+
+## Compilar apenas o instalador
+
+Para alterar nome, versao ou outros dados do Windows, edite e salve Onda.iss.
+Abra-o no Inno Setup e use Build > Compile. Os caminhos padrao usam a pasta
+Portatil e gravam Instalador\Onda-Setup.exe, sem exigir gerar o runtime de novo.
+UninstallDisplayName define o nome na lista do Windows; AppVersion define a
+versao. Mantenha AppId nas atualizacoes. Reinstale para atualizar os dados do
+Windows. O BAT silencioso usa automaticamente o EXE substituido.
