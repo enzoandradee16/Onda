@@ -1,0 +1,180 @@
+"""Live light/dark palettes, accents and Windows app-theme following."""
+import os
+import tkinter as tk
+from tkinter import ttk
+
+THEME_MODES = ('Seguir o sistema', 'Escuro', 'Claro')
+ACCENTS = {
+    'Verde-água': ('#79e2c4', '#087e69'),
+    'Azul': ('#8dbbff', '#245fbe'),
+    'Roxo': ('#c0a4ff', '#7544b8'),
+    'Rosa': ('#f5a4cd', '#af286d'),
+    'Laranja': ('#ffbd85', '#a6500b'),
+    'Vermelho': ('#ffa2a2', '#b42f3b'),
+    'Verde': ('#94dfa8', '#257342'),
+    'Verde-limão': ('#c8ed83', '#537512'),
+    'Amarelo': ('#f6e58d', '#806600'),
+    'Dourado': ('#e9ca82', '#8c650f'),
+    'Ciano': ('#8de1ed', '#07758a'),
+    'Turquesa': ('#71d8d8', '#087575'),
+    'Índigo': ('#a5afff', '#4856b9'),
+    'Lilás': ('#dec1ff', '#865098'),
+    'Coral': ('#ffae9b', '#b34332'),
+    'Cinza': ('#bcc5d3', '#576475'),
+}
+
+
+def system_mode():
+    if os.name == 'nt':
+        try:
+            import winreg
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER,
+                    r'Software\Microsoft\Windows\CurrentVersion\Themes\Personalize') as key:
+                return 'Claro' if winreg.QueryValueEx(key, 'AppsUseLightTheme')[0] else 'Escuro'
+        except OSError:
+            pass
+    return 'Escuro'
+
+
+def blend(first, second, amount):
+    values = [round(int(first[i:i+2], 16)*(1-amount) + int(second[i:i+2], 16)*amount) for i in (1,3,5)]
+    return '#' + ''.join(f'{value:02x}' for value in values)
+
+
+def palette(mode='Seguir o sistema', accent='Verde-água'):
+    mode = system_mode() if mode == 'Seguir o sistema' else mode
+    light = mode == 'Claro'
+    colors = dict(zip(('bg','surface','input','text','muted','line'),
+        ('#f3f5f8','#ffffff','#e7edf4','#182335','#53647b','#cad3df') if light else
+        ('#101419','#191f27','#222a35','#eef3f8','#91a0b3','#2a3441')))
+    colors['accent'] = ACCENTS.get(accent, ACCENTS['Verde-água'])[int(light)]
+    colors.update(mode=mode, accent_text='#ffffff' if light else '#101419',
+                  error='#b12c3c' if light else '#f2a198')
+    colors['hover'] = blend(colors['input'], colors['text'], .08)
+    colors['accent_hover'] = blend(colors['accent'], '#000000' if light else '#ffffff', .12)
+    colors['selected'] = blend(colors['surface'], colors['accent'], .19)
+    colors['disabled'] = blend(colors['muted'], colors['surface'], .35)
+    return colors
+
+
+LEGACY = {
+    '#101419':'bg', '#10151e':'bg', '#191f27':'surface', '#1a2230':'surface',
+    '#222a35':'input', '#eef3f8':'text', '#eef3fa':'text', 'white':'text',
+    '#91a0b3':'muted', '#a6b4c8':'muted', '#79e2c4':'accent', '#65dfbd':'accent',
+    '#2a3441':'line', '#303d4d':'hover', '#566373':'disabled', '#a0edd7':'accent_hover',
+    '#2b4841':'line', '#7eaa9e':'muted', '#2b3d47':'selected', '#345048':'selected',
+    '#f2a198':'error',
+}
+
+
+class ThemeManager:
+    def __init__(self, app):
+        self.app = app
+        self.colors = None
+        self.closed = False
+        self.after_id = None
+        self.traces = [(var, var.trace_add('write', self.changed)) for var in (app.theme_mode, app.theme_accent)]
+        self.map_binding = app.bind_all('<Map>', self.mapped, add='+')
+        self.apply()
+        self.after_id = app.after(1500, self.check_system)
+
+    def changed(self, *_):
+        self.apply()
+
+    def apply(self):
+        colors = palette(self.app.theme_mode.get(), self.app.theme_accent.get())
+        if colors == self.colors:
+            return
+        self.colors = colors
+        self.app._style()
+        self.walk(self.app)
+
+    def check_system(self):
+        self.after_id = None
+        if self.closed:
+            return
+        if self.app.theme_mode.get() == 'Seguir o sistema':
+            self.apply()
+        self.after_id = self.app.after(1500, self.check_system)
+
+    def mapped(self, event):
+        if not self.closed and isinstance(event.widget, tk.Misc):
+            if isinstance(event.widget, (tk.Toplevel, tk.Tk)):
+                self.walk(event.widget)
+            else:
+                self.widget(event.widget)
+
+    def walk(self, widget):
+        self.widget(widget)
+        for child in widget.winfo_children():
+            self.walk(child)
+
+    def widget(self, widget):
+        c = self.colors
+        if not c:
+            return
+        try:
+            roles = getattr(widget, '_onda_color_roles', None)
+            if roles is None:
+                roles = {}
+                for option in ('background','foreground','insertbackground','selectbackground','selectforeground','activebackground','activeforeground','highlightbackground'):
+                    if option in widget.keys():
+                        value = str(widget.cget(option)).lower()
+                        if value in LEGACY:
+                            roles[option] = LEGACY[value]
+                if isinstance(widget, (tk.Toplevel, tk.Tk)):
+                    roles['background'] = 'bg'
+                if isinstance(widget, tk.Menu):
+                    roles.update(background='input',foreground='text',activebackground='selected',activeforeground='text')
+                widget._onda_color_roles = roles
+            if roles:
+                widget.configure(**{option:c[role] for option,role in roles.items()})
+            if isinstance(widget, tk.Canvas):
+                fills = getattr(widget, '_onda_fill_roles', {})
+                for item in widget.find_all():
+                    try:
+                        role = fills.get(item) or LEGACY.get(str(widget.itemcget(item,'fill')).lower())
+                        if role:
+                            fills[item] = role
+                            widget.itemconfigure(item,fill=c[role])
+                    except tk.TclError:
+                        pass
+                widget._onda_fill_roles = fills
+            if isinstance(widget, ttk.Treeview):
+                for tag, role in (('Concluído','accent'),('Falhou','error'),('Cancelado','muted')):
+                    widget.tag_configure(tag,foreground=c[role])
+            if isinstance(widget, ttk.Combobox):
+                popup = widget.tk.call('ttk::combobox::PopdownWindow', widget)
+                widget.tk.call(str(popup)+'.f.l','configure','-background',c['input'],'-foreground',c['text'],
+                               '-selectbackground',c['selected'],'-selectforeground',c['text'])
+            if isinstance(widget, (tk.Toplevel, tk.Tk)):
+                self.titlebar(widget)
+        except tk.TclError:
+            pass
+
+    def titlebar(self, window):
+        if os.name != 'nt':
+            return
+        try:
+            import ctypes
+            from ctypes import wintypes
+            user32 = ctypes.windll.user32
+            user32.GetAncestor.argtypes = [wintypes.HWND, wintypes.UINT]
+            user32.GetAncestor.restype = wintypes.HWND
+            handle = user32.GetAncestor(window.winfo_id(), 2)
+            value = wintypes.BOOL(self.colors['mode'] == 'Escuro')
+            func = ctypes.windll.dwmapi.DwmSetWindowAttribute
+            func.argtypes = [wintypes.HWND,wintypes.DWORD,ctypes.c_void_p,wintypes.DWORD]
+            func(handle,20,ctypes.byref(value),ctypes.sizeof(value))
+        except (OSError, AttributeError):
+            pass
+
+    def shutdown(self):
+        self.closed = True
+        for var, trace in self.traces:
+            var.trace_remove('write',trace)
+        if self.after_id:
+            self.app.after_cancel(self.after_id)
+            self.after_id = None
+        # Remove only our callback; other Map handlers center windows and set icons.
+        self.app._unbind(('bind','all','<Map>'), self.map_binding)

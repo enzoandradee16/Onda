@@ -17,8 +17,15 @@ def component(value):
     return name if name and name not in (".", "..") else "Não informado"
 
 
-def destination(config, record=None):
+def destination(config, record=None, info=None):
     root = Path(config["folder"]).expanduser().resolve()
+    title = config.get("playlist_title")
+    if not title and config.get("playlist") and info:
+        title = info.get("playlist_title") or info.get("playlist")
+        if not title and (info.get("playlist_id") or info.get("playlist_index") is not None):
+            title = "Playlist"
+    if title:
+        return root / component(title)
     if not record:
         return root
     organization = config.get("organization", "Catálogo")

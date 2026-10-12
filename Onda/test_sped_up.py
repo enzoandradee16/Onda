@@ -63,7 +63,7 @@ class SpedUpUiTests(unittest.TestCase):
         pane.set_position(2)
         with patch.object(pane.player, "play") as play:
             pane.preview()
-        play.assert_called_once_with(str(source.resolve()), self.app.ffmpeg.get(), 125, 30, 2, duration=25)
+        play.assert_called_once_with(str(source.resolve()), self.app.ffmpeg.get(), 125, 30, 2, duration=25, keep_pitch=False)
         for reverb, expected in ((30, "Sped Up + Reverb"), (0, "Sped Up")):
             pane.reverb.set(reverb)
             with patch("effects_ui.filedialog.asksaveasfilename", return_value="") as dialog:

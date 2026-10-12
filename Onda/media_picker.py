@@ -18,6 +18,7 @@ class MediaPicker(tk.Toplevel):
         self.items = event["candidates"]
         self.confirm, self.cancel = confirm, cancel
         self.variables = {item["id"]: tk.BooleanVar(value=True) for item in self.items}
+        self.video_modes = {}
         self.results = queue.Queue()
         self.generation = 0
         self.preview_image = None
@@ -47,6 +48,14 @@ class MediaPicker(tk.Toplevel):
             ttk.Checkbutton(row, text=f"{item['number']:02d} · {item['kind']}{dimensions}",
                             variable=self.variables[item["id"]], command=lambda value=item: self.changed(value)).pack(side="left")
             ttk.Button(row, text="Ver", command=lambda value=item: self.preview(value), width=5).pack(side="right")
+            if item['kind'] == 'Vídeo':
+                from media_selection import VIDEO_OUTPUTS
+                mode = item.get('default_mode', 'mp4')
+                label = next((label for label, value in VIDEO_OUTPUTS.items() if value == mode), 'Vídeo · MP4')
+                self.video_modes[item['id']] = tk.StringVar(value=label)
+                ttk.Combobox(rows, textvariable=self.video_modes[item['id']], values=tuple(VIDEO_OUTPUTS),
+                             state='readonly', width=27).pack(fill='x', padx=(20, 8), pady=(0, 8))
+
         right = ttk.Frame(panels, width=340)
         right.pack(side="right", fill="both", padx=(16, 0))
         right.pack_propagate(False)
@@ -84,7 +93,9 @@ class MediaPicker(tk.Toplevel):
 
     def accept(self):
         if self.selected():
-            self.confirm(self.selected())
+            from media_selection import VIDEO_OUTPUTS
+            modes = {key: VIDEO_OUTPUTS[variable.get()] for key, variable in self.video_modes.items() if key in self.selected()}
+            self.confirm({'selected_ids': self.selected(), 'media_modes': modes} if modes else self.selected())
 
     def preview(self, item):
         self.generation += 1

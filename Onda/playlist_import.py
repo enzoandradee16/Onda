@@ -36,12 +36,18 @@ def spotify_playlist(html, playlist_id, limit=LIMIT):
         raise MetadataError("A playlist não está disponível no embed público Spotify. Tente uma playlist pública diferente ou importe um TXT/M3U com os links das faixas.") from None
 
 
-def load_playlist(url, client, limit=LIMIT):
+def load_playlist(url, client, limit=LIMIT, account=None, cancelled=lambda: False):
     limit = playlist_limit(limit)
+    if url.strip().startswith('spotify:album:'):
+        url = 'https://open.spotify.com/album/' + url.strip().split(':')[-1]
     parsed = urlsplit(url.strip())
     host = (parsed.hostname or "").lower()
     if parsed.scheme != "https" or parsed.username or parsed.password or parsed.port not in (None, 443):
-        raise MetadataError("Use o link HTTPS de uma playlist pública.")
+        raise MetadataError("Use o link HTTPS de um álbum ou playlist pública.")
+    from album_import import load_album
+    album = load_album(parsed, client, limit, account, cancelled)
+    if album is not None:
+        return album
     parts = parsed.path.strip("/").split("/")
     if host in ("deezer.com", "www.deezer.com"):
         if parts and re.fullmatch(r"[a-z]{2}", parts[0]):
@@ -73,6 +79,8 @@ def load_playlist(url, client, limit=LIMIT):
             parts = parts[1:]
         if len(parts) != 2 or parts[0] != "playlist" or not re.fullmatch(r"[A-Za-z0-9]{22}", parts[1]):
             raise MetadataError("Use um link Spotify /playlist/ID.")
+        if account is not None and account.connected:
+            return account.playlist(parts[1], limit=limit, cancelled=cancelled)
         with client.request("https://open.spotify.com/embed/playlist/" + parts[1]) as response:
             return spotify_playlist(response.text, parts[1], limit=limit)
     if host in ("www.youtube.com", "youtube.com", "music.youtube.com") and parse_qs(parsed.query).get("list"):
@@ -85,7 +93,7 @@ def load_playlist(url, client, limit=LIMIT):
                    "source_url": "https://www.youtube.com/watch?v=" + row["id"], "duration_ms": (row.get("duration") or 0) * 1000}
                   for row in (result or {}).get("entries", []) if row and re.fullmatch(r"[A-Za-z0-9_-]{11}", row.get("id", ""))]
         return {"title": result.get("title") or "Playlist YouTube", "tracks": tracks[:limit], "note": f"YouTube: os próprios vídeos da playlist serão usados; até {limit} itens."}
-    raise MetadataError("Importe uma playlist pública Deezer, Spotify ou YouTube, ou um TXT/M3U com links individuais.")
+    raise MetadataError("Use um álbum Spotify, Deezer ou Apple Music, uma playlist Deezer/Spotify/YouTube, ou um TXT/M3U/CSV com links individuais.")
 
 
 def load_text(text, limit=LIMIT):

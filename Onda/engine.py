@@ -30,8 +30,6 @@ FPS_OPTIONS = {"Original": None, "24 fps": 24, "30 fps": 30, "60 fps": 60, "120 
 
 
 def audio_bitrate(config):
-    from playlist_options import playlist_limit
-    max_items = playlist_limit(config.get("playlist_limit", 1000))
     mode = config["mode"]
     choices = MP3_QUALITIES if mode == "mp3" else M4A_QUALITIES
     quality = config.get("audio_quality") or choices[0]
@@ -41,7 +39,8 @@ def audio_bitrate(config):
 
 
 def validate_url(value: str) -> str:
-    value = value.strip()
+    from media_links import unwrap_google
+    value = unwrap_google(value.strip())
     try:
         parsed = urlsplit(value)
         host = (parsed.hostname or "").lower().rstrip(".")
@@ -259,15 +258,12 @@ def ask_duplicate(path, input_stream=None):
 def ask_media(candidates, input_stream=None):
     emit("choose_media", candidates=candidates)
     try:
-        selected = json.loads((input_stream or sys.stdin).readline())["selected_ids"]
-        allowed = {item["id"] for item in candidates}
-        if not isinstance(selected, list) or not selected or any(not isinstance(value, str) for value in selected):
-            raise ValueError()
-        if len(set(selected)) != len(selected) or not set(selected).issubset(allowed):
-            raise ValueError()
+        value = json.loads((input_stream or sys.stdin).readline())
+        from media_selection import validate_selection
+        selected, modes = validate_selection(value, candidates)
     except (ValueError, KeyError, TypeError):
         raise ValueError("A seleção de fotos e vídeos foi interrompida.") from None
-    return selected
+    return {"selected_ids": selected, "media_modes": modes} if modes else selected
 
 
 def run_worker(config: dict) -> int:
@@ -279,6 +275,13 @@ def run_worker(config: dict) -> int:
         streaming = is_streaming_link(config["url"])
         url = config["url"] if streaming else validate_url(config["url"])
         from social_media import is_social
+        if not streaming and not is_social(url):
+            from media_links import prepare_link
+            config['url'] = url
+            finished, url = prepare_link(config, emit, ask_duplicate)
+            if finished:
+                return 0
+            config['url'] = url
         if config["mode"] in ("photos", "social") or (is_social(url) and config["mode"] in ("video", "mp4")):
             if streaming:
                 raise ValueError("Escolha um formato de áudio para links de música.")
@@ -292,23 +295,22 @@ def run_worker(config: dict) -> int:
             raise ValueError("FFmpeg e ffprobe não encontrados. Instale-os ou selecione a pasta bin na interface.")
         Path(config["folder"]).mkdir(parents=True, exist_ok=True)
         if streaming:
-            from matching import find_youtube, AmbiguousMatch
+            from matching import resolve_youtube
             from tagging import fetch_cover
             emit("stage", message="Consultando metadados da música…")
             client = MetadataClient(config.get("spotify_client_id", ""), config.get("spotify_client_secret", ""))
             try:
-                record = client.resolve(url, choose=ask_catalog, selected_catalog_url=config.get("selected_catalog_url"))
+                if config.get('catalog_record'):
+                    from spotify_search import cached_record
+                    record = cached_record(config['catalog_record'], url)
+                else:
+                    record = client.resolve(url, choose=ask_catalog, selected_catalog_url=config.get("selected_catalog_url"))
             finally:
                 client.close()
             emit("log", message="Metadados e capa: " + record["platform"] + " • " + record["source_url"])
             emit("stage", message="Procurando uma versão correspondente no YouTube…")
-            try:
-                match = find_youtube(record, Logger())
-            except AmbiguousMatch as exc:
-                match = ask_version(record, exc.candidates)
-            else:
-                if config.get("confirm_version"):
-                    match = ask_version(record, [match])
+            match = resolve_youtube(record, Logger(), ask_version,
+                                    automatic=bool(config.get("auto_match")), confirm=bool(config.get("confirm_version")))
             url = match["source_url"]
             emit("log", message=f"Selecionado: {match['title']} • {url} • similaridade {match['match_score']:.0%}")
             if config.get("review_metadata"):
@@ -360,7 +362,8 @@ def run_worker(config: dict) -> int:
                         emit("stage", message="Gravando metadados e capa no arquivo…")
                         sidecar = apply_tags(path, record, match, cover)
                         emit("log", message="Metadados e origem registrados: " + sidecar)
-                    final, skipped = publish(path, output_folder, config.get("duplicate_policy", "keep"), ask_duplicate)
+                    target_folder = destination(destination_config, record, info=info)
+                    final, skipped = publish(path, target_folder, config.get("duplicate_policy", "keep"), ask_duplicate)
                     if sidecar:
                         if skipped:
                             Path(sidecar).unlink(missing_ok=True)

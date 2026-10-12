@@ -64,11 +64,10 @@ retomada quando a fonte suportar; o cancelamento não apaga partes pendentes.
 
 Na aba **Playlists**, cole uma playlist pública Deezer, Spotify ou YouTube e
 clique em **Carregar playlist**. Também aceita TXT/M3U/M3U8 UTF-8 contendo
-links individuais, um por linha. O limite atual é 100 itens por importação.
+links individuais, um por linha. O limite de importação é ajustável em Configurações → Downloads, até 5000 itens.
 Selecione com Ctrl/Shift ou Selecionar todas. **Conferir correspondências**
 consulta o catálogo e YouTube sem baixar o áudio; versões incertas aparecem
-como Escolha necessária ao baixar. **Adicionar selecionadas** usa o formato
-atual de Links e fila. A versão pode ser confirmada individualmente ao baixar.
+como Escolha necessária ao baixar. **Adicionar selecionadas** usa as opções próprias de formato e qualidade de Playlists, independentes de Links e fila. MP3/M4A mostram bitrate; vídeo mostra resolução e FPS. As escolhas são salvas com Lembrar configurações. A versão pode ser confirmada individualmente ao baixar.
 
 No Spotify, a importação usa o embed público e não exige API. Esse embed pode
 listar só parte da playlist ou retornar erro; o app mostra a limitação, sem
@@ -647,3 +646,148 @@ o embed público pode retornar apenas uma parte da lista; aumentar o limite
 não libera itens que o serviço não fornece. A importação de playlists Apple
 Music ainda não é suportada. O limite é salvo com Lembrar configurações e
 capturado ao adicionar cada playlist à fila.
+
+### Pastas das playlists
+
+Itens adicionados pela aba Playlists ficam juntos em Pasta de destino/Nome da
+playlist/Artista - Música.ext, em vez de serem separados por artista ou catálogo.
+O nome e a pasta de destino ficam registrados ao adicionar à fila. Importações
+TXT/M3U usam o nome do arquivo da lista. Playlists baixadas diretamente em Links
+e fila também usam o título informado pela fonte. Caracteres inválidos no Windows
+são substituídos. Músicas avulsas continuam seguindo a organização configurada.
+
+### Primeira abertura
+
+A janela de boas-vindas aparece uma única vez por usuário do Windows, tanto
+no portátil quanto no aplicativo instalado. Escolha pasta de destino, formato,
+catálogo e limite de playlists, depois clique em Aplicar e começar. Lembrar
+estas configurações define se as escolhas serão mantidas nas próximas aberturas.
+Fechar pelo X ou clicar em Agora não mantém as opções atuais e libera o uso
+imediato do programa. O aviso não volta em atualizações nem ao desativar Lembrar
+configurações. O registro fica em %LOCALAPPDATA%/Onda/welcome-seen.json, separado
+das preferências, e não é incluído na distribuição.
+
+### Buscar dentro da playlist
+
+Após Carregar playlist, use Buscar na playlist para filtrar por nome da música
+ou artista. A busca ignora maiúsculas e acentos e aceita várias palavras. O
+contador mostra quantos itens correspondem à busca. Limpar ou Esc restaura a
+lista completa. Selecionar visíveis, Conferir correspondências e Adicionar
+selecionadas atuam somente nas linhas visíveis selecionadas. Resultados de
+correspondências são mantidos ao filtrar e limpar a busca. Carregar outra
+playlist limpa o filtro. A busca abrange os itens carregados, respeitando o
+limite configurado para a importação.
+
+
+## Importar CSV, exportar listas e conectar Spotify
+
+Na aba Playlists, **Importar arquivo** aceita TXT, M3U, M3U8 e CSV (UTF-8,
+até 10 MB). CSV do Exportify é reconhecido pela coluna Track URI. URIs
+spotify:track:ID são convertidas para links; títulos, artistas e duração são
+mostrados quando presentes. Linhas sem links válidos são ignoradas com aviso.
+O limite definido em Configurações → Downloads continua valendo.
+
+**Exportar lista** salva TXT ou M3U/M3U8 com todos os itens carregados, mesmo
+quando há busca ativa. Exporta links individuais, não arquivos de áudio.
+Uma lista pública Spotify parcial continua parcial ao exportar: use a conexão
+autorizada ou importe um CSV completo para obter todos os itens.
+
+**Conectar Spotify** abre uma janela com as instruções. Crie ou abra um app em
+https://developer.spotify.com/dashboard e registre exatamente este Redirect URI:
+`http://127.0.0.1:8765/callback`. Informe o Client ID e clique em Conectar; a
+conta é autorizada no navegador padrão usando PKCE, sem Client Secret. Depois
+cole o link da playlist e clique em Carregar playlist. O login não altera a
+origem do áudio: os downloads continuam pelo fluxo existente do YouTube.
+
+A leitura usa /v1/playlists/ID/items, em páginas de até 50 itens. A API atual
+permite ler playlists da conta conectada ou das quais ela é colaboradora.
+Em modo de desenvolvimento, o dono do app precisa de Spotify Premium e a
+conta deve estar entre os usuários autorizados no dashboard. Falhas de permissão
+ou de paginação são mostradas; não há retorno silencioso à lista pública de
+100 itens. Episódios, arquivos locais e itens indisponíveis são omitidos com
+contagem. Se a conexão não for usada, a importação pública continua disponível.
+
+Lembrar conexão é opcional e independente de Lembrar configurações. Somente
+Client ID e refresh token são guardados com DPAPI do usuário Windows, em
+LOCALAPPDATA/Onda/spotify-account.dpapi. Tokens de acesso não entram na fila,
+no arquivo de configurações nem na exportação. Desconectar remove a conexão
+local; a revogação do acesso também pode ser feita na conta Spotify. A janela
+pode ser fechada para cancelar a autorização; o tempo máximo é de 3 minutos.
+
+
+**Ver lista**, na aba Playlists, abre uma janela separada apenas com número,
+título, artista e duração de todos os itens carregados. A busca da aba principal
+não esconde itens nessa janela. Você pode redimensionar, rolar e fechar com Esc.
+A janela acompanha uma nova playlist carregada e não altera a seleção para baixar.
+
+
+## Seleção automática da versão do YouTube
+
+Em Configurações → Downloads, ative **Escolher automaticamente a versão mais
+semelhante no YouTube**. O app usa a maior pontuação entre os candidatos
+compatíveis, considerando título, artista, duração e versão (remix, ao vivo,
+etc.). Empates mantêm a ordem dos resultados da busca. A janela de versões não
+aparece, mesmo quando Confirmar versão estava marcado na playlist.
+
+A opção vale no início de cada download, incluindo os itens já pendentes na fila.
+É salva com Lembrar configurações. Se não houver candidato compatível, o item
+termina com erro sem solicitar uma escolha, e a fila continua. As opções de
+revisão de metadados e de arquivos duplicados permanecem independentes.
+
+
+## Evitar abertura duplicada
+
+No Windows, o Onda permite uma única janela principal por sessão de usuário,
+inclusive entre cópias portáteis e instaladas. Ao abrir novamente, mostra
+“Onda já está aberto” e solicita trazer a janela existente para a frente,
+restaurando-a se estiver minimizada. O bloqueio é liberado pelo Windows quando
+o processo termina, inclusive em encerramentos inesperados; não há arquivo
+que precise ser removido manualmente. O diagnóstico --self-test é independente.
+
+
+**Limpar fila**, em Links e fila, remove todos os itens listados, incluindo
+concluídos e falhos, preservando os arquivos já baixados e o histórico. Se houver
+um download em andamento, pede confirmação para interrompê-lo e aguarda o
+worker encerrar antes de remover esse item. A fila salva também é atualizada.
+**Alt + A** seleciona todos os itens em Links e fila; em Playlists, seleciona
+somente os itens visíveis na busca atual. O atalho não atua nas outras janelas.
+
+
+A restauração da fila ao abrir é feita em lote: os itens mantêm ordem e suas
+configurações individuais, e o banco é salvo uma única vez ao concluir.
+Não há gravações intermediárias nem reconstrução da lista de duplicados por
+música. A abertura continua sem iniciar downloads automaticamente.
+
+## Links comuns e arquivos do Google
+
+Cole um link HTTP/HTTPS em Links e fila e use Baixar agora ou a fila. Imagens diretas são reconhecidas automaticamente e salvas no formato original; áudio e vídeo usam o formato e a qualidade escolhidos. Links de redirecionamento do Google e “Google Imagens” com imgurl são convertidos para o endereço original. Páginas comuns podem fornecer mídia pelas tags de vídeo/áudio; no modo Fotos, também pela imagem principal declarada na página.
+
+Arquivos públicos do Google Drive são consultados pelo link compartilhado. A disponibilidade depende da permissão, do limite de downloads e das confirmações exigidas pelo Google. Uma página de resultados de pesquisa, um álbum privado do Google Fotos ou conteúdo protegido não garante um arquivo baixável. No Google Imagens, prefira “Abrir imagem em nova guia” e copie o endereço da imagem.
+
+## Aba Imagens
+
+Reconhecimento em Links e fila continua disponível. Na aba Imagens, escolha Original, JPG, PNG ou WebP e tamanho original, limites predefinidos ou largura/altura personalizadas. Manter proporção preserva a imagem inteira dentro do limite e não amplia a fonte; desativar permite dimensões exatas com possível distorção. A prévia de links diretos mostra dimensões e tamanho estimado após conversão; publicações com fotos usam o fluxo habitual de seleção durante o download. Os arquivos usam a pasta das configurações, fila compartilhada, histórico e tratamento de duplicados. As opções ficam guardadas nos itens pendentes. JPG usa fundo branco para transparência e salva apenas o primeiro quadro de imagens animadas; PNG e WebP preservam a animação.
+
+## Ordem das abas
+
+Arraste uma aba para a esquerda ou direita para mudar sua posição. A aba em uso permanece aberta durante o arrasto. Esc cancela a alteração antes de soltar. Clique com o botão direito numa aba para mover uma posição ou restaurar a ordem original. Com Lembrar configurações ativado, a ordem é recuperada nas próximas aberturas; desativado, a mudança vale apenas nesta sessão.
+
+SVG também está disponível em Imagens: a imagem raster é incorporada como PNG dentro de um arquivo SVG independente, mantendo transparência e dimensões escolhidas. Isso não faz vetorização automática. Imagens animadas usam somente o primeiro quadro nesse formato.
+
+Com Lembrar configurações ativado, a aba Imagens também recupera formato, tamanho máximo, largura/altura personalizadas e a opção Manter proporção ao reabrir o ONDA.
+
+Em Configurações → Geral, use Restaurar TODAS as configurações ao padrão ou Escolher quais configurações restaurar. A janela lista as opções por categoria e permite revisar a seleção antes de confirmar. Contas, credenciais, fila, histórico e arquivos baixados são mantidos. Restaurar Lembrar configurações desativa o salvamento e remove as preferências salvas; desmarque essa opção para manter o salvamento automático dos novos padrões.
+
+Em Efeitos, Manter tom (pitch) altera a velocidade com atempo, preservando o tom original na prévia e na exportação. Desativado, Slowed fica mais grave e Sped Up mais agudo. Reverb continua independente. A opção participa de Lembrar configurações e da restauração de padrões; começa desativada para preservar o comportamento anterior.
+
+Em Pesquisar músicas, Spotify está disponível junto de Deezer e Apple. Para busca por nome, use Conectar Spotify (a mesma conexão das playlists) ou Client ID + Client Secret em Metadados. São mostrados até 25 resultados com título, artista, álbum, capa e duração. A prévia depende da disponibilidade informada pelo Spotify. Os metadados da faixa selecionada acompanham o item da fila, inclusive após reiniciar; o áudio completo continua sendo obtido do YouTube. Sem conexão/credenciais, o app orienta como habilitar o Spotify, sem trocar silenciosamente de catálogo.
+
+Em Álbuns e playlists, cole um álbum Spotify, Deezer ou Apple Music e clique em Carregar álbum ou playlist. Selecione as faixas e use Adicionar selecionadas; formato e qualidade são próprios desta aba. As faixas ficam numa subpasta no formato Artista - Álbum, usando o artista do álbum quando disponível. Spotify usa API quando houver autorização/credenciais e tenta o embed público quando necessário; a página pública pode omitir faixas. Apple usa o catálogo público iTunes da região e retorna até 200 faixas. O áudio completo de streaming continua vindo do YouTube; tags e capa disponíveis acompanham os arquivos.
+
+Na seleção de publicações mistas, cada vídeo tem um seletor para MP4/MKV ou somente áudio MP3/M4A/FLAC/original. Fotos continuam como imagens. Links mostra fotos e vídeos juntos mesmo quando Fotos estava selecionado; a aba Imagens mantém o filtro de fotos. Quando o formato de áudio muda nesta janela, usa a qualidade padrão do formato (MP3 320 kbps, M4A 256 kbps); se o formato já era o mesmo em Links, preserva a qualidade escolhida.
+
+Em Álbuns e playlists, Baixar agora inicia somente os itens visíveis selecionados, usando formato e qualidade da própria aba e a pasta do álbum/playlist. Adicionar à fila apenas os prepara para depois. Outros itens pendentes não são iniciados pelo botão Baixar agora.
+
+A fila mostra Artista - Música ao adicionar resultados de pesquisa, álbuns e playlists, sem esperar o download, e mantém os nomes ao reabrir. Links de música de streaming ou YouTube colados em Links consultam o título em segundo plano; se a plataforma não permitir a consulta, o endereço permanece até o download obter o título. A consulta não baixa a mídia.
+
+Configurações → Aparência permite escolher Claro, Escuro ou Seguir o sistema e 16 cores de destaque: verde-água, azul, roxo, rosa, laranja, vermelho, verde, verde-limão, amarelo, dourado, ciano, turquesa, índigo, lilás, coral e cinza. A aplicação é imediata, inclusive em janelas abertas. Seguir o sistema acompanha o modo de aplicativos do Windows. Ative Lembrar configurações em Geral para recuperar o tema e a cor ao reabrir. As duas opções também podem ser restauradas ao padrão.

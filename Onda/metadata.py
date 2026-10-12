@@ -319,10 +319,20 @@ class MetadataClient:
         record["notes"].append("Link de entrada Spotify; metadados e capa da faixa correspondente em " + record["platform"] + ". Correspondência de catálogo não comprova a masterização do áudio YouTube.")
         return record
 
-    def search(self, query, provider="Deezer", country="br", limit=25):
+    def search(self, query, provider="Deezer", country="br", limit=25, *, account=None):
         query = query.strip()
         if not 2 <= len(query) <= 300:
             raise MetadataError("Digite entre 2 e 300 caracteres para pesquisar.")
+        if provider == 'Spotify':
+            from spotify_search import search_tracks
+            if account is not None and account.connected:
+                return search_tracks(query, account.get, country, limit)
+            if not self.client_id or not self.client_secret:
+                raise MetadataError('Para pesquisar no Spotify, use Conectar Spotify ou configure Client ID e Client Secret em Metadados. Deezer e Apple continuam disponíveis sem conexão Spotify.')
+            def get(path, params):
+                return self.get_json('https://api.spotify.com/v1/' + path, params=params,
+                                     headers={'Authorization': 'Bearer ' + self.spotify_token()})
+            return search_tracks(query, get, country, limit)
         if provider == "Deezer":
             response = self.get_json("https://api.deezer.com/search", params={"q": query, "limit": limit})
             if response.get("error"):

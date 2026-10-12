@@ -70,7 +70,7 @@ def render(config):
         mode = output.suffix.lower()
         if mode not in (".mp3", ".m4a", ".flac", ".wav"):
             raise ValueError("Exporte em MP3, M4A, FLAC ou WAV.")
-        filters = effects_filter(config.get("speed", 100), config.get("reverb", 0))
+        filters = effects_filter(config.get("speed", 100), config.get("reverb", 0), config.get("keep_pitch", False))
         ffmpeg, ffprobe = (executable(name, config.get("ffmpeg", "")) for name in ("ffmpeg", "ffprobe"))
         probe = subprocess.run([ffprobe, "-v", "error", "-show_entries", "format=duration", "-of", "json", str(source)],
                                capture_output=True, text=True, timeout=20, **process_options())

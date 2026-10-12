@@ -17,13 +17,39 @@ class PreferenceStore:
         if not isinstance(data, dict):
             return {}
         result = {}
+        from appearance import THEME_MODES, ACCENTS
+        for name, choices in (('theme_mode', THEME_MODES), ('theme_accent', ACCENTS)):
+            value = data.get(name)
+            if isinstance(value, str) and value in choices:
+                result[name] = value
+        if type(data.get('effects_keep_pitch')) is bool:
+            result['effects_keep_pitch'] = data['effects_keep_pitch']
+        from image_output import FORMATS, IMAGE_SIZES
+        for name, choices in (('image_format', FORMATS), ('image_size', IMAGE_SIZES)):
+            value = data.get(name)
+            if isinstance(value, str) and value in choices:
+                result[name] = value
+        for name in ('image_width', 'image_height'):
+            value = data.get(name)
+            if isinstance(value, str) and value.isascii() and value.isdecimal() and len(value) <= 5 and 1 <= int(value) <= 16384:
+                result[name] = str(int(value))
+        if type(data.get('image_keep_ratio')) is bool:
+            result['image_keep_ratio'] = data['image_keep_ratio']
+        if isinstance(data.get('tab_order'), (list, tuple)):
+            from tab_order import normalize_order
+            result['tab_order'] = normalize_order(data['tab_order'])
+        for name, choices in (("playlist_mode", {key for key, value in MODES.items() if value not in ("photos", "social")}),
+                              ("playlist_height", HEIGHTS), ("playlist_fps", FPS_OPTIONS),
+                              ("playlist_mp3_quality", MP3_QUALITIES), ("playlist_m4a_quality", M4A_QUALITIES)):
+            if data.get(name) in choices:
+                result[name] = data[name]
         if data.get("mode") in MODES:
             result["mode"] = data["mode"]
         if data.get("height") in HEIGHTS:
             result["height"] = data["height"]
         if data.get("fps") in FPS_OPTIONS:
             result["fps"] = data["fps"]
-        if data.get("catalog_provider") in ("Deezer", "Apple / iTunes"):
+        if data.get("catalog_provider") in ("Deezer", "Apple / iTunes", "Spotify"):
             result["catalog_provider"] = data["catalog_provider"]
         from file_output import ORGANIZATIONS, DUPLICATES
         if data.get("organization") in ORGANIZATIONS:
@@ -32,6 +58,8 @@ class PreferenceStore:
             result["duplicates"] = data["duplicates"]
         if type(data.get("review_metadata")) is bool:
             result["review_metadata"] = data["review_metadata"]
+        if type(data.get("auto_match")) is bool:
+            result["auto_match"] = data["auto_match"]
         if type(data.get("background_preview")) is bool:
             result["background_preview"] = data["background_preview"]
         from preview_options import PREVIEW_DURATIONS

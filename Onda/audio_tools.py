@@ -22,13 +22,18 @@ def process_options():
     return {"creationflags": subprocess.CREATE_NO_WINDOW} if os.name == "nt" else {"start_new_session": True}
 
 
-def effects_filter(speed=100, reverb=0):
+def effects_filter(speed=100, reverb=0, keep_pitch=False):
+    if type(keep_pitch) is not bool:
+        raise ValueError('Manter tom deve estar ativado ou desativado.')
     speed, reverb = float(speed), float(reverb)
     if not math.isfinite(speed) or not MIN_SPEED <= speed <= MAX_SPEED or not math.isfinite(reverb) or not 0 <= reverb <= 100:
         raise ValueError("Velocidade deve ficar entre 50 e 150%; reverb entre 0 e 100%.")
     filters = []
     if speed != 100:
-        filters += ["aresample=48000", f"asetrate={round(48000 * speed / 100)}", "aresample=48000"]
+        if keep_pitch:
+            filters.append(f'atempo={speed / 100:g}')
+        else:
+            filters += ["aresample=48000", f"asetrate={round(48000 * speed / 100)}", "aresample=48000"]
     if reverb:
         wet = reverb / 100
         delays = [round((23 + i * 29 + (i % 3) * 7) * (0.6 + wet)) for i in range(32)]
@@ -83,7 +88,7 @@ class PreviewPlayer:
                     process.wait()
             threading.Thread(target=reap, daemon=True).start()
 
-    def play(self, source, folder="", speed=100, reverb=0, start=0, youtube=False, duration=25):
+    def play(self, source, folder="", speed=100, reverb=0, start=0, youtube=False, duration=25, keep_pitch=False):
         duration = float(duration)
         if not math.isfinite(duration) or not 10 <= duration <= 180:
             raise ValueError("A prévia deve durar entre 10 e 180 segundos.")
@@ -96,7 +101,7 @@ class PreviewPlayer:
             process = None
             try:
                 ffplay = executable("ffplay", folder)
-                filters = effects_filter(speed, reverb)
+                filters = effects_filter(speed, reverb, keep_pitch)
                 headers = {}
                 url = source
                 if youtube:

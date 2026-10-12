@@ -53,7 +53,7 @@ def score_candidate(record, candidate):
     return round(score, 4)
 
 
-def select_candidate(record, entries):
+def select_candidate(record, entries, *, prefer_best=False):
     entries = list(entries)
     ranked = []
     for entry in entries:
@@ -63,6 +63,8 @@ def select_candidate(record, entries):
         if score is not None and score >= .84:
             ranked.append((score, entry))
     if not ranked:
+        if prefer_best:
+            raise ValueError("Nenhuma versão suficientemente compatível no YouTube para seleção automática. O item não foi baixado; confira título, artista e versão da faixa.")
         # Offer plausible versions for explicit review; never silently relax
         # duration/version constraints for the automatic selection.
         title = words(without_guest_credit(record.get("title"))) - VERSIONS
@@ -84,12 +86,12 @@ def select_candidate(record, entries):
     ranked.sort(key=lambda row: row[0], reverse=True)
     candidates = [{**entry, "match_score": score,
                    "source_url": "https://www.youtube.com/watch?v=" + entry["id"]} for score, entry in ranked]
-    if len(ranked) > 1 and ranked[0][0] - ranked[1][0] < .025:
+    if not prefer_best and len(ranked) > 1 and ranked[0][0] - ranked[1][0] < .025:
         raise AmbiguousMatch(candidates)
     return candidates[0]
 
 
-def find_youtube(record, logger):
+def find_youtube(record, logger, *, prefer_best=False):
     from yt_dlp import YoutubeDL
     if not record.get("title") or not record.get("artists"):
         raise ValueError("Faltam título/artista para buscar com segurança. Pesquise a música pelo nome na aba Pesquisar músicas e escolha uma faixa do catálogo.")
@@ -98,4 +100,14 @@ def find_youtube(record, logger):
                    playlistend=8, socket_timeout=20, retries=2, js_runtimes={"deno": {}, "node": {}})
     with YoutubeDL(options) as ydl:
         result = ydl.extract_info("ytsearch8:" + query, download=False)
-    return select_candidate(record, (result or {}).get("entries") or [])
+    return select_candidate(record, (result or {}).get("entries") or [], prefer_best=prefer_best)
+
+
+def resolve_youtube(record, logger, choose, *, automatic=False, confirm=False):
+    if automatic:
+        return find_youtube(record, logger, prefer_best=True)
+    try:
+        match = find_youtube(record, logger)
+    except AmbiguousMatch as exc:
+        return choose(record, exc.candidates)
+    return choose(record, [match]) if confirm else match

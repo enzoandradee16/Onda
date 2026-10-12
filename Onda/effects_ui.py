@@ -33,6 +33,7 @@ class EffectsPane(ttk.Frame):
         self.source = tk.StringVar()
         self.speed = tk.DoubleVar(value=85)
         self.reverb = tk.DoubleVar(value=25)
+        self.keep_pitch = app.effects_keep_pitch
         self.preset = tk.StringVar(value="Clássico")
         self.start_time = tk.StringVar(value="0")
         self.mode = tk.StringVar(value="MP3")
@@ -87,6 +88,8 @@ class EffectsPane(ttk.Frame):
         self.reverb_slider = ttk.Scale(card, from_=0, to=100, variable=self.reverb, command=self.changed)
         self.reverb_slider.grid(row=4, column=0, columnspan=2, sticky="ew", pady=8)
         ttk.Label(card, text="0% · sem reverb                                                   100% · mais ambiente", style="CardMuted.TLabel").grid(row=5, column=0, sticky="w")
+        self.keep_pitch_checkbox = ttk.Checkbutton(card, text='Manter tom (pitch) ao alterar a velocidade', variable=self.keep_pitch)
+        self.keep_pitch_checkbox.grid(row=6, column=0, columnspan=2, sticky='w', pady=(10, 0))
         timeline = ttk.Frame(self)
         timeline.grid(row=4, column=0, sticky="ew", pady=(0, 12))
         timeline.columnconfigure(0, weight=1)
@@ -117,6 +120,7 @@ class EffectsPane(ttk.Frame):
         self.bar.grid(row=8, column=0, sticky="ew", pady=8)
         self.status_label = ttk.Label(self, textvariable=self.status, style="Muted.TLabel", wraplength=800)
         self.status_label.grid(row=9, column=0, sticky="w")
+        self.keep_pitch_trace = self.keep_pitch.trace_add("write", lambda *_: self.changed())
         self.source.trace_add("write", self.source_changed)
         self.changed()
         self.poll_id = self.after(100, self.poll)
@@ -242,11 +246,12 @@ class EffectsPane(ttk.Frame):
                 start = 0
             self.set_position(start)
             speed, reverb = (round(self.speed.get()), round(self.reverb.get())) if processed else (100, 0)
-            effects_filter(speed, reverb)
+            keep_pitch = self.keep_pitch.get() if processed else False
+            effects_filter(speed, reverb, keep_pitch)
             self.app.catalog_page.stop_preview()
             from preview_options import preview_seconds
             duration = preview_seconds(self.app.effects_preview_duration.get())
-            self.player.play(str(source), self.app.ffmpeg.get(), speed, reverb, start, duration=duration)
+            self.player.play(str(source), self.app.ffmpeg.get(), speed, reverb, start, duration=duration, keep_pitch=keep_pitch)
             self.preview_active = processed
             self.playback_mode = processed
             self.status.set("Preparando prévia…")
@@ -292,11 +297,12 @@ class EffectsPane(ttk.Frame):
         self.speed_slider.configure(state="disabled")
         self.reverb_slider.configure(state="disabled")
         self.preset_box.configure(state="disabled")
+        self.keep_pitch_checkbox.configure(state="disabled")
         self.cancel_button.configure(state="normal")
         self.status.set("Exportando a música inteira…")
         self.bar.configure(value=0)
         quality = self.app.mp3_quality.get() if suffix == ".mp3" else self.app.m4a_quality.get()
-        config = {"source": str(source.resolve()), "output": output, "speed": speed, "reverb": reverb,
+        config = {"source": str(source.resolve()), "output": output, "speed": speed, "reverb": reverb, "keep_pitch": self.keep_pitch.get(),
                   "ffmpeg": self.app.ffmpeg.get(), "replace": replace, "bitrate": int(quality.split()[0])}
         threading.Thread(target=self.render, args=(config,), daemon=True).start()
 
@@ -400,6 +406,7 @@ class EffectsPane(ttk.Frame):
                 self.speed_slider.configure(state="normal")
                 self.reverb_slider.configure(state="normal")
                 self.preset_box.configure(state="readonly")
+                self.keep_pitch_checkbox.configure(state="normal")
                 self.cancel_button.configure(state="disabled")
                 if event.get("cancelled"):
                     self.status.set("Exportação cancelada. O original foi preservado.")
@@ -418,6 +425,7 @@ class EffectsPane(ttk.Frame):
 
     def shutdown(self):
         self.closed = True
+        self.keep_pitch.trace_remove("write", self.keep_pitch_trace)
         self.probe_generation += 1
         if self.probe_after:
             self.after_cancel(self.probe_after)

@@ -161,6 +161,15 @@ def save_media(session, url, metadata, config, emit, ask_duplicate, index):
         if not size or (total is not None and size != total):
             raise ValueError("Transferência incompleta; tente baixar a publicação novamente.")
     partial.replace(path)
+    if extension in IMAGES and config.get('image_options'):
+        from image_output import transform_image
+        path = transform_image(path, config['image_options'], emit)
+        extension = path.suffix.lstrip('.').lower()
+        size = path.stat().st_size
+    if extension in VIDEOS and (config['mode'] in ('mp3', 'm4a', 'flac', 'original') or (config['mode'] == 'video' and extension != 'mkv') or (config['mode'] == 'mp4' and extension != 'mp4')):
+        path = extract_video_audio(path, config, emit)
+        extension = path.suffix.lstrip('.').lower()
+        size = path.stat().st_size
     final, skipped = publish(path, folder, config.get("duplicate_policy", "keep"), ask_duplicate)
     if skipped:
         path.unlink(missing_ok=True)
@@ -172,6 +181,31 @@ def save_media(session, url, metadata, config, emit, ask_duplicate, index):
     except OSError:
         pass
     return final
+
+
+def extract_video_audio(path, config, emit):
+    from yt_dlp import YoutubeDL
+    from yt_dlp.postprocessor.ffmpeg import FFmpegExtractAudioPP, FFmpegVideoRemuxerPP, FFmpegVideoConvertorPP
+    from audio_quality import AudioQualityPP
+    from engine import audio_bitrate, Logger
+    emit('stage', message='Extraindo o áudio do vídeo…' if config['mode'] not in ('video', 'mp4') else 'Preparando o formato do vídeo…')
+    options = {'quiet': True, 'logger': Logger()}
+    if config.get('ffmpeg'):
+        options['ffmpeg_location'] = config['ffmpeg']
+    with YoutubeDL(options) as downloader:
+        mode = config['mode']
+        if mode in ('mp3', 'm4a'):
+            processor = AudioQualityPP(downloader, audio_bitrate(config), mode)
+        elif mode in ('video', 'mp4'):
+            processor = FFmpegVideoRemuxerPP(downloader, preferedformat='mkv') if mode == 'video' else FFmpegVideoConvertorPP(downloader, preferedformat='mp4')
+        else:
+            processor = FFmpegExtractAudioPP(downloader, preferredcodec='best' if mode == 'original' else mode)
+        deleted, info = processor.run({'filepath': str(path), 'ext': path.suffix.lstrip('.')})
+    target = Path(info['filepath'])
+    for source in deleted:
+        if Path(source) != target:
+            Path(source).unlink(missing_ok=True)
+    return target
 
 
 def media_candidates(items):
@@ -187,17 +221,21 @@ def download_selected(items, session, config, emit, ask_duplicate, choose=None):
     available = [(url, metadata) for url, metadata in items if metadata.get("extension") in IMAGES | VIDEOS]
     has_photos = any(metadata.get("extension") in IMAGES for _, metadata in available)
     has_videos = any(metadata.get("extension") in VIDEOS for _, metadata in available)
-    # A homogeneous post needs no manual photo/video switch. An explicit
-    # photo filter still applies to mixed posts, where both choices exist.
+    # Links offers every mixed-post item; the Images tab keeps its photo filter.
     if has_videos and not has_photos and config["mode"] == "photos":
         config = dict(config, mode="mp4")
         emit("log", message="Publicação somente com vídeos: formato automático MP4.")
-    elif config["mode"] == "photos":
+    elif config["mode"] == "photos" and (config.get("image_options") or choose is None):
         available = [(url, metadata) for url, metadata in available if metadata.get("extension") in IMAGES]
     if not available:
         raise ValueError("Nenhuma foto disponível neste link." if config["mode"] == "photos" else "Nenhuma mídia disponível nesta publicação.")
     candidates = media_candidates(available)
-    selected = set(choose(candidates)) if len(candidates) > 2 and choose else {item["id"] for item in candidates}
+    for candidate in candidates:
+        candidate['default_mode'] = config['mode']
+    response = choose(candidates) if choose and (len(candidates) > 2 or (has_photos and has_videos and not config.get('image_options'))) else [item['id'] for item in candidates]
+    from media_selection import validate_selection
+    ids, modes = validate_selection(response if isinstance(response, dict) else {'selected_ids': response}, candidates)
+    selected = set(ids)
     if not selected or not selected.issubset({item["id"] for item in candidates}):
         raise ValueError("Selecione pelo menos uma mídia válida para baixar.")
     emit("media_detected", count=len(available), photos=sum(item["kind"] == "Foto" for item in candidates),
@@ -206,10 +244,18 @@ def download_selected(items, session, config, emit, ask_duplicate, choose=None):
     for index, (media_url, metadata) in enumerate(available, 1):
         if str(index) not in selected:
             continue
+        item_config = config
+        if metadata.get('extension') in VIDEOS:
+            mode = modes.get(str(index), config['mode'])
+            if mode in ('photos', 'social'):
+                mode = 'mp4' if mode == 'photos' else 'social'
+            item_config = dict(config, mode=mode)
+            if mode != config['mode']:
+                item_config['audio_quality'] = None
         if metadata.get("extension") in VIDEOS and metadata.get("_video_info"):
-            path = save_video(session, metadata, config, emit, ask_duplicate, metadata.get("num") or index)
+            path = save_video(session, metadata, item_config, emit, ask_duplicate, metadata.get("num") or index)
         else:
-            path = save_media(session, media_url, metadata, config, emit, ask_duplicate, metadata.get("num") or index)
+            path = save_media(session, media_url, metadata, item_config, emit, ask_duplicate, metadata.get("num") or index)
         if path:
             saved.append(path)
     return saved
@@ -226,6 +272,12 @@ def save_video(session, metadata, config, emit, ask_duplicate, index):
     staging = folder / ".onda-work" / hashlib.sha256(config["url"].encode()).hexdigest()[:20]
     staging.mkdir(parents=True, exist_ok=True)
     options = build_options(dict(config, folder=str(staging)))
+    if config['mode'] in ('mp3', 'm4a'):
+        from audio_quality import AudioQualityPP
+        from engine import audio_bitrate
+    elif config['mode'] == 'original':
+        options['format'] = 'bestaudio/best'
+        options['postprocessors'] = [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'best'}]
     info = dict(metadata["_video_info"])
     dimensions = [f for f in info.get("formats", []) if f.get("width") and f.get("height")]
     if dimensions and all(f["width"] < f["height"] for f in dimensions):
@@ -260,6 +312,8 @@ def save_video(session, metadata, config, emit, ask_duplicate, index):
     with YoutubeDL(options) as downloader:
         for cookie in session.cookies:
             downloader.cookiejar.set_cookie(cookie)
+        if config['mode'] in ('mp3', 'm4a'):
+            downloader.add_post_processor(AudioQualityPP(downloader, audio_bitrate(config), config['mode']))
         downloader.add_post_processor(Estimate(downloader), when="before_dl")
         downloader.add_post_processor(Capture(downloader), when="after_move")
         downloader.process_ie_result(info, download=True)

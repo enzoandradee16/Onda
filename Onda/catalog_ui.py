@@ -63,9 +63,19 @@ class CatalogPane(ttk.Frame):
         self.entry.grid(row=0, column=0, sticky="ew", padx=(0, 10))
         self.entry.bind("<Return>", lambda _: self.search())
         self.provider = app.catalog_provider
-        ttk.Combobox(search, textvariable=self.provider, values=("Deezer", "Apple / iTunes"), state="readonly", width=15).grid(row=0, column=1, padx=(0, 10))
+        ttk.Combobox(search, textvariable=self.provider, values=("Deezer", "Apple / iTunes", "Spotify"), state="readonly", width=15).grid(row=0, column=1, padx=(0, 10))
         self.search_button = ttk.Button(search, text="Pesquisar", style="Accent.TButton", command=self.search)
         self.search_button.grid(row=0, column=2)
+        self.spotify_connect_button = ttk.Button(search, text='Conectar Spotify', command=lambda: self.app.playlist_page.connect_spotify())
+        self.spotify_connect_button.grid(row=1, column=0, columnspan=3, sticky='e', pady=(8, 0))
+        def provider_changed(*_):
+            if self.provider.get() == 'Spotify':
+                self.spotify_connect_button.grid()
+            else:
+                self.spotify_connect_button.grid_remove()
+        self.provider_trace = self.provider.trace_add('write', provider_changed)
+        provider_changed()
+
 
         panel = ttk.Frame(self)
         panel.grid(row=3, column=0, sticky="nsew")
@@ -139,6 +149,7 @@ class CatalogPane(ttk.Frame):
         self.generation += 1
         generation = self.generation
         provider = self.provider.get()
+        account = self.app.playlist_page.spotify_account if provider == 'Spotify' else None
         credentials = (self.app.spotify_client_id.get(), self.app.spotify_client_secret.get())
         self.records = []
         self.table.delete(*self.table.get_children())
@@ -148,7 +159,7 @@ class CatalogPane(ttk.Frame):
         def worker():
             client = MetadataClient(*credentials)
             try:
-                records = [client.resolve(query)] if is_streaming_link(query) else client.search(query, provider)
+                records = [client.resolve(query)] if is_streaming_link(query) else (client.search(query, provider, account=account) if provider == 'Spotify' else client.search(query, provider))
                 self.messages.put(("search", generation, records))
             except CatalogChoiceRequired as exc:
                 self.messages.put(("catalog_choice", generation, (exc.anchor, exc.candidates)))
@@ -327,6 +338,7 @@ class CatalogPane(ttk.Frame):
         threading.Thread(target=worker, daemon=True).start()
 
     def shutdown(self):
+        self.provider.trace_remove("write", self.provider_trace)
         if self.closed:
             return
         self.closed = True

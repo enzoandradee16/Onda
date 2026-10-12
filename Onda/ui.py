@@ -16,6 +16,9 @@ FORMAT_LABELS = {"Vídeo (MKV)": "video", "Vídeo (MP4)": "mp4", "MP3": "mp3", "
 
 class UiMixin:
     def _style(self):
+        from appearance import palette
+        colors = palette(self.theme_mode.get(), self.theme_accent.get())
+        BG, SURFACE, INPUT, TEXT, MUTED, ACCENT, LINE = (colors[key] for key in ('bg','surface','input','text','muted','accent','line'))
         style = ttk.Style(self)
         style.theme_use("clam")
         style.configure(".", background=BG, foreground=TEXT, font=("Segoe UI", 10),
@@ -23,7 +26,7 @@ class UiMixin:
         style.configure("TFrame", background=BG)
         style.configure("Card.TFrame", background=SURFACE)
         style.configure("TNotebook", background=BG, borderwidth=0)
-        style.configure("TNotebook.Tab", background=SURFACE, foreground=MUTED, padding=(20, 9))
+        style.configure("TNotebook.Tab", background=SURFACE, foreground=MUTED, padding=(8, 9))
         style.map("TNotebook.Tab", background=[("selected", INPUT)], foreground=[("selected", ACCENT)])
         style.configure("TLabel", background=BG)
         style.configure("Muted.TLabel", foreground=MUTED)
@@ -31,14 +34,14 @@ class UiMixin:
         style.configure("CardMuted.TLabel", background=SURFACE, foreground=MUTED)
         style.configure("TButton", background=INPUT, foreground=TEXT, padding=(14, 9), borderwidth=0,
                         focusthickness=0, relief="flat")
-        style.map("TButton", background=[("active", "#303d4d"), ("disabled", SURFACE)],
-                  foreground=[("disabled", "#566373")])
+        style.map("TButton", background=[("active", colors["hover"]), ("disabled", SURFACE)],
+                  foreground=[("disabled", colors["disabled"])])
         style.configure("Quiet.TButton", background=BG, foreground=MUTED, padding=(10, 7))
         style.map("Quiet.TButton", background=[("active", SURFACE), ("disabled", BG)],
-                  foreground=[("active", TEXT), ("disabled", "#566373")])
-        style.configure("Accent.TButton", background=ACCENT, foreground=BG, font=("Segoe UI", 10, "bold"))
-        style.map("Accent.TButton", background=[("active", "#a0edd7"), ("disabled", "#2b4841")],
-                  foreground=[("disabled", "#7eaa9e")])
+                  foreground=[("active", TEXT), ("disabled", colors["disabled"])])
+        style.configure("Accent.TButton", background=ACCENT, foreground=colors["accent_text"], font=("Segoe UI", 10, "bold"))
+        style.map("Accent.TButton", background=[("active", colors["accent_hover"]), ("disabled", colors["line"])],
+                  foreground=[("disabled", colors["muted"]), ("!disabled", colors["accent_text"])])
         style.configure("TEntry", fieldbackground=INPUT, foreground=TEXT, insertcolor=TEXT,
                         padding=8, borderwidth=0)
         style.configure("TCombobox", fieldbackground=INPUT, background=INPUT, arrowcolor=MUTED,
@@ -54,14 +57,21 @@ class UiMixin:
         style.configure("Treeview.Heading", background=SURFACE, foreground=MUTED,
                         font=("Segoe UI", 9), padding=(12, 12), borderwidth=0, relief="flat")
         style.map("Treeview.Heading", background=[("active", SURFACE)])
-        style.map("Treeview", background=[("selected", "#2b3d47")], foreground=[("selected", TEXT)])
+        style.map("Treeview", background=[("selected", colors["selected"])], foreground=[("selected", TEXT)])
         style.configure("Horizontal.TProgressbar", background=ACCENT, troughcolor=LINE,
                         borderwidth=0, thickness=4, lightcolor=ACCENT, darkcolor=ACCENT)
         style.configure("Vertical.TScrollbar", background=LINE, troughcolor=SURFACE,
                         arrowcolor=MUTED, borderwidth=0, arrowsize=12)
         self.option_add("*TCombobox*Listbox.background", INPUT)
         self.option_add("*TCombobox*Listbox.foreground", TEXT)
-        self.option_add("*TCombobox*Listbox.selectBackground", "#345048")
+        self.option_add("*TCombobox*Listbox.selectBackground", colors["selected"])
+
+        style.configure('Horizontal.TScale', background=BG, troughcolor=LINE, sliderrelief='flat')
+        style.configure('TRadiobutton', background=BG, foreground=TEXT)
+        style.map('TRadiobutton', background=[('active', BG)])
+        style.configure('TLabelframe', background=BG, bordercolor=LINE)
+        style.configure('TLabelframe.Label', background=BG, foreground=TEXT)
+        self.option_add('*TCombobox*Listbox.selectForeground', TEXT)
 
     def _layout(self):
         self.configure(bg=BG)
@@ -92,9 +102,18 @@ class UiMixin:
         self.effects_page = EffectsPane(self.pages, self)
         self.playlist_page = PlaylistPane(self.pages, self)
         self.history_page = HistoryPane(self.pages, self)
-        self.pages.add(self.playlist_page, text="Playlists")
+        from images_ui import ImagesPane
+        self.images_page = ImagesPane(self.pages, self)
+        self.pages.add(self.images_page, text="Imagens")
+        self.pages.add(self.playlist_page, text="Álbuns e playlists")
         self.pages.add(self.history_page, text="Histórico")
         self.pages.add(self.effects_page, text="Slowed / Sped Up")
+        from tab_order import TabReorder
+        self.tab_reorder = TabReorder(self.pages, {
+            'catalog': self.catalog_page, 'downloads': self.download_page,
+            'images': self.images_page, 'playlists': self.playlist_page,
+            'history': self.history_page, 'effects': self.effects_page,
+        }, self.tab_order.get(), lambda order: self.tab_order.set(tuple(order)))
         self.pages.bind("<<NotebookTabChanged>>", self.tab_changed)
         main = self.download_page
         main.columnconfigure(0, weight=1)
@@ -154,6 +173,8 @@ class UiMixin:
         self.retry_button.pack(side="right")
         self.remove_button = ttk.Button(queue_head, text="Remover selecionados", style="Quiet.TButton", command=self.remove, state="disabled")
         self.remove_button.pack(side="right", padx=4)
+        self.clear_queue_button = ttk.Button(queue_head, text="Limpar fila", style="Quiet.TButton", command=self.clear_queue, state="disabled")
+        self.clear_queue_button.pack(side="right", padx=4)
         table = ttk.Frame(main, style="Card.TFrame")
         table.grid(row=4, column=0, sticky="nsew")
         self.tree = ttk.Treeview(table, columns=("name", "format", "size", "status"), show="headings", height=5, selectmode="extended")
@@ -238,6 +259,7 @@ class UiMixin:
 
     def refresh_queue(self):
         count = len(self.jobs)
+        self.clear_queue_button.configure(state="normal" if count else "disabled")
         self.queue_count.set(f"{count} {'item' if count == 1 else 'itens'}")
         if count:
             self.empty_queue.place_forget()
@@ -269,13 +291,25 @@ class UiMixin:
         from settings_scroll import SettingsCategory
         categories = {}
         self.settings_categories = {}
-        for title in ("Geral", "Downloads", "Áudio", "Contas", "Ferramentas"):
+        for title in ("Geral", "Aparência", "Downloads", "Áudio", "Contas", "Ferramentas"):
             page = SettingsCategory(self.settings_pages, BG)
             self.settings_pages.add(page, text=title)
             self.settings_categories[str(page)] = page
             categories[title] = page.content
         self.settings_window.bind("<MouseWheel>",
                                   lambda event: self.settings_categories[self.settings_pages.select()].wheel(event))
+
+        appearance = categories['Aparência']
+        from appearance import THEME_MODES, ACCENTS
+        ttk.Label(appearance, text='Tema e cores', font=('Segoe UI', 13, 'bold')).pack(anchor='w', pady=(0, 12))
+        ttk.Label(appearance, text='Modo de aparência', style='Muted.TLabel').pack(anchor='w')
+        self.theme_mode_combo = ttk.Combobox(appearance, textvariable=self.theme_mode, values=THEME_MODES, state='readonly', width=28)
+        self.theme_mode_combo.pack(anchor='w', fill='x', pady=(6, 16))
+        ttk.Label(appearance, text='Cor de destaque', style='Muted.TLabel').pack(anchor='w')
+        self.theme_accent_combo = ttk.Combobox(appearance, textvariable=self.theme_accent, values=tuple(ACCENTS), state='readonly', width=28)
+        self.theme_accent_combo.pack(anchor='w', fill='x', pady=(6, 16))
+        ttk.Label(appearance, text='As mudanças aparecem na hora. Seguir o sistema acompanha o modo dos aplicativos do Windows, inclusive com o Onda aberto.', style='Muted.TLabel', wraplength=480).pack(anchor='w')
+        ttk.Label(appearance, text='Para manter sua escolha ao reabrir, ative Lembrar configurações na categoria Geral.', style='Muted.TLabel', wraplength=480).pack(anchor='w', pady=(12, 0))
 
         general = categories["Geral"]
         ttk.Label(general, text="Preferências", font=("Segoe UI", 13, "bold")).pack(anchor="w", pady=(0, 12))
@@ -286,9 +320,18 @@ class UiMixin:
         ttk.Label(general, text="Ative para recuperar suas opções ao abrir o aplicativo novamente.",
                   style="Muted.TLabel", wraplength=480).pack(anchor="w")
 
+        ttk.Separator(general).pack(fill='x', pady=18)
+        ttk.Label(general, text='Restaurar configurações', font=('Segoe UI', 13, 'bold')).pack(anchor='w', pady=(0, 8))
+        from reset_settings import show_reset
+        ttk.Button(general, text='Restaurar TODAS as configurações ao padrão', command=lambda: show_reset(self, True)).pack(anchor='w', pady=(0, 8))
+        ttk.Button(general, text='Escolher quais configurações restaurar…', command=lambda: show_reset(self, False)).pack(anchor='w')
+        ttk.Label(general, text='Você poderá conferir as opções antes de confirmar. Contas, fila, histórico e arquivos baixados são mantidos.', style='Muted.TLabel', wraplength=480).pack(anchor='w', pady=(8, 0))
+
         downloads = categories["Downloads"]
         ttk.Label(downloads, text="Downloads e arquivos", font=("Segoe UI", 13, "bold")).pack(anchor="w", pady=(0, 8))
         ttk.Label(downloads, text="As opções são aplicadas aos próximos links adicionados.", style="Muted.TLabel").pack(anchor="w", pady=(0, 8))
+        ttk.Checkbutton(downloads, text="Escolher automaticamente a versão mais semelhante no YouTube", variable=self.auto_match).pack(anchor="w", pady=(0, 6))
+        ttk.Label(downloads, text="Vale para os próximos downloads iniciados, inclusive itens já na fila. Ignora a confirmação de versão; escolhe a maior similaridade entre as versões compatíveis. Se nenhuma for compatível, informa o erro sem abrir uma escolha.", style="Muted.TLabel", wraplength=480).pack(anchor="w", fill="x", pady=(0, 12))
         ttk.Checkbutton(downloads, text="Revisar metadados antes de baixar", variable=self.review_metadata).pack(anchor="w", pady=(0, 8))
         ttk.Checkbutton(downloads, text="Baixar playlist de vídeo", variable=self.playlist).pack(anchor="w", pady=(0, 8))
         from playlist_options import PLAYLIST_LIMITS

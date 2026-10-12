@@ -18,10 +18,10 @@ os.environ["TCL_LIBRARY"] = str(TOOLS / "python" / "tcl" / "tcl8.6")
 os.environ["TK_LIBRARY"] = str(TOOLS / "python" / "tcl" / "tk8.6")
 
 
-def create_app():
+def create_app(*, show_welcome=True):
     from app import App
     from engine import binaries
-    app = App()
+    app = App(show_welcome=show_welcome)
     if not binaries(app.ffmpeg.get()):
         app.ffmpeg.set(str(TOOLS / "ffmpeg"))
     try:
@@ -51,12 +51,12 @@ def self_test(target):
             report["tools"][tool] = result.stdout.splitlines()[0]
         with tempfile.TemporaryDirectory(prefix="onda-diagnostic-") as temporary:
             os.environ["LOCALAPPDATA"] = temporary
-            app = create_app()
+            app = create_app(show_welcome=False)
             try:
                 app.update()
                 report["tabs"] = len(app.pages.tabs())
                 report["downloads"] = app.folder.get()
-                report["ok"] = report["tabs"] == 5
+                report["ok"] = report["tabs"] == 6
             finally:
                 app.destroy()
     except Exception:
@@ -71,7 +71,8 @@ if __name__ == "__main__":
     try:
         import ctypes
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("Onda.Desktop")
-        create_app().mainloop()
+        from single_instance import run_single_instance
+        sys.exit(run_single_instance(create_app))
     except Exception:
         log = Path(os.environ.get("LOCALAPPDATA", tempfile.gettempdir())) / "Onda" / "startup-error.log"
         log.parent.mkdir(parents=True, exist_ok=True)
