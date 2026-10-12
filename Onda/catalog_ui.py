@@ -61,7 +61,8 @@ class CatalogPane(ttk.Frame):
         self.query = tk.StringVar()
         self.entry = ttk.Entry(search, textvariable=self.query)
         self.entry.grid(row=0, column=0, sticky="ew", padx=(0, 10))
-        self.entry.bind("<Return>", lambda _: self.search())
+        self.entry.bind("<Return>", self.enter_search)
+        self.entry.bind("<KP_Enter>", self.enter_search)
         self.provider = app.catalog_provider
         ttk.Combobox(search, textvariable=self.provider, values=("Deezer", "Apple / iTunes", "Spotify"), state="readonly", width=15).grid(row=0, column=1, padx=(0, 10))
         self.search_button = ttk.Button(search, text="Pesquisar", style="Accent.TButton", command=self.search)
@@ -128,6 +129,13 @@ class CatalogPane(ttk.Frame):
         self.title_label.configure(wraplength=width)
         self.info_label.configure(wraplength=width)
         self.status_label.configure(wraplength=max(300, event.width - 20))
+
+    def enter_search(self, _event=None):
+        # Holding Enter must not toggle the running search into cancellation.
+        if self.search_button.cget("text") != "Cancelar":
+            self.query.set(self.query.get().replace("\r", " ").replace("\n", " ").strip())
+            self.search()
+        return "break"
 
     def search(self):
         if self.search_button.cget("text") == "Cancelar":

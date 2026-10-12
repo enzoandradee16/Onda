@@ -54,7 +54,9 @@ class App(UiMixin, tk.Tk):
         self.process_lock = threading.Lock()
         self.cancelled = threading.Event()
         self.theme_mode = tk.StringVar(value='Seguir o sistema')
-        self.theme_accent = tk.StringVar(value='Verde-água')
+        self.theme_accent = tk.StringVar(value='Verde-Água')
+        from interface_fonts import DEFAULT_FONT
+        self.interface_font = tk.StringVar(value=DEFAULT_FONT)
         self.mode = tk.StringVar(value=next(iter(MODES)))
         self.height = tk.StringVar(value="1080p")
         self.fps = tk.StringVar(value="Original")
@@ -99,7 +101,7 @@ class App(UiMixin, tk.Tk):
             preference_warning = str(exc)
         self.remember_settings = tk.BooleanVar(value=preferences is not None)
         self.preference_status = tk.StringVar(value="Salvamento automático ativado." if preferences is not None else "Desmarcado: opções só para esta sessão.")
-        self.preference_fields = {name: getattr(self, name) for name in ("theme_mode", "theme_accent", "effects_keep_pitch", "image_format", "image_size", "image_width", "image_height", "image_keep_ratio", "tab_order", "playlist_mode", "playlist_height", "playlist_fps", "playlist_mp3_quality", "playlist_m4a_quality", "mode", "height", "fps", "catalog_provider", "folder", "ffmpeg", "playlist", "playlist_limit", "mp3_quality", "m4a_quality", "review_metadata", "auto_match", "background_preview", "effects_preview_duration", "search_preview_duration", "organization", "duplicates")}
+        self.preference_fields = {name: getattr(self, name) for name in ("theme_mode", "theme_accent", "interface_font", "effects_keep_pitch", "image_format", "image_size", "image_width", "image_height", "image_keep_ratio", "tab_order", "playlist_mode", "playlist_height", "playlist_fps", "playlist_mp3_quality", "playlist_m4a_quality", "mode", "height", "fps", "catalog_provider", "folder", "ffmpeg", "playlist", "playlist_limit", "mp3_quality", "m4a_quality", "review_metadata", "auto_match", "background_preview", "effects_preview_duration", "search_preview_duration", "organization", "duplicates")}
         self.preference_defaults = {name: variable.get() for name, variable in self.preference_fields.items()}
         for name, value in (preferences or {}).items():
             self.preference_fields[name].set(value)

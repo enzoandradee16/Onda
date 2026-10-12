@@ -1,0 +1,62 @@
+# ONDA para Android
+
+Projeto Android separado da distribuição Windows. Kotlin/Compose fornece a interface e os serviços; Python/Chaquopy executa o motor compartilhado do ONDA. O build copia os módulos necessários de `../Onda`, sem editar o programa de PC.
+
+Esta é a versão **1.0.0-alpha.12 de desenvolvimento**. A implementação das funções do PC está sendo adaptada e validada em Android. Compilar não comprova funcionamento de todas as plataformas: login, cookies, correspondências e bloqueios dependem do serviço e do aparelho. Consulte [FUNCIONALIDADES.md](FUNCIONALIDADES.md) e a [auditoria de paridade com o PC](PARIDADE-PC-ANDROID.md).
+
+Resultados e pendências desta compilação: [validation/RESULTADOS.md](validation/RESULTADOS.md).
+
+## Instalar no celular
+
+Use `APK/ONDA-Android-1.0.0-alpha.12.apk`, transfira para o celular e permita a instalação pela origem escolhida. Android 8 ou superior, processador ARM64; o mesmo APK contém x86_64 para emulador. A assinatura é de desenvolvimento, não uma chave definitiva de publicação. Não precisa instalar Python, FFmpeg ou Termux.
+
+Abra o ONDA, conclua ou feche a configuração inicial. Em Links e fila, cole o link e escolha Baixar agora ou Adicionar à fila. Downloads usam notificações; conceda a permissão quando solicitada. Se precisar confirmar metadados/versão/mídias, abra o app e responda à janela.
+
+No Android 10+, a pasta padrão é Downloads/ONDA. Em Configurações → Downloads é possível escolher outra pasta pelo seletor do sistema. Android 8/9 usa a pasta do aplicativo se nenhuma pasta for escolhida; escolha uma pasta para preservar os downloads ao desinstalar. Histórico permite abrir, compartilhar e usar áudio/vídeo nos efeitos.
+
+Músicas de streaming usam metadados do catálogo e áudio equivalente do YouTube. A API Spotify é opcional para links individuais. Para conectar uma conta, cadastre `http://127.0.0.1:8765/callback` no Spotify Developers e informe seu Client ID. O retorno fica no próprio celular e usa PKCE. As restrições da API e o limite do embed público continuam aplicáveis; CSV do Exportify é uma alternativa.
+
+## Interface e acesso ao YouTube
+
+Abra o menu ☰ para alternar entre as áreas, acessar Configurações e consultar a fila. Os títulos e controles seguem a nomenclatura do programa de PC; seletores foram compactados para o celular. Em Efeitos, o preset selecionado acompanha os sliders e permanece ao trocar de área. Na busca, Ouvir muda para Parar enquanto a prévia está ativa.
+
+Se o YouTube exigir verificação, abra Menu → Sessão do YouTube e tente concluir a verificação na janela do próprio app. Toque em Usar esta sessão e tente novamente o download. A sessão é salva apenas no armazenamento privado do ONDA. O login ou a liberação podem ser recusados pelo YouTube em navegador incorporado; nesse caso, importe cookies.txt da sua própria sessão em Configurações → Contas. Nenhum desses caminhos garante remover bloqueios por IP ou exigências adicionais do serviço. Para apagar a sessão, use Remover sessão do YouTube nas configurações.
+
+## Compilar no Windows
+
+Requer JDK 17/21, SDK com plataforma Android 36 e Build Tools 36.0.0, e Python 3.11 para preparar as dependências. Se a pasta Portatil estiver ao lado, o script aproveita o Python dela.
+
+```powershell
+cd 'C:\Users\Enzo Andrade\Desktop\Onda\Celular'
+powershell -ExecutionPolicy Bypass -File '.\Compilar Android.ps1'
+```
+
+Também é possível abrir esta pasta em Android Studio. Configure `local.properties` com `sdk.dir` e, se necessário, passe `-Ponda.buildPython=C:/caminho/python.exe` ao Gradle. `local.properties`, caches, módulos copiados, APKs e chaves não entram no Git.
+
+Para testar, conecte um emulador/aparelho de teste e use `-Testar`. Os testes instrumentados criam mídias sintéticas e credenciais fictícias; não usam arquivos pessoais. Não execute testes em uma instalação com dados importantes.
+
+## Arquitetura
+
+- `app/src/main/java`: telas, fila persistente em SQLite, serviço de download, player Media3, permissões/SAF/MediaStore e Keystore.
+- `app/src/main/python/mobile_backend.py`: adaptação das ferramentas, eventos, escolhas, cancelamento e chamadas ao motor.
+- `app/src/main/python/shared`: gerado de `../Onda` durante a compilação; não editar.
+- `app/src/debug/python` e `app/src/androidTest`: testes reais no Android.
+- `tools/prepare_native_support.py`: prepara bibliotecas Android preservando links e sem incluir outro interpretador.
+
+As preferências, a fila, o histórico, os cookies importados e as credenciais ficam no armazenamento privado do app. Segredos são cifrados com Android Keystore; backups automáticos estão desativados. Arquivos exportados para Downloads/ONDA ou para a pasta escolhida ficam fora dos dados privados. O Android controla a desinstalação e a remoção dos dados privados.
+
+## Distribuição
+
+Não misture este APK com a release Windows existente. Antes de uma release Android pública: usar chave própria de assinatura, testar ARM64 e aparelhos reais, confirmar comportamento em segundo plano e finalizar o inventário/licenças/fontes dos componentes nativos. Veja [THIRD_PARTY_NOTICES_ANDROID.md](THIRD_PARTY_NOTICES_ANDROID.md).
+
+Na pesquisa, Adicionar à fila e Baixar agora alimentam a Fila da pesquisa, visível na mesma área. Ela mostra estado/progresso e usa o serviço da fila geral sem repetir downloads. Tempos são exibidos em minutos:segundos. Em Configurações → Contas, Abrir Spotify Developers abre o painel oficial no navegador; conectar exige Client ID, com aviso acima da janela se faltar.
+
+
+### Fonte da interface
+
+Em Configurações → Aparência → Fonte da interface, escolha Padrão do sistema, Sem serifa, Serifada, Monoespaçada, Condensada, Cursiva ou Arredondada. A prévia e a interface mudam imediatamente. Ative Lembrar configurações para manter a escolha ao reabrir; restaurar Aparência também restaura a fonte. Esta versão usa fontes nativas do Android, sem baixar arquivos de fontes.
+
+
+### Enter nos campos
+
+Em Pesquisar músicas, Enter do teclado físico ou a ação Pesquisar do teclado virtual inicia a busca, sem inserir uma linha. Os demais campos são de uma linha. Somente o campo LINKS em Links e fila aceita Enter para separar os links.

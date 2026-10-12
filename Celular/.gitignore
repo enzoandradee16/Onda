@@ -1,0 +1,12 @@
+.gradle/
+.idea/
+local.properties
+**/build/
+*.apk
+*.aab
+*.jks
+*.keystore
+captures/
+/APK/
+app/src/main/python/shared/
+validation/local-*.json

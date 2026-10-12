@@ -2,10 +2,12 @@
 import os
 import tkinter as tk
 from tkinter import ttk
+import tkinter.font as tkfont
+from interface_fonts import font_family, DEFAULT_FONT
 
 THEME_MODES = ('Seguir o sistema', 'Escuro', 'Claro')
 ACCENTS = {
-    'Verde-água': ('#79e2c4', '#087e69'),
+    'Verde-Água': ('#79e2c4', '#087e69'),
     'Azul': ('#8dbbff', '#245fbe'),
     'Roxo': ('#c0a4ff', '#7544b8'),
     'Rosa': ('#f5a4cd', '#af286d'),
@@ -41,13 +43,13 @@ def blend(first, second, amount):
     return '#' + ''.join(f'{value:02x}' for value in values)
 
 
-def palette(mode='Seguir o sistema', accent='Verde-água'):
+def palette(mode='Seguir o sistema', accent='Verde-Água'):
     mode = system_mode() if mode == 'Seguir o sistema' else mode
     light = mode == 'Claro'
     colors = dict(zip(('bg','surface','input','text','muted','line'),
         ('#f3f5f8','#ffffff','#e7edf4','#182335','#53647b','#cad3df') if light else
         ('#101419','#191f27','#222a35','#eef3f8','#91a0b3','#2a3441')))
-    colors['accent'] = ACCENTS.get(accent, ACCENTS['Verde-água'])[int(light)]
+    colors['accent'] = ACCENTS.get(accent, ACCENTS['Verde-Água'])[int(light)]
     colors.update(mode=mode, accent_text='#ffffff' if light else '#101419',
                   error='#b12c3c' if light else '#f2a198')
     colors['hover'] = blend(colors['input'], colors['text'], .08)
@@ -71,9 +73,10 @@ class ThemeManager:
     def __init__(self, app):
         self.app = app
         self.colors = None
+        self.font_name = None
         self.closed = False
         self.after_id = None
-        self.traces = [(var, var.trace_add('write', self.changed)) for var in (app.theme_mode, app.theme_accent)]
+        self.traces = [(var, var.trace_add('write', self.changed)) for var in (app.theme_mode, app.theme_accent, app.interface_font)]
         self.map_binding = app.bind_all('<Map>', self.mapped, add='+')
         self.apply()
         self.after_id = app.after(1500, self.check_system)
@@ -83,9 +86,12 @@ class ThemeManager:
 
     def apply(self):
         colors = palette(self.app.theme_mode.get(), self.app.theme_accent.get())
-        if colors == self.colors:
+        font_name = self.app.interface_font.get()
+        if colors == self.colors and font_name == self.font_name:
             return
         self.colors = colors
+        self.font_name = font_name
+        self.resolved_font = font_family(self.app, font_name)
         self.app._style()
         self.walk(self.app)
 
@@ -114,6 +120,7 @@ class ThemeManager:
         if not c:
             return
         try:
+            self.apply_widget_font(widget)
             roles = getattr(widget, '_onda_color_roles', None)
             if roles is None:
                 roles = {}
@@ -133,6 +140,8 @@ class ThemeManager:
                 fills = getattr(widget, '_onda_fill_roles', {})
                 for item in widget.find_all():
                     try:
+                        if widget.type(item) == 'text':
+                            self.apply_canvas_font(widget, item)
                         role = fills.get(item) or LEGACY.get(str(widget.itemcget(item,'fill')).lower())
                         if role:
                             fills[item] = role
@@ -146,11 +155,34 @@ class ThemeManager:
             if isinstance(widget, ttk.Combobox):
                 popup = widget.tk.call('ttk::combobox::PopdownWindow', widget)
                 widget.tk.call(str(popup)+'.f.l','configure','-background',c['input'],'-foreground',c['text'],
-                               '-selectbackground',c['selected'],'-selectforeground',c['text'])
+                               '-selectbackground',c['selected'],'-selectforeground',c['text'],
+                               '-font',(self.resolved_font, 10))
             if isinstance(widget, (tk.Toplevel, tk.Tk)):
                 self.titlebar(widget)
         except tk.TclError:
             pass
+
+    def apply_widget_font(self, widget):
+        if 'font' not in widget.keys() or not str(widget.cget('font')):
+            return  # Inherited ttk fonts follow the shared styles.
+        base = getattr(widget, '_onda_base_font', None)
+        if base is None:
+            base = tkfont.Font(root=self.app, font=widget.cget('font')).actual()
+            widget._onda_base_font = base
+            widget._onda_live_font = tkfont.Font(root=self.app, **base)
+        widget._onda_live_font.configure(family=base['family'] if self.font_name == DEFAULT_FONT else self.resolved_font)
+        widget.configure(font=widget._onda_live_font)
+
+    def apply_canvas_font(self, canvas, item):
+        fonts = getattr(canvas, '_onda_item_fonts', None)
+        if fonts is None:
+            fonts = canvas._onda_item_fonts = {}
+        if item not in fonts:
+            base = tkfont.Font(root=self.app, font=canvas.itemcget(item, 'font')).actual()
+            fonts[item] = (base, tkfont.Font(root=self.app, **base))
+        base, live = fonts[item]
+        live.configure(family=base['family'] if self.font_name == DEFAULT_FONT else self.resolved_font)
+        canvas.itemconfigure(item, font=live)
 
     def titlebar(self, window):
         if os.name != 'nt':

@@ -20,8 +20,13 @@ class PreferenceStore:
         from appearance import THEME_MODES, ACCENTS
         for name, choices in (('theme_mode', THEME_MODES), ('theme_accent', ACCENTS)):
             value = data.get(name)
+            if name == 'theme_accent' and value == 'Verde-água':
+                value = 'Verde-Água'
             if isinstance(value, str) and value in choices:
                 result[name] = value
+        from interface_fonts import valid_font
+        if valid_font(data.get('interface_font')):
+            result['interface_font'] = data['interface_font']
         if type(data.get('effects_keep_pitch')) is bool:
             result['effects_keep_pitch'] = data['effects_keep_pitch']
         from image_output import FORMATS, IMAGE_SIZES

@@ -23,6 +23,9 @@ class PaletteTests(unittest.TestCase):
                 self.assertGreaterEqual(contrast(c['text'],c['bg']),7)
                 self.assertGreaterEqual(contrast(c['muted'],c['bg']),4.5)
 
+    def test_old_accent_spelling_is_migrated(self):
+        self.assertEqual(PreferenceStore.clean({"theme_accent":"Verde-água"}),{"theme_accent":"Verde-Água"})
+
     def test_persistence_rejects_unknown_modes_and_colors(self):
         self.assertEqual(PreferenceStore.clean({'theme_mode':'Other','theme_accent':['Azul']}),{})
         for mode in THEME_MODES:
@@ -91,5 +94,5 @@ class AppearanceUiTests(unittest.TestCase):
         self.assertEqual(app.theme_accent.get(),'Rosa')
         apply_defaults(app,{'theme_accent'})
         self.assertEqual(app.theme_mode.get(),'Claro')
-        self.assertEqual(app.theme_accent.get(),'Verde-água')
+        self.assertEqual(app.theme_accent.get(),'Verde-Água')
         self.assertEqual(app.theme_manager.colors['accent'],palette('Claro')['accent'])

@@ -1,6 +1,8 @@
 """User-authorized, read-only playlist access via OAuth PKCE and loopback."""
 import base64
 import hashlib
+import html
+import json
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import re
 import secrets
@@ -33,7 +35,44 @@ def token_request(data):
         raise MetadataError("Não foi possível obter a autorização Spotify. Tente novamente.") from None
 
 
-def authorize(client_id, cancel, *, opener=webbrowser.open, port=8765, timeout=180):
+def callback_page(valid, granted, return_url=None):
+    """Static page: never reflect OAuth codes, state or errors into HTML."""
+    if return_url not in (None, "onda://spotify-return"):
+        raise ValueError("Endereço de retorno não permitido.")
+    message = ("Autorização recebida. Volte para o ONDA." if granted else
+               "Autorização não concedida. Volte para o ONDA." if valid else
+               "Retorno inválido. Volte para o ONDA e tente novamente.")
+    action = ('<a href="onda://spotify-return">Voltar para o ONDA</a>' if return_url else
+              '<button onclick="window.close()">Fechar esta aba</button>') if valid else ""
+    script = "history.replaceState(null, '', location.pathname);"
+    if valid:
+        script += """
+let seconds = 3;
+const message = document.getElementById('status');
+const tick = setInterval(() => {
+  seconds -= 1;
+  message.textContent = seconds > 0 ? `Voltando em ${seconds} segundos…` : 'Voltando para o ONDA…';
+  if (seconds <= 0) clearInterval(tick);
+}, 1000);
+setTimeout(() => {
+  RETURN_ACTION
+  window.close();
+  setTimeout(() => { message.textContent = 'Se a aba continuar aberta, você pode fechá-la e voltar para o ONDA.'; }, 500);
+}, 3000);
+""".replace("RETURN_ACTION", "location.href = " + json.dumps(return_url) + ";" if return_url else "")
+    return ("<!doctype html><html lang='pt-BR'><meta charset='utf-8'>"
+            "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+            "<title>ONDA · Spotify</title><style>"
+            "body{font:17px system-ui;background:#101419;color:#eef3fa;display:grid;"
+            "place-content:center;min-height:90vh;margin:24px;text-align:center}"
+            "h1{color:#64ddc0}a,button{display:inline-block;background:#64ddc0;color:#101419;"
+            "border:0;border-radius:10px;padding:12px 20px;text-decoration:none;font:inherit}"
+            "</style><h1>ONDA</h1><p>" + html.escape(message) + "</p>"
+            "<p id='status'>" + ("Voltando em 3 segundos…" if valid else "Feche esta aba e tente conectar novamente.") +
+            "</p>" + action + "<script>" + script + "</script></html>").encode("utf-8")
+
+
+def authorize(client_id, cancel, *, opener=webbrowser.open, port=8765, timeout=180, return_url=None):
     client_id = client_id.strip()
     if not re.fullmatch(r"[A-Fa-f0-9]{32}", client_id):
         raise MetadataError("Cole o Client ID de 32 caracteres do aplicativo no Spotify Developers.")
@@ -49,10 +88,12 @@ def authorize(client_id, cancel, *, opener=webbrowser.open, port=8765, timeout=1
             valid = parsed.path == "/callback" and secrets.compare_digest(query.get("state", [""])[0], state)
             if valid:
                 result.update(code=query.get("code", [None])[0], error=query.get("error", [None])[0])
-            body = ("Autorizacao recebida. Volte ao Onda." if valid else "Retorno invalido. Volte ao Onda.").encode()
+            body = callback_page(valid, valid and bool(result.get("code")) and not result.get("error"), return_url)
             self.send_response(200 if valid else 400)
-            self.send_header("Content-Type", "text/plain; charset=utf-8")
+            self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Cache-Control", "no-store")
+            self.send_header("Referrer-Policy", "no-referrer")
+            self.send_header("Content-Security-Policy", "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'")
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             try:

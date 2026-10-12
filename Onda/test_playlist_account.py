@@ -11,7 +11,7 @@ from urllib.parse import parse_qs, urlencode, urlsplit
 import requests
 from playlist_files import load_csv, export_text
 from playlist_import import load_text, load_playlist
-from spotify_account import SpotifyAccount, authorize
+from spotify_account import SpotifyAccount, authorize, callback_page
 from metadata import MetadataError
 
 ID = "A" * 22
@@ -120,8 +120,15 @@ class SpotifyAccountTests(unittest.TestCase):
                 try:
                     wrong = requests.get(query["redirect_uri"][0], params={"state": "wrong", "code": "wrong"}, timeout=5)
                     self.assertEqual(wrong.status_code, 400)
+                    self.assertNotIn('setTimeout', wrong.text)
                     correct = requests.get(query["redirect_uri"][0], params={"state": query["state"][0], "code": "test-code"}, timeout=5)
                     self.assertEqual(correct.status_code, 200)
+                    self.assertIn('text/html', correct.headers['Content-Type'])
+                    self.assertEqual(correct.headers['Cache-Control'], 'no-store')
+                    self.assertIn('}, 3000)', correct.text)
+                    self.assertIn('window.close()', correct.text)
+                    self.assertNotIn('test-code', correct.text)
+                    self.assertNotIn(query['state'][0], correct.text)
                 except Exception as exc:
                     errors.append(exc)
                 finally:
@@ -146,6 +153,13 @@ class SpotifyAccountTests(unittest.TestCase):
             authorize(CLIENT, cancel, opener=lambda _: True, port=0)
         with self.assertRaisesRegex(MetadataError, "navegador"):
             authorize(CLIENT, threading.Event(), opener=lambda _: False, port=0)
+
+    def test_callback_return_is_fixed_and_has_no_automatic_action_on_invalid_state(self):
+        self.assertIn('onda://spotify-return', callback_page(True, True, 'onda://spotify-return').decode())
+        self.assertNotIn('setTimeout', callback_page(False, False).decode())
+        self.assertIn('não concedida', callback_page(True, False).decode())
+        with self.assertRaises(ValueError):
+            callback_page(True, True, 'https://example.com/untrusted')
 
     def test_forbidden_and_rate_limit_do_not_return_partial_success(self):
         self.account.token = Mock(return_value="fake")

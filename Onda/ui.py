@@ -17,11 +17,13 @@ FORMAT_LABELS = {"Vídeo (MKV)": "video", "Vídeo (MP4)": "mp4", "MP3": "mp3", "
 class UiMixin:
     def _style(self):
         from appearance import palette
+        from interface_fonts import font_family
+        family = font_family(self, self.interface_font.get())
         colors = palette(self.theme_mode.get(), self.theme_accent.get())
         BG, SURFACE, INPUT, TEXT, MUTED, ACCENT, LINE = (colors[key] for key in ('bg','surface','input','text','muted','accent','line'))
         style = ttk.Style(self)
         style.theme_use("clam")
-        style.configure(".", background=BG, foreground=TEXT, font=("Segoe UI", 10),
+        style.configure(".", background=BG, foreground=TEXT, font=(family, 10),
                         bordercolor=LINE, lightcolor=LINE, darkcolor=LINE)
         style.configure("TFrame", background=BG)
         style.configure("Card.TFrame", background=SURFACE)
@@ -39,7 +41,7 @@ class UiMixin:
         style.configure("Quiet.TButton", background=BG, foreground=MUTED, padding=(10, 7))
         style.map("Quiet.TButton", background=[("active", SURFACE), ("disabled", BG)],
                   foreground=[("active", TEXT), ("disabled", colors["disabled"])])
-        style.configure("Accent.TButton", background=ACCENT, foreground=colors["accent_text"], font=("Segoe UI", 10, "bold"))
+        style.configure("Accent.TButton", background=ACCENT, foreground=colors["accent_text"], font=(family, 10, "bold"))
         style.map("Accent.TButton", background=[("active", colors["accent_hover"]), ("disabled", colors["line"])],
                   foreground=[("disabled", colors["muted"]), ("!disabled", colors["accent_text"])])
         style.configure("TEntry", fieldbackground=INPUT, foreground=TEXT, insertcolor=TEXT,
@@ -55,13 +57,14 @@ class UiMixin:
                         rowheight=44, borderwidth=0, relief="flat")
         style.layout("Treeview", [("Treeview.treearea", {"sticky": "nswe"})])
         style.configure("Treeview.Heading", background=SURFACE, foreground=MUTED,
-                        font=("Segoe UI", 9), padding=(12, 12), borderwidth=0, relief="flat")
+                        font=(family, 9), padding=(12, 12), borderwidth=0, relief="flat")
         style.map("Treeview.Heading", background=[("active", SURFACE)])
         style.map("Treeview", background=[("selected", colors["selected"])], foreground=[("selected", TEXT)])
         style.configure("Horizontal.TProgressbar", background=ACCENT, troughcolor=LINE,
                         borderwidth=0, thickness=4, lightcolor=ACCENT, darkcolor=ACCENT)
         style.configure("Vertical.TScrollbar", background=LINE, troughcolor=SURFACE,
                         arrowcolor=MUTED, borderwidth=0, arrowsize=12)
+        self.option_add("*TCombobox*Listbox.font", (family, 10))
         self.option_add("*TCombobox*Listbox.background", INPUT)
         self.option_add("*TCombobox*Listbox.foreground", TEXT)
         self.option_add("*TCombobox*Listbox.selectBackground", colors["selected"])
@@ -308,6 +311,13 @@ class UiMixin:
         ttk.Label(appearance, text='Cor de destaque', style='Muted.TLabel').pack(anchor='w')
         self.theme_accent_combo = ttk.Combobox(appearance, textvariable=self.theme_accent, values=tuple(ACCENTS), state='readonly', width=28)
         self.theme_accent_combo.pack(anchor='w', fill='x', pady=(6, 16))
+        from interface_fonts import font_choices, FONT_PREVIEW
+        ttk.Label(appearance, text='Fonte da interface', style='Muted.TLabel').pack(anchor='w')
+        self.interface_font_combo = ttk.Combobox(appearance, textvariable=self.interface_font, values=font_choices(self), state='readonly', width=28)
+        self.interface_font_combo.pack(anchor='w', fill='x', pady=(6, 12))
+        self.interface_font_preview = ttk.Label(appearance, text=FONT_PREVIEW, font=('Segoe UI', 12))
+        self.interface_font_preview.pack(anchor='w', fill='x', pady=(0, 10))
+        ttk.Label(appearance, text='A fonte muda na hora. Ative Lembrar configurações para manter sua escolha ao reabrir.', style='Muted.TLabel', wraplength=480).pack(anchor='w', pady=(0, 12))
         ttk.Label(appearance, text='As mudanças aparecem na hora. Seguir o sistema acompanha o modo dos aplicativos do Windows, inclusive com o Onda aberto.', style='Muted.TLabel', wraplength=480).pack(anchor='w')
         ttk.Label(appearance, text='Para manter sua escolha ao reabrir, ative Lembrar configurações na categoria Geral.', style='Muted.TLabel', wraplength=480).pack(anchor='w', pady=(12, 0))
 

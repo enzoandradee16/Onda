@@ -3,7 +3,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 
 GROUPS = {
-    'Aparência': {'theme_mode':'Modo claro, escuro ou sistema', 'theme_accent':'Cor de destaque'},
+    'Aparência': {'theme_mode':'Modo claro, escuro ou sistema', 'theme_accent':'Cor de destaque', 'interface_font':'Fonte da interface'},
     'Geral': {'tab_order':'Ordem das abas', 'remember_settings':'Lembrar configurações'},
     'Downloads': {'folder':'Pasta de destino', 'organization':'Organização por pastas', 'duplicates':'Tratamento de arquivos duplicados', 'review_metadata':'Revisão de metadados', 'auto_match':'Escolha automática da versão', 'playlist_limit':'Limite de itens de playlists'},
     'Links e fila': {'mode':'Formato', 'height':'Resolução máxima', 'fps':'FPS máximo', 'mp3_quality':'Qualidade MP3', 'm4a_quality':'Qualidade M4A', 'playlist':'Baixar playlist de vídeo'},

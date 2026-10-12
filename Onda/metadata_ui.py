@@ -35,6 +35,8 @@ class MetadataWindow(tk.Toplevel):
                   style="Muted.TLabel").grid(row=1, column=0, sticky="w", pady=(4, 10))
         self.links = tk.Text(body, height=3, bg="#1a2230", fg="#eef3fa", insertbackground="white", relief="flat")
         self.links.grid(row=2, column=0, sticky="ew")
+        self.links.bind("<Return>", self.enter_fetch)
+        self.links.bind("<KP_Enter>", self.enter_fetch)
         self.links.insert("1.0", "\n".join(links))
         auth = ttk.LabelFrame(body, text="Spotify API (opcional)", padding=8)
         auth.grid(row=3, column=0, sticky="ew", pady=10)
@@ -82,6 +84,10 @@ class MetadataWindow(tk.Toplevel):
         ttk.Label(body, textvariable=self.status, style="Muted.TLabel", wraplength=850).grid(row=8, column=0, sticky="ew", pady=(10, 0))
         self.protocol("WM_DELETE_WINDOW", self.close)
         self.after_id = self.after(100, self.poll)
+
+    def enter_fetch(self, _event=None):
+        self.fetch()
+        return "break"
 
     def fetch(self):
         if self.busy:

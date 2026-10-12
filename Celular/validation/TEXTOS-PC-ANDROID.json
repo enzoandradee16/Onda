@@ -1,0 +1,804 @@
+{
+  "equivalent_pc_texts_present": {
+    "FLAC": [
+      "catalog_ui.py",
+      "effects_ui.py",
+      "ui.py"
+    ],
+    "video": [
+      "playlist_ui.py",
+      "ui.py"
+    ],
+    "flac": [
+      "catalog_ui.py",
+      "ui.py"
+    ],
+    "original": [
+      "effects_ui.py",
+      "ui.py"
+    ],
+    "photos": [
+      "images_ui.py",
+      "playlist_ui.py",
+      "ui.py"
+    ],
+    "social": [
+      "playlist_ui.py",
+      "ui.py"
+    ],
+    "Concluído": [
+      "ui.py"
+    ],
+    "Geral": [
+      "ui.py"
+    ],
+    "Aparência": [
+      "ui.py"
+    ],
+    "Downloads": [
+      "ui.py"
+    ],
+    "Áudio": [
+      "effects_ui.py",
+      "ui.py"
+    ],
+    "Contas": [
+      "ui.py"
+    ],
+    "Ferramentas": [
+      "ui.py"
+    ],
+    "Pesquisar músicas": [
+      "ui.py"
+    ],
+    "Links e fila": [
+      "ui.py"
+    ],
+    "Imagens": [
+      "images_ui.py",
+      "ui.py"
+    ],
+    "Álbuns e playlists": [
+      "ui.py"
+    ],
+    "Histórico": [
+      "history_ui.py",
+      "ui.py"
+    ],
+    "Slowed / Sped Up": [
+      "ui.py"
+    ],
+    "downloads": [
+      "ui.py"
+    ],
+    "history": [
+      "ui.py"
+    ],
+    "effects": [
+      "ui.py"
+    ],
+    "YouTube, Instagram, TikTok, Kwai… um link por linha": [
+      "ui.py"
+    ],
+    "FPS máximo": [
+      "playlist_ui.py",
+      "ui.py"
+    ],
+    "Baixar agora": [
+      "catalog_ui.py",
+      "images_ui.py",
+      "playlist_ui.py",
+      "ui.py"
+    ],
+    "Tentar novamente": [
+      "ui.py"
+    ],
+    "Remover selecionados": [
+      "ui.py"
+    ],
+    "Limpar fila": [
+      "ui.py"
+    ],
+    "name": [
+      "history_ui.py",
+      "playlist_ui.py",
+      "ui.py"
+    ],
+    "format": [
+      "effects_ui.py",
+      "images_ui.py",
+      "ui.py"
+    ],
+    "size": [
+      "ui.py"
+    ],
+    "Baixar fila": [
+      "ui.py"
+    ],
+    "Parar": [
+      "effects_ui.py",
+      "ui.py"
+    ],
+    "Lembrar configurações": [
+      "ui.py"
+    ],
+    "Slowed / Sped Up e Reverb": [
+      "ui.py"
+    ],
+    "Músicas nas pesquisas": [
+      "ui.py"
+    ],
+    "Atualizar ferramentas": [
+      "ui.py"
+    ],
+    "text": [
+      "catalog_ui.py",
+      "ui.py"
+    ],
+    "accent": [
+      "ui.py"
+    ],
+    "ONDA": [
+      "ui.py"
+    ],
+    "Configurações": [
+      "ui.py"
+    ],
+    "Do link para sua biblioteca.": [
+      "ui.py"
+    ],
+    "Músicas, vídeos e fotos, organizados do seu jeito.": [
+      "ui.py"
+    ],
+    "LINKS": [
+      "ui.py"
+    ],
+    "Formato": [
+      "images_ui.py",
+      "ui.py"
+    ],
+    "Revisar metadados antes de baixar": [
+      "ui.py"
+    ],
+    "Seus downloads": [
+      "ui.py"
+    ],
+    "Ver detalhes": [
+      "ui.py"
+    ],
+    "Do seu jeito.": [
+      "ui.py"
+    ],
+    "Escolha uma categoria para ajustar o Onda.": [
+      "ui.py"
+    ],
+    "Pronto": [
+      "ui.py"
+    ],
+    "Tema e cores": [
+      "ui.py"
+    ],
+    "Modo de aparência": [
+      "ui.py"
+    ],
+    "Cor de destaque": [
+      "ui.py"
+    ],
+    "Preferências": [
+      "ui.py"
+    ],
+    "Ative para recuperar suas opções ao abrir o aplicativo novamente.": [
+      "ui.py"
+    ],
+    "Restaurar configurações": [
+      "ui.py"
+    ],
+    "Restaurar TODAS as configurações ao padrão": [
+      "ui.py"
+    ],
+    "Escolher quais configurações restaurar…": [
+      "ui.py"
+    ],
+    "Downloads e arquivos": [
+      "ui.py"
+    ],
+    "As opções são aplicadas aos próximos links adicionados.": [
+      "ui.py"
+    ],
+    "Escolher automaticamente a versão mais semelhante no YouTube": [
+      "ui.py"
+    ],
+    "Baixar playlist de vídeo": [
+      "ui.py"
+    ],
+    "Máximo de itens por playlist": [
+      "ui.py",
+      "welcome_ui.py"
+    ],
+    "Pasta de destino": [
+      "ui.py",
+      "welcome_ui.py"
+    ],
+    "Alterar": [
+      "ui.py"
+    ],
+    "Organizar músicas em": [
+      "ui.py"
+    ],
+    "Quando o arquivo já existir": [
+      "ui.py"
+    ],
+    "FLAC preserva a qualidade disponível; não melhora uma fonte com perdas.": [
+      "ui.py"
+    ],
+    "Reprodução e prévias": [
+      "ui.py"
+    ],
+    "Continuar prévia dos efeitos em outras abas": [
+      "ui.py"
+    ],
+    "Duração das prévias": [
+      "ui.py"
+    ],
+    "Vale para a próxima prévia. Nas pesquisas, o catálogo pode fornecer um trecho menor.": [
+      "ui.py"
+    ],
+    "Contas e acesso": [
+      "ui.py"
+    ],
+    "Spotify · opcional": [
+      "ui.py"
+    ],
+    "Limpar": [
+      "playlist_ui.py",
+      "ui.py"
+    ],
+    "Ferramentas e atualizações": [
+      "ui.py"
+    ],
+    "ffmpeg": [
+      "catalog_ui.py",
+      "effects_ui.py",
+      "review_ui.py",
+      "version_picker.py"
+    ],
+    "error": [
+      "catalog_ui.py",
+      "effects_ui.py",
+      "playlist_ui.py",
+      "review_ui.py"
+    ],
+    "Cancelar": [
+      "catalog_ui.py",
+      "version_picker.py"
+    ],
+    "cover_url": [
+      "catalog_ui.py",
+      "review_ui.py"
+    ],
+    "preview_url": [
+      "catalog_ui.py"
+    ],
+    "Pesquisar": [
+      "catalog_ui.py",
+      "history_ui.py"
+    ],
+    "Spotify": [
+      "catalog_ui.py",
+      "playlist_ui.py",
+      "welcome_ui.py"
+    ],
+    "title": [
+      "catalog_picker.py",
+      "catalog_ui.py",
+      "playlist_ui.py",
+      "review_ui.py",
+      "version_picker.py"
+    ],
+    "album": [
+      "catalog_picker.py",
+      "catalog_ui.py",
+      "review_ui.py"
+    ],
+    "duration": [
+      "catalog_picker.py",
+      "catalog_ui.py",
+      "effects_ui.py",
+      "playlist_ui.py",
+      "version_picker.py"
+    ],
+    "Ouvir prévia": [
+      "catalog_ui.py"
+    ],
+    "Música": [
+      "catalog_ui.py",
+      "review_ui.py"
+    ],
+    "https": [
+      "catalog_ui.py"
+    ],
+    "cover": [
+      "catalog_ui.py"
+    ],
+    "320 kbps": [
+      "catalog_ui.py"
+    ],
+    "128 kbps": [
+      "catalog_ui.py"
+    ],
+    "256 kbps": [
+      "catalog_ui.py"
+    ],
+    "mode": [
+      "catalog_ui.py",
+      "history_ui.py",
+      "images_ui.py",
+      "playlist_ui.py"
+    ],
+    "audio_quality": [
+      "catalog_ui.py"
+    ],
+    "source_url": [
+      "catalog_picker.py",
+      "catalog_ui.py",
+      "playlist_ui.py"
+    ],
+    "Parar prévia": [
+      "catalog_ui.py"
+    ],
+    "Encontre sua próxima música.": [
+      "catalog_ui.py"
+    ],
+    "Pesquise artista ou música, ou cole um link de faixa.": [
+      "catalog_ui.py"
+    ],
+    "Sua biblioteca começa com uma busca": [
+      "catalog_ui.py"
+    ],
+    "Encontre a música e escolha a versão que você quer.": [
+      "catalog_ui.py"
+    ],
+    "Catálogo e capa: plataforma selecionada  •  Áudio completo: YouTube": [
+      "catalog_ui.py"
+    ],
+    "search": [
+      "catalog_ui.py"
+    ],
+    "Adicionar à fila": [
+      "catalog_ui.py",
+      "images_ui.py",
+      "playlist_ui.py"
+    ],
+    "Deezer": [
+      "catalog_ui.py",
+      "welcome_ui.py"
+    ],
+    "Apple / iTunes": [
+      "catalog_ui.py",
+      "welcome_ui.py"
+    ],
+    "platform": [
+      "catalog_picker.py",
+      "catalog_ui.py",
+      "playlist_ui.py"
+    ],
+    "duration_ms": [
+      "catalog_ui.py",
+      "playlist_ui.py",
+      "version_picker.py"
+    ],
+    "artists": [
+      "catalog_picker.py",
+      "catalog_ui.py",
+      "playlist_ui.py",
+      "review_ui.py",
+      "version_picker.py"
+    ],
+    "Original": [
+      "effects_ui.py"
+    ],
+    "Slowed leve": [
+      "effects_ui.py"
+    ],
+    "Slowed intenso": [
+      "effects_ui.py"
+    ],
+    "Sped Up leve": [
+      "effects_ui.py"
+    ],
+    "Sped Up intenso": [
+      "effects_ui.py"
+    ],
+    "Sped Up + Reverb": [
+      "effects_ui.py"
+    ],
+    "Só Reverb": [
+      "effects_ui.py"
+    ],
+    "Clássico": [
+      "effects_ui.py"
+    ],
+    "Atmosférico": [
+      "effects_ui.py"
+    ],
+    "source": [
+      "effects_ui.py"
+    ],
+    "output": [
+      "effects_ui.py"
+    ],
+    "speed": [
+      "effects_ui.py"
+    ],
+    "reverb": [
+      "effects_ui.py"
+    ],
+    "keep_pitch": [
+      "effects_ui.py"
+    ],
+    "replace": [
+      "effects_ui.py",
+      "review_ui.py"
+    ],
+    "Manter tom (pitch) ao alterar a velocidade": [
+      "effects_ui.py"
+    ],
+    "Exportar música inteira": [
+      "effects_ui.py"
+    ],
+    "Personalizado": [
+      "effects_ui.py",
+      "images_ui.py"
+    ],
+    "Slowed": [
+      "effects_ui.py"
+    ],
+    " · desligado": [
+      "effects_ui.py"
+    ],
+    "type": [
+      "effects_ui.py"
+    ],
+    "cancelled": [
+      "effects_ui.py"
+    ],
+    "Slowed · Sped Up · Reverb": [
+      "effects_ui.py"
+    ],
+    "Desacelere ou acelere sua música. Adicione reverb se quiser.": [
+      "effects_ui.py"
+    ],
+    "Abrir áudio": [
+      "effects_ui.py"
+    ],
+    "Preset": [
+      "effects_ui.py"
+    ],
+    "Ouvir original": [
+      "effects_ui.py"
+    ],
+    "Ouvir com efeitos": [
+      "effects_ui.py"
+    ],
+    "Arraste a barra para escolher o trecho. A duração da prévia pode ser alterada em Configurações. Ajuste os efeitos enquanto ouve.": [
+      "effects_ui.py"
+    ],
+    "Salvar como": [
+      "effects_ui.py"
+    ],
+    "Sped Up": [
+      "effects_ui.py"
+    ],
+    "done": [
+      "effects_ui.py"
+    ],
+    "message": [
+      "effects_ui.py"
+    ],
+    "progress": [
+      "effects_ui.py"
+    ],
+    "percent": [
+      "effects_ui.py"
+    ],
+    "path": [
+      "effects_ui.py",
+      "history_ui.py",
+      "images_ui.py",
+      "review_ui.py"
+    ],
+    "Efeitos": [
+      "effects_ui.py"
+    ],
+    "Sua biblioteca de downloads.": [
+      "history_ui.py"
+    ],
+    "Limpar histórico": [
+      "history_ui.py"
+    ],
+    "Abrir arquivo": [
+      "history_ui.py"
+    ],
+    "Usar nos efeitos": [
+      "history_ui.py"
+    ],
+    "Ver prévia": [
+      "images_ui.py"
+    ],
+    "SVG incorpora a imagem original; não vetoriza. Animações usam o primeiro quadro.": [
+      "images_ui.py"
+    ],
+    "width": [
+      "images_ui.py"
+    ],
+    "height": [
+      "images_ui.py",
+      "playlist_ui.py"
+    ],
+    "keep_ratio": [
+      "images_ui.py"
+    ],
+    "playlist": [
+      "images_ui.py",
+      "playlist_ui.py"
+    ],
+    "image_options": [
+      "images_ui.py"
+    ],
+    "Imagens do seu jeito.": [
+      "images_ui.py"
+    ],
+    "Baixe, converta e ajuste o tamanho sem cortar a imagem.": [
+      "images_ui.py"
+    ],
+    "Largura × altura (px)": [
+      "images_ui.py"
+    ],
+    "Manter proporção (sem ampliar ou distorcer)": [
+      "images_ui.py"
+    ],
+    "file": [
+      "images_ui.py"
+    ],
+    "folder": [
+      "images_ui.py"
+    ],
+    "cookies_file": [
+      "images_ui.py"
+    ],
+    "duplicate_policy": [
+      "images_ui.py"
+    ],
+    "keep": [
+      "images_ui.py",
+      "review_ui.py"
+    ],
+    "Playlist": [
+      "playlist_ui.py"
+    ],
+    "Carregar álbum ou playlist": [
+      "playlist_ui.py"
+    ],
+    "Importar arquivo": [
+      "playlist_ui.py"
+    ],
+    "Ver lista": [
+      "playlist_ui.py"
+    ],
+    "Qualidade de áudio": [
+      "playlist_ui.py"
+    ],
+    "Conferir correspondências": [
+      "playlist_ui.py"
+    ],
+    "Confirmar a versão do YouTube de cada música antes de baixar": [
+      "playlist_ui.py"
+    ],
+    "folder_title": [
+      "playlist_ui.py"
+    ],
+    "Resolução máxima": [
+      "playlist_ui.py"
+    ],
+    "playlist_title": [
+      "playlist_ui.py"
+    ],
+    "confirm_version": [
+      "playlist_ui.py"
+    ],
+    "catalog_record": [
+      "playlist_ui.py"
+    ],
+    "Seus álbuns e playlists na biblioteca.": [
+      "playlist_ui.py"
+    ],
+    "Buscar nesta lista": [
+      "playlist_ui.py"
+    ],
+    "Selecionar visíveis": [
+      "playlist_ui.py"
+    ],
+    "tracks": [
+      "playlist_ui.py"
+    ],
+    "note": [
+      "playlist_ui.py"
+    ],
+    "Bem-vindo ao Onda": [
+      "welcome_ui.py"
+    ],
+    "Ajuste o básico para começar. Você pode fechar esta janela e configurar tudo depois.": [
+      "welcome_ui.py"
+    ],
+    "Agora não": [
+      "welcome_ui.py"
+    ],
+    "record": [
+      "review_ui.py"
+    ],
+    "Capa": [
+      "review_ui.py"
+    ],
+    "Capa do álbum": [
+      "review_ui.py"
+    ],
+    "youtube.com": [
+      "review_ui.py"
+    ],
+    "track_number": [
+      "review_ui.py"
+    ],
+    "disc_number": [
+      "review_ui.py"
+    ],
+    "skip": [
+      "review_ui.py"
+    ],
+    "Manter ambos": [
+      "review_ui.py"
+    ],
+    "Artistas (separados por ;)": [
+      "review_ui.py"
+    ],
+    "Álbum": [
+      "review_ui.py"
+    ],
+    "release_date": [
+      "review_ui.py"
+    ],
+    "Data": [
+      "review_ui.py"
+    ],
+    "genre": [
+      "review_ui.py"
+    ],
+    "Gênero": [
+      "review_ui.py"
+    ],
+    "Faixa": [
+      "review_ui.py"
+    ],
+    "Disco": [
+      "review_ui.py"
+    ],
+    "Sua música, do seu jeito.": [
+      "review_ui.py"
+    ],
+    "Capa · imagem inteira, sem cortes": [
+      "review_ui.py"
+    ],
+    "Escolher JPEG/PNG": [
+      "review_ui.py"
+    ],
+    "Cancelar download": [
+      "review_ui.py"
+    ],
+    "Confirmar e baixar": [
+      "review_ui.py"
+    ],
+    "channel": [
+      "version_picker.py"
+    ],
+    "Baixar esta versão": [
+      "version_picker.py"
+    ],
+    "candidates": [
+      "version_picker.py"
+    ],
+    "Qual versão você prefere?": [
+      "version_picker.py"
+    ],
+    "uploader": [
+      "version_picker.py"
+    ],
+    "match_score": [
+      "version_picker.py"
+    ],
+    "Usar estes metadados": [
+      "catalog_picker.py"
+    ],
+    "Conectar": [
+      "spotify_account_ui.py"
+    ],
+    "Desconectar": [
+      "spotify_account_ui.py"
+    ],
+    "Abrir Spotify Developers": [
+      "spotify_account_ui.py"
+    ],
+    "Client ID": [
+      "spotify_account_ui.py"
+    ],
+    "https://developer.spotify.com/dashboard": [
+      "spotify_account_ui.py"
+    ]
+  },
+  "accent_labels_and_swatches": {
+    "Verde-Água": [
+      "#79e2c4",
+      "#087e69"
+    ],
+    "Azul": [
+      "#8dbbff",
+      "#245fbe"
+    ],
+    "Roxo": [
+      "#c0a4ff",
+      "#7544b8"
+    ],
+    "Rosa": [
+      "#f5a4cd",
+      "#af286d"
+    ],
+    "Laranja": [
+      "#ffbd85",
+      "#a6500b"
+    ],
+    "Vermelho": [
+      "#ffa2a2",
+      "#b42f3b"
+    ],
+    "Verde": [
+      "#94dfa8",
+      "#257342"
+    ],
+    "Verde-limão": [
+      "#c8ed83",
+      "#537512"
+    ],
+    "Amarelo": [
+      "#f6e58d",
+      "#806600"
+    ],
+    "Dourado": [
+      "#e9ca82",
+      "#8c650f"
+    ],
+    "Ciano": [
+      "#8de1ed",
+      "#07758a"
+    ],
+    "Turquesa": [
+      "#71d8d8",
+      "#087575"
+    ],
+    "Índigo": [
+      "#a5afff",
+      "#4856b9"
+    ],
+    "Lilás": [
+      "#dec1ff",
+      "#865098"
+    ],
+    "Coral": [
+      "#ffae9b",
+      "#b34332"
+    ],
+    "Cinza": [
+      "#bcc5d3",
+      "#576475"
+    ]
+  },
+  "platform_specific_text": "Android storage permissions, sharing, embedded tools, YouTube session and app-return instructions remain specific to Android.",
+  "desktop_oauth_page": "Portable and Android shared engine use the same spotify_account.py page builder; only return action differs by platform."
+}
