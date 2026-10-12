@@ -13,3 +13,9 @@ Primeira versão beta preparada para distribuição.
 - Pacotes separados para uso portátil e instalação por usuário no Windows x64.
 
 Limitações: acesso às plataformas pode exigir login/cookies; listas públicas podem ser parciais; a fonte equivalente no YouTube pode diferir da edição original. FLAC convertido de uma fonte com perdas não restaura qualidade lossless. Executáveis sem assinatura digital.
+
+Desinstalador com escolha para manter ou apagar dados pessoais, preservando os downloads.
+
+FFmpeg preparado automaticamente no primeiro uso, diretamente do fornecedor, com progresso, SHA-256 e cache compartilhado; removido dos pacotes portátil e instalador.
+
+- Desinstalador: escolha independente para remover o FFmpeg baixado pelo ONDA, mantendo a opção de preservar configurações; modo silencioso mantém dados e cache.

@@ -9,7 +9,7 @@ import traceback
 
 ROOT = Path(__file__).resolve().parent.parent
 TOOLS = ROOT / "_runtime"
-os.environ["PATH"] = os.pathsep.join((str(TOOLS / "ffmpeg"), str(TOOLS / "node"), os.environ.get("PATH", "")))
+os.environ["PATH"] = os.pathsep.join((str(TOOLS / "node"), os.environ.get("PATH", "")))
 os.environ["ONDA_DOWNLOADS"] = str(Path.home() / "Downloads" / "Onda")
 os.environ["PYTHONIOENCODING"] = "utf-8"
 os.environ["PYTHONUTF8"] = "1"
@@ -18,12 +18,20 @@ os.environ["TCL_LIBRARY"] = str(TOOLS / "python" / "tcl" / "tcl8.6")
 os.environ["TK_LIBRARY"] = str(TOOLS / "python" / "tcl" / "tk8.6")
 
 
-def create_app(*, show_welcome=True):
+def create_app(*, show_welcome=True, prepare_tools=True):
+    from ffmpeg_runtime import existing_folder, download_with_window
+    folder = existing_folder()
+    if folder is None and prepare_tools:
+        folder = download_with_window()
+    if folder:
+        os.environ["PATH"] = str(folder) + os.pathsep + os.environ.get("PATH", "")
     from app import App
-    from engine import binaries
     app = App(show_welcome=show_welcome)
-    if not binaries(app.ffmpeg.get()):
-        app.ffmpeg.set(str(TOOLS / "ffmpeg"))
+    if folder:
+        app.ffmpeg.set(str(folder))
+    elif folder is None and prepare_tools:
+        app.ffmpeg.set("")
+        app.write_log("FFmpeg ainda não preparado. Use Configurações → Ferramentas → Preparar FFmpeg.")
     try:
         app.iconbitmap(str(ROOT / "onda.ico"))
     except Exception:
@@ -43,15 +51,22 @@ def self_test(target):
         report["curl_cffi"] = curl_cffi.__version__
         report["Pillow"] = PIL.__version__
         report["tools"] = {}
-        for tool, flag in (("ffmpeg", "-version"), ("ffprobe", "-version"), ("ffplay", "-version"), ("node", "--version")):
-            result = subprocess.run([str(TOOLS / ("node" if tool == "node" else "ffmpeg") / (tool + ".exe")), flag],
+        from ffmpeg_runtime import existing_folder
+        media_folder = existing_folder()
+        report["media_tools"] = "ready" if media_folder else "downloaded_on_first_launch"
+        checks = [(TOOLS / "node/node.exe", "--version")]
+        if media_folder:
+            checks.extend((media_folder / (name + ".exe"), "-version") for name in ("ffmpeg", "ffprobe", "ffplay"))
+        for executable, flag in checks:
+            tool = executable.stem
+            result = subprocess.run([str(executable), flag],
                                     capture_output=True, text=True, timeout=15, creationflags=subprocess.CREATE_NO_WINDOW)
             if result.returncode:
                 raise RuntimeError(tool + " falhou")
             report["tools"][tool] = result.stdout.splitlines()[0]
         with tempfile.TemporaryDirectory(prefix="onda-diagnostic-") as temporary:
             os.environ["LOCALAPPDATA"] = temporary
-            app = create_app(show_welcome=False)
+            app = create_app(show_welcome=False, prepare_tools=False)
             try:
                 app.update()
                 report["tabs"] = len(app.pages.tabs())

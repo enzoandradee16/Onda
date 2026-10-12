@@ -386,6 +386,9 @@ class UiMixin:
         tools.pack(fill="x", pady=(8, 24))
         ttk.Entry(tools, textvariable=self.ffmpeg).pack(side="left", fill="x", expand=True)
         ttk.Button(tools, text="Escolher", command=self.choose_ffmpeg).pack(side="right", padx=(8, 0))
+        ttk.Button(tools_page, text="Preparar FFmpeg", command=self.prepare_ffmpeg).pack(anchor="w", pady=(0, 8))
+        ttk.Label(tools_page, text="Baixado diretamente de gyan.dev uma vez por PC. Internet necessária no primeiro uso.",
+                  style="Muted.TLabel", wraplength=480).pack(anchor="w", pady=(0, 12))
         self.update_button = ttk.Button(tools_page, text="Atualizar ferramentas", command=self.update_downloader)
         self.update_button.pack(anchor="w", pady=(0, 8))
         ttk.Label(tools_page, textvariable=self.update_status, style="Muted.TLabel", wraplength=480).pack(anchor="w")

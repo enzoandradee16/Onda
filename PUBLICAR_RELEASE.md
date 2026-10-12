@@ -5,8 +5,8 @@ Os pacotes locais ficam em `Release/1.0.0-beta.1` e estão ignorados pelo Git. E
 ## Antes de tornar público
 
 - Revise README, licença GPL-2.0-only e avisos de terceiros. Não publique credenciais, cookies, configurações pessoais ou mídias baixadas.
-- Revise o inventário de terceiros: as fontes principais foram reunidas, mas a distribuição estática do FFmpeg contém bibliotecas adicionais. Confirme a disponibilidade dos respectivos fontes e instruções de construção antes de publicar os binários; o ZIP de fontes não certifica completude de todos os componentes transitivos.
-- Faça um teste em outro PC/VM Windows 10/11 x64 sem Python/FFmpeg/Node instalados: extração portátil, primeira abertura, download autorizado, efeitos, instalação, segunda abertura, atualização e desinstalação. A verificação local não substitui esse teste.
+- Confira que os pacotes não contêm `_runtime/ffmpeg` nem os executáveis FFmpeg/ffprobe/ffplay. Eles são obtidos diretamente de gyan.dev no primeiro uso, com SHA-256 fixo. A antiga pendência de reunir os fontes do FFmpeg deixou de se aplicar aos pacotes do ONDA, pois eles não o redistribuem.
+- O usuário confirmou funcionamento em outro PC. Para validar futuras versões e o novo desinstalador, confira em Windows 10/11 x64 sem Python/FFmpeg/Node instalados: extração portátil, primeira abertura com preparação automática, download autorizado, efeitos, segunda abertura sem novo download, instalação, atualização e desinstalação. A verificação local não substitui esse teste.
 - Confira os hashes e leia o relatório local de validação. Executáveis não assinados podem gerar avisos do Windows.
 
 ## Enviar documentação
@@ -23,3 +23,6 @@ Revise `git diff` e `git status`, adicione os arquivos novos e alterados, faça 
 6. Salve como rascunho, revise e publique quando as verificações anteriores estiverem concluídas.
 
 Não reutilize a mesma tag para pacotes diferentes. Para correções, prepare beta.2 e novos hashes. Não altere o AppId do instalador entre versões.
+
+
+O desinstalador oferece uma segunda escolha independente para remover o cache de ferramentas baixadas pelo ONDA (%LOCALAPPDATA%\Onda\tools\ffmpeg). O padrão e o modo silencioso mantêm o cache. Somente arquivos conhecidos nas pastas de versão são removidos; ferramentas externas e arquivos desconhecidos são preservados. Verifique manter/apagar configurações e ferramentas separadamente e cancelar em cada pergunta. Reinstale o novo Setup para atualizar o desinstalador de uma instalação existente.

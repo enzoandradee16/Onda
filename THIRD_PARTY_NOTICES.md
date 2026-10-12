@@ -8,7 +8,7 @@ Copyright (c) 2026 Enzo Andrade para o código próprio do ONDA, licenciado sob 
 | Mutagen | GPL-2.0-or-later; licença na pasta `.dist-info/licenses` correspondente |
 | yt-dlp e dependências | Licenças individuais nas pastas `.dist-info`; consulte os arquivos originais |
 | CPython, Tcl/Tk e componentes | `_runtime/python/LICENSE.txt` e avisos dentro do runtime |
-| FFmpeg / ffprobe / ffplay, build Gyan essentials 9.0.2 | Build GPLv3; `_runtime/ffmpeg/LICENSE.txt`, `README.txt` e documentação. Executáveis externos ao código Python do ONDA |
+| FFmpeg / ffprobe / ffplay | Não incluídos nos pacotes do ONDA. Obtidos diretamente de gyan.dev pelo usuário na primeira preparação. Licença GPLv3, README e origem preservados no cache local |
 | Node.js | MIT e avisos dos componentes incorporados, em `_runtime/node/LICENSE.txt` |
 | Requests, Pillow, curl-cffi e demais pacotes | Licenças individuais nas respectivas pastas `.dist-info` |
 
@@ -16,4 +16,6 @@ O inventário das dependências Python está em `docs/dependencias.json`. Os pac
 
 Referências de origem: https://github.com/mikf/gallery-dl, https://github.com/quodlibet/mutagen, https://github.com/yt-dlp/yt-dlp, https://www.python.org/, https://nodejs.org/, https://www.gyan.dev/ffmpeg/builds/ e https://ffmpeg.org/legal.html.
 
-O pacote de fontes da beta reúne fontes principais e a proveniência da construção. Antes de redistribuir os binários, verifique também os fontes correspondentes das bibliotecas vinculadas pelo build externo do FFmpeg; não considere este inventário uma certificação da completude dessas fontes.
+O pacote de fontes de terceiros reúne gallery-dl, Mutagen e yt-dlp, correspondentes às versões Python incluídas. O FFmpeg é uma ferramenta externa obtida diretamente do seu distribuidor, não acompanha os arquivos publicados do ONDA. Não adicione os executáveis do cache local a futuros ZIPs ou instaladores.
+
+Origem fixa do download: https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-9.0.2-essentials_build.zip. SHA-256 esperado: `60f467265b1e312373dbcd92200c2618a74850f98d3d078e94296bb3fa2047ba`. Licença e fontes do build são responsabilidade da distribuição de origem; os respectivos avisos são conservados no download local.

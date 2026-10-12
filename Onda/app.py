@@ -210,6 +210,13 @@ class App(UiMixin, tk.Tk):
         if folder:
             self.ffmpeg.set(folder)
 
+    def prepare_ffmpeg(self):
+        from ffmpeg_runtime import cached_folder, download_with_window
+        folder = cached_folder() or download_with_window(self.settings_window)
+        if folder:
+            self.ffmpeg.set(str(folder))
+            self.write_log("FFmpeg pronto para uso neste computador.")
+
     def choose_social_cookies(self):
         path = filedialog.askopenfilename(title="Cookies no formato Netscape", filetypes=[("Cookies", "*.txt"), ("Todos", "*.*")])
         if path:
