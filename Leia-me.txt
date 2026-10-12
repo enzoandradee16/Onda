@@ -1,20 +1,9 @@
-﻿ONDA - QUAL ARQUIVO ABRIR?
+ONDA 1.0.0-beta.1
 
-SEM INSTALAR: Portatil\Onda.exe
-Mantenha toda a pasta Portatil junto do executavel.
+Portátil: abra Portatil\Onda.exe. Mantenha Onda e _runtime junto dele.
+Instalador: execute Instalador\Onda-Setup.exe e siga o assistente.
+Os pacotes para publicação ficam em Release.0.0-beta.1.
 
-COM ASSISTENTE: Instalador\Onda-Setup.exe
-Escolha o destino, os atalhos e acompanhe a instalacao.
-
-INSTALACAO SILENCIOSA: Instalador\Instalação Silenciosa Onda.bat
-Instala no destino padrao, com atalhos, sem assistente e sem reiniciar.
-O BAT precisa ficar junto de Onda-Setup.exe.
-
-DESENVOLVIMENTO
-Onda: codigo-fonte e downloads antigos, que permanecem preservados.
-empacotamento: scripts para gerar novas distribuicoes.
-Altere empacotamento\Onda.iss e compile pelo Inno Setup.
-O resultado substitui Instalador\Onda-Setup.exe.
-
-Dados pessoais continuam em %LOCALAPPDATA%\Onda. Desinstalar nao apaga
-musicas, preferencias, credenciais protegidas ou historico.
+Leia README.md para recursos e limitações, Onda\README.md para executar o código-fonte e PUBLICAR_RELEASE.md antes de publicar.
+Os executáveis desta beta não possuem assinatura digital.
+Licença do código próprio: GPL-2.0-only. Veja LICENSE e THIRD_PARTY_NOTICES.md.

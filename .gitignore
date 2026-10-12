@@ -32,3 +32,6 @@ build/
 
 # Ferramentas locais de empacotamento
 /empacotamento/
+
+# Pacotes e relatorios locais de release
+/Release/
