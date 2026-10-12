@@ -166,7 +166,7 @@ class EffectRenderTests(unittest.TestCase):
                 audio.setparams((1, 2, 48000, 0, "NONE", "not compressed"))
                 audio.writeframes(samples.tobytes())
             outputs = {}
-            for label, speed, reverb in (("dry", 100, 0), ("slow", 50, 0), ("reverb", 100, 80), ("both", 80, 30)):
+            for label, speed, reverb in (("dry", 100, 0), ("slow", 50, 0), ("fast", 150, 0), ("fast_wet", 125, 30), ("reverb", 100, 80), ("both", 80, 30)):
                 output = root / (label + ".wav")
                 result = subprocess.run([sys.executable, str(Path(__file__).with_name("effects_worker.py"))],
                     input=json.dumps({"source": str(source), "output": str(output), "speed": speed, "reverb": reverb,
@@ -180,8 +180,10 @@ class EffectRenderTests(unittest.TestCase):
                     outputs[label] = len(values) / audio.getframerate(), values
             self.assertAlmostEqual(outputs["dry"][0], 1, delta=.02)
             self.assertAlmostEqual(outputs["slow"][0], 2, delta=.02)
+            self.assertAlmostEqual(outputs["fast"][0], 1 / 1.5, delta=.02)
+            self.assertGreater(outputs["fast_wet"][0], .8)
             # Zero crossings confirm slowed audio changes pitch as well as tempo.
-            for label, expected in (("dry", 440), ("slow", 220)):
+            for label, expected in (("dry", 440), ("slow", 220), ("fast", 660)):
                 values = outputs[label][1][4800:28800]
                 crossings = sum(a <= 0 < b for a, b in zip(values, values[1:]))
                 self.assertAlmostEqual(crossings / .5, expected, delta=5)
@@ -207,7 +209,7 @@ class EffectRenderTests(unittest.TestCase):
             original = source.read_bytes()
             from effects_worker import render
             before = ID3(source)
-            for speed, reverb, label in ((85, 20, "Slowed + Reverb"), (90, 0, "Slowed"), (100, 30, "Reverb"), (100, 0, "")):
+            for speed, reverb, label in ((85, 20, "Slowed + Reverb"), (90, 0, "Slowed"), (125, 0, "Sped Up"), (125, 30, "Sped Up + Reverb"), (100, 30, "Reverb"), (100, 0, "")):
                 with self.subTest(effect=label), contextlib.redirect_stdout(io.StringIO()):
                     self.assertEqual(render({"source": str(source), "output": str(output), "speed": speed, "reverb": reverb, "replace": True, "ffmpeg": os.environ["ONDA_FFMPEG"]}), 0)
                     tags = ID3(output)

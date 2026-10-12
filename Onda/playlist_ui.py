@@ -14,7 +14,7 @@ class PlaylistPane(ttk.Frame):
         super().__init__(parent, padding=(0, 18, 0, 0))
         self.app = app
         self.url = tk.StringVar()
-        self.status = tk.StringVar(value="Playlist pública Deezer, Spotify ou YouTube · até 100 itens.")
+        self.status = tk.StringVar(value="Playlist pública Deezer, Spotify ou YouTube · limite ajustável em Configurações → Downloads.")
         self.confirm_version = tk.BooleanVar(value=True)
         self.records = {}
         self.events = queue.Queue()
@@ -61,12 +61,13 @@ class PlaylistPane(ttk.Frame):
             return
         self.generation += 1
         generation, url = self.generation, self.url.get().strip()
+        limit = int(self.app.playlist_limit.get())
         self.status.set("Carregando playlist…")
         self.set_busy(True)
         def worker():
             client = MetadataClient()
             try:
-                self.events.put((generation, "loaded", load_playlist(url, client)))
+                self.events.put((generation, "loaded", load_playlist(url, client, limit=limit)))
             except Exception as exc:
                 self.events.put((generation, "error", str(exc)))
             finally:
@@ -82,7 +83,7 @@ class PlaylistPane(ttk.Frame):
                 from pathlib import Path
                 if Path(path).stat().st_size > 1024 * 1024:
                     raise ValueError("A lista deve ter até 1 MB.")
-                self.display(load_text(Path(path).read_text(encoding="utf-8-sig")))
+                self.display(load_text(Path(path).read_text(encoding="utf-8-sig"), limit=int(self.app.playlist_limit.get())))
             except (OSError, ValueError) as exc:
                 self.status.set(str(exc))
 
@@ -137,10 +138,9 @@ class PlaylistPane(ttk.Frame):
         if self.busy:
             return
         selected = [self.records[key] for key in self.table.selection()]
-        count = 0
-        for row in selected:
-            added = self.app.add(lines=[row["source_url"]], overrides={"playlist": False, "confirm_version": self.confirm_version.get()})
-            count += len(added or [])
+        added = self.app.add(lines=[row["source_url"] for row in selected],
+                             overrides={"playlist": False, "confirm_version": self.confirm_version.get()})
+        count = len(added or [])
         self.status.set(f"{count} itens adicionados. Confira o formato na fila antes de iniciar.")
         if count:
             self.app.pages.select(self.app.download_page)

@@ -36,7 +36,7 @@ class HistoryPane(ttk.Frame):
         controls.grid(row=3, column=0, sticky="ew", pady=16)
         ttk.Button(controls, text="Abrir arquivo", command=self.open).pack(side="left")
         ttk.Button(controls, text="Abrir pasta", command=lambda: self.open(True)).pack(side="left", padx=8)
-        ttk.Button(controls, text="Usar no Slowed + Reverb", style="Accent.TButton", command=self.effects).pack(side="right")
+        ttk.Button(controls, text="Usar nos efeitos", style="Accent.TButton", command=self.effects).pack(side="right")
         self.status = tk.StringVar()
         ttk.Label(self, textvariable=self.status, style="Muted.TLabel").grid(row=4, column=0, sticky="w")
         self.refresh()

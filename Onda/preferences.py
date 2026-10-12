@@ -32,10 +32,19 @@ class PreferenceStore:
             result["duplicates"] = data["duplicates"]
         if type(data.get("review_metadata")) is bool:
             result["review_metadata"] = data["review_metadata"]
+        if type(data.get("background_preview")) is bool:
+            result["background_preview"] = data["background_preview"]
+        from preview_options import PREVIEW_DURATIONS
+        for name in ("effects_preview_duration", "search_preview_duration"):
+            if data.get(name) in PREVIEW_DURATIONS:
+                result[name] = data[name]
         for name in ("folder", "ffmpeg"):
             if isinstance(data.get(name), str) and len(data[name]) <= 32768 and "\x00" not in data[name]:
                 if data[name].strip() or name == "ffmpeg":
                     result[name] = data[name]
+        from playlist_options import PLAYLIST_LIMITS
+        if data.get("playlist_limit") in PLAYLIST_LIMITS:
+            result["playlist_limit"] = data["playlist_limit"]
         if type(data.get("playlist")) is bool:
             result["playlist"] = data["playlist"]
         for name, choices in (("mp3_quality", MP3_QUALITIES), ("m4a_quality", M4A_QUALITIES)):

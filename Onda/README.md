@@ -2,14 +2,13 @@
 
 ## Windows: portátil ou instalação completa
 
-- **Abrir Onda.bat** ou **Onda.exe**: abre sem instalar Python ou ferramentas.
+- **Onda.exe**: abre sem instalar Python ou ferramentas.
   Mantenha a pasta `_runtime` e a pasta `Onda` junto do executável.
 - **Onda-Setup.exe**: abre o assistente de instalação
   para Windows, com atalhos, registro em Aplicativos instalados e desinstalador.
   A instalação usa `%LOCALAPPDATA%\Programs\Onda`, sem exigir administrador.
-- **Instalar Onda.bat**: instalação rápida e silenciosa no local padrão,
-  com atalhos, sem abrir o assistente nem iniciar o app ao terminar. O BAT e
-  `Onda-Setup.exe` precisam ficar juntos. Não reinicia o PC. Em caso de falha,
+- **Instalação Silenciosa Onda.bat**: instalação rápida e silenciosa no local padrão,
+  com atalhos, sem abrir o assistente nem iniciar o app ao terminar. O BAT e `Onda-Setup.exe` ficam juntos em `Instalador`. Não reinicia o PC. Em caso de falha,
   consulte `%TEMP%\Onda-instalacao.log`.
 - Python, FFmpeg/ffprobe/ffplay, Node e bibliotecas já vêm no pacote. Internet
   é necessária para buscar/baixar conteúdo e atualizar o yt-dlp.
@@ -79,15 +78,17 @@ TXT com links individuais suportados. A consulta das correspondências é refeit
 ao baixar; o resultado prévio não garante disponibilidade futura. Uma playlist
 Deezer real foi consultada com sucesso (50 faixas, sem baixar músicas).
 
-## Slowed + Reverb
+## Slowed / Sped Up e Reverb
 
 1. Abra a aba e clique em **Abrir áudio**, ou selecione um arquivo no Histórico
-   e clique em **Usar no Slowed + Reverb**.
-2. **Velocidade** vai de 50 a 100%. Em 100%, não altera tempo/tom; abaixo disso,
-   fica mais lento e grave. **Reverb** vai de 0 a 100%; zero desativa o efeito.
-   Os controles são independentes, inclusive para usar só slow ou só reverb.
+   e clique em **Usar nos efeitos**.
+2. **Velocidade** vai de 50 a 150%. Em 100%, no centro, não altera tempo/tom;
+   abaixo disso fica mais lento e grave (Slowed), acima fica mais rápido e agudo
+   (Sped Up). **Reverb** vai de 0 a 100%; zero desativa o efeito.
+   Os controles são independentes, inclusive para usar só velocidade ou só reverb.
    O menu **Preset** oferece Original (100%/0%), Slowed leve (90%/0%),
-   Slowed intenso (75%/0%), Só Reverb (100%/30%), Clássico (85%/25%) e
+   Slowed intenso (75%/0%), Sped Up leve (115%/0%), Sped Up intenso (130%/0%),
+   Sped Up + Reverb (120%/25%), Só Reverb (100%/30%), Clássico (85%/25%) e
    Atmosférico (75%/50%). Ajustar os sliders fora dessas combinações indica
    **Personalizado**. Trocar de preset também funciona durante a prévia.
 3. Clique ou arraste a **barra de reprodução** para escolher o trecho e compare
@@ -96,7 +97,7 @@ Deezer real foi consultada com sucesso (50 faixas, sem baixar músicas).
    Ao soltar a barra durante a reprodução, a prévia continua no ponto escolhido;
    quando parada, a barra apenas escolhe o próximo início. As setas esquerda/direita
    avançam ou voltam cinco segundos com a barra selecionada.
-   A prévia dura até 25 segundos; ajustar os efeitos mantém a posição atual.
+   A duração da prévia é configurável; ajustar os efeitos mantém a posição atual.
    **Parar** conserva a posição para continuar ao clicar em Ouvir novamente.
 4. **Exportar música inteira** salva uma nova cópia em MP3, M4A, FLAC ou WAV.
    MP3/M4A usam o bitrate escolhido nas configurações atuais. O original não
@@ -104,13 +105,15 @@ Deezer real foi consultada com sucesso (50 faixas, sem baixar músicas).
    copiadas quando o formato suporta; WAV pode ter suporte limitado a metadados.
    O nome sugerido do arquivo e a tag de título recebem ** - Slowed + Reverb**
    quando ambos os efeitos estão ativos, ** - Slowed** com reverb em zero ou
-   ** - Reverb** com velocidade em 100%. Com ambos desligados, o título e o nome
+   ** - Reverb** com velocidade em 100%. Acima de 100%, recebem ** - Sped Up**
+   ou ** - Sped Up + Reverb**, conforme o reverb esteja desligado ou ativo.
+   Com ambos desligados, o título e o nome
    sugerido ficam iguais aos originais. Você precisa escolher outro arquivo para
    salvar a cópia. Artista, álbum, capa e demais tags são mantidos; exportações no
    mesmo formato preservam também as tags nativas personalizadas.
 
 O reverb usa reflexões múltiplas com decaimento, implementadas com `aecho` e
-limitador do FFmpeg; o slow usa mudança da taxa de amostragem. A prévia e a
+limitador do FFmpeg; Slowed e Sped Up usam mudança da taxa de amostragem. A prévia e a
 exportação usam os mesmos filtros. Não é um plugin de reverberação por convolução.
 Veja os filtros [asetrate](https://ffmpeg.org/ffmpeg-filters.html#asetrate) e
 [aecho](https://ffmpeg.org/ffmpeg-filters.html#aecho).
@@ -134,7 +137,7 @@ conferir as versões nos resultados, ouvir uma prévia e escolher o formato.
    Escolha **Deezer** ou **Apple / iTunes** para a busca de catálogo. Não é
    necessário informar credenciais para esses dois catálogos.
 2. Selecione um resultado. Aparecem título, artista, álbum, duração e capa.
-   **Ouvir prévia** reproduz até 30 segundos, quando o catálogo fornece uma
+   **Ouvir prévia** usa a duração escolhida nas configurações, quando o catálogo fornece uma
    amostra HTTPS e o FFmpeg inclui `ffplay`. A prévia para ao mudar de faixa,
    abrir a escolha de formato, trocar de aba ou fechar o app.
 3. Clique em **Baixar…** (ou dê dois cliques na linha). Escolha **MP3 320**,
@@ -570,3 +573,77 @@ capa real de Make Luv retornou 710 × 600. O arquivo incorpora a imagem inteira,
 sem corte nem deformação; capas retangulares podem deixar margens em players
 que reservam um espaço quadrado. A mudança vale para novas consultas/downloads.
 Os arquivos já baixados não são alterados automaticamente.
+
+## Fotos, vídeos e redes sociais
+
+Na aba **Links e fila**, cole o link direto de uma publicação (um por linha):
+
+- **Vídeo (MKV)**: vídeos do TikTok, Instagram e outros sites compatíveis com yt-dlp; resolução e FPS máximos selecionáveis. Kwai usa um extrator próprio para o estado público da publicação.
+- **Fotos / carrossel**: todas as imagens disponíveis, preservando formato e ordem, com suporte pelo gallery-dl a Instagram, TikTok e outros sites de galerias compatíveis. Não baixa a capa de um vídeo como se fosse uma foto.
+- **Post completo**: fotos e vídeos originais de uma publicação, inclusive carrosséis mistos. Resolução/FPS não são alterados neste modo.
+- **MP3 / M4A / FLAC / Áudio original**: continuam disponíveis para extrair áudio dos vídeos compatíveis.
+
+Kwai: fotos só podem ser identificadas quando a página pública contém um atlas de imagens com o ID da publicação; não há garantia de suporte a todos os formatos ou regiões. Não é feito download de perfis inteiros. Publicações inacessíveis, removidas, bloqueadas ou que exigem login podem falhar. Em **Configurações → Redes sociais**, é possível selecionar um arquivo `cookies.txt` no formato Netscape da própria sessão. Esse caminho não é salvo na fila ou nas preferências. Trate esse arquivo como uma senha.
+
+Os arquivos entram no histórico, mostram progresso e usam a política de duplicados. O tamanho aparece quando o servidor o informa. Em caso de falha parcial, os arquivos já concluídos permanecem no histórico e o item pode ser tentado novamente.
+
+Para remover músicas ou outros itens, selecione na fila e clique em **Remover selecionados**, ou pressione **Delete**. Use Ctrl/Shift para selecionar vários. Remover o item em andamento pede confirmação e interrompe só esse download; a fila continua com os próximos. Os arquivos já baixados são preservados.
+
+### Vídeo em MP4
+
+Em Links e fila, escolha **Vídeo (MP4)**, a resolução e o FPS máximo. O Onda prioriza fontes MP4/M4A e converte para MP4 quando necessário. O arquivo final tem extensão .mp4; resolução, FPS, estimativa de tamanho, fila e histórico seguem disponíveis.
+
+
+### Detecção de publicações e seleção de mídias
+
+Instagram e Twitter/X: cole o link de uma publicação em Vídeo (MKV), MP4 ou Post completo. O app identifica fotos e vídeos na ordem original. Com até duas mídias, baixa todas; com mais de duas, abre uma janela com miniaturas, seleção individual e botão Baixar selecionados. Fotos / carrossel filtra somente as fotos. Vídeos respeitam resolução/FPS e formato selecionados; Post completo mantém os arquivos originais. Links de perfis inteiros não são aceitos.
+
+Twitter/X usa a consulta de publicações do yt-dlp, com alternativa pública de syndication quando necessário, e aceita cookies da sessão própria; a plataforma pode limitar os dados públicos ou exigir login. Kwai ganhou extrator de publicações públicas com estado Nuxt e seleção de qualidade.
+
+O runtime inclui curl-cffi para a simulação de navegador e Pillow para miniaturas. O bloqueio de IP do TikTok pode continuar mesmo com a dependência instalada; o app informa esse caso explicitamente.
+
+
+### Tipo automático em publicações
+
+Em Instagram, Twitter/X, TikTok e Kwai, os modos de vídeo e publicação reconhecem o conteúdo disponível. Posts somente com fotos salvam imagens. Se Fotos / carrossel estiver selecionado mas o post só tiver vídeos, o app usa MP4 automaticamente, mantendo os limites de resolução/FPS. Em posts mistos, Fotos / carrossel continua filtrando as imagens; Vídeo e Post completo incluem fotos e vídeos. A seleção de mais de duas mídias continua funcionando. Formatos de áudio permanecem uma escolha explícita.
+
+O TikTok pode bloquear a conexão mesmo com o runtime completo. A mensagem informa essa restrição e não promete que cookies resolvam.
+
+### Baixar agora e prévia entre abas
+
+Em Links e fila, cole um único link e clique em **Baixar agora**. O download começa com as opções atuais, sem clicar em Adicionar à fila ou Baixar fila. A playlist de vídeo fica desativada nessa ação. O item aparece em Seus downloads para acompanhar progresso, escolhas e cancelamento; os outros itens pendentes ficam aguardando. Se um item igual já estiver pendente, ele é reutilizado. Com um download ativo, aguarde terminar ou cancele antes de usar Baixar agora.
+
+Em Configurações, marque **Continuar a prévia dos efeitos ao trocar de aba**. Desmarcada, a prévia para ao sair da aba. Marcada, continua tocando nas outras abas; volte à aba Slowed / Sped Up para usar os controles. Desmarcar a opção enquanto estiver em outra aba também para a prévia. Ela sempre é encerrada ao fechar o app. A opção é salva quando Lembrar configurações estiver ativado.
+
+### Fotos do TikTok e mensagens de acesso
+
+Fotos e vídeos do TikTok agora usam o suporte de sessão/página do yt-dlp. O Onda lê o tipo real da publicação, preserva as imagens na ordem original e usa o seletor quando há mais de duas. Não confunde a capa ou o áudio do carrossel com uma foto. Os formatos de vídeo e a troca automática de Fotos para MP4 continuam disponíveis.
+
+Foi corrigida a integração de log do gallery-dl: o adaptador implementa traceback e conserva a causa de falhas. Erros internos ou de leitura de metadados não são mais apresentados automaticamente como se exigissem cookies. A orientação sobre autenticação aparece quando a resposta indica recusa de acesso/login; bloqueios reais da plataforma ainda podem ocorrer.
+
+### Duração das prévias
+
+Em Configurações → Duração das prévias, escolha separadamente o tempo para
+Slowed / Sped Up e Reverb e para músicas nas pesquisas (10 a 180 segundos).
+Os padrões são 25 e 30 segundos, respectivamente. A duração é do áudio ouvido,
+mesmo com velocidade alterada, e vale para a próxima prévia. Nas pesquisas,
+o trecho fornecido pelo catálogo pode ser menor. As opções são salvas quando
+Lembrar configurações estiver ativado. Exportar continua salvando a música inteira.
+
+### Categorias das configurações
+
+A janela usa abas: Geral (lembrar configurações), Downloads (destino, playlists,
+revisão de metadados, organização e duplicados), Áudio (prévias), Contas
+(Spotify e cookies de redes sociais) e Ferramentas (FFmpeg e atualizações).
+Ajuda e Pronto ficam sempre visíveis na parte inferior.
+
+### Limite de playlists
+
+Em Configurações → Downloads → Máximo de itens por playlist, escolha 100, 250,
+500, 1000, 2000 ou 5000 (padrão: 1000). Vale para playlists de vídeo adicionadas
+à fila e novas importações na aba Playlists, inclusive TXT/M3U. No Deezer,
+o app carrega as páginas seguintes automaticamente. No Spotify sem API,
+o embed público pode retornar apenas uma parte da lista; aumentar o limite
+não libera itens que o serviço não fornece. A importação de playlists Apple
+Music ainda não é suportada. O limite é salvo com Lembrar configurações e
+capturado ao adicionar cada playlist à fila.

@@ -14,10 +14,13 @@ from urllib.parse import urlsplit
 
 MODES = {
     "Vídeo · melhor qualidade (MKV)": "video",
+    "Vídeo · MP4": "mp4",
     "Áudio · original, sem recodificar": "original",
     "Áudio · MP3 (320 kbps)": "mp3",
     "Áudio · M4A (AAC)": "m4a",
     "Áudio · FLAC": "flac",
+    "Fotos · todas do carrossel": "photos",
+    "Publicação · fotos e vídeos originais": "social",
 }
 HEIGHTS = {"Melhor disponível": None, "2160p / 4K": 2160, "1440p": 1440,
            "1080p": 1080, "720p": 720, "480p": 480}
@@ -27,6 +30,8 @@ FPS_OPTIONS = {"Original": None, "24 fps": 24, "30 fps": 30, "60 fps": 60, "120 
 
 
 def audio_bitrate(config):
+    from playlist_options import playlist_limit
+    max_items = playlist_limit(config.get("playlist_limit", 1000))
     mode = config["mode"]
     choices = MP3_QUALITIES if mode == "mp3" else M4A_QUALITIES
     quality = config.get("audio_quality") or choices[0]
@@ -62,6 +67,8 @@ def binaries(folder: str = "") -> bool:
 
 
 def build_options(config: dict) -> dict:
+    from playlist_options import playlist_limit
+    max_items = playlist_limit(config.get("playlist_limit", 1000))
     mode = config["mode"]
     if mode not in MODES.values():
         raise ValueError("Formato inválido.")
@@ -73,7 +80,7 @@ def build_options(config: dict) -> dict:
         "outtmpl": {"default": "%(artist,uploader|Artista desconhecido).80B - %(track,title).140B.%(ext)s"},
         "windowsfilenames": True,
         "noplaylist": not config.get("playlist", False),
-        "playlistend": 100 if config.get("playlist", False) else 1,
+        "playlistend": max_items if config.get("playlist", False) else 1,
         "continuedl": True, "overwrites": False,
         "retries": 3, "fragment_retries": 3, "socket_timeout": 20,
         "ignoreerrors": False, "quiet": True, "no_warnings": False,
@@ -83,13 +90,23 @@ def build_options(config: dict) -> dict:
     }
     if config.get("ffmpeg"):
         options["ffmpeg_location"] = config["ffmpeg"]
+    if config.get("cookies_file"):
+        options["cookiefile"] = config["cookies_file"]
     if mode in ("mp3", "m4a"):
         bitrate = audio_bitrate(config)
     if config.get("output_artist") and config.get("output_title"):
         from yt_dlp.utils import sanitize_filename
         name = sanitize_filename(config["output_artist"][:80] + " - " + config["output_title"][:140], restricted=False)
         options["outtmpl"] = {"default": name.replace("%", "%%") + ".%(ext)s"}
-    if mode == "video":
+    if mode == "social":
+        options["outtmpl"] = {"default": "%(uploader|Publicação).60B - %(title).120B - %(playlist_index|1)s.%(ext)s"}
+        options["format"] = "bestvideo+bestaudio/best"
+        options["noplaylist"] = False
+        options["playlistend"] = 100
+        options["postprocessors"] = []
+    elif mode == "photos":
+        raise ValueError("Fotos devem ser baixadas pelo extrator de publicações.")
+    elif mode in ("video", "mp4"):
         limit = f"[height<=?{height}]" if height else ""
         fps = config.get("fps")
         if fps not in FPS_OPTIONS.values():
@@ -98,6 +115,15 @@ def build_options(config: dict) -> dict:
         options["format"] = f"bestvideo{limit}{fps_limit}+bestaudio/best{limit}{fps_limit}"
         options["merge_output_format"] = "mkv"
         options["postprocessors"] = [{"key": "FFmpegVideoRemuxer", "preferedformat": "mkv"}]
+        if mode == "mp4":
+            # Prefer MP4/M4A streams to avoid unnecessary transcoding. Every
+            # fallback must retain the requested resolution and FPS ceilings.
+            constraints = limit + fps_limit
+            options["format"] = (f"bestvideo[ext=mp4]{constraints}+bestaudio[ext=m4a]/"
+                                 f"best[ext=mp4]{constraints}/"
+                                 f"bestvideo{constraints}+bestaudio/best{constraints}")
+            options["merge_output_format"] = "mp4/mkv"
+            options["postprocessors"] = [{"key": "FFmpegVideoConvertor", "preferedformat": "mp4"}]
     else:
         options["format"] = "bestaudio" if mode == "original" else "bestaudio/best"
         if mode == "original":
@@ -133,6 +159,18 @@ def download_with_recovery(url, options, configure, saved):
             current["check_formats"] = "selected"
         try:
             with YoutubeDL(current) as downloader:
+                from kwai import OndaKwaiIE
+                if OndaKwaiIE.suitable(url):
+                    downloader.add_info_extractor(OndaKwaiIE(downloader))
+                    configure(downloader)
+                    info = downloader.extract_info(url, download=False, process=False, ie_key=OndaKwaiIE.ie_key())
+                    formats = [f for f in info.get("formats", []) if f.get("width") and f.get("height")]
+                    if formats and all(f["width"] < f["height"] for f in formats):
+                        selector = current.get("format", "best").replace("[height<=?", "[width<=?")
+                        downloader.params["format"] = selector
+                        downloader.format_selector = downloader.build_format_selector(selector)
+                    downloader.process_ie_result(info, download=True)
+                    return 0
                 configure(downloader)
                 return downloader.download([url])
         except DownloadError as exc:
@@ -218,6 +256,20 @@ def ask_duplicate(path, input_stream=None):
     return choice
 
 
+def ask_media(candidates, input_stream=None):
+    emit("choose_media", candidates=candidates)
+    try:
+        selected = json.loads((input_stream or sys.stdin).readline())["selected_ids"]
+        allowed = {item["id"] for item in candidates}
+        if not isinstance(selected, list) or not selected or any(not isinstance(value, str) for value in selected):
+            raise ValueError()
+        if len(set(selected)) != len(selected) or not set(selected).issubset(allowed):
+            raise ValueError()
+    except (ValueError, KeyError, TypeError):
+        raise ValueError("A seleção de fotos e vídeos foi interrompida.") from None
+    return selected
+
+
 def run_worker(config: dict) -> int:
     try:
         from yt_dlp.postprocessor.common import PostProcessor
@@ -226,6 +278,16 @@ def run_worker(config: dict) -> int:
         record = match = cover = None
         streaming = is_streaming_link(config["url"])
         url = config["url"] if streaming else validate_url(config["url"])
+        from social_media import is_social
+        if config["mode"] in ("photos", "social") or (is_social(url) and config["mode"] in ("video", "mp4")):
+            if streaming:
+                raise ValueError("Escolha um formato de áudio para links de música.")
+            from social_media import download_post, access_error
+            try:
+                if download_post(config, emit, ask_duplicate, choose=ask_media):
+                    return 0
+            except Exception as exc:
+                raise ValueError(access_error(exc)) from exc
         if not binaries(config.get("ffmpeg", "")):
             raise ValueError("FFmpeg e ffprobe não encontrados. Instale-os ou selecione a pasta bin na interface.")
         Path(config["folder"]).mkdir(parents=True, exist_ok=True)
@@ -259,8 +321,8 @@ def run_worker(config: dict) -> int:
             else:
                 cover = fetch_cover(record.get("cover_url"))
             config = dict(config, playlist=False, output_artist=record["artists"][0], output_title=record["title"])
-            if config["mode"] in ("video", "original"):
-                config["mode"] = "mp3" if config["mode"] == "video" else "m4a"
+            if config["mode"] in ("video", "mp4", "original"):
+                config["mode"] = "mp3" if config["mode"] in ("video", "mp4") else "m4a"
         from file_output import destination, publish
         output_folder = destination(config, record)
         destination_config = dict(config)
@@ -308,7 +370,8 @@ def run_worker(config: dict) -> int:
                         Path(path).unlink(missing_ok=True)
                         emit("log", message="Arquivo existente mantido: " + final)
                     saved.append(final)
-                    emit("file", path=final, size=Path(final).stat().st_size, skipped=skipped)
+                    emit("file", path=final, size=Path(final).stat().st_size, skipped=skipped,
+                         mode=Path(final).suffix.lstrip(".").upper() if config["mode"] == "social" else config["mode"].upper())
                 return [], info
 
         class EstimateSize(PostProcessor):
@@ -359,7 +422,11 @@ def run_worker(config: dict) -> int:
         emit("done", files=saved)
         return 0
     except Exception as exc:
-        emit("error", message=str(exc))
+        message = str(exc)
+        from social_media import is_social, access_error
+        if is_social(config.get("url", "")) and config.get("mode") not in ("photos", "social") and any(word in message.lower() for word in ("403", "401", "login", "log in", "private", "ip address is blocked")):
+            message = access_error(exc)
+        emit("error", message=message)
         return 1
 
 

@@ -9,7 +9,7 @@ import threading
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
-from audio_tools import PreviewPlayer, effects_filter, effect_name, process_options, executable
+from audio_tools import PreviewPlayer, effects_filter, effect_name, process_options, executable, MIN_SPEED, MAX_SPEED
 from engine import stop_process
 
 
@@ -17,6 +17,9 @@ PRESETS = {
     "Original": (100, 0),
     "Slowed leve": (90, 0),
     "Slowed intenso": (75, 0),
+    "Sped Up leve": (115, 0),
+    "Sped Up intenso": (130, 0),
+    "Sped Up + Reverb": (120, 25),
     "Só Reverb": (100, 30),
     "Clássico": (85, 25),
     "Atmosférico": (75, 50),
@@ -54,8 +57,8 @@ class EffectsPane(ttk.Frame):
         self.render_temp = None
         self.output_folder = None
         self.columnconfigure(0, weight=1)
-        ttk.Label(self, text="Slowed + Reverb", font=("Segoe UI", 23, "bold"), anchor="center").grid(row=0, column=0, sticky="ew")
-        ttk.Label(self, text="Ajuste, ouça e salve uma nova versão da sua música.", style="Muted.TLabel", anchor="center").grid(row=1, column=0, sticky="ew", pady=(5, 12))
+        ttk.Label(self, text="Slowed · Sped Up · Reverb", font=("Segoe UI", 23, "bold"), anchor="center").grid(row=0, column=0, sticky="ew")
+        ttk.Label(self, text="Desacelere ou acelere sua música. Adicione reverb se quiser.", style="Muted.TLabel", anchor="center").grid(row=1, column=0, sticky="ew", pady=(5, 12))
         file_row = ttk.Frame(self)
         file_row.grid(row=2, column=0, sticky="ew")
         ttk.Entry(file_row, textvariable=self.source).pack(side="left", fill="x", expand=True)
@@ -72,9 +75,14 @@ class EffectsPane(ttk.Frame):
         self.preset_box = ttk.Combobox(presets, textvariable=self.preset, values=(*PRESETS, "Personalizado"), state="readonly", width=17)
         self.preset_box.pack(side="left")
         self.preset_box.bind("<<ComboboxSelected>>", self.apply_preset)
-        self.speed_slider = ttk.Scale(card, from_=50, to=100, variable=self.speed, command=self.changed)
+        self.speed_slider = ttk.Scale(card, from_=MIN_SPEED, to=MAX_SPEED, variable=self.speed, command=self.changed)
         self.speed_slider.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(8, 4))
-        ttk.Label(card, text="50% · mais lento e grave                                      100% · original", style="CardMuted.TLabel").grid(row=2, column=0, sticky="w")
+        speed_guide = ttk.Frame(card, style="Card.TFrame")
+        speed_guide.grid(row=2, column=0, columnspan=2, sticky="ew")
+        for column in range(3):
+            speed_guide.columnconfigure(column, weight=1, uniform="speed")
+        for column, text, anchor in ((0, "50% · Slowed", "w"), (1, "100% · original", "center"), (2, "150% · Sped Up", "e")):
+            ttk.Label(speed_guide, text=text, style="CardMuted.TLabel", anchor=anchor).grid(row=0, column=column, sticky="ew")
         ttk.Label(card, textvariable=self.reverb_label, style="Card.TLabel", font=("Segoe UI", 12, "bold")).grid(row=3, column=0, sticky="w", pady=(16, 0))
         self.reverb_slider = ttk.Scale(card, from_=0, to=100, variable=self.reverb, command=self.changed)
         self.reverb_slider.grid(row=4, column=0, columnspan=2, sticky="ew", pady=8)
@@ -96,7 +104,7 @@ class EffectsPane(ttk.Frame):
         ttk.Button(preview, text="Ouvir original", command=lambda: self.preview(False)).pack(side="left", padx=4)
         ttk.Button(preview, text="Ouvir com efeitos", style="Accent.TButton", command=self.preview).pack(side="left", padx=4)
         ttk.Button(preview, text="Parar", command=self.stop_preview).pack(side="left", padx=4)
-        ttk.Label(self, text="Arraste a barra para escolher o trecho. Cada prévia toca até 25 segundos; os efeitos podem ser ajustados enquanto você ouve.", style="Muted.TLabel", wraplength=760).grid(row=6, column=0, sticky="w", pady=8)
+        ttk.Label(self, text="Arraste a barra para escolher o trecho. A duração da prévia pode ser alterada em Configurações. Ajuste os efeitos enquanto ouve.", style="Muted.TLabel", wraplength=760).grid(row=6, column=0, sticky="w", pady=8)
         export = ttk.Frame(self)
         export.grid(row=7, column=0, sticky="ew", pady=8)
         ttk.Label(export, text="Salvar como").pack(side="left")
@@ -114,7 +122,7 @@ class EffectsPane(ttk.Frame):
         self.poll_id = self.after(100, self.poll)
 
     def choose(self):
-        path = filedialog.askopenfilename(parent=self.app, title="Áudio para Slowed + Reverb", filetypes=[("Áudio", "*.mp3 *.m4a *.flac *.wav *.ogg *.opus *.webm *.aac"), ("Todos", "*.*")])
+        path = filedialog.askopenfilename(parent=self.app, title="Áudio para Slowed, Sped Up e Reverb", filetypes=[("Áudio", "*.mp3 *.m4a *.flac *.wav *.ogg *.opus *.webm *.aac"), ("Todos", "*.*")])
         if path:
             self.use_file(path)
 
@@ -204,7 +212,8 @@ class EffectsPane(ttk.Frame):
     def changed(self, _=None):
         values = (round(self.speed.get()), round(self.reverb.get()))
         self.preset.set(next((name for name, pair in PRESETS.items() if pair == values), "Personalizado"))
-        self.speed_label.set(f"Velocidade · {self.speed.get():.0f}%" + (" · original" if round(self.speed.get()) == 100 else ""))
+        speed = round(self.speed.get())
+        self.speed_label.set(f"Velocidade · {speed}% · " + ("Slowed" if speed < 100 else "Sped Up" if speed > 100 else "original"))
         self.reverb_label.set(f"Reverb · {self.reverb.get():.0f}%" + (" · desligado" if round(self.reverb.get()) == 0 else ""))
         if self.debounce:
             self.after_cancel(self.debounce)
@@ -235,7 +244,9 @@ class EffectsPane(ttk.Frame):
             speed, reverb = (round(self.speed.get()), round(self.reverb.get())) if processed else (100, 0)
             effects_filter(speed, reverb)
             self.app.catalog_page.stop_preview()
-            self.player.play(str(source), self.app.ffmpeg.get(), speed, reverb, start)
+            from preview_options import preview_seconds
+            duration = preview_seconds(self.app.effects_preview_duration.get())
+            self.player.play(str(source), self.app.ffmpeg.get(), speed, reverb, start, duration=duration)
             self.preview_active = processed
             self.playback_mode = processed
             self.status.set("Preparando prévia…")

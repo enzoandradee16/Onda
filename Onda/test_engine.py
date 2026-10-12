@@ -41,6 +41,12 @@ class ValidationTests(unittest.TestCase):
         self.assertIsNotNone(reject_live({"is_live": True}))
         self.assertIsNone(reject_live({"live_status": "was_live"}))
 
+    def test_mp4_limits_apply_to_every_video_fallback(self):
+        options = build_options({"mode": "mp4", "folder": ".", "height": 720, "fps": 30})
+        for fallback in options["format"].split("/"):
+            self.assertIn("[height<=?720][fps<=?30]", fallback)
+        self.assertEqual(options["postprocessors"][0]["preferedformat"], "mp4")
+
     def test_stop_process(self):
         options = {"creationflags": subprocess.CREATE_NO_WINDOW} if os.name == "nt" else {"start_new_session": True}
         process = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"], **options)
@@ -73,6 +79,8 @@ class MediaTests(unittest.TestCase):
                         "color=c=blue:s=160x120:d=1", "-i", str(cls.root / "tone.wav"), "-c:v", "mpeg4",
                         "-c:a", "aac", "-shortest", str(cls.root / "video.mp4")], check=True)
         handler = functools.partial(QuietHandler, directory=str(cls.root))
+        subprocess.run([str(ffmpeg), "-hide_banner", "-loglevel", "error", "-i", str(cls.root / "video.mp4"),
+                        "-c:v", "libvpx-vp9", "-c:a", "libvorbis", str(cls.root / "video.webm")], check=True)
         cls.server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
         cls.thread = threading.Thread(target=cls.server.serve_forever, daemon=True)
         cls.thread.start()
@@ -113,6 +121,19 @@ class MediaTests(unittest.TestCase):
         result, events = self.worker("video", "video.mp4")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertEqual(Path(events[-1]["files"][0]).suffix, ".mkv")
+
+    def test_mp4_output_and_webm_conversion(self):
+        for source in ("video.mp4", "video.webm"):
+            with self.subTest(source=source):
+                result, events = self.worker("mp4", source)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                path = Path(events[-1]["files"][0])
+                self.assertEqual(path.suffix, ".mp4")
+                probe = Path(os.environ["ONDA_FFMPEG"]) / ("ffprobe.exe" if os.name == "nt" else "ffprobe")
+                info = json.loads(subprocess.check_output([str(probe), "-v", "error", "-show_streams", "-of", "json", str(path)]))
+                self.assertEqual({stream["codec_type"] for stream in info["streams"]}, {"audio", "video"})
+                if source == "video.mp4":
+                    self.assertEqual(path.read_bytes(), (self.root / source).read_bytes())
 
     def test_http_error_is_not_success(self):
         result, events = self.worker("original", "missing.wav")

@@ -35,9 +35,13 @@ def self_test(target):
     """A non-network diagnostic, with isolated settings and no persistent changes."""
     report = {"ok": False, "python": sys.version, "prefix": sys.prefix}
     try:
-        import requests, mutagen, yt_dlp
+        import requests, mutagen, yt_dlp, gallery_dl, curl_cffi, PIL
+        import instagram_media, twitter_media, tiktok_media, kwai, media_picker
         from yt_dlp.version import __version__
         report["yt_dlp"] = __version__
+        report["gallery_dl"] = gallery_dl.version.__version__
+        report["curl_cffi"] = curl_cffi.__version__
+        report["Pillow"] = PIL.__version__
         report["tools"] = {}
         for tool, flag in (("ffmpeg", "-version"), ("ffprobe", "-version"), ("ffplay", "-version"), ("node", "--version")):
             result = subprocess.run([str(TOOLS / ("node" if tool == "node" else "ffmpeg") / (tool + ".exe")), flag],

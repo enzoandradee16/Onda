@@ -11,7 +11,7 @@ TEXT = "#eef3f8"
 MUTED = "#91a0b3"
 ACCENT = "#79e2c4"
 LINE = "#2a3441"
-FORMAT_LABELS = {"Vídeo (MKV)": "video", "MP3": "mp3", "M4A": "m4a", "FLAC": "flac", "Áudio original": "original"}
+FORMAT_LABELS = {"Vídeo (MKV)": "video", "Vídeo (MP4)": "mp4", "MP3": "mp3", "M4A": "m4a", "FLAC": "flac", "Áudio original": "original", "Fotos / carrossel": "photos", "Post completo": "social"}
 
 
 class UiMixin:
@@ -75,7 +75,7 @@ class UiMixin:
         mark.pack(side="left", padx=(0, 9))
         for x, y in ((4, 13), (10, 7), (16, 2), (22, 10)):
             mark.create_line(x, y + 4, x, 32 - y, width=3, fill=ACCENT, capstyle="round")
-        ttk.Label(top, text="onda", font=("Segoe UI", 22, "bold"), foreground=ACCENT).pack(side="left")
+        ttk.Label(top, text="ONDA", font=("Segoe UI", 22, "bold"), foreground=ACCENT).pack(side="left")
         ttk.Button(top, text="Configurações", style="Quiet.TButton", command=self.show_settings).pack(side="right")
         ttk.Button(top, text="Metadados", style="Quiet.TButton", command=self.open_metadata).pack(side="right", padx=6)
 
@@ -94,7 +94,7 @@ class UiMixin:
         self.history_page = HistoryPane(self.pages, self)
         self.pages.add(self.playlist_page, text="Playlists")
         self.pages.add(self.history_page, text="Histórico")
-        self.pages.add(self.effects_page, text="Slowed + Reverb")
+        self.pages.add(self.effects_page, text="Slowed / Sped Up")
         self.pages.bind("<<NotebookTabChanged>>", self.tab_changed)
         main = self.download_page
         main.columnconfigure(0, weight=1)
@@ -103,7 +103,7 @@ class UiMixin:
         heading = ttk.Frame(main)
         heading.grid(row=1, column=0, sticky="ew", pady=(0, 8))
         ttk.Label(heading, text="Do link para sua biblioteca.", font=("Segoe UI", 21, "bold"), anchor="center").pack(fill="x")
-        ttk.Label(heading, text="Músicas e vídeos, organizados do seu jeito.", style="Muted.TLabel", anchor="center").pack(fill="x", pady=(5, 0))
+        ttk.Label(heading, text="Músicas, vídeos e fotos, organizados do seu jeito.", style="Muted.TLabel", anchor="center").pack(fill="x", pady=(5, 0))
 
         card = ttk.Frame(main, style="Card.TFrame", padding=14)
         card.grid(row=2, column=0, sticky="ew")
@@ -115,7 +115,7 @@ class UiMixin:
                             selectbackground="#345048", relief="flat", borderwidth=0, highlightthickness=0,
                             font=("Segoe UI", 11), padx=12, pady=8, wrap="word", undo=True)
         self.urls.pack(fill="x")
-        self.url_hint = tk.Label(entry, text="Cole um ou mais links aqui…", bg=INPUT, fg=MUTED,
+        self.url_hint = tk.Label(entry, text="YouTube, Instagram, TikTok, Kwai… um link por linha", bg=INPUT, fg=MUTED,
                                  font=("Segoe UI", 11), cursor="xterm")
         self.url_hint.place(x=12, y=12)
         self.url_hint.bind("<Button-1>", lambda _: self.urls.focus_set())
@@ -141,6 +141,8 @@ class UiMixin:
         self.fixed_quality = tk.StringVar()
         self.add_button = ttk.Button(actions, text="Adicionar à fila  +", command=self.add)
         self.add_button.grid(row=1, column=3, sticky="e")
+        self.download_now_button = ttk.Button(actions, text="Baixar agora", style="Accent.TButton", command=self.download_now)
+        self.download_now_button.grid(row=1, column=4, sticky="e", padx=(8, 0))
         ttk.Checkbutton(card, text="Revisar metadados antes de baixar", variable=self.review_metadata).grid(row=3, column=0, sticky="w", pady=(8, 0))
 
         queue_head = ttk.Frame(main)
@@ -150,11 +152,11 @@ class UiMixin:
         ttk.Label(queue_head, textvariable=self.queue_count, style="Muted.TLabel").pack(side="left", padx=12)
         self.retry_button = ttk.Button(queue_head, text="Tentar novamente", style="Quiet.TButton", command=self.retry, state="disabled")
         self.retry_button.pack(side="right")
-        self.remove_button = ttk.Button(queue_head, text="Remover", style="Quiet.TButton", command=self.remove, state="disabled")
+        self.remove_button = ttk.Button(queue_head, text="Remover selecionados", style="Quiet.TButton", command=self.remove, state="disabled")
         self.remove_button.pack(side="right", padx=4)
         table = ttk.Frame(main, style="Card.TFrame")
         table.grid(row=4, column=0, sticky="nsew")
-        self.tree = ttk.Treeview(table, columns=("name", "format", "size", "status"), show="headings", height=5)
+        self.tree = ttk.Treeview(table, columns=("name", "format", "size", "status"), show="headings", height=5, selectmode="extended")
         for column, label, width in (("name", "NOME", 350), ("format", "FORMATO", 100), ("size", "TAMANHO", 125), ("status", "STATUS", 140)):
             self.tree.heading(column, text=label, anchor="w")
             self.tree.column(column, width=width, minwidth=80, stretch=column == "name", anchor="w")
@@ -166,6 +168,7 @@ class UiMixin:
         self.tree.tag_configure("Falhou", foreground="#f2a198")
         self.tree.tag_configure("Cancelado", foreground=MUTED)
         self.tree.bind("<<TreeviewSelect>>", lambda _: self.refresh_queue())
+        self.tree.bind("<Delete>", lambda _: self.remove())
         self.empty_queue = ttk.Frame(table, style="Card.TFrame")
         ttk.Label(self.empty_queue, text="Sua fila começa aqui", style="Card.TLabel", font=("Segoe UI", 12, "bold")).pack()
         ttk.Label(self.empty_queue, text="Adicione um link para começar.", style="CardMuted.TLabel").pack(pady=(5, 0))
@@ -210,16 +213,16 @@ class UiMixin:
 
     def update_quality_selector(self):
         mode = MODES[self.mode.get()]
-        self.quality_caption.configure(text="Resolução" if mode == "video" else "Qualidade")
+        self.quality_caption.configure(text="Resolução" if mode in ("video", "mp4") else "Qualidade")
         for widget in (self.fps_label, self.fps_selector):
-            widget.grid() if mode == "video" else widget.grid_remove()
-        if mode == "video":
+            widget.grid() if mode in ("video", "mp4") else widget.grid_remove()
+        if mode in ("video", "mp4"):
             self.quality_selector.configure(textvariable=self.height, values=list(HEIGHTS), state="readonly")
         elif mode in ("mp3", "m4a"):
             variable, choices = (self.mp3_quality, MP3_QUALITIES) if mode == "mp3" else (self.m4a_quality, M4A_QUALITIES)
             self.quality_selector.configure(textvariable=variable, values=choices, state="readonly")
         else:
-            self.fixed_quality.set("Sem perdas (fonte)" if mode == "flac" else "Qualidade da fonte")
+            self.fixed_quality.set("Todas as fotos" if mode == "photos" else "Arquivos originais" if mode == "social" else "Sem perdas (fonte)" if mode == "flac" else "Qualidade da fonte")
             self.quality_selector.configure(textvariable=self.fixed_quality, values=(), state="disabled")
 
     def refresh_placeholder(self):
@@ -241,7 +244,7 @@ class UiMixin:
         else:
             self.empty_queue.place(relx=.5, rely=.58, anchor="center")
         selected = self.tree.selection()
-        self.remove_button.configure(state="normal" if any(i != self.active for i in selected) else "disabled")
+        self.remove_button.configure(state="normal" if selected else "disabled")
         self.retry_button.configure(state="normal" if any(self.jobs.get(i, {}).get("state") in ("Falhou", "Cancelado") for i in selected) else "disabled")
 
     def _build_settings(self):
@@ -252,52 +255,97 @@ class UiMixin:
         self.settings_window.geometry("650x640")
         self.settings_window.minsize(600, 620)
         self.settings_window.protocol("WM_DELETE_WINDOW", self.settings_window.withdraw)
-        panel = ttk.Frame(self.settings_window)
-        panel.pack(fill="both", expand=True)
-        canvas = tk.Canvas(panel, bg=BG, highlightthickness=0)
-        scroll = ttk.Scrollbar(panel, command=canvas.yview)
-        scroll.pack(side="right", fill="y")
-        canvas.pack(side="left", fill="both", expand=True)
-        canvas.configure(yscrollcommand=scroll.set)
-        body = ttk.Frame(canvas, padding=24)
-        window = canvas.create_window((0, 0), window=body, anchor="nw")
-        canvas.bind("<Configure>", lambda event: canvas.itemconfigure(window, width=event.width))
-        body.bind("<Configure>", lambda _: canvas.configure(scrollregion=canvas.bbox("all")))
-        canvas.bind("<MouseWheel>", lambda event: canvas.yview_scroll(-int(event.delta / 120), "units"))
-        self.settings_window.bind("<MouseWheel>", lambda event: canvas.yview_scroll(-int(event.delta / 120), "units"))
+        body = ttk.Frame(self.settings_window, padding=20)
+        body.pack(fill="both", expand=True)
         ttk.Label(body, text="Do seu jeito.", font=("Segoe UI", 20, "bold")).pack(anchor="w")
-        ttk.Label(body, text="As opções são aplicadas aos próximos links adicionados.", style="Muted.TLabel").pack(anchor="w", pady=(4, 20))
-        self.remember_checkbox = ttk.Checkbutton(body, text="Lembrar configurações", variable=self.remember_settings,
-                                                command=self.toggle_remember_settings)
-        self.remember_checkbox.pack(anchor="w")
-        ttk.Label(body, textvariable=self.preference_status, style="Muted.TLabel", wraplength=550).pack(anchor="w", pady=(4, 16))
-        ttk.Checkbutton(body, text="Revisar metadados antes de baixar", variable=self.review_metadata).pack(anchor="w", pady=(0, 14))
-        ttk.Label(body, text="Pasta de destino", font=("Segoe UI", 10, "bold")).pack(anchor="w")
-        row = ttk.Frame(body)
-        row.pack(fill="x", pady=(8, 18))
-        ttk.Entry(row, textvariable=self.folder).pack(side="left", fill="x", expand=True)
-        ttk.Button(row, text="Alterar", command=self.choose_folder).pack(side="right", padx=(8, 0))
-        ttk.Checkbutton(body, text="Baixar playlist de vídeo (até 100 itens)", variable=self.playlist).pack(anchor="w", pady=(0, 18))
-        from file_output import ORGANIZATIONS, DUPLICATES
-        ttk.Label(body, text="Organizar músicas em", style="Muted.TLabel").pack(anchor="w")
-        ttk.Combobox(body, textvariable=self.organization, values=ORGANIZATIONS, state="readonly").pack(fill="x", pady=(6, 12))
-        ttk.Label(body, text="Quando o arquivo já existir", style="Muted.TLabel").pack(anchor="w")
-        ttk.Combobox(body, textvariable=self.duplicates, values=list(DUPLICATES), state="readonly").pack(fill="x", pady=(6, 12))
-        ttk.Label(body, text="Ferramentas", font=("Segoe UI", 12, "bold")).pack(anchor="w", pady=(8, 6))
-        ttk.Label(body, text="Pasta do FFmpeg · opcional quando já configurado", style="Muted.TLabel").pack(anchor="w")
-        tools = ttk.Frame(body)
-        tools.pack(fill="x", pady=(8, 16))
-        ttk.Entry(tools, textvariable=self.ffmpeg).pack(side="left", fill="x", expand=True)
-        ttk.Button(tools, text="Escolher", command=self.choose_ffmpeg).pack(side="right", padx=(8, 0))
-        ttk.Button(body, text="Configurar Spotify / consultar metadados", command=self.open_metadata).pack(anchor="w")
-        self.update_button = ttk.Button(body, text="Atualizar ferramenta de download (yt-dlp)", command=self.update_downloader)
-        self.update_button.pack(anchor="w", pady=(14, 4))
-        ttk.Label(body, textvariable=self.update_status, style="Muted.TLabel", wraplength=540).pack(anchor="w")
-        ttk.Label(body, text="FLAC preserva a qualidade disponível; não melhora uma fonte com perdas.", style="Muted.TLabel", wraplength=560).pack(anchor="w", pady=(18, 0))
+        ttk.Label(body, text="Escolha uma categoria para ajustar o Onda.", style="Muted.TLabel").pack(anchor="w", pady=(4, 18))
         bottom = ttk.Frame(body)
         bottom.pack(side="bottom", fill="x", pady=(16, 0))
         ttk.Button(bottom, text="Ajuda", style="Quiet.TButton", command=self.help).pack(side="left")
         ttk.Button(bottom, text="Pronto", style="Accent.TButton", command=self.settings_window.withdraw).pack(side="right")
+        ttk.Style(self).configure("Settings.TNotebook.Tab", padding=(10, 8))
+        self.settings_pages = ttk.Notebook(body, style="Settings.TNotebook")
+        self.settings_pages.pack(fill="both", expand=True)
+        from settings_scroll import SettingsCategory
+        categories = {}
+        self.settings_categories = {}
+        for title in ("Geral", "Downloads", "Áudio", "Contas", "Ferramentas"):
+            page = SettingsCategory(self.settings_pages, BG)
+            self.settings_pages.add(page, text=title)
+            self.settings_categories[str(page)] = page
+            categories[title] = page.content
+        self.settings_window.bind("<MouseWheel>",
+                                  lambda event: self.settings_categories[self.settings_pages.select()].wheel(event))
+
+        general = categories["Geral"]
+        ttk.Label(general, text="Preferências", font=("Segoe UI", 13, "bold")).pack(anchor="w", pady=(0, 12))
+        self.remember_checkbox = ttk.Checkbutton(general, text="Lembrar configurações", variable=self.remember_settings,
+                                                command=self.toggle_remember_settings)
+        self.remember_checkbox.pack(anchor="w")
+        ttk.Label(general, textvariable=self.preference_status, style="Muted.TLabel", wraplength=480).pack(anchor="w", pady=(6, 12))
+        ttk.Label(general, text="Ative para recuperar suas opções ao abrir o aplicativo novamente.",
+                  style="Muted.TLabel", wraplength=480).pack(anchor="w")
+
+        downloads = categories["Downloads"]
+        ttk.Label(downloads, text="Downloads e arquivos", font=("Segoe UI", 13, "bold")).pack(anchor="w", pady=(0, 8))
+        ttk.Label(downloads, text="As opções são aplicadas aos próximos links adicionados.", style="Muted.TLabel").pack(anchor="w", pady=(0, 8))
+        ttk.Checkbutton(downloads, text="Revisar metadados antes de baixar", variable=self.review_metadata).pack(anchor="w", pady=(0, 8))
+        ttk.Checkbutton(downloads, text="Baixar playlist de vídeo", variable=self.playlist).pack(anchor="w", pady=(0, 8))
+        from playlist_options import PLAYLIST_LIMITS
+        limit_row = ttk.Frame(downloads)
+        limit_row.pack(fill="x", pady=(0, 10))
+        ttk.Label(limit_row, text="Máximo de itens por playlist", style="Muted.TLabel").pack(anchor="w")
+        ttk.Combobox(limit_row, textvariable=self.playlist_limit, values=PLAYLIST_LIMITS, state="readonly", width=10).pack(fill="x", pady=(6, 0))
+        ttk.Label(downloads, text="Pasta de destino", style="Muted.TLabel").pack(anchor="w")
+        row = ttk.Frame(downloads)
+        row.pack(fill="x", pady=(6, 8))
+        ttk.Entry(row, textvariable=self.folder).pack(side="left", fill="x", expand=True)
+        ttk.Button(row, text="Alterar", command=self.choose_folder).pack(side="right", padx=(8, 0))
+        from file_output import ORGANIZATIONS, DUPLICATES
+        ttk.Label(downloads, text="Organizar músicas em", style="Muted.TLabel").pack(anchor="w")
+        ttk.Combobox(downloads, textvariable=self.organization, values=ORGANIZATIONS, state="readonly").pack(fill="x", pady=(6, 8))
+        ttk.Label(downloads, text="Quando o arquivo já existir", style="Muted.TLabel").pack(anchor="w")
+        ttk.Combobox(downloads, textvariable=self.duplicates, values=list(DUPLICATES), state="readonly").pack(fill="x", pady=(6, 8))
+        ttk.Label(downloads, text="FLAC preserva a qualidade disponível; não melhora uma fonte com perdas.",
+                  style="Muted.TLabel", wraplength=480).pack(anchor="w", pady=(4, 0))
+
+        audio = categories["Áudio"]
+        ttk.Label(audio, text="Reprodução e prévias", font=("Segoe UI", 13, "bold")).pack(anchor="w", pady=(0, 12))
+        ttk.Checkbutton(audio, text="Continuar prévia dos efeitos em outras abas",
+                        variable=self.background_preview, command=self.tab_changed).pack(anchor="w", pady=(0, 20))
+        from preview_options import PREVIEW_DURATIONS
+        ttk.Label(audio, text="Duração das prévias", font=("Segoe UI", 11, "bold")).pack(anchor="w", pady=(0, 12))
+        for label, variable in (("Slowed / Sped Up e Reverb", self.effects_preview_duration),
+                                ("Músicas nas pesquisas", self.search_preview_duration)):
+            row = ttk.Frame(audio)
+            row.pack(fill="x", pady=(0, 12))
+            ttk.Label(row, text=label).pack(anchor="w")
+            ttk.Combobox(row, textvariable=variable, values=PREVIEW_DURATIONS, state="readonly", width=16).pack(fill="x", pady=(6, 0))
+        ttk.Label(audio, text="Vale para a próxima prévia. Nas pesquisas, o catálogo pode fornecer um trecho menor.",
+                  style="Muted.TLabel", wraplength=480).pack(anchor="w", pady=(4, 0))
+
+        accounts = categories["Contas"]
+        ttk.Label(accounts, text="Contas e acesso", font=("Segoe UI", 13, "bold")).pack(anchor="w", pady=(0, 12))
+        ttk.Label(accounts, text="Spotify · opcional", font=("Segoe UI", 11, "bold")).pack(anchor="w", pady=(0, 8))
+        ttk.Button(accounts, text="Spotify e metadados", command=self.open_metadata).pack(anchor="w", pady=(0, 24))
+        ttk.Label(accounts, text="Redes sociais · login opcional", font=("Segoe UI", 11, "bold")).pack(anchor="w", pady=(0, 8))
+        ttk.Label(accounts, text="Se a plataforma exigir login, use um arquivo cookies.txt (Netscape).\nUsado apenas nesta sessão; não vai para a fila salva.", style="Muted.TLabel", wraplength=480).pack(anchor="w")
+        cookies = ttk.Frame(accounts)
+        cookies.pack(fill="x", pady=(12, 0))
+        ttk.Entry(cookies, textvariable=self.social_cookies).pack(side="left", fill="x", expand=True)
+        ttk.Button(cookies, text="Escolher", command=self.choose_social_cookies).pack(side="left", padx=6)
+        ttk.Button(cookies, text="Limpar", command=lambda: self.social_cookies.set("")).pack(side="right")
+
+        tools_page = categories["Ferramentas"]
+        ttk.Label(tools_page, text="Ferramentas e atualizações", font=("Segoe UI", 13, "bold")).pack(anchor="w", pady=(0, 12))
+        ttk.Label(tools_page, text="Pasta do FFmpeg · opcional quando já configurado", style="Muted.TLabel").pack(anchor="w")
+        tools = ttk.Frame(tools_page)
+        tools.pack(fill="x", pady=(8, 24))
+        ttk.Entry(tools, textvariable=self.ffmpeg).pack(side="left", fill="x", expand=True)
+        ttk.Button(tools, text="Escolher", command=self.choose_ffmpeg).pack(side="right", padx=(8, 0))
+        self.update_button = ttk.Button(tools_page, text="Atualizar ferramentas", command=self.update_downloader)
+        self.update_button.pack(anchor="w", pady=(0, 8))
+        ttk.Label(tools_page, textvariable=self.update_status, style="Muted.TLabel", wraplength=480).pack(anchor="w")
 
     def _build_log(self):
         self.log_window = tk.Toplevel(self)

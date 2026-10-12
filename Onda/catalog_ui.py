@@ -221,12 +221,14 @@ class CatalogPane(ttk.Frame):
             self.status.set("Configure uma pasta do FFmpeg com ffplay para ouvir a prévia aqui.")
             return
         try:
-            self.player = subprocess.Popen([ffplay, "-nodisp", "-autoexit", "-loglevel", "error", "-t", "30", url],
+            from preview_options import preview_seconds
+            duration = preview_seconds(self.app.search_preview_duration.get())
+            self.player = subprocess.Popen([ffplay, "-nodisp", "-autoexit", "-loglevel", "error", "-t", str(duration), url],
                 stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, **media_args())
             self.preview_button.configure(text="Parar prévia")
-            self.status.set("Ouvindo prévia de até 30 segundos do catálogo.")
-        except OSError:
-            self.status.set("Não foi possível iniciar a prévia. Confira o FFmpeg.")
+            self.status.set(f"Ouvindo prévia de até {duration} segundos do catálogo; limitada ao trecho disponível.")
+        except (OSError, ValueError):
+            self.status.set("Não foi possível iniciar a prévia. Confira o FFmpeg e a duração nas configurações.")
 
     def stop_preview(self):
         if self.player:
