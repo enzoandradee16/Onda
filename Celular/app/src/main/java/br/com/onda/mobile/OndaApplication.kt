@@ -14,7 +14,12 @@ import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
-class OndaApplication : Application() {
+class OndaApplication : Application(), coil.ImageLoaderFactory {
+    override fun newImageLoader(): coil.ImageLoader = coil.ImageLoader.Builder(this)
+        .memoryCache {coil.memory.MemoryCache.Builder(this).maxSizePercent(0.08).build()}
+        .diskCache {coil.disk.DiskCache.Builder().directory(java.io.File(cacheDir,"image_cache")).maxSizeBytes(24L*1024*1024).build()}
+        .build()
+
     override fun onCreate() {
         super.onCreate()
         SecureVault.initialize(this)

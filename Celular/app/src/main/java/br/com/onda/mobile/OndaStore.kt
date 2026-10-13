@@ -56,11 +56,15 @@ object OndaStore {
         }
         normalizeAppearance(settings.value)
         database.writableDatabase.execSQL("UPDATE queue SET state='Pendente' WHERE state IN ('Baixando','Aguardando escolha')")
+        database.writableDatabase.execSQL("CREATE TABLE IF NOT EXISTS queue_order (id TEXT PRIMARY KEY, position INTEGER NOT NULL)")
+        database.writableDatabase.execSQL("INSERT OR IGNORE INTO queue_order SELECT id,rowid FROM queue")
         refresh()
     }
     fun defaults() = JSONObject().put("mode","mp3").put("audio_quality","320 kbps").put("height",1080).put("fps",JSONObject.NULL)
         .put("playlist_limit",2000).put("link_playlist",false).put("auto_match",false).put("confirm_version",false).put("review_metadata",false)
         .put("duplicate_policy","ask").put("organization","Pasta de destino").put("interface_font",DEFAULT_INTERFACE_FONT).put("theme","Seguir o sistema").put("accent","Verde-Água")
+        .put("concurrent_downloads","1").put("resume_downloads",true).put("resume_queue",false).put("normalize_volume",false)
+        .put("schedule_enabled",false).put("schedule_start","22:00").put("schedule_stop","07:00").put("check_updates",false)
         .put("search_preview",25).put("effects_preview",25).put("keep_preview",false).put("remember",true)
         .put("image_format","Original").put("image_width",0).put("image_height",0).put("keep_ratio",true)
         .put("tab_order",JSONArray(listOf("Pesquisar","Links e fila","Imagens","Playlists / Álbuns","Histórico","Efeitos")))
@@ -72,7 +76,9 @@ object OndaStore {
     }
     @Synchronized fun saveSettings(value: JSONObject) {
         normalizeAppearance(value)
+        val scheduleChanged=listOf("schedule_enabled","schedule_start","schedule_stop").any {settings.value.opt(it)!=value.opt(it)}
         settings.value = JSONObject(value.toString())
+        if(scheduleChanged)DownloadSchedule.configure(context,value)
         val persisted = if (value.optBoolean("remember",true)) value else defaults().put("remember",false)
         context.getSharedPreferences("preferences",0).edit().putString("settings",persisted.toString()).apply()
     }
@@ -90,7 +96,7 @@ object OndaStore {
     @Synchronized private fun refreshQueue() {
         val previous=items.value.associateBy {it.id}
         val queue = mutableListOf<DownloadItem>()
-        database.readableDatabase.rawQuery("SELECT id,title,config,state FROM queue ORDER BY rowid",null).use { cursor ->
+        database.readableDatabase.rawQuery("SELECT q.id,q.title,q.config,q.state FROM queue q LEFT JOIN queue_order o ON q.id=o.id ORDER BY COALESCE(o.position,q.rowid),q.rowid",null).use { cursor ->
             while(cursor.moveToNext()) {
                 val id=cursor.getString(0)
                 val old=previous[id]
@@ -113,6 +119,7 @@ object OndaStore {
         // Secrets are injected at execution and never stored in the queue database.
         config.remove("spotify_client_secret")
         database.writableDatabase.execSQL("INSERT INTO queue VALUES(?,?,?,?)",arrayOf(id,title,config.toString(),"Pendente"))
+        database.writableDatabase.execSQL("INSERT INTO queue_order VALUES(?,(SELECT COALESCE(MAX(position),0)+1 FROM queue_order))",arrayOf(id))
         if(batchDepth==0) items.value=items.value+DownloadItem(id,title,config)
         return id
     }
@@ -140,17 +147,27 @@ object OndaStore {
         context.getSharedPreferences("preferences",0).edit().remove("collection_options").apply()
     }
     @Synchronized fun remove(ids: Set<String>) {
-        val removable=ids-active.value
+        val removable=ids-active.value-DownloadRuntime.ids
         if(removable.isEmpty()) return
         val db=database.writableDatabase
         db.beginTransaction()
         try {
-            removable.forEach {db.execSQL("DELETE FROM queue WHERE id=?",arrayOf(it))}
+            removable.forEach {db.execSQL("DELETE FROM queue WHERE id=?",arrayOf(it));db.execSQL("DELETE FROM queue_order WHERE id=?",arrayOf(it))}
             db.setTransactionSuccessful()
         } finally {db.endTransaction()}
         items.value=items.value.filterNot {it.id in removable}
     }
-    fun retry(ids: Set<String>) { ids.filter { it!=active.value }.forEach { update(it,"Pendente",0f,"") } }
+    fun retry(ids: Set<String>) { ids.filter { it!=active.value && it !in DownloadRuntime.ids }.forEach { update(it,"Pendente",0f,"") } }
+    @Synchronized fun move(id:String,direction:Int) {
+        val order=items.value.toMutableList();val index=order.indexOfFirst {it.id==id}
+        if(index<0 || id==active.value || id in DownloadRuntime.ids)return
+        val target=if(direction==0)0 else (index+direction).coerceIn(0,order.lastIndex)
+        val item=order.removeAt(index);order.add(target,item)
+        val db=database.writableDatabase;db.beginTransaction()
+        try {order.forEachIndexed {position,entry->db.execSQL("INSERT OR REPLACE INTO queue_order VALUES(?,?)",arrayOf(entry.id,position))};db.setTransactionSuccessful()}
+        finally {db.endTransaction()}
+        items.value=order
+    }
     @Synchronized fun log(message: String) { messages.value = (messages.value + message).takeLast(120) }
     @Synchronized fun ask(identity: String, event: JSONObject, callback: ((JSONObject)->Unit)?=null) {
         val value = Question(identity,event,callback)

@@ -106,7 +106,15 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
     val view=androidx.compose.ui.platform.LocalView.current
     val inputMethod=remember(view) {view.context.getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager}
     val currentTab by rememberUpdatedState(tab)
-    val keyboardBlocked by rememberUpdatedState(showSettings || youtubeSession || question!=null || notice.isNotBlank())
+    var navigationPending by remember {mutableStateOf(false)}
+    val keyboardBlocked by rememberUpdatedState(navigationPending || showSettings || youtubeSession || question!=null || notice.isNotBlank())
+    fun navigateFromDrawer(action: ()->Unit) {
+        if(navigationPending) return
+        navigationPending=true
+        scope.launch {
+            try {drawer.close();action()} finally {navigationPending=false}
+        }
+    }
     LaunchedEffect(drawer,keyboard,view) {
         var opened=false
         var restoreKeyboard=false
@@ -121,7 +129,7 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
                 opened=false
                 if(restoreKeyboard && inputTab==currentTab && !keyboardBlocked && inputMethod.isAcceptingText) {
                     withFrameNanos { }
-                    keyboard?.show()
+                    if(inputTab==currentTab && !keyboardBlocked && inputMethod.isAcceptingText) keyboard?.show()
                 }
                 restoreKeyboard=false
             }
@@ -144,11 +152,11 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
             Row(Modifier.fillMaxWidth().padding(20.dp),horizontalArrangement=Arrangement.Center,verticalAlignment=Alignment.CenterVertically) {Image(painterResource(R.drawable.ic_onda),null,Modifier.size(36.dp).clip(RoundedCornerShape(25)));Text("ONDA",style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.Bold,modifier=Modifier.padding(start=8.dp))}
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
                 for(index in 0 until tabs.length()) {val name=tabs.getString(index)
-                    NavigationDrawerItem(label={Text(tabLabel(name))},selected=tab==name,onClick={tab=name;scope.launch {drawer.close()}},modifier=Modifier.padding(horizontal=10.dp).testTag("tab-$name"))
+                    NavigationDrawerItem(label={Text(tabLabel(name))},selected=tab==name,onClick={navigateFromDrawer {tab=name}},modifier=Modifier.padding(horizontal=10.dp).testTag("tab-$name"))
                 }
                 HorizontalDivider(Modifier.padding(12.dp))
-                NavigationDrawerItem(label={Text("Configurações")},selected=false,onClick={settingsCategory="Aparência";showSettings=true;scope.launch {drawer.close()}})
-                NavigationDrawerItem(label={Text("Sessão do YouTube")},selected=false,onClick={youtubeSession=true;scope.launch {drawer.close()}})
+                NavigationDrawerItem(label={Text("Configurações")},selected=false,onClick={navigateFromDrawer {settingsCategory="Aparência";showSettings=true}})
+                NavigationDrawerItem(label={Text("Sessão do YouTube")},selected=false,onClick={navigateFromDrawer {youtubeSession=true}})
                 Text("Seus downloads",style=MaterialTheme.typography.labelLarge,modifier=Modifier.padding(16.dp))
                 val queue by OndaStore.items.collectAsStateWithLifecycle()
                 Text("${queue.count {it.state=="Pendente"}} pendentes · ${queue.count {it.state=="Concluído"}} concluídos",modifier=Modifier.padding(horizontal=16.dp),style=MaterialTheme.typography.bodySmall)
@@ -271,7 +279,7 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
                 LazyColumn(Modifier.fillMaxWidth().heightIn(max=180.dp)) {items(searchQueue,key={it.id}) {item->Column(Modifier.padding(vertical=6.dp)) {
                     Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
                         Text(item.title,Modifier.weight(1f),maxLines=2,style=MaterialTheme.typography.bodyMedium)
-                        TextButton(onClick={OndaStore.remove(setOf(item.id))},enabled=item.id!=active,modifier=Modifier.testTag("remove-search-${item.id}")){Text("Remover")}
+                        TextButton(onClick={OndaStore.remove(setOf(item.id))},enabled=item.id!=active && item.state !in listOf("Baixando","Aguardando escolha"),modifier=Modifier.testTag("remove-search-${item.id}")){Text("Remover")}
                     }
                     Text(item.state,style=MaterialTheme.typography.labelMedium)
                     if(item.state in listOf("Baixando","Aguardando escolha")) LinearProgressIndicator(progress={item.progress/100},modifier=Modifier.fillMaxWidth())
@@ -285,7 +293,7 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
             }}
         }
         if(results.isEmpty()) item {Text("Sua biblioteca começa com uma busca",fontWeight=FontWeight.Bold);Text("Encontre a música e escolha a versão que você quer.",style=MaterialTheme.typography.bodySmall)}
-        items(results) {record-> TrackCard(record,vm) }
+        items(results,contentType={"search_track"}) {record-> TrackCard(record,vm) }
         item {Text("Catálogo e capa: plataforma selecionada  •  Áudio completo: YouTube",style=MaterialTheme.typography.bodySmall)}
         item {Spacer(Modifier.height(12.dp))}
     }
@@ -347,7 +355,12 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
                 Row(verticalAlignment=Alignment.CenterVertically) {
                     if(!immediate) Checkbox(item.id in selected,{selected=if(it) selected+item.id else selected-item.id})
                     Text(item.title,Modifier.weight(1f),maxLines=2)
-                    if(immediate) TextButton(onClick={OndaStore.remove(setOf(item.id))},enabled=item.id!=active){Text("Remover")}
+                }
+                if(item.state !in listOf("Baixando","Aguardando escolha")) Row {
+                    TextButton(onClick={OndaStore.move(item.id,-1)}){Text("↑")}
+                    TextButton(onClick={OndaStore.move(item.id,1)}){Text("↓")}
+                    TextButton(onClick={OndaStore.move(item.id,0)}){Text("Próximo")}
+                    if(immediate) TextButton(onClick={OndaStore.remove(setOf(item.id))},enabled=item.id!=active && item.state !in listOf("Baixando","Aguardando escolha")){Text("Remover")}
                 }
                 if(immediate && item.state=="Erro") TextButton(onClick={OndaStore.retry(setOf(item.id))}) {Text("Tentar novamente")}
                 Text("${item.config.optString("mode").uppercase()} · ${item.state}",style=MaterialTheme.typography.labelMedium)
@@ -410,9 +423,17 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
     var exported by remember {mutableStateOf("")}
     val export=rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) {uri->if(uri!=null) OndaStore.context.contentResolver.openOutputStream(uri)?.use {it.write(exported.toByteArray())}}
     val tracks=remember(collection) {collection.optJSONArray("tracks")?.objects() ?: emptyList()}
-    val visible=remember(tracks,filter) {tracks.filter {(it.optString("title")+" "+it.stringList("artists")).contains(filter,ignoreCase=true)}}
+    val searchIndex=remember(tracks) {tracks.map {it to (it.optString("title")+" "+it.stringList("artists")).lowercase(java.util.Locale.ROOT)}}
+    var settledFilter by remember {mutableStateOf(filter)}
+    LaunchedEffect(filter) {delay(150);settledFilter=filter}
+    val visible=remember(searchIndex,settledFilter) {
+        val term=settledFilter.lowercase(java.util.Locale.ROOT)
+        searchIndex.filter {(_,text)->term in text}.map {(record,_)->record}
+    }
     LaunchedEffect(visible) {OndaStore.selectAll.collect {selected=selected+visible.map {it.optString("source_url")}}}
-    val chosenTracks=remember(visible,selected) {visible.filter {it.optString("source_url") in selected}}
+    val chosenTracks=remember(visible,selected,filter,settledFilter) {
+        if(filter!=settledFilter) emptyList() else visible.filter {it.optString("source_url") in selected}
+    }
     fun chosen()=chosenTracks
     fun enqueue(now: Boolean) {
         val rows=chosen()
@@ -434,7 +455,7 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
             TextButton(onClick={selected=emptySet()}){Text("Limpar seleção")}
             TextButton(onClick={vm.operation("matches",OndaStore.config(options).put("tracks",JSONArray(chosen()))){vm.collection.value=JSONObject(collection.toString()).put("tracks",JSONArray(mergeTrackMatches(tracks,it.getJSONArray("tracks").objects())))}}){Text("Conferir correspondências")}
         }}
-        items(visible) {record->Row(Modifier.fillMaxWidth().clickable {val id=record.optString("source_url");selected=if(id in selected) selected-id else selected+id},verticalAlignment=Alignment.CenterVertically) {
+        items(visible,contentType={"collection_track"}) {record->Row(Modifier.fillMaxWidth().clickable {val id=record.optString("source_url");selected=if(id in selected) selected-id else selected+id},verticalAlignment=Alignment.CenterVertically) {
             Checkbox(record.optString("source_url") in selected,{val id=record.optString("source_url");selected=if(it) selected+id else selected-id})
             Column(Modifier.weight(1f)) {Text(record.optString("title"));Text(record.stringList("artists"),style=MaterialTheme.typography.bodySmall);record.optJSONObject("youtube_match")?.let {Text(it.optString("title"),color=MaterialTheme.colorScheme.primary,style=MaterialTheme.typography.bodySmall)}}
         }}
@@ -449,6 +470,7 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
 }
 
 @Composable fun HistoryPage(vm: OndaViewModel) {
+    var editingAudio by remember {mutableStateOf<HistoryItem?>(null)}
     val history by OndaStore.history.collectAsStateWithLifecycle()
     var filter by rememberSaveable {mutableStateOf("")}
     val visible=remember(history,filter) {history.filter {it.title.contains(filter,true)}}
@@ -462,11 +484,13 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
             }
             Text("${item.mode.uppercase()} · %.1f MB".format(item.size/1048576.0),style=MaterialTheme.typography.bodySmall)
             Row(Modifier.horizontalScroll(rememberScrollState())) {TextButton(onClick={runCatching {OndaStore.open(item.uri,item.mode)}.onFailure {OndaStore.log("Nenhum aplicativo disponível para abrir este arquivo.")}}){Text("Abrir arquivo")};TextButton(onClick={vm.openHistoryFolder(item.uri)},modifier=Modifier.testTag("open-history-folder-${item.id}")){Text("Abrir pasta")};TextButton(onClick={OndaStore.share(item.uri,item.title)}){Text("Compartilhar")}
+                if(item.mode.lowercase() in setOf("mp3","m4a","flac","wav","ogg","opus")) TextButton(onClick={editingAudio=item}) {Text("Editar áudio / letra")}
                 if(historySupportsEffects(item)) TextButton(onClick={vm.useInEffects(item.uri)}) {Text("Usar nos efeitos")}
             }
         }}}
         item {TextButton(onClick={OndaStore.clearHistory()}){Text("Limpar histórico")}}
     }
+    editingAudio?.let {AudioFileWindow(it,vm){editingAudio=null}}
 }
 
 fun historySupportsEffects(item: HistoryItem):Boolean {

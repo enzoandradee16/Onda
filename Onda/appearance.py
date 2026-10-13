@@ -75,6 +75,7 @@ class ThemeManager:
         self.colors = None
         self.font_name = None
         self.closed = False
+        self.generation = 0
         self.after_id = None
         self.traces = [(var, var.trace_add('write', self.changed)) for var in (app.theme_mode, app.theme_accent, app.interface_font)]
         self.map_binding = app.bind_all('<Map>', self.mapped, add='+')
@@ -92,6 +93,7 @@ class ThemeManager:
         self.colors = colors
         self.font_name = font_name
         self.resolved_font = font_family(self.app, font_name)
+        self.generation += 1
         self.app._style()
         self.walk(self.app)
 
@@ -105,6 +107,8 @@ class ThemeManager:
 
     def mapped(self, event):
         if not self.closed and isinstance(event.widget, tk.Misc):
+            if getattr(event.widget, '_onda_theme_generation', None) == self.generation:
+                return
             if isinstance(event.widget, (tk.Toplevel, tk.Tk)):
                 self.walk(event.widget)
             else:
@@ -117,7 +121,7 @@ class ThemeManager:
 
     def widget(self, widget):
         c = self.colors
-        if not c:
+        if not c or getattr(widget, '_onda_theme_generation', None) == self.generation:
             return
         try:
             self.apply_widget_font(widget)
@@ -159,6 +163,7 @@ class ThemeManager:
                                '-font',(self.resolved_font, 10))
             if isinstance(widget, (tk.Toplevel, tk.Tk)):
                 self.titlebar(widget)
+            widget._onda_theme_generation = self.generation
         except tk.TclError:
             pass
 

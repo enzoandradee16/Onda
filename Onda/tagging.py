@@ -43,7 +43,7 @@ def apply_tags(filename, record, match, cover=None):
     temporary = path.with_name(path.stem + ".tagging" + suffix)
     sidecar = path.with_suffix(path.suffix + ".metadata.json")
     sidecar_temp = sidecar.with_suffix(".tmp")
-    shutil.copy2(path, temporary)
+    shutil.copyfile(path, temporary)
     try:
         if suffix == ".mp3":
             from mutagen.id3 import (ID3, ID3NoHeaderError, TIT2, TPE1, TALB, TPE2, TDRC,

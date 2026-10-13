@@ -1,0 +1,41 @@
+{
+  "startup": [
+    {
+      "repeat": 0,
+      "TotalTime": 3212,
+      "WaitTime": 3215,
+      "idle_pss_mb": 104.1591796875
+    },
+    {
+      "repeat": 1,
+      "TotalTime": 2840,
+      "WaitTime": 2860,
+      "idle_pss_mb": 104.7958984375
+    },
+    {
+      "repeat": 2,
+      "TotalTime": 2889,
+      "WaitTime": 2892,
+      "idle_pss_mb": 104.87890625
+    },
+    {
+      "repeat": 3,
+      "TotalTime": 3073,
+      "WaitTime": 3075,
+      "idle_pss_mb": 99.7548828125
+    },
+    {
+      "repeat": 4,
+      "TotalTime": 2847,
+      "WaitTime": 2853,
+      "idle_pss_mb": 99.8544921875
+    }
+  ],
+  "idle_without_instrumentation": {
+    "seconds": 10.056335000001127,
+    "cpu_s": 0.02,
+    "cpu_one_core_pct": 0.1988796117074238,
+    "cpu_machine_pct": 0.04971990292685595,
+    "logical_cpus": 4
+  }
+}

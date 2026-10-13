@@ -132,7 +132,7 @@ def save_media(session, url, metadata, config, emit, ask_duplicate, index):
     if config["mode"] == "photos" and extension not in IMAGES:
         return None
     folder = Path(config["folder"]).expanduser().resolve()
-    identity = hashlib.sha256(config["url"].encode()).hexdigest()[:20]
+    identity = hashlib.sha256(json.dumps({key:config.get(key) for key in ("url","mode","audio_quality","height","fps","work_id","_identity")},sort_keys=True).encode()).hexdigest()[:20]
     staging = folder / ".onda-work" / identity
     staging.mkdir(parents=True, exist_ok=True)
     user = metadata.get("user") or metadata.get("username") or metadata.get("uploader") or "Publicação"
@@ -145,15 +145,25 @@ def save_media(session, url, metadata, config, emit, ask_duplicate, index):
     headers = dict(metadata.get("_http_headers") or {})
     headers["Accept-Encoding"] = "identity"
     headers.setdefault("Referer", config["url"])
-    started, last, size = time.monotonic(), 0, 0
+    started, last = time.monotonic(), 0
+    size=partial.stat().st_size if config.get('resume_downloads',True) and partial.is_file() else 0
+    if size:headers['Range']=f'bytes={size}-'
     with session.get(url, headers=headers, stream=True, timeout=(20, 30)) as response:
+        if response.status_code==416 and size:
+            response.close();partial.unlink(missing_ok=True)
+            return save_media(session,url,metadata,dict(config,resume_downloads=False),emit,ask_duplicate,index)
         response.raise_for_status()
+        if response.status_code==206:
+            if not size or not response.headers.get('Content-Range','').startswith(f'bytes {size}-'):raise ValueError('Resposta de retomada inválida; tente novamente.')
+            emit('log',message=f'Retomando transferência a partir de {size} bytes.')
+        else:size=0
         content_type = response.headers.get("Content-Type", "").lower()
         if "text/" in content_type or "json" in content_type:
             raise ValueError("A plataforma devolveu uma página de acesso em vez da mídia.")
-        total = int(response.headers.get("Content-Length") or 0) or None
+        remaining=int(response.headers.get("Content-Length") or 0)
+        total = remaining+size if remaining else None
         emit("estimate", size=total, title=str(title), playlist=True, reason="Tamanho informado pelo servidor; por arquivo")
-        with partial.open("wb") as output:
+        with partial.open("ab" if size else "wb") as output:
             for chunk in response.iter_content(128 * 1024):
                 if not chunk:
                     continue
@@ -182,6 +192,10 @@ def save_media(session, url, metadata, config, emit, ask_duplicate, index):
         path = extract_video_audio(path, config, emit)
         extension = path.suffix.lstrip('.').lower()
         size = path.stat().st_size
+    if config.get("normalize_volume") and extension in ("mp3","m4a","flac","wav","ogg","opus"):
+        from audio_library import normalize_audio
+        normalize_audio(path,config,emit)
+        size=path.stat().st_size
     final, skipped = publish(path, folder, config.get("duplicate_policy", "keep"), ask_duplicate)
     if skipped:
         path.unlink(missing_ok=True)
@@ -289,7 +303,7 @@ def save_video(session, metadata, config, emit, ask_duplicate, index):
     from file_output import publish, component
     from size_estimate import estimate_size
     folder = Path(config["folder"]).expanduser().resolve()
-    staging = folder / ".onda-work" / hashlib.sha256(config["url"].encode()).hexdigest()[:20]
+    staging = folder / ".onda-work" / hashlib.sha256(json.dumps({key:config.get(key) for key in ("url","mode","audio_quality","height","fps","work_id","_identity")},sort_keys=True).encode()).hexdigest()[:20]
     staging.mkdir(parents=True, exist_ok=True)
     options = build_options(dict(config, folder=str(staging)))
     if config['mode'] in ('mp3', 'm4a'):
@@ -315,6 +329,9 @@ def save_video(session, metadata, config, emit, ask_duplicate, index):
     class Capture(PostProcessor):
         def run(self, result):
             source = Path(result["filepath"])
+            if config.get("normalize_volume"):
+                from audio_library import normalize_audio
+                normalize_audio(source,config,emit)
             final, skipped = publish(source, folder, config.get("duplicate_policy", "keep"), ask_duplicate)
             if skipped:
                 source.unlink(missing_ok=True)

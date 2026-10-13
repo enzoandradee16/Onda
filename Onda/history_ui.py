@@ -38,6 +38,7 @@ class HistoryPane(ttk.Frame):
         ttk.Button(controls, text="Abrir arquivo", command=self.open).pack(side="left")
         ttk.Button(controls, text="Abrir pasta", command=lambda: self.open(True)).pack(side="left", padx=8)
         ttk.Button(controls, text="Usar nos efeitos", style="Accent.TButton", command=self.effects).pack(side="right")
+        ttk.Button(controls,text="Editar áudio / letra",command=self.edit_audio).pack(side="left",padx=4)
         self.status = tk.StringVar()
         ttk.Label(self, textvariable=self.status, style="Muted.TLabel").grid(row=4, column=0, sticky="w")
         self.refresh()
@@ -101,6 +102,14 @@ class HistoryPane(ttk.Frame):
         if path:
             self.app.effects_page.use_file(path)
             self.app.pages.select(self.app.effects_page)
+
+    def edit_audio(self):
+        path=self.current()
+        if path:
+            try:
+                from advanced_ui import AudioEditor
+                AudioEditor(self.app,path)
+            except Exception as error:self.status.set(str(error))
 
     def clear(self):
         if messagebox.askyesno("Histórico", "Remover os registros do histórico? Os arquivos serão preservados.", parent=self.app):

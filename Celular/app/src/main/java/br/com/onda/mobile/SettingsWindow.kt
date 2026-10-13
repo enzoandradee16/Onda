@@ -10,6 +10,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -20,9 +22,9 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 val categories=linkedMapOf(
-    "Geral" to listOf("remember"),
+    "Geral" to listOf("remember","check_updates"),
     "Aparência" to listOf("theme","accent","tab_order","interface_font"),
-    "Downloads" to listOf("mode","audio_quality","height","fps","playlist_limit","organization","duplicate_policy","output_uri","auto_match","confirm_version","review_metadata"),
+    "Downloads" to listOf("concurrent_downloads","resume_downloads","resume_queue","normalize_volume","schedule_enabled","schedule_start","schedule_stop","mode","audio_quality","height","fps","playlist_limit","organization","duplicate_policy","output_uri","auto_match","confirm_version","review_metadata"),
     "Imagens" to listOf("image_format","image_width","image_height","keep_ratio"),
     "Áudio" to listOf("search_preview","effects_preview","keep_preview"),
     "Contas" to listOf("spotify_client_id","cookies_file","youtube_cookies_file"))
@@ -35,7 +37,6 @@ val categories=linkedMapOf(
     val pager=rememberPagerState(initialPage=names.indexOf(initialCategory).takeIf {it>=0} ?: 1,pageCount={names.size})
     val scope=rememberCoroutineScope()
     var reset by remember {mutableStateOf(false)}
-    var secret by remember {mutableStateOf(SecureVault.get("spotify-api") ?: "")}
     fun put(key: String,value: Any) {OndaStore.saveSettings(JSONObject(settings.toString()).put(key,value))}
     val folder=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) {uri->if(uri!=null) {
         OndaStore.context.contentResolver.takePersistableUriPermission(uri,Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
@@ -47,7 +48,7 @@ val categories=linkedMapOf(
             Text("Do seu jeito.",style=MaterialTheme.typography.headlineSmall)
             Text("Escolha uma categoria para ajustar o Onda.",style=MaterialTheme.typography.bodySmall)
             if(busy) {LinearProgressIndicator(Modifier.fillMaxWidth());Text(status,style=MaterialTheme.typography.bodySmall,maxLines=2);TextButton(onClick={vm.cancel()}){Text("Cancelar")}}
-            ScrollableTabRow(selectedTabIndex=pager.currentPage,edgePadding=0.dp) { names.forEachIndexed {index,name->Tab(selected=pager.currentPage==index,onClick={scope.launch {pager.animateScrollToPage(index)}},text={Text(name,maxLines=1)})} }
+            ScrollableTabRow(selectedTabIndex=pager.currentPage,edgePadding=0.dp) { names.forEachIndexed {index,name->Tab(selected=pager.currentPage==index,onClick={scope.launch {pager.scrollToPage(index)}},text={Text(name,maxLines=1)})} }
             HorizontalPager(state=pager,modifier=Modifier.weight(1f).testTag("settings-pages"),verticalAlignment=androidx.compose.ui.Alignment.Top) { page->
             Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(top=10.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
                 when(names[page]) {
@@ -55,6 +56,7 @@ val categories=linkedMapOf(
                         Text("Preferências",style=MaterialTheme.typography.titleMedium)
                         Toggle("Lembrar configurações",settings.optBoolean("remember",true)){put("remember",it)}
                         Text("Ative para recuperar suas opções ao abrir o aplicativo novamente.",style=MaterialTheme.typography.bodySmall)
+                        PreferenceTransfer(vm)
                         Text("Restaurar configurações",style=MaterialTheme.typography.titleMedium)
                         TextButton(onClick={reset=true}){Text("Restaurar TODAS as configurações ao padrão")}
                         TextButton(onClick={reset=true}){Text("Escolher quais configurações restaurar…")}
@@ -77,6 +79,7 @@ val categories=linkedMapOf(
                     "Downloads"->{
                         Text("Downloads e arquivos",style=MaterialTheme.typography.titleMedium)
                         Text("As opções são aplicadas aos próximos links adicionados.",style=MaterialTheme.typography.bodySmall)
+                        AdvancedDownloadOptions(settings,::put)
                         FormatOptions(settings,OndaStore::saveSettings)
                         Text("Pasta de destino",style=MaterialTheme.typography.labelMedium)
                         Button(onClick={folder.launch(null)}){Text("Alterar")}
@@ -97,8 +100,9 @@ val categories=linkedMapOf(
                         Text("Reprodução e prévias",style=MaterialTheme.typography.titleMedium)
                         Text("Duração das prévias",style=MaterialTheme.typography.titleSmall)
                         for((key,label) in listOf("search_preview" to "Músicas nas pesquisas","effects_preview" to "Slowed / Sped Up e Reverb")) {
-                            Text("$label · ${settings.optInt(key,25)} segundos")
-                            Slider(settings.optInt(key,25).toFloat(),{put(key,it.toInt())},valueRange=10f..180f)
+                            var duration by remember(key,settings.optInt(key,25)) {mutableFloatStateOf(settings.optInt(key,25).toFloat())}
+                            Text("$label · ${duration.toInt()} segundos")
+                            Slider(duration,{duration=it},valueRange=10f..180f,onValueChangeFinished={put(key,duration.toInt())})
                         }
                         Text("Vale para a próxima prévia. Nas pesquisas, o catálogo pode fornecer um trecho menor.",style=MaterialTheme.typography.bodySmall)
                         Toggle("Continuar prévia dos efeitos em outras abas",settings.optBoolean("keep_preview")){put("keep_preview",it)}
@@ -106,8 +110,14 @@ val categories=linkedMapOf(
                     "Contas"->{
                         Text("Contas e acesso",style=MaterialTheme.typography.titleMedium)
                         Text("Spotify · opcional",style=MaterialTheme.typography.titleSmall)
+                        var secret by remember {mutableStateOf("")}
+                        var secretReady by remember {mutableStateOf(false)}
+                        LaunchedEffect(Unit) {
+                            secret=withContext(Dispatchers.IO) {SecureVault.get("spotify-api") ?: ""}
+                            secretReady=true
+                        }
                         OutlinedTextField(settings.optString("spotify_client_id"),{put("spotify_client_id",it)},label={Text("Client ID")},modifier=Modifier.fillMaxWidth(),singleLine=true)
-                        OutlinedTextField(secret,{secret=it;SecureVault.put("spotify-api",it)},label={Text("Client Secret · opcional")},visualTransformation=androidx.compose.ui.text.input.PasswordVisualTransformation(),modifier=Modifier.fillMaxWidth(),singleLine=true)
+                        OutlinedTextField(secret,{secret=it;SecureVault.put("spotify-api",it)},label={Text("Client Secret · opcional")},enabled=secretReady,visualTransformation=androidx.compose.ui.text.input.PasswordVisualTransformation(),modifier=Modifier.fillMaxWidth(),singleLine=true)
                         Button(onClick={vm.connectSpotify()}){Text("Conectar")}
                         TextButton(onClick={runCatching {OndaStore.context.startActivity(Intent(Intent.ACTION_VIEW,android.net.Uri.parse("https://developer.spotify.com/dashboard")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))}.onFailure {vm.dialogNotice.value="Nenhum navegador disponível para abrir o Spotify Developers."}}){Text("Abrir Spotify Developers")}
                         TextButton(onClick={vm.operation("spotify_disconnect",JSONObject(),dialog=true)}){Text("Desconectar")}
@@ -118,6 +128,7 @@ val categories=linkedMapOf(
                         if(settings.optString("youtube_cookies_file").isNotBlank()) TextButton(onClick={java.io.File(settings.getString("youtube_cookies_file")).delete();put("youtube_cookies_file","");android.webkit.CookieManager.getInstance().removeAllCookies(null)}) {Text("Remover sessão do YouTube")}
                     }
                     "Ferramentas"->{
+                        AppUpdateControls(vm)
                         Text("Ferramentas e atualizações",style=MaterialTheme.typography.titleMedium)
                         Text("Python, FFmpeg, FFprobe e QuickJS acompanham esta versão Android de desenvolvimento. Não é necessário instalar Termux.")
                         Button(onClick={vm.operation("update",JSONObject(),dialog=true)}){Text("Atualizar ferramentas")}

@@ -83,7 +83,7 @@ def build_options(config: dict) -> dict:
         "continuedl": True, "overwrites": False,
         "retries": 3, "fragment_retries": 3, "socket_timeout": 20,
         "ignoreerrors": False, "quiet": True, "no_warnings": False,
-        "noprogress": True, "concurrent_fragment_downloads": 2,
+        "noprogress": True, "continuedl": config.get("resume_downloads",True), "concurrent_fragment_downloads": 2,
         "js_runtimes": {"deno": {}, "node": {}},
         "match_filter": reject_live,
     }
@@ -329,7 +329,7 @@ def run_worker(config: dict) -> int:
         output_folder = destination(config, record)
         destination_config = dict(config)
         # Keep resumable intermediates separate from complete user files.
-        identity = json.dumps({k: config.get(k) for k in ("url", "mode", "audio_quality", "height", "fps", "output_artist", "output_title")}, sort_keys=True)
+        identity = json.dumps({k: config.get(k) for k in ("url", "mode", "audio_quality", "height", "fps", "output_artist", "output_title", "work_id", "_identity")}, sort_keys=True)
         staging = output_folder / ".onda-work" / hashlib.sha256(identity.encode()).hexdigest()[:20]
         staging.mkdir(parents=True, exist_ok=True)
         config = dict(config, folder=str(staging))
@@ -357,6 +357,9 @@ def run_worker(config: dict) -> int:
                 path = info.get("filepath") or info.get("_filename")
                 if path and Path(path).is_file():
                     sidecar = None
+                    if config.get("normalize_volume"):
+                        from audio_library import normalize_audio
+                        normalize_audio(path,config,emit)
                     if record:
                         from tagging import apply_tags
                         emit("stage", message="Gravando metadados e capa no arquivo…")

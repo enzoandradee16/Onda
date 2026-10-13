@@ -1,0 +1,22 @@
+{
+  "trials": [
+    {
+      "load_s": 0.1268203999989055,
+      "maximum_event_loop_delay_ms": 15.287699998225435,
+      "visible": 250,
+      "records": 5000
+    },
+    {
+      "load_s": 0.14658760000020266,
+      "maximum_event_loop_delay_ms": 31.211999999868567,
+      "visible": 250,
+      "records": 5000
+    },
+    {
+      "load_s": 0.1371512999994593,
+      "maximum_event_loop_delay_ms": 25.980800000979798,
+      "visible": 250,
+      "records": 5000
+    }
+  ]
+}

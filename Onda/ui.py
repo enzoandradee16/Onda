@@ -95,18 +95,14 @@ class UiMixin:
         self.pages = ttk.Notebook(main)
         self.pages.grid(row=1, column=0, sticky="nsew")
         self.download_page = ttk.Frame(self.pages, padding=(0, 14, 0, 0))
-        from catalog_ui import CatalogPane
-        self.catalog_page = CatalogPane(self.pages, self)
+        from lazy_ui import LazyPane
+        self.catalog_page = LazyPane(self.pages, self, "catalog_ui", "CatalogPane")
         self.pages.add(self.catalog_page, text="Pesquisar músicas")
         self.pages.add(self.download_page, text="Links e fila")
-        from effects_ui import EffectsPane
-        from playlist_ui import PlaylistPane
-        from history_ui import HistoryPane
-        self.effects_page = EffectsPane(self.pages, self)
-        self.playlist_page = PlaylistPane(self.pages, self)
-        self.history_page = HistoryPane(self.pages, self)
-        from images_ui import ImagesPane
-        self.images_page = ImagesPane(self.pages, self)
+        self.effects_page = LazyPane(self.pages, self, "effects_ui", "EffectsPane")
+        self.playlist_page = LazyPane(self.pages, self, "playlist_ui", "PlaylistPane")
+        self.history_page = LazyPane(self.pages, self, "history_ui", "HistoryPane")
+        self.images_page = LazyPane(self.pages, self, "images_ui", "ImagesPane")
         self.pages.add(self.images_page, text="Imagens")
         self.pages.add(self.playlist_page, text="Álbuns e playlists")
         self.pages.add(self.history_page, text="Histórico")
@@ -167,6 +163,8 @@ class UiMixin:
         self.download_now_button.grid(row=1, column=4, sticky="e", padx=(8, 0))
         ttk.Checkbutton(card, text="Revisar metadados antes de baixar", variable=self.review_metadata).grid(row=3, column=0, sticky="w", pady=(8, 0))
 
+        ttk.Checkbutton(card,text="Normalizar volume",variable=self.normalize_volume).grid(row=4,column=0,sticky="w",pady=(4,0))
+
         queue_head = ttk.Frame(main)
         queue_head.grid(row=3, column=0, sticky="ew", pady=(14, 10))
         ttk.Label(queue_head, text="Seus downloads", font=("Segoe UI", 12, "bold")).pack(side="left")
@@ -218,6 +216,9 @@ class UiMixin:
         self.cancel_button.pack(side="right", padx=10)
         ttk.Button(footer, text="Abrir pasta", style="Quiet.TButton", command=self.open_folder).pack(side="left")
         ttk.Button(footer, text="Ver detalhes", style="Quiet.TButton", command=self.show_log).pack(side="left", padx=4)
+        from advanced_ui import move_queue
+        for label,direction in (('↑',-1),('↓',1),('Próximo',0)):
+            ttk.Button(footer,text=label,width=7,command=lambda step=direction:move_queue(self,step)).pack(side='left',padx=2)
 
         self._build_settings()
         self._build_log()
@@ -336,6 +337,9 @@ class UiMixin:
         ttk.Button(general, text='Restaurar TODAS as configurações ao padrão', command=lambda: show_reset(self, True)).pack(anchor='w', pady=(0, 8))
         ttk.Button(general, text='Escolher quais configurações restaurar…', command=lambda: show_reset(self, False)).pack(anchor='w')
         ttk.Label(general, text='Você poderá conferir as opções antes de confirmar. Contas, fila, histórico e arquivos baixados são mantidos.', style='Muted.TLabel', wraplength=480).pack(anchor='w', pady=(8, 0))
+
+        from advanced_ui import settings_tools
+        settings_tools(self,general)
 
         downloads = categories["Downloads"]
         ttk.Label(downloads, text="Downloads e arquivos", font=("Segoe UI", 13, "bold")).pack(anchor="w", pady=(0, 8))

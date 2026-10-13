@@ -35,3 +35,6 @@ build/
 
 # Pacotes e relatorios locais de release
 /Release/
+
+# Local performance samples and temporary benchmark copies
+/diagnosticos/resultados/

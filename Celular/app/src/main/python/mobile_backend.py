@@ -293,6 +293,26 @@ def render_preview(config):
 
 
 def perform(action, config):
+    if action in ('audio_read','audio_edit','normalize_preview'):
+        from audio_library import read_audio,edit_copy,normalize_audio
+        if action=='audio_read':return {'record':read_audio(config['source'])}
+        if action=='normalize_preview':return {'path':str(normalize_audio(config['source'],config,emit,preview=True))}
+        result=edit_copy(config,emit)
+        emit('file',**result)
+        sidecar=Path(result['path']).with_suffix('.lrc')
+        if sidecar.is_file():emit('file',path=str(sidecar),mode='LRC',size=sidecar.stat().st_size)
+        return {'message':'Cópia editada salva na pasta de destino.'}
+    if action=='settings_export':
+        from advanced_options import export_settings
+        return {'payload':export_settings(config['settings'],'android')}
+    if action=='settings_import':
+        from advanced_options import import_settings
+        path=Path(config['path'])
+        if path.stat().st_size>131072:raise ValueError('Arquivo muito grande.')
+        return {'settings':import_settings(json.loads(path.read_text(encoding='utf-8')),'android')}
+    if action=='app_update':
+        from advanced_options import release_update
+        return release_update('android',config.get('version','1.0.0-alpha.1'))
     if action == 'describe':
         from metadata import is_streaming_link
         from catalog_match import CatalogChoiceRequired

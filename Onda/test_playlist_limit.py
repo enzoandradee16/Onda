@@ -86,6 +86,8 @@ class PlaylistLimitUiTests(unittest.TestCase):
                 records = [{"title": str(i), "source_url": f"https://www.youtube.com/watch?v={i:011d}"} for i in range(250)]
                 page.display({"title": "Large", "tracks": records, "note": ""})
                 with patch.object(app, "add", return_value=["job"] * 250) as add:
+                    while page.busy:
+                        app.update()
                     page.add()
                     add.assert_called_once()
                     self.assertEqual(len(add.call_args.kwargs["lines"]), 250)

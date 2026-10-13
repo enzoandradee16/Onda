@@ -1,5 +1,14 @@
 # Histórico de versões
 
+## Em desenvolvimento
+
+- Navegação e configurações: reutilização de tema/layout no PC, troca direta de categorias no Android e menos trabalho durante transições e arraste dos controles.
+
+- PC: carregamento de abas sob demanda e preenchimento gradual de playlists grandes.
+- PC e Android: busca de playlists com espera curta entre digitações.
+- Android: limites de atualizações de progresso/notificação e de cache de capas.
+- Comparação de desempenho e diagnósticos reproduzíveis em `docs/OTIMIZACAO.md`.
+
 ## 1.0.0-beta.1 — 2026-10-12
 
 Primeira versão beta preparada para distribuição.

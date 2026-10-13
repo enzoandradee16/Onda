@@ -49,6 +49,18 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
     private var effectAnchor=0.0
     private var effectSpeed=100
     private var effectOutput=""
+    init {
+        viewModelScope.launch {
+            delay(2000)
+            val options=OndaStore.settings.value
+            DownloadSchedule.configure(getApplication(),options,keepExisting=true)
+            if(options.optBoolean("resume_queue") && !options.optBoolean("schedule_enabled") && OndaStore.items.value.any {it.state=="Pendente"})DownloadService.start(getApplication())
+            if(options.optBoolean("check_updates")) {
+                val result=withContext(Dispatchers.IO){MobileEngine.call(getApplication(),"startup-update","app_update",JSONObject().put("version",BuildConfig.VERSION_NAME),EventCallback {})}
+                if(result.optBoolean("available"))status.value=result.optString("message")+" · Configurações → Ferramentas"
+            }
+        }
+    }
     init {viewModelScope.launch {
         for(initial in effectRequests) {
             delay(300)

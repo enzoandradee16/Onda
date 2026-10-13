@@ -16,7 +16,8 @@ class PreferenceStore:
     def clean(data):
         if not isinstance(data, dict):
             return {}
-        result = {}
+        from advanced_options import clean_advanced
+        result = clean_advanced(data)
         from appearance import THEME_MODES, ACCENTS
         for name, choices in (('theme_mode', THEME_MODES), ('theme_accent', ACCENTS)):
             value = data.get(name)

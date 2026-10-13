@@ -15,10 +15,15 @@ class SettingsCategory(ttk.Frame):
         self.canvas.configure(yscrollcommand=scroll.set)
         self.content = ttk.Frame(self.canvas, padding=16)
         self.content_window = self.canvas.create_window(0, 0, window=self.content, anchor="nw")
+        self._content_width = None
+        self._region = None
         self.canvas.bind("<Configure>", self.resize)
         self.content.bind("<Configure>", self.update_region)
 
     def resize(self, event):
+        if event.width == self._content_width:
+            return
+        self._content_width = event.width
         self.canvas.itemconfigure(self.content_window, width=event.width)
         available = max(100, event.width - 32)
         for child in self.content.winfo_children():
@@ -27,7 +32,10 @@ class SettingsCategory(ttk.Frame):
         self.update_region()
 
     def update_region(self, _=None):
-        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+        region = self.canvas.bbox("all")
+        if region != self._region:
+            self._region = region
+            self.canvas.configure(scrollregion=region)
 
     def wheel(self, event):
         if isinstance(event.widget, (ttk.Combobox, ttk.Spinbox)):

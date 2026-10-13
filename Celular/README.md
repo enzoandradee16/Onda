@@ -62,3 +62,7 @@ Em Configurações → Aparência → Fonte da interface, escolha Padrão do sis
 Em Pesquisar músicas, Enter do teclado físico ou a ação Pesquisar do teclado virtual inicia a busca, sem inserir uma linha. Os demais campos são de uma linha. Somente o campo LINKS em Links e fila aceita Enter para separar os links.
 
 O fluxo de fotos, vídeos, posts mistos e foto com música nas redes sociais está descrito em [Downloads sociais](../docs/FLUXO-DOWNLOAD-SOCIAL.md).
+
+## Fila e edição de áudio
+
+Downloads simultâneos, retomada, ordem da fila, edição local de tags/capa/letra, normalização com prévia, agendamento e transferência de preferências: consulte [o guia de recursos avançados](../RECURSOS-AVANCADOS.md).

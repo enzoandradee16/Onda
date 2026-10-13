@@ -1,0 +1,64 @@
+{
+  "platform": "Windows",
+  "cpu_logical": 12,
+  "fixture": {
+    "tracks": 4,
+    "seconds_each": 60,
+    "source": "mono WAV 48kHz PCM16",
+    "destination": "MP3 320 kbps",
+    "bandwidth_mib_s_per_connection": 2
+  },
+  "startup": [
+    {
+      "kind": "startup",
+      "wall_s": 1.5188560999995389,
+      "cpu_s": 1.125,
+      "cpu_one_core_pct": 74.06889961467327,
+      "cpu_machine_pct": 6.172408301222773,
+      "peak_rss_mb": 63.6484375,
+      "peak_private_mb": 46.6796875,
+      "median_rss_mb": 49.892578125
+    },
+    {
+      "kind": "startup",
+      "wall_s": 0.9496106000005966,
+      "cpu_s": 0.890625,
+      "cpu_one_core_pct": 93.78844338926298,
+      "cpu_machine_pct": 7.815703615771915,
+      "peak_rss_mb": 62.015625,
+      "peak_private_mb": 45.484375,
+      "median_rss_mb": 49.40625
+    },
+    {
+      "kind": "startup",
+      "wall_s": 0.9267520000012155,
+      "cpu_s": 0.953125,
+      "cpu_one_core_pct": 102.84574513988099,
+      "cpu_machine_pct": 8.57047876165675,
+      "peak_rss_mb": 62.15234375,
+      "peak_private_mb": 45.7578125,
+      "median_rss_mb": 52.19140625
+    },
+    {
+      "kind": "startup",
+      "wall_s": 0.9228282000003674,
+      "cpu_s": 0.84375,
+      "cpu_one_core_pct": 91.43088605221038,
+      "cpu_machine_pct": 7.6192405043508655,
+      "peak_rss_mb": 62.30078125,
+      "peak_private_mb": 45.94140625,
+      "median_rss_mb": 52.53515625
+    },
+    {
+      "kind": "startup",
+      "wall_s": 0.9032252000015433,
+      "cpu_s": 0.859375,
+      "cpu_one_core_pct": 95.14515316872598,
+      "cpu_machine_pct": 7.928762764060498,
+      "peak_rss_mb": 62.0703125,
+      "peak_private_mb": 45.68359375,
+      "median_rss_mb": 52.45703125
+    }
+  ],
+  "trials": []
+}

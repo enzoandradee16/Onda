@@ -29,6 +29,9 @@ class PlaylistPane(ttk.Frame):
         self.records = {}
         self.search_index = {}
         self.filter_text = tk.StringVar()
+        self._filter_after = None
+        self._render_after = None
+        self._render_generation = 0
         self.filter_count = tk.StringVar(value="Carregue um álbum ou playlist")
         self.playlist_title = ""
         self.events = queue.Queue()
@@ -85,7 +88,7 @@ class PlaylistPane(ttk.Frame):
         ttk.Button(search_row, text="Limpar", command=lambda: self.filter_text.set("")).pack(side="left", padx=8)
         ttk.Label(search_row, textvariable=self.filter_count, style="Muted.TLabel").pack(side="right")
         self.search_entry.bind("<Escape>", lambda _: self.filter_text.set(""))
-        self.filter_text.trace_add("write", self.filter_records)
+        self.filter_text.trace_add("write", self.schedule_filter)
         panel = ttk.Frame(self)
         panel.grid(row=5, column=0, sticky="nsew")
         self.table = ttk.Treeview(panel, columns=("title", "artist", "duration", "match"), show="headings", selectmode="extended")
@@ -237,20 +240,44 @@ class PlaylistPane(ttk.Frame):
         self.records = {str(i): row for i, row in enumerate(result["tracks"])}
         self.search_index = {key: search_text((row.get("title") or "") + " " + " ".join(row.get("artists", [])))
                              for key, row in self.records.items()}
-        for key, row in self.records.items():
-            self.table.insert("", "end", iid=key, values=(row["title"], ", ".join(row.get("artists", [])),
-                duration_label(row["duration_ms"] / 1000 if row.get("duration_ms") else None), "A consultar"))
-        self.table.selection_set(self.table.get_children())
-        if self.filter_text.get():
-            self.filter_text.set("")
-        else:
-            self.filter_records()
-        self.status.set(f"{result['title']} · {len(self.records)} itens. {result['note']}")
-        if self.list_window is not None and self.list_window.winfo_exists():
-            self.list_window.refresh(self)
-        self.set_busy(False)
+        self._render_generation += 1
+        generation = self._render_generation
+        if self._render_after is not None:
+            self.after_cancel(self._render_after)
+        self.set_busy(True)
+        pending = iter(self.records.items())
+        def render_batch():
+            self._render_after = None
+            if self.closed or generation != self._render_generation:
+                return
+            for _ in range(100):
+                try:
+                    key, row = next(pending)
+                except StopIteration:
+                    self.table.selection_set(self.table.get_children())
+                    self.filter_text.set("")
+                    self.filter_records()
+                    self.status.set(f"{result['title']} · {len(self.records)} itens. {result['note']}")
+                    if self.list_window is not None and self.list_window.winfo_exists():
+                        self.list_window.refresh(self)
+                    self.set_busy(False)
+                    return
+                self.table.insert("", "end", iid=key, values=(row["title"], ", ".join(row.get("artists", [])),
+                    duration_label(row["duration_ms"] / 1000 if row.get("duration_ms") else None), "A consultar"))
+            self._render_after = self.after(1, render_batch)
+        render_batch()
+
+    def schedule_filter(self, *_):
+        if self._filter_after is not None:
+            self.after_cancel(self._filter_after)
+        self._filter_after = self.after(150, self.filter_records)
 
     def filter_records(self, *_):
+        if self._filter_after is not None:
+            self.after_cancel(self._filter_after)
+            self._filter_after = None
+        if self._render_after is not None:
+            return
         words = search_text(self.filter_text.get()).split()
         visible = [key for key in self.records if all(word in self.search_index[key] for word in words)]
         selected = set(self.table.selection())
@@ -260,6 +287,8 @@ class PlaylistPane(ttk.Frame):
         self.filter_count.set(f"{count} de {len(self.records)}" if count or not words else "Nenhum resultado")
 
     def selected_keys(self):
+        if self._filter_after is not None:
+            self.filter_records()
         visible = set(self.table.get_children())
         return [key for key in self.table.selection() if key in visible]
 
@@ -373,7 +402,13 @@ class PlaylistPane(ttk.Frame):
         self.poll_id = self.after(100, self.poll)
 
     def shutdown(self):
+        if self.closed:
+            return
         self.closed = True
+        for callback in (self._filter_after, self._render_after):
+            if callback is not None:
+                self.after_cancel(callback)
+        self._filter_after = self._render_after = None
         self.app.auto_match.trace_remove("write", self.auto_match_trace)
         if self.list_window is not None and self.list_window.winfo_exists():
             self.list_window.destroy()

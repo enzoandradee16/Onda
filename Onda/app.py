@@ -46,6 +46,8 @@ class App(UiMixin, tk.Tk):
         from queue_titles import TitleLookup
         self.title_lookup = TitleLookup(self.events)
         self.jobs = {}
+        from parallel_queue import ParallelQueue
+        self.parallel = ParallelQueue(self)
         self.active = None
         self.immediate_item = None
         self.running = False
@@ -101,7 +103,11 @@ class App(UiMixin, tk.Tk):
             preference_warning = str(exc)
         self.remember_settings = tk.BooleanVar(value=preferences is not None)
         self.preference_status = tk.StringVar(value="Salvamento automático ativado." if preferences is not None else "Desmarcado: opções só para esta sessão.")
+        from advanced_options import DEFAULTS
+        for key,value in DEFAULTS.items():
+            setattr(self,key,tk.BooleanVar(value=value) if type(value) is bool else tk.StringVar(value=value))
         self.preference_fields = {name: getattr(self, name) for name in ("theme_mode", "theme_accent", "interface_font", "effects_keep_pitch", "image_format", "image_size", "image_width", "image_height", "image_keep_ratio", "tab_order", "playlist_mode", "playlist_height", "playlist_fps", "playlist_mp3_quality", "playlist_m4a_quality", "mode", "height", "fps", "catalog_provider", "folder", "ffmpeg", "playlist", "playlist_limit", "mp3_quality", "m4a_quality", "review_metadata", "auto_match", "background_preview", "effects_preview_duration", "search_preview_duration", "organization", "duplicates")}
+        self.preference_fields.update({key:getattr(self,key) for key in DEFAULTS})
         self.preference_defaults = {name: variable.get() for name, variable in self.preference_fields.items()}
         for name, value in (preferences or {}).items():
             self.preference_fields[name].set(value)
@@ -133,6 +139,10 @@ class App(UiMixin, tk.Tk):
         from appearance import ThemeManager
         self.theme_manager = ThemeManager(self)
         self.restore_queue()
+        from advanced_ui import tick,check_update
+        self._schedule_after=self.after(2500,lambda:tick(self))
+        if self.resume_queue.get() and not self.schedule_enabled.get():self.after(2000,self.start)
+        if self.check_updates.get():self.after(3000,lambda:check_update(self))
         self.bind("<Alt-a>", self.select_all_items)
         self.bind("<Alt-A>", self.select_all_items)
         for variable in self.preference_fields.values():
@@ -247,6 +257,7 @@ class App(UiMixin, tk.Tk):
                     "folder": str(Path(self.folder.get()).expanduser().resolve()),
                     "playlist": self.playlist.get(), "playlist_limit": int(self.playlist_limit.get()),
                     "state": "Na fila", "review_metadata": self.review_metadata.get(),
+                    "normalize_volume": self.normalize_volume.get(), "resume_downloads": self.resume_downloads.get(),
                     "organization": self.organization.get(), "duplicate_policy": DUPLICATES[self.duplicates.get()]}
         for index, line in enumerate(lines):
             item_overrides = restored_jobs[index] if restored_jobs is not None else overrides
@@ -257,7 +268,8 @@ class App(UiMixin, tk.Tk):
                 invalid.append(line)
                 self.write_log(str(exc))
                 continue
-            job = {**defaults, "url": url}
+            import uuid
+            job = {**defaults, "url": url, "work_id":str(uuid.uuid4())}
             job.update(item_overrides)
             if job["mode"] in ("photos", "social") and streaming:
                 invalid.append(line)
@@ -401,11 +413,17 @@ class App(UiMixin, tk.Tk):
                for item, job in self.jobs.items() if scope is None or item in scope) and not binaries(self.ffmpeg.get().strip()):
             messagebox.showerror("FFmpeg necessário", "Selecione a pasta de FFmpeg e ffprobe em Configurações. Consulte Ajuda se necessário.")
             return
+        self._schedule_paused=False
+        if int(self.concurrent_downloads.get())>1:
+            self.parallel.start(scope)
+            return
         self.immediate_item = scope if only_items is not None else only_item
         self.running = True
         self.next_job()
 
     def next_job(self):
+        if self.parallel.workers:
+            self.parallel.fill();return
         immediate = self.immediate_item is not None
         if immediate:
             scope = (self.immediate_item,) if isinstance(self.immediate_item, str) else self.immediate_item
@@ -432,6 +450,7 @@ class App(UiMixin, tk.Tk):
         self.detail.set("Aguardando o servidor. O cancelamento continua disponível.")
         self.set_progress(None)
         config = {**self.jobs[pending], "auto_match": self.auto_match.get(), "ffmpeg": self.ffmpeg.get().strip(),
+                  "resume_downloads": self.resume_downloads.get(),
                   "cookies_file": self.social_cookies.get().strip(),
                   "spotify_client_id": self.spotify_client_id.get(),
                   "spotify_client_secret": self.spotify_client_secret.get()}
@@ -454,6 +473,7 @@ class App(UiMixin, tk.Tk):
             with self.process_lock:
                 process = subprocess.Popen([str(executable), "-u", str(BASE / "engine.py")], **args)
                 self.process = process
+                if item in self.parallel.workers:self.parallel.processes[item]=process
             if self.cancelled.is_set():
                 stop_process(process)
             else:
@@ -505,6 +525,12 @@ class App(UiMixin, tk.Tk):
             except queue.Empty:
                 break
             kind = event["type"]
+            if kind == 'app_update':
+                result=event['result']
+                if result.get('available'):
+                    if messagebox.askyesno('Atualização do ONDA',result['message']+'\nAbrir o download oficial?',parent=self):webbrowser.open(result['url'])
+                elif event.get('manual'):messagebox.showinfo('Atualização do ONDA',result['message'],parent=self)
+                continue
             if kind.startswith("update_"):
                 if kind == "update_log":
                     self.write_log(event["message"])
@@ -520,6 +546,13 @@ class App(UiMixin, tk.Tk):
                     self.tree.set(item, 'name', event['title'])
                     titles_changed = True
                 continue
+            if item in self.parallel.workers:
+                if kind=='exited':
+                    closing=self.closing and len(self.parallel.workers)==1 and not self.effects_page.busy
+                    self.parallel.finish(item,event)
+                    if closing:return
+                    continue
+                if not self.parallel.admit(item,event):continue
             if item != self.active:
                 continue
             if kind in ("error", "log"):
@@ -533,6 +566,7 @@ class App(UiMixin, tk.Tk):
                     continue
                 from media_picker import MediaPicker
                 self.dismiss_version_picker()
+                if item in self.parallel.workers:self.parallel.choice_item=item
                 self.status.set("Escolha quais fotos e vídeos deseja baixar")
                 self.detail.set("Marque os itens na janela e clique em Baixar selecionados.")
                 self.choice_window = MediaPicker(self, event, lambda selected, job=item: self.send_reply(job, selected if isinstance(selected, dict) else {"selected_ids": selected}), self.cancel)
@@ -546,6 +580,7 @@ class App(UiMixin, tk.Tk):
                     continue
                 from review_ui import MetadataReview, DuplicateDialog
                 self.dismiss_version_picker()
+                if item in self.parallel.workers:self.parallel.choice_item=item
                 if kind == "review_metadata":
                     self.status.set("Revise os metadados e a capa")
                     self.choice_window = MetadataReview(self, event, lambda changes, job=item: self.send_reply(job, {"changes": changes}), self.cancel)
@@ -607,6 +642,7 @@ class App(UiMixin, tk.Tk):
             elif kind == "exited":
                 self.dismiss_version_picker()
                 state = "Cancelado" if event["cancelled"] else ("Concluído" if event["success"] else "Falhou")
+                if event["cancelled"] and getattr(self,"_schedule_paused",False):state="Na fila"
                 removing = self.jobs[item].get("remove_after_stop", False)
                 if removing:
                     resume = self.jobs[item].get("resume_after_remove", False)
@@ -641,6 +677,8 @@ class App(UiMixin, tk.Tk):
         self.log.configure(state="disabled")
 
     def cancel(self):
+        if self.parallel.workers:
+            self.parallel.stop();return
         self.dismiss_version_picker()
         self.running = False
         self.cancelled.set()
@@ -657,11 +695,17 @@ class App(UiMixin, tk.Tk):
             if self.choice_window.winfo_exists():
                 self.choice_window.destroy()
             self.choice_window = None
+        self.parallel.choice_closed()
 
     def send_version(self, item, selected_id):
         self.send_reply(item, {"selected_id": selected_id})
 
     def send_reply(self, item, reply):
+        if item in self.parallel.workers:
+            try:
+                if not self.parallel.reply(item,reply):raise OSError()
+            except (OSError,ValueError):self.cancel();return
+            self.dismiss_version_picker();return
         if item != self.active or self.cancelled.is_set():
             self.dismiss_version_picker()
             return
@@ -714,6 +758,15 @@ class App(UiMixin, tk.Tk):
 
     def remove(self, items=None, *, resume=True):
         selected = self.tree.selection() if items is None else items
+        if self.parallel.workers:
+            for item in selected:
+                if item in self.parallel.workers:
+                    self.jobs[item]['remove_after_stop']=True
+                    process=self.parallel.processes.get(item)
+                    if process:threading.Thread(target=stop_process,args=(process,),daemon=True).start()
+                else:del self.jobs[item];self.tree.delete(item)
+            if not resume:self.cancel()
+            self.persist_queue();self.refresh_queue();return True
         if self.active in selected and not self.jobs[self.active].get("remove_after_stop"):
             if not messagebox.askyesno("Remover da fila", "Interromper o download em andamento e removê-lo da fila?\nOs arquivos já concluídos serão preservados.", parent=self):
                 return
@@ -792,7 +845,7 @@ class App(UiMixin, tk.Tk):
         for name in ("effects_page", "playlist_page", "images_page"):
             if hasattr(self, name):
                 getattr(self, name).shutdown()
-        for name in ("_poll_after", "_preference_after", "_welcome_after"):
+        for name in ("_poll_after", "_preference_after", "_welcome_after", "_schedule_after"):
             callback = getattr(self, name, None)
             if callback is not None:
                 try:
@@ -822,7 +875,8 @@ class App(UiMixin, tk.Tk):
             return
         try:
             jobs = []
-            for job in self.jobs.values():
+            for key in self.tree.get_children():
+                job=self.jobs[key]
                 if job.get("remove_after_stop"):
                     continue
                 saved = dict(job)
@@ -851,6 +905,10 @@ class App(UiMixin, tk.Tk):
 
     def tab_changed(self, _=None):
         selected = self.pages.select()
+        for page in (self.catalog_page, self.images_page, self.playlist_page, self.history_page, self.effects_page):
+            if selected == str(page):
+                page.ensure_ready()
+                break
         if selected != str(self.catalog_page):
             self.catalog_page.stop_preview()
         if selected != str(self.effects_page) and not self.background_preview.get():

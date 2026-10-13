@@ -152,7 +152,7 @@ class ImagesPane(ttk.Frame):
                     image=ImageOps.exif_transpose(image)
                     dimensions=image.size
                     image.thumbnail((600, 270), Image.Resampling.LANCZOS)
-                    self.photo=ImageTk.PhotoImage(image)
+                    self.photo=ImageTk.PhotoImage(image, master=self)
                 self.preview_label.configure(image=self.photo, text='')
                 self.status.set(f'{dimensions[0]} × {dimensions[1]} px · tamanho estimado: {output.stat().st_size / 1024:.1f} KB · prévia do primeiro quadro')
         except (ValueError, OSError, KeyError) as exc:
