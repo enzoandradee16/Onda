@@ -30,7 +30,9 @@ if($Testar) { $arguments+=':app:connectedDebugAndroidTest' }
 if($LASTEXITCODE -ne 0) { throw 'Falha ao compilar/testar. Confira a mensagem acima.' }
 $destination=Join-Path $PSScriptRoot 'APK'
 New-Item -ItemType Directory -Path $destination -Force | Out-Null
-$apk=Join-Path $destination 'ONDA-Android-1.0.0-alpha.1.apk'
+$versionMatch=[regex]::Match([IO.File]::ReadAllText((Join-Path $PSScriptRoot 'app\build.gradle.kts')), 'versionName\s*=\s*"([^"]+)"')
+if(-not $versionMatch.Success) { throw 'Não foi possível identificar a versão Android.' }
+$apk=Join-Path $destination ("ONDA-Android-"+$versionMatch.Groups[1].Value+"-"+$Arquitetura+"-debug.apk")
 Copy-Item -LiteralPath "$PSScriptRoot\app\build\outputs\apk\debug\app-debug.apk" -Destination $apk -Force
 Get-FileHash -LiteralPath $apk -Algorithm SHA256
 Write-Output "APK criado: $apk"

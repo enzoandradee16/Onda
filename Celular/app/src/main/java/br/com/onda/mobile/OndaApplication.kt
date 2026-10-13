@@ -59,23 +59,13 @@ object MobileEngine {
     @Volatile private var ready = false
     @Synchronized fun initialize(context: Context) {
         if (ready) return
-        val directory = File(context.noBackupFilesDir,"media-tools-v2")
-        val support = File(context.noBackupFilesDir,"media-support-v1")
         val native = File(context.applicationInfo.nativeLibraryDir)
-        val marker = File(directory,"version")
-        if (!marker.exists() || marker.readText() != "0.18.1") {
-            directory.mkdirs()
-            if (!Python.isStarted()) Python.start(AndroidPlatform(context.applicationContext))
-            Python.getInstance().getModule("mobile_backend").callAttr("prepare_native_archive",File(native,"libffmpeg.zip.so").absolutePath,directory.absolutePath)
-            marker.writeText("0.18.1")
-        }
         if (!Python.isStarted()) Python.start(AndroidPlatform(context.applicationContext))
-        if(!File(support,"version").exists()) {
-            Python.getInstance().getModule("mobile_backend").callAttr("prepare_native_archive",File(native,"libonda-support.zip.so").absolutePath,support.absolutePath)
-            File(support,"version").writeText("0.18.1")
-        }
         Python.getInstance().getModule("mobile_backend").callAttr("configure", context.filesDir.absolutePath,
-            native.absolutePath, File(directory,"usr/lib").absolutePath + ":" + File(support,"usr/lib").absolutePath)
+            native.absolutePath, native.absolutePath)
+        // These folders contained only the superseded bundled native runtime.
+        File(context.noBackupFilesDir,"media-tools-v2").deleteRecursively()
+        File(context.noBackupFilesDir,"media-support-v1").deleteRecursively()
         ready = true
     }
     fun call(context: Context, identity: String, action: String, config: org.json.JSONObject, callback: EventCallback): org.json.JSONObject {

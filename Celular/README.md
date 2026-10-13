@@ -31,6 +31,8 @@ cd 'C:\Users\Enzo Andrade\Desktop\Onda\Celular'
 powershell -ExecutionPolicy Bypass -File '.\Compilar Android.ps1'
 ```
 
+Antes da primeira compilação em um checkout novo, prepare as ferramentas conforme [nativebuild/README.md](nativebuild/README.md).
+
 Também é possível abrir esta pasta em Android Studio. Configure `local.properties` com `sdk.dir` e, se necessário, passe `-Ponda.buildPython=C:/caminho/python.exe` ao Gradle. `local.properties`, caches, módulos copiados, APKs e chaves não entram no Git.
 
 Para testar, conecte um emulador/aparelho de teste e use `-Testar`. Os testes instrumentados criam mídias sintéticas e credenciais fictícias; não usam arquivos pessoais. Não execute testes em uma instalação com dados importantes.
@@ -41,13 +43,14 @@ Para testar, conecte um emulador/aparelho de teste e use `-Testar`. Os testes in
 - `app/src/main/python/mobile_backend.py`: adaptação das ferramentas, eventos, escolhas, cancelamento e chamadas ao motor.
 - `app/src/main/python/shared`: gerado de `../Onda` durante a compilação; não editar.
 - `app/src/debug/python` e `app/src/androidTest`: testes reais no Android.
-- `tools/prepare_native_support.py`: prepara bibliotecas Android preservando links e sem incluir outro interpretador.
+- `nativebuild/`: fontes fixados por hash, scripts de reconstrução, configurações e avisos das ferramentas nativas.
+- `native-tools/`: executáveis gerados localmente; não entram no Git.
 
 As preferências, a fila, o histórico, os cookies importados e as credenciais ficam no armazenamento privado do app. Segredos são cifrados com Android Keystore; backups automáticos estão desativados. Arquivos exportados para Downloads/ONDA ou para a pasta escolhida ficam fora dos dados privados. O Android controla a desinstalação e a remoção dos dados privados.
 
 ## Distribuição
 
-Não misture este APK com a release Windows existente. Antes de uma release Android pública: usar chave própria de assinatura, testar ARM64 e aparelhos reais, confirmar comportamento em segundo plano e finalizar o inventário/licenças/fontes dos componentes nativos. Veja [THIRD_PARTY_NOTICES_ANDROID.md](THIRD_PARTY_NOTICES_ANDROID.md).
+A alpha.2 usa assinatura de produção. Os fontes das ferramentas nativas estão no pacote Fontes-nativos-Android e a reconstrução está descrita em [nativebuild/README.md](nativebuild/README.md). Há testes ARM64 em emulador; compatibilidade e comportamento em segundo plano devem continuar sendo conferidos em aparelhos reais. Veja [THIRD_PARTY_NOTICES_ANDROID.md](THIRD_PARTY_NOTICES_ANDROID.md).
 
 Na pesquisa, Adicionar à fila e Baixar agora alimentam a Fila da pesquisa, visível na mesma área. Ela mostra estado/progresso e usa o serviço da fila geral sem repetir downloads. Tempos são exibidos em minutos:segundos. Em Configurações → Contas, Abrir Spotify Developers abre o painel oficial no navegador; conectar exige Client ID, com aviso acima da janela se faltar.
 

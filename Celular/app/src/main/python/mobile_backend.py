@@ -22,38 +22,6 @@ class Cancelled(ValueError):
     pass
 
 
-def prepare_native_archive(archive, directory):
-    """Preserve Unix library aliases; validate both archive paths and link targets."""
-    import stat
-    import shutil
-    root = Path(directory).resolve()
-    root.mkdir(parents=True, exist_ok=True)
-    links = []
-    with zipfile.ZipFile(archive) as package:
-        if sum(item.file_size for item in package.infolist()) > 500*1024*1024:
-            raise ValueError('Pacote nativo acima do limite.')
-        for item in package.infolist():
-            target = (root / item.filename).resolve()
-            if not target.is_relative_to(root) or target == root:
-                raise ValueError('Caminho inválido no pacote nativo.')
-            if item.is_dir():
-                target.mkdir(parents=True, exist_ok=True)
-            elif stat.S_ISLNK(item.external_attr >> 16):
-                link = package.read(item).decode('utf-8')
-                destination = (target.parent / link).resolve()
-                if not destination.is_relative_to(root):
-                    raise ValueError('Link inválido no pacote nativo.')
-                links.append((target, link))
-            else:
-                target.parent.mkdir(parents=True, exist_ok=True)
-                with package.open(item) as source, target.open('wb') as output:
-                    shutil.copyfileobj(source, output)
-    for target, link in links:
-        if target.is_symlink() or target.exists():
-            target.unlink()
-        target.symlink_to(link)
-
-
 def readable_error(message):
     message=str(message)
     if 'sign in to confirm' in message.lower() or "confirm you’re not a bot" in message.lower():

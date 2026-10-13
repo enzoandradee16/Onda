@@ -1,0 +1,12 @@
+[
+  {
+    "filename": "android-ndk-r28c-windows.zip",
+    "url": "https://dl.google.com/android/repository/android-ndk-r28c-windows.zip",
+    "sha256": "6bec98ac2354d8a919760889a1a41d020132e5e8cfa1b1fe51610a72c36a466b"
+  },
+  {
+    "filename": "msys2-base-x86_64-20260927.tar.xz",
+    "url": "https://github.com/msys2/msys2-installer/releases/download/2026-09-27/msys2-base-x86_64-20260927.tar.xz",
+    "sha256": "ea2f31a0b6ade63914ce441ffb022f0f6aa96982bfefa2326460a26d5fb01322"
+  }
+]

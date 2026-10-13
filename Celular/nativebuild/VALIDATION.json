@@ -1,0 +1,36 @@
+{
+  "date": "2026-10-13",
+  "abi": "arm64-v8a",
+  "environment": "Android API 36 emulator with ARM64 translation",
+  "release_unit_tests": {
+    "passed": 5,
+    "failed": 0
+  },
+  "integration_tests": {
+    "passed": 5,
+    "failed": 0,
+    "coverage": [
+      "native executables",
+      "downloads: images/video/audio",
+      "mixed social posts",
+      "single photo as image or MP4 with music",
+      "effects and pitch",
+      "tags and cover preservation",
+      "normalization and metadata editing",
+      "parallel downloads",
+      "Spotify return and encrypted credential fixture"
+    ]
+  },
+  "license_navigation_test": {
+    "passed": 1,
+    "failed": 0
+  },
+  "production_apk": {
+    "signature_v2": true,
+    "signature_v3": true,
+    "installed_on_emulator": true,
+    "cold_start_succeeded": true,
+    "cold_start_ms_emulator": 1835
+  },
+  "physical_device": "not tested"
+}

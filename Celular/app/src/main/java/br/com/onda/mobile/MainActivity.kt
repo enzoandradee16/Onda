@@ -99,6 +99,7 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
     var showSettings by rememberSaveable { mutableStateOf(false) }
     var settingsCategory by rememberSaveable { mutableStateOf("Aparência") }
     var youtubeSession by rememberSaveable {mutableStateOf(false)}
+    var showLicenses by rememberSaveable {mutableStateOf(false)}
     val drawer=rememberDrawerState(DrawerValue.Closed)
     val scope=rememberCoroutineScope()
     val pages=rememberSaveableStateHolder()
@@ -107,7 +108,7 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
     val inputMethod=remember(view) {view.context.getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager}
     val currentTab by rememberUpdatedState(tab)
     var navigationPending by remember {mutableStateOf(false)}
-    val keyboardBlocked by rememberUpdatedState(navigationPending || showSettings || youtubeSession || question!=null || notice.isNotBlank())
+    val keyboardBlocked by rememberUpdatedState(navigationPending || showSettings || youtubeSession || showLicenses || question!=null || notice.isNotBlank())
     fun navigateFromDrawer(action: ()->Unit) {
         if(navigationPending) return
         navigationPending=true
@@ -139,7 +140,7 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
     val preferences=OndaStore.context.getSharedPreferences("preferences",0)
     var welcome by remember { mutableStateOf(!preferences.getBoolean("welcome_seen",false)) }
     val permission=rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
-    BackHandler(enabled=(drawer.isOpen || drawer.targetValue==DrawerValue.Open || tab!=homeTab) && !showSettings && !youtubeSession && !welcome && question==null && notice.isBlank()) {
+    BackHandler(enabled=(drawer.isOpen || drawer.targetValue==DrawerValue.Open || tab!=homeTab) && !showSettings && !youtubeSession && !showLicenses && !welcome && question==null && notice.isBlank()) {
         if(drawer.isOpen || drawer.targetValue==DrawerValue.Open) scope.launch {drawer.close()} else tab=homeTab
     }
     LaunchedEffect(Unit) { if(Build.VERSION.SDK_INT>=33) permission.launch(Manifest.permission.POST_NOTIFICATIONS) }
@@ -157,6 +158,7 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
                 HorizontalDivider(Modifier.padding(12.dp))
                 NavigationDrawerItem(label={Text("Configurações")},selected=false,onClick={navigateFromDrawer {settingsCategory="Aparência";showSettings=true}})
                 NavigationDrawerItem(label={Text("Sessão do YouTube")},selected=false,onClick={navigateFromDrawer {youtubeSession=true}})
+                NavigationDrawerItem(label={Text("Licenças e fontes")},selected=false,onClick={navigateFromDrawer {showLicenses=true}})
                 Text("Seus downloads",style=MaterialTheme.typography.labelLarge,modifier=Modifier.padding(16.dp))
                 val queue by OndaStore.items.collectAsStateWithLifecycle()
                 Text("${queue.count {it.state=="Pendente"}} pendentes · ${queue.count {it.state=="Concluído"}} concluídos",modifier=Modifier.padding(horizontal=16.dp),style=MaterialTheme.typography.bodySmall)
@@ -188,6 +190,7 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
         question?.let { ChoiceWindow(it,vm) }
         if(showSettings) SettingsWindow(vm,initialCategory=settingsCategory) {showSettings=false}
         if(youtubeSession) YouTubeSessionWindow {youtubeSession=false}
+        if(showLicenses) LicensesWindow {showLicenses=false}
         if(welcome) AlertDialog(onDismissRequest={preferences.edit().putBoolean("welcome_seen",true).apply();welcome=false},title={Text("Bem-vindo ao Onda")},
             text={Text("Ajuste o básico para começar. Você pode fechar esta janela e configurar tudo depois.")},
             confirmButton={TextButton(onClick={preferences.edit().putBoolean("welcome_seen",true).apply();welcome=false;settingsCategory="Aparência";showSettings=true}){Text("Configurações")}},

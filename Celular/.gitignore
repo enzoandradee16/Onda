@@ -10,3 +10,6 @@ captures/
 /APK/
 app/src/main/python/shared/
 validation/local-*.json
+
+# Compiled native tools; rebuild from nativebuild locked sources
+/native-tools/

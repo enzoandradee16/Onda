@@ -1,3 +1,5 @@
+import java.security.MessageDigest
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -7,20 +9,30 @@ plugins {
 // Phone builds carry one architecture; emulator builds opt in explicitly.
 val targetAbis=providers.gradleProperty("onda.abis").getOrElse("arm64-v8a").split(",").map {it.trim()}.distinct()
 require(targetAbis.isNotEmpty() && targetAbis.all {it in setOf("arm64-v8a","x86_64")}) {"onda.abis: use arm64-v8a e/ou x86_64"}
-val nativeTools by configurations.creating { isTransitive = false }
+// Build native tools from the locked sources in nativebuild; no opaque Maven runtime.
+val nativeSource = rootProject.file("native-tools")
+val nativeHashes = rootProject.file("nativebuild/SHA256SUMS.txt")
 val prepareNativeTools by tasks.registering(Sync::class) {
-    inputs.property("targetAbis",targetAbis)
-    from({ nativeTools.map { zipTree(it) } }) {
-        targetAbis.forEach {abi->include("jni/$abi/libffmpeg*", "jni/$abi/libffprobe.so", "jni/$abi/libqjs.so")}
-        eachFile { path = path.removePrefix("jni/") }
-        includeEmptyDirs = false
+    inputs.file(nativeHashes)
+    inputs.property("targetAbis", targetAbis)
+    from(nativeSource) {
+        targetAbis.forEach { abi -> include("$abi/libffmpeg.so", "$abi/libffprobe.so", "$abi/libqjs.so") }
     }
     into(layout.buildDirectory.dir("generated/nativeTools"))
-    doLast {
-        project.exec {
-            commandLine(listOf(providers.gradleProperty("onda.buildPython").getOrElse("python"),
-                rootProject.file("tools/prepare_native_support.py").absolutePath,
-                layout.buildDirectory.dir("generated/nativeTools").get().asFile.absolutePath) + nativeTools.files.map {it.absolutePath})
+    doFirst {
+        val expected = nativeHashes.readLines().filter { it.isNotBlank() }.associate {
+            val parts = it.trim().split(Regex("\\s+"), limit = 2)
+            parts[1] to parts[0]
+        }
+        targetAbis.forEach { abi ->
+            listOf("libffmpeg.so", "libffprobe.so", "libqjs.so").forEach { name ->
+                val relative = "$abi/$name"
+                val file = nativeSource.resolve(relative)
+                check(file.isFile) { "Ferramenta ausente: $relative. Siga Celular/nativebuild/README.md." }
+                val actual = MessageDigest.getInstance("SHA-256").digest(file.readBytes())
+                    .joinToString("") { "%02x".format(it.toInt() and 255) }
+                check(actual == expected[relative]) { "Hash nativo inválido: $relative. Confira os fontes, a construção e nativebuild/SHA256SUMS.txt." }
+            }
         }
     }
 }
@@ -72,8 +84,6 @@ tasks.named("preBuild") { dependsOn(prepareNativeTools, syncSharedEngine) }
 tasks.matching { it.name.contains("Python") }.configureEach { dependsOn(syncSharedEngine) }
 dependencies {
     implementation("androidx.work:work-runtime-ktx:2.10.1")
-    nativeTools("io.github.junkfood02.youtubedl-android:ffmpeg:0.18.1@aar")
-    nativeTools("io.github.junkfood02.youtubedl-android:library:0.18.1@aar")
     implementation(platform("androidx.compose:compose-bom:2025.05.01"))
     implementation("androidx.browser:browser:1.8.0")
     implementation("androidx.activity:activity-compose:1.10.1")
