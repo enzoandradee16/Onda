@@ -27,12 +27,12 @@ val categories=linkedMapOf(
     "Áudio" to listOf("search_preview","effects_preview","keep_preview"),
     "Contas" to listOf("spotify_client_id","cookies_file","youtube_cookies_file"))
 
-@Composable fun SettingsWindow(vm: OndaViewModel, close: ()->Unit) {
+@Composable fun SettingsWindow(vm: OndaViewModel, initialCategory: String="Aparência", close: ()->Unit) {
     val settings by OndaStore.settings.collectAsStateWithLifecycle()
     val busy by vm.busy.collectAsStateWithLifecycle()
     val status by vm.status.collectAsStateWithLifecycle()
     val names=remember {categories.keys.toList()+"Ferramentas"}
-    val pager=rememberPagerState(initialPage=1,pageCount={names.size})
+    val pager=rememberPagerState(initialPage=names.indexOf(initialCategory).takeIf {it>=0} ?: 1,pageCount={names.size})
     val scope=rememberCoroutineScope()
     var reset by remember {mutableStateOf(false)}
     var secret by remember {mutableStateOf(SecureVault.get("spotify-api") ?: "")}
@@ -61,7 +61,7 @@ val categories=linkedMapOf(
                     }
                     "Aparência"->{
                         Text("Tema e cores",style=MaterialTheme.typography.titleMedium)
-                        Select("Modo de aparência",settings.optString("theme"),listOf("Seguir o sistema","Escuro","Claro")){put("theme",it)}
+                        Select("Modo de aparência",settings.optString("theme"),listOf("Seguir o sistema","Escuro","Preto puro","Claro")){put("theme",it)}
                         Select("Cor de destaque",settings.optString("accent"),accents.keys.toList()){put("accent",it)}
                         Select("Fonte da interface",settings.optString("interface_font",DEFAULT_INTERFACE_FONT),interfaceFonts.keys.toList()){put("interface_font",it)}
                         Text(FONT_PREVIEW,style=MaterialTheme.typography.bodyLarge,modifier=Modifier.testTag("font-preview"))

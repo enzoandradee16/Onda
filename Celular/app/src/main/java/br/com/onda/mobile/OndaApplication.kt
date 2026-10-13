@@ -9,7 +9,6 @@ import com.chaquo.python.Python
 import com.chaquo.python.android.AndroidPlatform
 import java.io.File
 import java.security.KeyStore
-import java.util.zip.ZipInputStream
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
@@ -52,7 +51,7 @@ object SecureVault {
 }
 
 object MobileEngine {
-    private var ready = false
+    @Volatile private var ready = false
     @Synchronized fun initialize(context: Context) {
         if (ready) return
         val directory = File(context.noBackupFilesDir,"media-tools-v2")

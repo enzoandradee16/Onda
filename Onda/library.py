@@ -61,7 +61,11 @@ class LibraryStore:
     def history(self, query=""):
         with self.connect() as db:
             db.row_factory = sqlite3.Row
-            return [dict(row) for row in db.execute("SELECT * FROM history WHERE instr(lower(name),lower(?))>0 ORDER BY id DESC LIMIT 1000", (query,))]
+            if query:
+                cursor = db.execute("SELECT * FROM history WHERE instr(lower(name),lower(?))>0 ORDER BY id DESC LIMIT 1000", (query,))
+            else:
+                cursor = db.execute("SELECT * FROM history ORDER BY id DESC LIMIT 1000")
+            return [dict(row) for row in cursor]
 
     def clear_history(self):
         with self.connect() as db:

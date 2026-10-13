@@ -21,6 +21,7 @@ class SvgTests(unittest.TestCase):
             self.assertEqual(root.attrib['viewBox'],'0 0 100 50')
             self.assertEqual(root.attrib['width'],'100')
             image=root.find('{http://www.w3.org/2000/svg}image')
+            self.assertEqual(result.read_text(encoding='utf-8').count('data:image/png;base64,'), 1)
             embedded=image.get('href')
             self.assertTrue(embedded.startswith('data:image/png;base64,'))
             with Image.open(io.BytesIO(base64.b64decode(embedded.split(',',1)[1]))) as raster:

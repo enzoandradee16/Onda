@@ -1,7 +1,7 @@
 import os
 import tempfile
 import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 from queue_titles import record_name, resolve_name
 

@@ -1,17 +1,17 @@
-import java.util.zip.ZipFile
-import java.util.zip.ZipInputStream
-
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
     id("com.chaquo.python")
 }
+// Phone builds carry one architecture; emulator builds opt in explicitly.
+val targetAbis=providers.gradleProperty("onda.abis").getOrElse("arm64-v8a").split(",").map {it.trim()}.distinct()
+require(targetAbis.isNotEmpty() && targetAbis.all {it in setOf("arm64-v8a","x86_64")}) {"onda.abis: use arm64-v8a e/ou x86_64"}
 val nativeTools by configurations.creating { isTransitive = false }
 val prepareNativeTools by tasks.registering(Sync::class) {
+    inputs.property("targetAbis",targetAbis)
     from({ nativeTools.map { zipTree(it) } }) {
-        include("jni/arm64-v8a/libffmpeg*", "jni/arm64-v8a/libffprobe.so", "jni/arm64-v8a/libqjs.so")
-        include("jni/x86_64/libffmpeg*", "jni/x86_64/libffprobe.so", "jni/x86_64/libqjs.so")
+        targetAbis.forEach {abi->include("jni/$abi/libffmpeg*", "jni/$abi/libffprobe.so", "jni/$abi/libqjs.so")}
         eachFile { path = path.removePrefix("jni/") }
         includeEmptyDirs = false
     }
@@ -28,7 +28,9 @@ val syncSharedEngine by tasks.registering(Sync::class) {
     from("../../Onda") {
         include("*.py")
         exclude("test_*", "*_ui.py", "app.py", "ui.py", "desktop_entry.py", "ffmpeg_runtime.py",
-            "credentials.py", "preferences.py", "first_run.py", "single_instance.py", "window_*.py", "tab_order.py", "settings_scroll.py")
+            "credentials.py", "preferences.py", "first_run.py", "single_instance.py", "window_*.py", "tab_order.py", "settings_scroll.py",
+            "appearance.py", "interface_fonts.py", "library.py", "reset_settings.py",
+            "catalog_picker.py", "media_picker.py", "version_picker.py")
     }
     into("src/main/python/shared")
 }
@@ -40,9 +42,9 @@ android {
         applicationId = "br.com.onda.mobile"
         minSdk = 26
         targetSdk = 35
-        versionCode = 12
-        versionName = "1.0.0-alpha.12"
-        ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
+        versionCode = 14
+        versionName = "1.0.0-alpha.1"
+        ndk { abiFilters += targetAbis }
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     buildFeatures { compose = true; buildConfig = true }
@@ -76,8 +78,6 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.10.1")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.foundation:foundation")
-    implementation("androidx.compose.ui:ui-tooling-preview")
-    debugImplementation("androidx.compose.ui:ui-tooling")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.0")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.9.0")
     implementation("androidx.documentfile:documentfile:1.0.1")

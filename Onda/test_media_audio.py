@@ -67,7 +67,7 @@ class MediaAudioTests(unittest.TestCase):
         choose = Mock(return_value={'selected_ids': ['1', '2'], 'media_modes': {'2': 'm4a'}})
         with patch('social_media.save_media', return_value='saved') as save:
             download_selected(items, Mock(), {'mode': 'mp4'}, Mock(), Mock(), choose)
-        self.assertEqual(save.call_args_list[0].args[3]['mode'], 'mp4')
+        self.assertEqual(save.call_args_list[0].args[3]['mode'], 'photos')
         self.assertEqual(save.call_args_list[1].args[3]['mode'], 'm4a')
 
     def test_ipc_accepts_only_video_formats_for_selected_videos(self):

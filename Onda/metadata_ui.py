@@ -1,6 +1,5 @@
 """Independent catalog window; all network work stays off the Tk thread."""
 import json
-import os
 from pathlib import Path
 import queue
 import threading

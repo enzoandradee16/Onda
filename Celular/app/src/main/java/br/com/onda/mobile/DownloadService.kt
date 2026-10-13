@@ -38,9 +38,9 @@ class DownloadService : Service() {
         worker=scope.launch {
             try {
                 lock=(getSystemService(Context.POWER_SERVICE) as PowerManager).newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,"ONDA:Downloads").apply { acquire(6*60*60*1000L) }
+                val preferred=intent?.getStringExtra("only")
+                val batch=intent?.getStringArrayListExtra("batch")?.toHashSet()
                 while(!stopRequested) {
-                    val preferred=intent?.getStringExtra("only")
-                    val batch=intent?.getStringArrayListExtra("batch")
                     val item=OndaStore.items.value.firstOrNull { it.state=="Pendente" && (preferred==null || it.id==preferred) && (batch==null || it.id in batch) } ?: break
                     OndaStore.active.value=item.id
                     OndaStore.update(item.id,"Baixando")
@@ -99,7 +99,7 @@ class DownloadService : Service() {
     private fun notification(text: String, percent: Int?): android.app.Notification {
         val open=PendingIntent.getActivity(this,0,Intent(this,MainActivity::class.java),PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         val stop=PendingIntent.getService(this,1,Intent(this,DownloadService::class.java).setAction("stop"),PendingIntent.FLAG_IMMUTABLE)
-        return NotificationCompat.Builder(this,"downloads").setSmallIcon(R.drawable.ic_onda).setContentTitle("ONDA")
+        return NotificationCompat.Builder(this,"downloads").setSmallIcon(R.drawable.ic_onda_notification).setContentTitle("ONDA")
             .setContentText(text.take(180)).setContentIntent(open).setOnlyAlertOnce(true).setOngoing(true)
             .setProgress(100,percent ?: 0,percent==null).addAction(0,"Parar fila",stop).build()
     }

@@ -71,7 +71,7 @@ class WelcomeUiTests(unittest.TestCase):
                 welcome.apply()
                 self.assertFalse(welcome.winfo_exists())
                 saved = app.preference_store.load()
-                self.assertEqual(saved["folder"], destination)
+                self.assertEqual(Path(saved["folder"]).resolve(), Path(destination).resolve())
                 self.assertEqual(saved["playlist_limit"], "2000")
                 self.assertEqual(saved["catalog_provider"], "Apple / iTunes")
                 self.assertEqual(saved["mode"], "Áudio · MP3 (320 kbps)")

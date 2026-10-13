@@ -45,14 +45,14 @@ object OndaStore {
     @Synchronized fun <T> enqueueBatch(action: ()->T):T {
         database.writableDatabase.beginTransaction();batchDepth++
         try {val result=action();database.writableDatabase.setTransactionSuccessful();return result}
-        finally {batchDepth--;database.writableDatabase.endTransaction();refresh()}
+        finally {batchDepth--;database.writableDatabase.endTransaction();if(batchDepth==0) refreshQueue()}
     }
     fun initialize(value: Context) {
         context = value.applicationContext
         database = OndaDatabase(context)
         settings.value = defaults().apply {
             val text = context.getSharedPreferences("preferences",0).getString("settings",null)
-            if (text != null) JSONObject(text).keys().forEach { put(it,JSONObject(text).get(it)) }
+            if (text != null) {val saved=JSONObject(text);saved.keys().forEach {put(it,saved.get(it))}}
         }
         normalizeAppearance(settings.value)
         database.writableDatabase.execSQL("UPDATE queue SET state='Pendente' WHERE state IN ('Baixando','Aguardando escolha')")
@@ -76,22 +76,30 @@ object OndaStore {
         val persisted = if (value.optBoolean("remember",true)) value else defaults().put("remember",false)
         context.getSharedPreferences("preferences",0).edit().putString("settings",persisted.toString()).apply()
     }
-    fun config(options: JSONObject = settings.value): JSONObject = JSONObject(options.toString()).apply {
+    fun config(options: JSONObject = settings.value, includeSecrets: Boolean = true): JSONObject = JSONObject(options.toString()).apply {
         if(optString("mode")=="m4a" && optString("audio_quality") !in listOf("256 kbps","192 kbps","128 kbps","96 kbps")) put("audio_quality","256 kbps")
         put("folder", File(context.getExternalFilesDir(null),"Onda Downloads").absolutePath)
         put("ffmpeg", "android-native")
         put("playlist",options.optBoolean("link_playlist",false))
-        put("spotify_client_secret", SecureVault.get("spotify-api") ?: "")
+        if(includeSecrets) put("spotify_client_secret", SecureVault.get("spotify-api") ?: "")
         if(optString("mode")=="photos") put("image_options",JSONObject().put("format", options.optString("image_format","Original"))
             .put("width",options.optInt("image_width")).put("height",options.optInt("image_height"))
             .put("keep_ratio",options.optBoolean("keep_ratio",true)))
     }
-    @Synchronized fun refresh() {
+    @Synchronized fun refresh() {refreshQueue();refreshHistory()}
+    @Synchronized private fun refreshQueue() {
+        val previous=items.value.associateBy {it.id}
         val queue = mutableListOf<DownloadItem>()
         database.readableDatabase.rawQuery("SELECT id,title,config,state FROM queue ORDER BY rowid",null).use { cursor ->
-            while(cursor.moveToNext()) queue += DownloadItem(cursor.getString(0),cursor.getString(1),JSONObject(cursor.getString(2)),cursor.getString(3))
+            while(cursor.moveToNext()) {
+                val id=cursor.getString(0)
+                val old=previous[id]
+                queue += DownloadItem(id,cursor.getString(1),JSONObject(cursor.getString(2)),cursor.getString(3),old?.progress ?: 0f,old?.message ?: "")
+            }
         }
         items.value = queue
+    }
+    @Synchronized private fun refreshHistory() {
         val past = mutableListOf<HistoryItem>()
         database.readableDatabase.rawQuery("SELECT id,title,uri,mode,size FROM history ORDER BY id DESC LIMIT 3000",null).use { cursor ->
             while(cursor.moveToNext()) past += HistoryItem(cursor.getLong(0),cursor.getString(1),cursor.getString(2),cursor.getString(3),cursor.getLong(4))
@@ -100,21 +108,22 @@ object OndaStore {
     }
     @Synchronized fun enqueue(url: String, title: String = url, options: JSONObject = settings.value, extra: JSONObject? = null): String {
         val id = UUID.randomUUID().toString()
-        val config = config(options).put("url",url)
+        val config = config(options,includeSecrets=false).put("url",url)
         extra?.keys()?.forEach { config.put(it,extra.get(it)) }
         // Secrets are injected at execution and never stored in the queue database.
         config.remove("spotify_client_secret")
         database.writableDatabase.execSQL("INSERT INTO queue VALUES(?,?,?,?)",arrayOf(id,title,config.toString(),"Pendente"))
-        if(batchDepth==0) refresh()
+        if(batchDepth==0) items.value=items.value+DownloadItem(id,title,config)
         return id
     }
     @Synchronized fun update(id: String, state: String, progress: Float? = null, message: String? = null) {
         val previous = items.value.firstOrNull { it.id == id } ?: return
+        if(previous.state==state && (progress==null || progress==previous.progress) && (message==null || message==previous.message)) return
         if(previous.state != state) database.writableDatabase.execSQL("UPDATE queue SET state=? WHERE id=?",arrayOf(state,id))
         items.value = items.value.map { if(it.id==id) it.copy(state=state,progress=progress ?: it.progress,message=message ?: it.message) else it }
     }
     @Synchronized fun rename(id: String, title: String) {
-        if(title.isBlank()) return
+        if(title.isBlank() || items.value.firstOrNull {it.id==id}?.title==title) return
         database.writableDatabase.execSQL("UPDATE queue SET title=? WHERE id=?",arrayOf(title,id))
         items.value=items.value.map {if(it.id==id) it.copy(title=title) else it}
     }
@@ -131,8 +140,15 @@ object OndaStore {
         context.getSharedPreferences("preferences",0).edit().remove("collection_options").apply()
     }
     @Synchronized fun remove(ids: Set<String>) {
-        ids.filter { it!=active.value }.forEach { database.writableDatabase.execSQL("DELETE FROM queue WHERE id=?",arrayOf(it)) }
-        refresh()
+        val removable=ids-active.value
+        if(removable.isEmpty()) return
+        val db=database.writableDatabase
+        db.beginTransaction()
+        try {
+            removable.forEach {db.execSQL("DELETE FROM queue WHERE id=?",arrayOf(it))}
+            db.setTransactionSuccessful()
+        } finally {db.endTransaction()}
+        items.value=items.value.filterNot {it.id in removable}
     }
     fun retry(ids: Set<String>) { ids.filter { it!=active.value }.forEach { update(it,"Pendente",0f,"") } }
     @Synchronized fun log(message: String) { messages.value = (messages.value + message).takeLast(120) }
@@ -229,7 +245,13 @@ object OndaStore {
         val file = File(path)
         val uri = destination(file,config)
         database.writableDatabase.execSQL("INSERT INTO history(title,uri,mode,size) VALUES(?,?,?,?)",arrayOf(file.name,uri.toString(),mode,file.length()))
-        refresh()
+        synchronized(this) {refreshHistory()}
+        // MediaStore/SAF now owns the exported copy. Keep custom inputs and the
+        // Android 8/9 FileProvider source, which still backs the published URI.
+        val staging=File(context.getExternalFilesDir(null),"Onda Downloads").canonicalFile.toPath()
+        if(uri.authority!="${context.packageName}.files" && file.canonicalFile.toPath().startsWith(staging)) {
+            file.delete()
+        }
         return uri
     }
     fun open(uri: String, mode: String = "") {
@@ -241,8 +263,8 @@ object OndaStore {
         val intent = Intent(Intent.ACTION_SEND).setType(mimeFor(title)).putExtra(Intent.EXTRA_STREAM,Uri.parse(uri)).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         context.startActivity(Intent.createChooser(intent,"Compartilhar").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
-    fun removeHistory(id: Long) { database.writableDatabase.delete("history","id=?",arrayOf(id.toString())); refresh() }
-    fun clearHistory() { database.writableDatabase.execSQL("DELETE FROM history"); refresh() }
+    @Synchronized fun removeHistory(id: Long) { database.writableDatabase.delete("history","id=?",arrayOf(id.toString())); refreshHistory() }
+    @Synchronized fun clearHistory() { database.writableDatabase.execSQL("DELETE FROM history"); refreshHistory() }
     fun mimeFor(name: String): String = when(name.substringAfterLast('.').lowercase()) {
         "mp3"->"audio/mpeg"; "m4a"->"audio/mp4"; "flac"->"audio/flac"; "wav"->"audio/wav"
         "mp4"->"video/mp4"; "mkv"->"video/x-matroska"; "webm"->"video/webm"

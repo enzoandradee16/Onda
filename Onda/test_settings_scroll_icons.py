@@ -1,6 +1,5 @@
 import os
 import tempfile
-import tkinter as tk
 from types import SimpleNamespace
 import unittest
 from unittest.mock import patch

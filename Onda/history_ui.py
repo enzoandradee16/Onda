@@ -12,6 +12,7 @@ class HistoryPane(ttk.Frame):
         self.app = app
         self.query = tk.StringVar()
         self.rows = {}
+        self._search_after = None
         self.columnconfigure(0, weight=1)
         self.rowconfigure(2, weight=1)
         ttk.Label(self, text="Sua biblioteca de downloads.", font=("Segoe UI", 21, "bold"), anchor="center").grid(row=0, column=0, sticky="ew")
@@ -20,7 +21,7 @@ class HistoryPane(ttk.Frame):
         ttk.Entry(search, textvariable=self.query).pack(side="left", fill="x", expand=True)
         ttk.Button(search, text="Pesquisar", command=self.refresh).pack(side="left", padx=8)
         ttk.Button(search, text="Limpar histórico", command=self.clear).pack(side="right")
-        self.query.trace_add("write", lambda *_: self.refresh())
+        self.query.trace_add("write", lambda *_: self.schedule_search())
         panel = ttk.Frame(self)
         panel.grid(row=2, column=0, sticky="nsew")
         self.table = ttk.Treeview(panel, columns=("name", "mode", "date"), show="headings", selectmode="browse")
@@ -41,16 +42,31 @@ class HistoryPane(ttk.Frame):
         ttk.Label(self, textvariable=self.status, style="Muted.TLabel").grid(row=4, column=0, sticky="w")
         self.refresh()
 
+    def schedule_search(self):
+        if self._search_after is not None:
+            self.after_cancel(self._search_after)
+        self._search_after = self.after(180, self.refresh)
+
+    def shutdown(self):
+        if self._search_after is not None:
+            self.after_cancel(self._search_after)
+            self._search_after = None
+
     def refresh(self):
+        self.shutdown()
         if not hasattr(self, "table"):
             return
         selected = self.table.selection()
-        self.table.delete(*self.table.get_children())
         try:
-            self.rows = {str(row["id"]): row for row in self.app.library.history(self.query.get())}
+            rows = {str(row["id"]): row for row in self.app.library.history(self.query.get())}
         except Exception:
             self.status.set("Não foi possível ler o histórico.")
             return
+        self.status.set(f"{len(rows)} registros · até 1000 resultados por pesquisa.")
+        if rows == self.rows:
+            return
+        self.rows = rows
+        self.table.delete(*self.table.get_children())
         for key, row in self.rows.items():
             self.table.insert("", "end", iid=key, values=(row["name"], row["mode"], row["date"][:19].replace("T", " ")))
         if selected and selected[0] in self.rows:

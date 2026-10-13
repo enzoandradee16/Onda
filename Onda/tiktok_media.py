@@ -23,6 +23,8 @@ def post_items(source, post, url):
             raise ValueError("O TikTok não forneceu as imagens desta publicação.")
         if len(images) > 100:
             raise ValueError("Limite de 100 mídias por publicação atingido.")
+        from photo_music import direct_audio
+        audio = direct_audio((post.get('music') or {}).get('playUrl'))
         for index, image in enumerate(images, 1):
             urls = (image.get("imageURL") or {}).get("urlList") or []
             media_url = next((value for value in urls if isinstance(value, str) and urlsplit(value).scheme in ("https", "http")), None)
@@ -32,7 +34,7 @@ def post_items(source, post, url):
             yield media_url, {"extension": extension if extension in ("jpg", "jpeg", "png", "webp", "avif", "heic") else "jpg",
                               "user": user, "title": title, "id": post_id, "num": index,
                               "width": image.get("imageWidth"), "height": image.get("imageHeight"),
-                              "thumbnail": media_url, "_http_headers": {"Referer": "https://www.tiktok.com/"}}
+                              "thumbnail": media_url, "_photo_audio": audio, "_http_headers": {"Referer": "https://www.tiktok.com/"}}
     else:
         info = TikTokIE._parse_aweme_video_web(source, post, url, post_id)
         formats = info.get("formats") or []

@@ -1,6 +1,6 @@
 # Funções e validação Android
 
-Versão: 1.0.0-alpha.12. Este documento distingue implementação de comprovação em aparelho real. A versão Windows permanece independente.
+Versão: 1.0.0-alpha.1. Este documento distingue implementação de comprovação em aparelho real. A versão Windows permanece independente.
 
 | Área | Implementação Android | Validação atual |
 |---|---|---|

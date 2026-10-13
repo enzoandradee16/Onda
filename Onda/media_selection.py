@@ -9,6 +9,17 @@ VIDEO_OUTPUTS = {
 }
 
 
+PHOTO_OUTPUTS = {'Só foto': 'photos', 'Foto com música · MP4': 'photo_video'}
+
+
+def output_choices(candidate):
+    if candidate.get('kind') == 'Vídeo':
+        return VIDEO_OUTPUTS
+    if candidate.get('photo_choice'):
+        return PHOTO_OUTPUTS if candidate.get('has_audio') else {'Só foto': 'photos'}
+    return {}
+
+
 def validate_selection(value, candidates):
     if not isinstance(value, dict):
         raise ValueError('Seleção de mídias inválida.')
@@ -22,6 +33,6 @@ def validate_selection(value, candidates):
     if not isinstance(modes, dict):
         raise ValueError('Formatos de mídia inválidos.')
     for key, mode in modes.items():
-        if key not in selected or allowed[key].get('kind') != 'Vídeo' or mode not in VIDEO_OUTPUTS.values():
+        if key not in selected or mode not in output_choices(allowed[key]).values():
             raise ValueError('Formato inválido para a mídia selecionada.')
     return selected, modes

@@ -498,6 +498,7 @@ class App(UiMixin, tk.Tk):
             self.bar.configure(mode="determinate", value=value)
 
     def poll_events(self):
+        titles_changed = False
         for _ in range(150):
             try:
                 item, event = self.events.get_nowait()
@@ -517,7 +518,7 @@ class App(UiMixin, tk.Tk):
                 if job and job['url'] == event.get('url') and not job.get('display_name') and job['state'] in ('Na fila', 'Falhou'):
                     job['display_name'] = event['title']
                     self.tree.set(item, 'name', event['title'])
-                    self.persist_queue()
+                    titles_changed = True
                 continue
             if item != self.active:
                 continue
@@ -625,6 +626,8 @@ class App(UiMixin, tk.Tk):
                     self.destroy()
                     return
                 self.next_job()
+        if titles_changed:
+            self.persist_queue()
         self._poll_after = self.after(100, self.poll_events)
 
     def write_log(self, text):
@@ -778,6 +781,8 @@ class App(UiMixin, tk.Tk):
             webbrowser.open((BASE / "README.md").as_uri())
 
     def destroy(self):
+        if hasattr(self, "history_page"):
+            self.history_page.shutdown()
         if hasattr(self, "theme_manager"):
             self.theme_manager.shutdown()
         if hasattr(self, "title_lookup"):

@@ -2,17 +2,17 @@
 
 Projeto Android separado da distribuição Windows. Kotlin/Compose fornece a interface e os serviços; Python/Chaquopy executa o motor compartilhado do ONDA. O build copia os módulos necessários de `../Onda`, sem editar o programa de PC.
 
-Esta é a versão **1.0.0-alpha.12 de desenvolvimento**. A implementação das funções do PC está sendo adaptada e validada em Android. Compilar não comprova funcionamento de todas as plataformas: login, cookies, correspondências e bloqueios dependem do serviço e do aparelho. Consulte [FUNCIONALIDADES.md](FUNCIONALIDADES.md) e a [auditoria de paridade com o PC](PARIDADE-PC-ANDROID.md).
+Esta é a versão **1.0.0-alpha.1 de desenvolvimento**. A implementação das funções do PC está sendo adaptada e validada em Android. Compilar não comprova funcionamento de todas as plataformas: login, cookies, correspondências e bloqueios dependem do serviço e do aparelho. Consulte [FUNCIONALIDADES.md](FUNCIONALIDADES.md) e a [auditoria de paridade com o PC](PARIDADE-PC-ANDROID.md).
 
 Resultados e pendências desta compilação: [validation/RESULTADOS.md](validation/RESULTADOS.md).
 
 ## Instalar no celular
 
-Use `APK/ONDA-Android-1.0.0-alpha.12.apk`, transfira para o celular e permita a instalação pela origem escolhida. Android 8 ou superior, processador ARM64; o mesmo APK contém x86_64 para emulador. A assinatura é de desenvolvimento, não uma chave definitiva de publicação. Não precisa instalar Python, FFmpeg ou Termux.
+Use `APK/ONDA-Android-1.0.0-alpha.1.apk`, transfira para o celular e permita a instalação pela origem escolhida. Android 8 ou superior, processador ARM64; o APK padrão contém somente ARM64 para reduzir o tamanho. Para emulador x86_64, compile com `-Arquitetura x86_64`; para ambas, use `-Arquitetura universal`. A assinatura é de desenvolvimento, não uma chave definitiva de publicação. Não precisa instalar Python, FFmpeg ou Termux.
 
 Abra o ONDA, conclua ou feche a configuração inicial. Em Links e fila, cole o link e escolha Baixar agora ou Adicionar à fila. Downloads usam notificações; conceda a permissão quando solicitada. Se precisar confirmar metadados/versão/mídias, abra o app e responda à janela.
 
-No Android 10+, a pasta padrão é Downloads/ONDA. Em Configurações → Downloads é possível escolher outra pasta pelo seletor do sistema. Android 8/9 usa a pasta do aplicativo se nenhuma pasta for escolhida; escolha uma pasta para preservar os downloads ao desinstalar. Histórico permite abrir, compartilhar e usar áudio/vídeo nos efeitos.
+No Android 10+, a pasta padrão é Downloads/ONDA. Em Configurações → Downloads é possível escolher outra pasta pelo seletor do sistema. Android 8/9 usa a pasta do aplicativo se nenhuma pasta for escolhida; escolha uma pasta para preservar os downloads ao desinstalar. Histórico permite abrir o arquivo, abrir sua pasta de origem, compartilhar e usar áudio/vídeo nos efeitos. Abrir pasta usa o gerenciador compatível ou o seletor de arquivos do Android; a localização vem do arquivo do histórico, mesmo após mudar a pasta padrão.
 
 Músicas de streaming usam metadados do catálogo e áudio equivalente do YouTube. A API Spotify é opcional para links individuais. Para conectar uma conta, cadastre `http://127.0.0.1:8765/callback` no Spotify Developers e informe seu Client ID. O retorno fica no próprio celular e usa PKCE. As restrições da API e o limite do embed público continuam aplicáveis; CSV do Exportify é uma alternativa.
 
@@ -60,3 +60,5 @@ Em Configurações → Aparência → Fonte da interface, escolha Padrão do sis
 ### Enter nos campos
 
 Em Pesquisar músicas, Enter do teclado físico ou a ação Pesquisar do teclado virtual inicia a busca, sem inserir uma linha. Os demais campos são de uma linha. Somente o campo LINKS em Links e fila aceita Enter para separar os links.
+
+O fluxo de fotos, vídeos, posts mistos e foto com música nas redes sociais está descrito em [Downloads sociais](../docs/FLUXO-DOWNLOAD-SOCIAL.md).

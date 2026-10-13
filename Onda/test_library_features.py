@@ -43,7 +43,7 @@ class LibraryTests(unittest.TestCase):
 
     def test_duplicates_keep_replace_skip(self):
         with tempfile.TemporaryDirectory() as folder:
-            root = Path(folder)
+            root = Path(folder).resolve()
             output = root / "final"
             output.mkdir()
             target = output / "Artist - Song.mp3"
@@ -124,7 +124,7 @@ class EffectRenderTests(unittest.TestCase):
         from engine import run_worker
         from mutagen.id3 import ID3
         with tempfile.TemporaryDirectory() as folder:
-            root = Path(folder)
+            root = Path(folder).resolve()
             with wave.open(str(root / "source.wav"), "wb") as audio:
                 audio.setparams((1, 2, 44100, 0, "NONE", "not compressed"))
                 audio.writeframes(b"\x00\x00" * 44100)
@@ -159,7 +159,7 @@ class EffectRenderTests(unittest.TestCase):
 
     def test_slow_changes_pitch_duration_and_reverb_has_a_tail(self):
         with tempfile.TemporaryDirectory() as folder:
-            root = Path(folder)
+            root = Path(folder).resolve()
             source = root / "tone.wav"
             samples = array.array("h", [round(15000 * math.sin(2 * math.pi * 440 * n / 48000)) for n in range(48000)])
             with wave.open(str(source), "wb") as audio:
@@ -200,7 +200,7 @@ class EffectRenderTests(unittest.TestCase):
         import base64
         from mutagen.id3 import ID3
         with tempfile.TemporaryDirectory() as folder:
-            root = Path(folder)
+            root = Path(folder).resolve()
             source, output = root / "source.mp3", root / "effects.mp3"
             ffmpeg = str(Path(os.environ["ONDA_FFMPEG"]) / ("ffmpeg.exe" if os.name == "nt" else "ffmpeg"))
             subprocess.run([ffmpeg, "-v", "error", "-f", "lavfi", "-i", "sine=frequency=440:duration=1", str(source)], check=True)

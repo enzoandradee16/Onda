@@ -9,7 +9,7 @@ for filename in sys.argv[2:]:
     with zipfile.ZipFile(filename) as aar:
         for abi in ('arm64-v8a','x86_64'):
             name=f'jni/{abi}/libpython.zip.so'
-            if name not in aar.namelist():
+            if not (output/abi).is_dir() or name not in aar.namelist():
                 continue
             target=output/abi/'libonda-support.zip.so'
             target.parent.mkdir(parents=True,exist_ok=True)

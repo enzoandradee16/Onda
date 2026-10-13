@@ -1,5 +1,7 @@
 """Search → catalog result → preview and format → existing download queue."""
 import base64
+from functools import lru_cache
+import io
 import os
 from pathlib import Path
 import queue
@@ -27,16 +29,23 @@ def media_args():
     return {"creationflags": subprocess.CREATE_NO_WINDOW} if os.name == "nt" else {}
 
 
-def cover_png(url, folder):
+def cover_png(url, folder=""):
+    # Folder remains accepted for callers; thumbnail rendering needs no FFmpeg.
+    return cached_cover_png(url)
+
+
+@lru_cache(maxsize=48)
+def cached_cover_png(url):
+    from PIL import Image
     from tagging import fetch_cover
     cover = fetch_cover(url)
-    ffmpeg = executable("ffmpeg", folder)
-    if not cover or not ffmpeg:
+    if not cover:
         return None
-    result = subprocess.run([ffmpeg, "-v", "error", "-i", "pipe:0", "-vf",
-        "scale=124:124:force_original_aspect_ratio=decrease", "-frames:v", "1", "-f", "image2pipe", "-vcodec", "png", "pipe:1"],
-        input=cover[0], capture_output=True, timeout=15, **media_args())
-    return result.stdout if result.returncode == 0 else None
+    with Image.open(io.BytesIO(cover[0])) as image:
+        image.thumbnail((124, 124), Image.Resampling.LANCZOS)
+        output = io.BytesIO()
+        image.convert("RGBA").save(output, format="PNG")
+        return output.getvalue()
 
 
 class CatalogPane(ttk.Frame):

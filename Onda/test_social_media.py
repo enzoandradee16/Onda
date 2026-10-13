@@ -3,7 +3,6 @@ import functools
 import http.server
 import os
 from pathlib import Path
-import queue
 import tempfile
 import threading
 import unittest

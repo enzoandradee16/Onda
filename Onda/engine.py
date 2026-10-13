@@ -282,7 +282,7 @@ def run_worker(config: dict) -> int:
             if finished:
                 return 0
             config['url'] = url
-        if config["mode"] in ("photos", "social") or (is_social(url) and config["mode"] in ("video", "mp4")):
+        if config["mode"] in ("photos", "social") or is_social(url):
             if streaming:
                 raise ValueError("Escolha um formato de áudio para links de música.")
             from social_media import download_post, access_error

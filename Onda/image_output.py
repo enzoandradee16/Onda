@@ -49,9 +49,9 @@ def transform_image(source, options, emit=lambda *a, **kw: None):
         width, height = frame.size
         target = source.with_name(source.stem + '.converted.svg')
         target.write_text(
-            f'<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="{width}" height="{height}" viewBox="0 0 {width} {height}">'
+            f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">'
             '<desc>Imagem raster incorporada; sem vetorização automática.</desc>'
-            f'<image width="{width}" height="{height}" href="data:image/png;base64,{encoded}" xlink:href="data:image/png;base64,{encoded}"/></svg>', encoding='utf-8')
+            f'<image width="{width}" height="{height}" href="data:image/png;base64,{encoded}"/></svg>', encoding='utf-8')
         final = source.with_suffix('.svg')
         target.replace(final)
         if source != final:

@@ -27,14 +27,76 @@ class NavigationTest {
             compose.onNodeWithText("Deezer").performClick()
             compose.onNodeWithText("Spotify").performClick()
             compose.onNodeWithTag("search-connect-spotify").assertIsDisplayed().performClick()
+            compose.onNodeWithText("Contas e acesso").assertIsDisplayed()
+            compose.onNodeWithText("Client ID").assertIsDisplayed()
+            assertFalse(vm.busy.value)
+            compose.onNodeWithText("Conectar").performScrollTo().performClick()
             compose.onNodeWithText("Aviso").assertIsDisplayed()
             compose.onNodeWithText("Preencha o Spotify Client ID antes de conectar sua conta. O Client Secret é opcional para esta conexão.").assertIsDisplayed()
             assertFalse(vm.busy.value)
             compose.onNodeWithText("OK").performClick()
+            compose.onNodeWithText("Pronto").performClick()
             compose.onNodeWithText("Spotify").performClick()
             compose.onNodeWithText("Apple / iTunes").performClick()
             compose.onNodeWithTag("search-connect-spotify").assertDoesNotExist()
         } finally {compose.runOnIdle {OndaStore.saveSettings(before);vm.dialogNotice.value=""}}
+    }
+
+    @Test fun backReturnsToConfiguredFirstPageThenLeavesApp() {
+        compose.waitForIdle()
+        if(compose.onAllNodesWithText("Agora não").fetchSemanticsNodes().isNotEmpty()) compose.onNodeWithText("Agora não").performClick()
+        val before=JSONObject(OndaStore.settings.value.toString())
+        val instrumentation=InstrumentationRegistry.getInstrumentation()
+        fun back() {compose.waitForIdle();instrumentation.sendKeyDownUpSync(android.view.KeyEvent.KEYCODE_BACK);instrumentation.waitForIdleSync()}
+        try {
+            val order=before.getJSONArray("tab_order").let {array->(0 until array.length()).map {array.getString(it)}}
+            compose.runOnIdle {OndaStore.saveSettings(JSONObject(before.toString()).put("tab_order",org.json.JSONArray(listOf("Imagens")+order.filter {it!="Imagens"})))}
+            compose.onNodeWithTag("open-menu").performClick()
+            compose.onNodeWithTag("tab-Histórico").performClick()
+            compose.onNodeWithText("Sua biblioteca de downloads.").assertIsDisplayed()
+            compose.onNodeWithTag("open-menu").performClick()
+            back()
+            compose.onNodeWithText("Sua biblioteca de downloads.").assertIsDisplayed()
+            compose.onNodeWithTag("open-menu").performClick()
+            compose.onNodeWithText("Configurações").performScrollTo().performClick()
+            back()
+            compose.onNodeWithText("Sua biblioteca de downloads.").assertIsDisplayed()
+            back()
+            compose.onNodeWithText("Baixe, converta e ajuste o tamanho sem cortar a imagem.").assertIsDisplayed()
+            assertTrue(compose.activity.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED))
+            back()
+            val deadline=android.os.SystemClock.uptimeMillis()+5000
+            while(compose.activity.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED) && android.os.SystemClock.uptimeMillis()<deadline) android.os.SystemClock.sleep(50)
+            assertFalse(compose.activity.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED))
+        } finally {instrumentation.runOnMainSync {OndaStore.saveSettings(before)}}
+    }
+
+    @Test fun drawerHidesKeyboardAndRestoresOnlyForSameFocusedPage() {
+        compose.waitForIdle()
+        if(compose.onAllNodesWithText("Agora não").fetchSemanticsNodes().isNotEmpty()) compose.onNodeWithText("Agora não").performClick()
+        val instrumentation=InstrumentationRegistry.getInstrumentation()
+        fun imeVisible():Boolean {
+            var visible=false
+            instrumentation.runOnMainSync {
+                visible=androidx.core.view.ViewCompat.getRootWindowInsets(compose.activity.window.decorView)?.isVisible(androidx.core.view.WindowInsetsCompat.Type.ime())==true
+            }
+            return visible
+        }
+        compose.onNodeWithTag("open-menu").performClick()
+        compose.onNodeWithTag("tab-Pesquisar").performClick()
+        compose.onNodeWithTag("music-query").performClick()
+        compose.waitUntil(5000) {imeVisible()}
+        compose.onNodeWithTag("open-menu").performClick()
+        compose.waitUntil(5000) {!imeVisible()}
+        compose.waitForIdle()
+        instrumentation.sendKeyDownUpSync(android.view.KeyEvent.KEYCODE_BACK)
+        compose.onNodeWithTag("music-query").assertIsFocused()
+        compose.waitUntil(5000) {imeVisible()}
+        compose.onNodeWithTag("open-menu").performClick()
+        compose.waitUntil(5000) {!imeVisible()}
+        compose.onNodeWithTag("tab-Histórico").performClick()
+        compose.onNodeWithText("Sua biblioteca de downloads.").assertIsDisplayed()
+        compose.waitUntil(5000) {!imeVisible()}
     }
 
     @Test fun navigateEveryPageAndSettings() {

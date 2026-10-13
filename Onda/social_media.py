@@ -91,8 +91,10 @@ def kwai_images(html, url):
         elif isinstance(value, list):
             for item in value:
                 yield from walk(item)
+    from kwai import nuxt_objects
     roots = []
     for script in page.scripts:
+        roots.extend(nuxt_objects(script))
         try:
             roots.append(json.loads(script))
         except ValueError:
@@ -103,17 +105,22 @@ def kwai_images(html, url):
                     pass
     for root in roots:
         for node in walk(root):
-            if str(node.get("photoId") or node.get("id") or "") != photo_id:
+            if str(node.get("photo_id_str") or node.get("photoId") or node.get("photo_id") or node.get("id") or "") != photo_id:
                 continue
             atlas = node.get("atlas") or node.get("imagePost") or {}
             images = atlas.get("images") or atlas.get("list") or []
             if not isinstance(images, list):
                 continue
+            from photo_music import direct_audio
+            music = node.get('music') or {}
+            if not isinstance(music, dict):
+                music = {}
+            audio = direct_audio(music.get('playUrl') or music.get('audio_url') or music.get('url') or node.get('musicUrl'))
             for index, image in enumerate(images, 1):
-                value = image if isinstance(image, str) else image.get("url") or image.get("imageUrl") or ""
+                value = image if isinstance(image, str) else image.get("videoUrl") or image.get("video_url") or image.get("url") or image.get("imageUrl") or ""
                 if isinstance(value, str) and urlsplit(value).scheme in ("https", "http"):
-                    yield value, {"extension": Path(urlsplit(value).path).suffix.lstrip(".") or "jpg",
-                                  "title": node.get("caption") or "Publicação Kwai", "id": photo_id, "num": index}
+                    yield value, {"extension": ("mp4" if isinstance(image, dict) and (image.get("videoUrl") or image.get("video_url")) else Path(urlsplit(value).path).suffix.lstrip(".").lower() or "jpg"),
+                                  "title": node.get("caption") or "Publicação Kwai", "id": photo_id, "num": index, "_photo_audio": audio}
             return
 
 
@@ -161,7 +168,12 @@ def save_media(session, url, metadata, config, emit, ask_duplicate, index):
         if not size or (total is not None and size != total):
             raise ValueError("Transferência incompleta; tente baixar a publicação novamente.")
     partial.replace(path)
-    if extension in IMAGES and config.get('image_options'):
+    if extension in IMAGES and config['mode'] == 'photo_video':
+        from photo_music import render_photo_video
+        path = render_photo_video(path, metadata.get('_photo_audio'), session, headers, config, emit)
+        extension = 'mp4'
+        size = path.stat().st_size
+    elif extension in IMAGES and config.get('image_options'):
         from image_output import transform_image
         path = transform_image(path, config['image_options'], emit)
         extension = path.suffix.lstrip('.').lower()
@@ -213,7 +225,8 @@ def media_candidates(items):
              "kind": "Vídeo" if metadata.get("extension") in VIDEOS else "Foto",
              "title": str(metadata.get("title") or metadata.get("description") or "Publicação")[:120],
              "thumbnail": metadata.get("thumbnail") or metadata.get("display_url") or (url if metadata.get("extension") in IMAGES else None),
-             "width": metadata.get("width"), "height": metadata.get("height")}
+             "width": metadata.get("width"), "height": metadata.get("height"),
+             "has_audio": bool(metadata.get("_photo_audio"))}
             for index, (url, metadata) in enumerate(items, 1)]
 
 
@@ -221,18 +234,23 @@ def download_selected(items, session, config, emit, ask_duplicate, choose=None):
     available = [(url, metadata) for url, metadata in items if metadata.get("extension") in IMAGES | VIDEOS]
     has_photos = any(metadata.get("extension") in IMAGES for _, metadata in available)
     has_videos = any(metadata.get("extension") in VIDEOS for _, metadata in available)
-    # Links offers every mixed-post item; the Images tab keeps its photo filter.
+    # Interactive downloads always offer every item of a mixed post.
     if has_videos and not has_photos and config["mode"] == "photos":
         config = dict(config, mode="mp4")
         emit("log", message="Publicação somente com vídeos: formato automático MP4.")
-    elif config["mode"] == "photos" and (config.get("image_options") or choose is None):
+    elif config["mode"] == "photos" and choose is None:
         available = [(url, metadata) for url, metadata in available if metadata.get("extension") in IMAGES]
     if not available:
         raise ValueError("Nenhuma foto disponível neste link." if config["mode"] == "photos" else "Nenhuma mídia disponível nesta publicação.")
     candidates = media_candidates(available)
+    single_photo = (len(candidates) == 1 and candidates[0]['kind'] == 'Foto'
+                    and any(domain in (urlsplit(config.get('url', '')).hostname or '').split('.')
+                            for domain in ('instagram', 'tiktok', 'kwai', 'kwai-video', 'kw')))
+    if single_photo:
+        candidates[0]['photo_choice'] = True
     for candidate in candidates:
         candidate['default_mode'] = config['mode']
-    response = choose(candidates) if choose and (len(candidates) > 2 or (has_photos and has_videos and not config.get('image_options'))) else [item['id'] for item in candidates]
+    response = choose(candidates) if choose and (single_photo or len(candidates) > 2 or (has_photos and has_videos)) else [item['id'] for item in candidates]
     from media_selection import validate_selection
     ids, modes = validate_selection(response if isinstance(response, dict) else {'selected_ids': response}, candidates)
     selected = set(ids)
@@ -245,6 +263,8 @@ def download_selected(items, session, config, emit, ask_duplicate, choose=None):
         if str(index) not in selected:
             continue
         item_config = config
+        if metadata.get('extension') in IMAGES:
+            item_config = dict(config, mode=modes.get(str(index), 'photos'))
         if metadata.get('extension') in VIDEOS:
             mode = modes.get(str(index), config['mode'])
             if mode in ('photos', 'social'):

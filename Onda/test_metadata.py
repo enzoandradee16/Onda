@@ -1,6 +1,6 @@
 import json
 import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 from metadata import MetadataClient, MetadataError, apple_record, apple_artwork, is_streaming_link, parse_link, spotify_record
 

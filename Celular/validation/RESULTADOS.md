@@ -87,3 +87,63 @@ Build assembleDebug e assembleDebugAndroidTest concluídos. PC: dois testes Tk p
 - assembleDebug e assembleDebugAndroidTest concluídos; assinatura verificada com apksigner.
 - Teste instrumental spotifyConnectAppearsOnlyForSpotifyAndValidatesClientId: OK (1 test), 9.721s, emulador API 36.
 - APK alpha.11 removido; mantido somente alpha.12.
+
+## Android alpha.13 — fundo dos cartões de músicas
+- Cartões dos resultados de pesquisa usam background/onBackground do tema e elevação zero, acompanhando modo claro/escuro.
+- assembleDebug concluído; assinatura do APK verificada. Sem novo teste instrumental para esta alteração visual.
+
+### Revisão do alpha.13 — atalho Spotify
+- Conectar Spotify na pesquisa abre Configurações diretamente em Contas; a autenticação continua no botão Conectar desse painel.
+- Mantidos versionCode 13 e versionName 1.0.0-alpha.13; APK substituído e SHA256 atualizado.
+- Compilação e assinatura verificadas; teste instrumental de navegação/validação aprovado (1 teste, 7.344s).
+
+### Revisão do alpha.13 — seleção em downloads imediatos
+- Novos itens de Baixar agora recebem indicador persistido _immediate em links, pesquisa, imagens e coleções.
+- Links e fila oculta seleção e checkbox desses itens; mantém andamento, Remover individual e Tentar novamente em caso de erro. Selecionar tudo usa somente os itens enfileirados manualmente.
+- Compilação assembleDebug e assinatura verificadas; sem novo teste instrumental. Mantido APK alpha.13.
+
+### Revisão do alpha.13 — botão Voltar e página inicial
+- Página inicial segue o primeiro item da ordem de abas; Voltar em outra página retorna a ela. Na inicial, preservado comportamento de saída do Android.
+- Menu lateral (inclusive durante abertura) fecha primeiro; diálogos mantêm o próprio tratamento de Voltar.
+- Teste instrumental backReturnsToConfiguredFirstPageThenLeavesApp aprovado: 1 teste, 6.943s. Cobre Histórico, Imagens como primeira, menu, configurações e saída. Corrigido caso de animação do menu encontrado nas tentativas anteriores.
+- Compilação e assinatura verificadas; APK alpha.13 substituído e hash atualizado.
+
+### Revisão do alpha.13 — tema Preto puro
+- Novo modo de aparência Preto puro com background e surface #000000, contêineres neutros e sem tonalização por elevação. Usa cores de destaque da paleta escura.
+- Preferência usa o mesmo salvamento/restauração da categoria Aparência.
+- assembleDebug concluído; assinatura verificada. Sem novo teste instrumental para a alteração visual. APK alpha.13 atualizado.
+
+### Revisão do alpha.13 — ícone de notificação
+- DownloadService usa ic_onda_notification: vetor monocromático do símbolo ONDA, sem fundo opaco, adequado à máscara alfa do ícone pequeno de notificações Android.
+- assembleDebug concluído; assinatura verificada. Sem novo teste instrumental para esta alteração de recurso visual. APK alpha.13 substituído.
+
+### Revisão do alpha.13 — teclado no menu lateral
+- Ao abrir o drawer (inclusive por gesto), oculta o teclado sem limpar o foco. Ao fechar, restaura somente se havia edição ativa, a página é a mesma, não há painel/aviso aberto e ainda existe campo em edição.
+- Teste instrumental com teclado virtual real drawerHidesKeyboardAndRestoresOnlyForSameFocusedPage aprovado: 1 teste, 11.824s; cobre ocultação, retorno com campo focado e troca para Histórico sem teclado.
+- Compilação e assinatura verificadas; APK alpha.13 atualizado.
+
+### Revisão do alpha.13 — marca centralizada na barra lateral
+- Ícone e nome ONDA centralizados juntos na largura do cabeçalho do menu lateral.
+- assembleDebug concluído; assinatura verificada. Sem novo teste instrumental para ajuste simples de alinhamento. APK alpha.13 atualizado.
+
+## Renomeação para Android 1.0.0-alpha.1
+- Versão visível e arquivo APK definidos como 1.0.0-alpha.1; código interno 14 mantido crescente para permitir atualização sobre alpha.13.
+- Compilação, assinatura e versão do manifesto conferidas com apksigner/aapt. Hash SHA256 atualizado.
+- Outros arquivos APK do projeto removidos após validar o novo; mantido somente APK/ONDA-Android-1.0.0-alpha.1.apk.
+
+
+## Revisão e otimização — 12/10/2026
+
+24 testes Android aprovados no emulador API 36 x86_64, lint sem erros e APK ARM64 recompilado/assinado. APK: 128.3 → 77.1 MB. PC: 271 testes aprovados com UI e FFmpeg. Detalhes, escopo e limites: [relatório de revisão](../../docs/REVISAO-E-OTIMIZACAO.md).
+
+## Abrir pasta no histórico — 12/10/2026
+
+Adicionado Abrir pasta em cada arquivo do histórico. A localização é resolvida pelo URI histórico (MediaStore, documentos SAF e exportações FileProvider), independentemente da pasta padrão atual. Usa gerenciador compatível e, na ausência dele, o seletor Android com a pasta inicial correta. Consultas ao provedor rodam fora da thread da interface; erros aparecem no aviso inicial do app.
+
+Validação no emulador API 36 x86_64: HistoryFolderTest (2 testes, 4,952 s) aprovado, incluindo abertura real da pasta de playlist e visualização do arquivo, nomes acentuados e pasta raiz. Regressões NavigationTest.historyOpensDownloadedAudioInEffects e removeHistoryPreservesFilesAndOtherRecords: 2 testes aprovados em 10,390 s. Android lint sem erros; APK ARM64 recompilado com assinatura validada, mantendo 1.0.0-alpha.1 e atualizando SHA256SUMS.txt. Provedores de nuvem sem informação de pasta e gerenciadores de fabricantes dependem do suporte do aparelho/provedor.
+
+## Fluxo social e foto com música — 12/10/2026
+
+Reconhecimento de posts sociais também em formatos de áudio; fotos independem do formato escolhido, vídeos respeitam MP3/MP4/MKV, posts mistos abrem seletor com formato por vídeo e uma foto permite escolher imagem ou MP4 com música quando a trilha está disponível. Seletores de PC e Android atualizados, incluindo MKV e o formato inicial correto no Android.
+
+PC: 281 testes aprovados (93,523 s), com Tk e FFmpeg. Android: MediaChoiceTest + MobileRuntimeTest, 5 testes aprovados em 15,970 s no emulador API 36 x86_64; conversões reais com servidor local. Lint sem erros; APK ARM64 recompilado. Detalhes e limites em [fluxo social](../../docs/FLUXO-DOWNLOAD-SOCIAL.md). Não houve validação de acesso a posts reais nestes testes.

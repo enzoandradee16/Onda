@@ -1,0 +1,2125 @@
+[
+  {
+    "file": "Onda/album_import.py",
+    "lines": 118,
+    "bytes": 8889,
+    "imports": [
+      "json",
+      "metadata",
+      "re",
+      "spotify_public"
+    ],
+    "functions": 3,
+    "nested_loops": 2,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/app.py",
+    "lines": 892,
+    "bytes": 46014,
+    "imports": [
+      "__future__",
+      "appearance",
+      "audio_tools",
+      "catalog_picker",
+      "credentials",
+      "engine",
+      "ffmpeg_runtime",
+      "file_output",
+      "first_run",
+      "importlib",
+      "interface_fonts",
+      "json",
+      "library",
+      "media_picker",
+      "metadata",
+      "metadata_ui",
+      "os",
+      "pathlib",
+      "preferences",
+      "queue",
+      "queue_titles",
+      "review_ui",
+      "single_instance",
+      "size_estimate",
+      "spotify_search",
+      "subprocess",
+      "sys",
+      "tab_order",
+      "threading",
+      "tkinter",
+      "ui",
+      "version_picker",
+      "webbrowser",
+      "welcome_ui",
+      "window_position"
+    ],
+    "functions": 46,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/appearance.py",
+    "lines": 212,
+    "bytes": 9280,
+    "imports": [
+      "ctypes",
+      "interface_fonts",
+      "os",
+      "tkinter",
+      "winreg"
+    ],
+    "functions": 14,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/audio_quality.py",
+    "lines": 27,
+    "bytes": 1026,
+    "imports": [
+      "os",
+      "pathlib",
+      "yt_dlp"
+    ],
+    "functions": 2,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/audio_tools.py",
+    "lines": 173,
+    "bytes": 7524,
+    "imports": [
+      "math",
+      "os",
+      "pathlib",
+      "queue",
+      "re",
+      "shutil",
+      "subprocess",
+      "threading",
+      "yt_dlp"
+    ],
+    "functions": 13,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/catalog_match.py",
+    "lines": 69,
+    "bytes": 3100,
+    "imports": [
+      "matching",
+      "metadata"
+    ],
+    "functions": 4,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/catalog_picker.py",
+    "lines": 24,
+    "bytes": 1381,
+    "imports": [
+      "catalog_match",
+      "version_picker",
+      "webbrowser"
+    ],
+    "functions": 2,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/catalog_ui.py",
+    "lines": 439,
+    "bytes": 22405,
+    "imports": [
+      "PIL",
+      "app",
+      "base64",
+      "catalog_match",
+      "catalog_picker",
+      "engine",
+      "functools",
+      "io",
+      "metadata",
+      "os",
+      "pathlib",
+      "preview_options",
+      "queue",
+      "shutil",
+      "size_estimate",
+      "subprocess",
+      "tagging",
+      "threading",
+      "tkinter",
+      "urllib",
+      "webbrowser"
+    ],
+    "functions": 29,
+    "nested_loops": 1,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/credentials.py",
+    "lines": 97,
+    "bytes": 4751,
+    "imports": [
+      "ctypes",
+      "json",
+      "os",
+      "pathlib",
+      "tempfile"
+    ],
+    "functions": 5,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/desktop_entry.py",
+    "lines": 97,
+    "bytes": 4225,
+    "imports": [
+      "PIL",
+      "app",
+      "ctypes",
+      "curl_cffi",
+      "ffmpeg_runtime",
+      "gallery_dl",
+      "instagram_media",
+      "json",
+      "kwai",
+      "media_picker",
+      "mutagen",
+      "os",
+      "pathlib",
+      "requests",
+      "single_instance",
+      "subprocess",
+      "sys",
+      "tempfile",
+      "tiktok_media",
+      "tkinter",
+      "traceback",
+      "twitter_media",
+      "yt_dlp"
+    ],
+    "functions": 2,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/effects_ui.py",
+    "lines": 438,
+    "bytes": 21767,
+    "imports": [
+      "audio_tools",
+      "engine",
+      "json",
+      "math",
+      "pathlib",
+      "preview_options",
+      "queue",
+      "subprocess",
+      "sys",
+      "threading",
+      "time",
+      "tkinter"
+    ],
+    "functions": 23,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/effects_worker.py",
+    "lines": 139,
+    "bytes": 6712,
+    "imports": [
+      "audio_tools",
+      "copy",
+      "engine",
+      "json",
+      "mutagen",
+      "os",
+      "pathlib",
+      "subprocess",
+      "sys",
+      "tempfile"
+    ],
+    "functions": 2,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/engine.py",
+    "lines": 458,
+    "bytes": 23003,
+    "imports": [
+      "__future__",
+      "audio_quality",
+      "catalog_match",
+      "file_output",
+      "hashlib",
+      "json",
+      "kwai",
+      "matching",
+      "media_links",
+      "media_selection",
+      "metadata",
+      "os",
+      "pathlib",
+      "playlist_options",
+      "review",
+      "shutil",
+      "signal",
+      "size_estimate",
+      "social_media",
+      "spotify_search",
+      "subprocess",
+      "sys",
+      "tagging",
+      "time",
+      "urllib",
+      "yt_dlp"
+    ],
+    "functions": 23,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/ffmpeg_runtime.py",
+    "lines": 218,
+    "bytes": 9105,
+    "imports": [
+      "hashlib",
+      "json",
+      "os",
+      "pathlib",
+      "queue",
+      "requests",
+      "shutil",
+      "tempfile",
+      "threading",
+      "tkinter",
+      "window_position",
+      "zipfile"
+    ],
+    "functions": 13,
+    "nested_loops": 1,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/file_output.py",
+    "lines": 85,
+    "bytes": 3511,
+    "imports": [
+      "os",
+      "pathlib",
+      "re",
+      "shutil",
+      "yt_dlp"
+    ],
+    "functions": 3,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/first_run.py",
+    "lines": 16,
+    "bytes": 491,
+    "imports": [
+      "pathlib"
+    ],
+    "functions": 2,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/history_ui.py",
+    "lines": 108,
+    "bytes": 4762,
+    "imports": [
+      "os",
+      "pathlib",
+      "subprocess",
+      "sys",
+      "tkinter"
+    ],
+    "functions": 8,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/image_output.py",
+    "lines": 111,
+    "bytes": 5514,
+    "imports": [
+      "PIL",
+      "base64",
+      "io",
+      "pathlib",
+      "xml"
+    ],
+    "functions": 4,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/images_ui.py",
+    "lines": 181,
+    "bytes": 9610,
+    "imports": [
+      "PIL",
+      "engine",
+      "image_output",
+      "io",
+      "media_links",
+      "pathlib",
+      "queue",
+      "tempfile",
+      "threading",
+      "tkinter"
+    ],
+    "functions": 11,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/instagram_media.py",
+    "lines": 57,
+    "bytes": 2987,
+    "imports": [
+      "pathlib",
+      "urllib",
+      "yt_dlp"
+    ],
+    "functions": 4,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/interface_fonts.py",
+    "lines": 30,
+    "bytes": 1310,
+    "imports": [
+      "tkinter"
+    ],
+    "functions": 3,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/kwai.py",
+    "lines": 135,
+    "bytes": 6540,
+    "imports": [
+      "json",
+      "re",
+      "social_media",
+      "urllib",
+      "yt_dlp"
+    ],
+    "functions": 6,
+    "nested_loops": 3,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/library.py",
+    "lines": 72,
+    "bytes": 3104,
+    "imports": [
+      "contextlib",
+      "datetime",
+      "json",
+      "pathlib",
+      "sqlite3"
+    ],
+    "functions": 7,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/matching.py",
+    "lines": 113,
+    "bytes": 5705,
+    "imports": [
+      "re",
+      "unicodedata",
+      "yt_dlp"
+    ],
+    "functions": 7,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/media_links.py",
+    "lines": 126,
+    "bytes": 6887,
+    "imports": [
+      "html",
+      "pathlib",
+      "re",
+      "requests",
+      "social_media",
+      "urllib",
+      "yt_dlp"
+    ],
+    "functions": 5,
+    "nested_loops": 1,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/media_picker.py",
+    "lines": 148,
+    "bytes": 7620,
+    "imports": [
+      "PIL",
+      "io",
+      "media_selection",
+      "queue",
+      "social_media",
+      "threading",
+      "tkinter"
+    ],
+    "functions": 9,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/media_selection.py",
+    "lines": 27,
+    "bytes": 1228,
+    "imports": [],
+    "functions": 1,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/metadata.py",
+    "lines": 362,
+    "bytes": 20650,
+    "imports": [
+      "__future__",
+      "catalog_match",
+      "re",
+      "requests",
+      "spotify_public",
+      "spotify_search",
+      "time",
+      "urllib"
+    ],
+    "functions": 19,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/metadata_ui.py",
+    "lines": 218,
+    "bytes": 11551,
+    "imports": [
+      "json",
+      "metadata",
+      "pathlib",
+      "queue",
+      "threading",
+      "tkinter",
+      "webbrowser"
+    ],
+    "functions": 12,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/playlist_files.py",
+    "lines": 70,
+    "bytes": 3188,
+    "imports": [
+      "csv",
+      "engine",
+      "io",
+      "metadata",
+      "playlist_options",
+      "re"
+    ],
+    "functions": 4,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/playlist_import.py",
+    "lines": 113,
+    "bytes": 6508,
+    "imports": [
+      "album_import",
+      "engine",
+      "json",
+      "metadata",
+      "playlist_options",
+      "re",
+      "spotify_public",
+      "urllib",
+      "yt_dlp"
+    ],
+    "functions": 3,
+    "nested_loops": 1,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/playlist_list_ui.py",
+    "lines": 44,
+    "bytes": 2292,
+    "imports": [
+      "tkinter",
+      "version_picker"
+    ],
+    "functions": 2,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/playlist_options.py",
+    "lines": 11,
+    "bytes": 466,
+    "imports": [],
+    "functions": 1,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/playlist_ui.py",
+    "lines": 383,
+    "bytes": 21208,
+    "imports": [
+      "catalog_match",
+      "engine",
+      "file_output",
+      "matching",
+      "metadata",
+      "os",
+      "pathlib",
+      "playlist_files",
+      "playlist_import",
+      "playlist_list_ui",
+      "queue",
+      "queue_titles",
+      "spotify_account",
+      "spotify_account_ui",
+      "spotify_search",
+      "tempfile",
+      "threading",
+      "tkinter",
+      "unicodedata",
+      "version_picker"
+    ],
+    "functions": 22,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/preferences.py",
+    "lines": 117,
+    "bytes": 5833,
+    "imports": [
+      "appearance",
+      "engine",
+      "file_output",
+      "image_output",
+      "interface_fonts",
+      "json",
+      "os",
+      "pathlib",
+      "playlist_options",
+      "preview_options",
+      "tab_order",
+      "tempfile"
+    ],
+    "functions": 5,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/preview_options.py",
+    "lines": 8,
+    "bytes": 365,
+    "imports": [],
+    "functions": 1,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/queue_titles.py",
+    "lines": 79,
+    "bytes": 3060,
+    "imports": [
+      "metadata",
+      "queue",
+      "threading",
+      "urllib",
+      "yt_dlp"
+    ],
+    "functions": 10,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/reset_settings.py",
+    "lines": 118,
+    "bytes": 6861,
+    "imports": [
+      "settings_scroll",
+      "tkinter",
+      "ui"
+    ],
+    "functions": 6,
+    "nested_loops": 1,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/review.py",
+    "lines": 50,
+    "bytes": 2361,
+    "imports": [
+      "pathlib",
+      "urllib"
+    ],
+    "functions": 2,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/review_ui.py",
+    "lines": 172,
+    "bytes": 9105,
+    "imports": [
+      "audio_tools",
+      "base64",
+      "queue",
+      "review",
+      "subprocess",
+      "tagging",
+      "threading",
+      "tkinter",
+      "urllib"
+    ],
+    "functions": 10,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/settings_scroll.py",
+    "lines": 38,
+    "bytes": 1668,
+    "imports": [
+      "tkinter"
+    ],
+    "functions": 4,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/single_instance.py",
+    "lines": 111,
+    "bytes": 4427,
+    "imports": [
+      "ctypes",
+      "os"
+    ],
+    "functions": 10,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/size_estimate.py",
+    "lines": 29,
+    "bytes": 1348,
+    "imports": [
+      "engine"
+    ],
+    "functions": 2,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/social_media.py",
+    "lines": 438,
+    "bytes": 22484,
+    "imports": [
+      "audio_quality",
+      "engine",
+      "file_output",
+      "gallery_dl",
+      "hashlib",
+      "html",
+      "http",
+      "image_output",
+      "instagram_media",
+      "json",
+      "media_selection",
+      "pathlib",
+      "re",
+      "requests",
+      "size_estimate",
+      "tiktok_media",
+      "time",
+      "twitter_media",
+      "urllib",
+      "yt_dlp"
+    ],
+    "functions": 25,
+    "nested_loops": 3,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/spotify_account.py",
+    "lines": 239,
+    "bytes": 13156,
+    "imports": [
+      "base64",
+      "credentials",
+      "hashlib",
+      "html",
+      "http",
+      "json",
+      "metadata",
+      "playlist_options",
+      "re",
+      "requests",
+      "secrets",
+      "time",
+      "urllib",
+      "webbrowser"
+    ],
+    "functions": 13,
+    "nested_loops": 1,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/spotify_account_ui.py",
+    "lines": 115,
+    "bytes": 6352,
+    "imports": [
+      "queue",
+      "settings_scroll",
+      "spotify_account",
+      "threading",
+      "tkinter",
+      "webbrowser"
+    ],
+    "functions": 6,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/spotify_public.py",
+    "lines": 42,
+    "bytes": 1645,
+    "imports": [
+      "html",
+      "json",
+      "metadata"
+    ],
+    "functions": 5,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/spotify_search.py",
+    "lines": 40,
+    "bytes": 2459,
+    "imports": [
+      "metadata",
+      "re"
+    ],
+    "functions": 2,
+    "nested_loops": 1,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/tab_order.py",
+    "lines": 115,
+    "bytes": 4329,
+    "imports": [
+      "tkinter"
+    ],
+    "functions": 12,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/tagging.py",
+    "lines": 113,
+    "bytes": 5831,
+    "imports": [
+      "json",
+      "mutagen",
+      "os",
+      "pathlib",
+      "requests",
+      "shutil"
+    ],
+    "functions": 2,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/test_albums.py",
+    "lines": 96,
+    "bytes": 5320,
+    "imports": [
+      "album_import",
+      "app",
+      "json",
+      "metadata",
+      "os",
+      "playlist_import",
+      "tempfile",
+      "types",
+      "unittest"
+    ],
+    "functions": 7,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/test_appearance.py",
+    "lines": 98,
+    "bytes": 4291,
+    "imports": [
+      "app",
+      "appearance",
+      "metadata_ui",
+      "os",
+      "preferences",
+      "reset_settings",
+      "tempfile",
+      "tkinter",
+      "unittest"
+    ],
+    "functions": 10,
+    "nested_loops": 1,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/test_auto_match.py",
+    "lines": 81,
+    "bytes": 3897,
+    "imports": [
+      "app",
+      "matching",
+      "os",
+      "preferences",
+      "tempfile",
+      "test_automation",
+      "unittest"
+    ],
+    "functions": 7,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/test_automation.py",
+    "lines": 197,
+    "bytes": 11017,
+    "imports": [
+      "base64",
+      "contextlib",
+      "engine",
+      "functools",
+      "http",
+      "io",
+      "json",
+      "matching",
+      "metadata",
+      "mutagen",
+      "os",
+      "pathlib",
+      "subprocess",
+      "tagging",
+      "tempfile",
+      "test_spotify_optional",
+      "threading",
+      "unittest"
+    ],
+    "functions": 20,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/test_catalog.py",
+    "lines": 78,
+    "bytes": 4615,
+    "imports": [
+      "metadata",
+      "unittest"
+    ],
+    "functions": 8,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/test_choices.py",
+    "lines": 69,
+    "bytes": 4065,
+    "imports": [
+      "audio_quality",
+      "contextlib",
+      "engine",
+      "io",
+      "json",
+      "os",
+      "pathlib",
+      "preferences",
+      "subprocess",
+      "tempfile",
+      "unittest",
+      "yt_dlp"
+    ],
+    "functions": 4,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/test_clear_queue.py",
+    "lines": 88,
+    "bytes": 3630,
+    "imports": [
+      "app",
+      "os",
+      "pathlib",
+      "tempfile",
+      "unittest"
+    ],
+    "functions": 6,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/test_credentials.py",
+    "lines": 58,
+    "bytes": 2458,
+    "imports": [
+      "credentials",
+      "os",
+      "pathlib",
+      "subprocess",
+      "sys",
+      "tempfile",
+      "unittest"
+    ],
+    "functions": 5,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/test_download_recovery.py",
+    "lines": 97,
+    "bytes": 4487,
+    "imports": [
+      "engine",
+      "http",
+      "pathlib",
+      "tempfile",
+      "threading",
+      "unittest",
+      "yt_dlp"
+    ],
+    "functions": 7,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/test_engine.py",
+    "lines": 178,
+    "bytes": 8966,
+    "imports": [
+      "ctypes",
+      "engine",
+      "functools",
+      "http",
+      "json",
+      "os",
+      "pathlib",
+      "subprocess",
+      "sys",
+      "tempfile",
+      "threading",
+      "unittest",
+      "wave"
+    ],
+    "functions": 16,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/test_enter_search.py",
+    "lines": 40,
+    "bytes": 1683,
+    "imports": [
+      "app",
+      "metadata_ui",
+      "os",
+      "tempfile",
+      "unittest"
+    ],
+    "functions": 4,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/test_ffmpeg_runtime.py",
+    "lines": 181,
+    "bytes": 7417,
+    "imports": [
+      "ffmpeg_runtime",
+      "hashlib",
+      "io",
+      "json",
+      "os",
+      "pathlib",
+      "tempfile",
+      "threading",
+      "tkinter",
+      "unittest",
+      "zipfile"
+    ],
+    "functions": 26,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/test_first_run.py",
+    "lines": 99,
+    "bytes": 4303,
+    "imports": [
+      "app",
+      "first_run",
+      "os",
+      "pathlib",
+      "preferences",
+      "tempfile",
+      "unittest"
+    ],
+    "functions": 4,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/test_image_preferences.py",
+    "lines": 54,
+    "bytes": 2714,
+    "imports": [
+      "app",
+      "os",
+      "preferences",
+      "tempfile",
+      "unittest"
+    ],
+    "functions": 3,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/test_images.py",
+    "lines": 126,
+    "bytes": 6492,
+    "imports": [
+      "PIL",
+      "app",
+      "image_output",
+      "io",
+      "os",
+      "pathlib",
+      "social_media",
+      "tempfile",
+      "tkinter",
+      "unittest"
+    ],
+    "functions": 7,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/test_interface_fonts.py",
+    "lines": 78,
+    "bytes": 3567,
+    "imports": [
+      "app",
+      "interface_fonts",
+      "os",
+      "pathlib",
+      "preferences",
+      "reset_settings",
+      "tempfile",
+      "tkinter",
+      "unittest"
+    ],
+    "functions": 5,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/test_keep_pitch.py",
+    "lines": 78,
+    "bytes": 4112,
+    "imports": [
+      "app",
+      "array",
+      "audio_tools",
+      "effects_worker",
+      "math",
+      "os",
+      "pathlib",
+      "reset_settings",
+      "tempfile",
+      "time",
+      "unittest",
+      "wave"
+    ],
+    "functions": 3,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/test_library_features.py",
+    "lines": 228,
+    "bytes": 13824,
+    "imports": [
+      "array",
+      "audio_tools",
+      "base64",
+      "contextlib",
+      "effects_worker",
+      "engine",
+      "file_output",
+      "functools",
+      "http",
+      "io",
+      "json",
+      "library",
+      "math",
+      "metadata",
+      "mutagen",
+      "os",
+      "pathlib",
+      "playlist_import",
+      "review",
+      "subprocess",
+      "sys",
+      "tagging",
+      "tempfile",
+      "test_automation",
+      "threading",
+      "unittest",
+      "wave"
+    ],
+    "functions": 11,
+    "nested_loops": 1,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/test_media_audio.py",
+    "lines": 123,
+    "bytes": 7087,
+    "imports": [
+      "engine",
+      "functools",
+      "http",
+      "io",
+      "json",
+      "media_picker",
+      "os",
+      "pathlib",
+      "requests",
+      "social_media",
+      "subprocess",
+      "tempfile",
+      "threading",
+      "tkinter",
+      "unittest"
+    ],
+    "functions": 7,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/test_media_links.py",
+    "lines": 96,
+    "bytes": 4215,
+    "imports": [
+      "engine",
+      "http",
+      "media_links",
+      "pathlib",
+      "tempfile",
+      "threading",
+      "unittest"
+    ],
+    "functions": 11,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/test_metadata.py",
+    "lines": 123,
+    "bytes": 6716,
+    "imports": [
+      "json",
+      "metadata",
+      "unittest"
+    ],
+    "functions": 14,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/test_optimization.py",
+    "lines": 72,
+    "bytes": 3592,
+    "imports": [
+      "PIL",
+      "app",
+      "catalog_ui",
+      "io",
+      "os",
+      "pathlib",
+      "tempfile",
+      "unittest"
+    ],
+    "functions": 3,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/test_playlist_account.py",
+    "lines": 228,
+    "bytes": 11653,
+    "imports": [
+      "app",
+      "base64",
+      "hashlib",
+      "metadata",
+      "os",
+      "pathlib",
+      "playlist_files",
+      "playlist_import",
+      "requests",
+      "spotify_account",
+      "tempfile",
+      "threading",
+      "unittest",
+      "urllib"
+    ],
+    "functions": 20,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/test_playlist_folders.py",
+    "lines": 90,
+    "bytes": 5147,
+    "imports": [
+      "app",
+      "contextlib",
+      "engine",
+      "file_output",
+      "io",
+      "library",
+      "os",
+      "pathlib",
+      "tempfile",
+      "unittest",
+      "yt_dlp"
+    ],
+    "functions": 7,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/test_playlist_limit.py",
+    "lines": 97,
+    "bytes": 5240,
+    "imports": [
+      "app",
+      "engine",
+      "json",
+      "library",
+      "os",
+      "pathlib",
+      "playlist_import",
+      "playlist_options",
+      "preferences",
+      "tempfile",
+      "unittest"
+    ],
+    "functions": 7,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/test_playlist_now.py",
+    "lines": 78,
+    "bytes": 3500,
+    "imports": [
+      "app",
+      "os",
+      "tempfile",
+      "unittest"
+    ],
+    "functions": 5,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/test_playlist_search.py",
+    "lines": 108,
+    "bytes": 5171,
+    "imports": [
+      "app",
+      "engine",
+      "os",
+      "playlist_ui",
+      "preferences",
+      "tempfile",
+      "unittest"
+    ],
+    "functions": 8,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/test_preview_duration.py",
+    "lines": 76,
+    "bytes": 4083,
+    "imports": [
+      "app",
+      "audio_tools",
+      "io",
+      "os",
+      "pathlib",
+      "preferences",
+      "preview_options",
+      "tempfile",
+      "unittest"
+    ],
+    "functions": 3,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/test_queue_names.py",
+    "lines": 80,
+    "bytes": 3925,
+    "imports": [
+      "app",
+      "os",
+      "queue_titles",
+      "tempfile",
+      "unittest"
+    ],
+    "functions": 7,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/test_queue_restore.py",
+    "lines": 84,
+    "bytes": 3587,
+    "imports": [
+      "app",
+      "library",
+      "os",
+      "pathlib",
+      "tempfile",
+      "tkinter",
+      "unittest"
+    ],
+    "functions": 7,
+    "nested_loops": 1,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/test_quick_download.py",
+    "lines": 118,
+    "bytes": 4729,
+    "imports": [
+      "app",
+      "os",
+      "pathlib",
+      "preferences",
+      "tempfile",
+      "unittest"
+    ],
+    "functions": 10,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/test_reset_settings.py",
+    "lines": 81,
+    "bytes": 3984,
+    "imports": [
+      "app",
+      "os",
+      "pathlib",
+      "reset_settings",
+      "tempfile",
+      "unittest"
+    ],
+    "functions": 5,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/test_settings_scroll_icons.py",
+    "lines": 72,
+    "bytes": 3420,
+    "imports": [
+      "app",
+      "os",
+      "tempfile",
+      "tkinter",
+      "types",
+      "unittest",
+      "window_icons"
+    ],
+    "functions": 2,
+    "nested_loops": 1,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/test_single_instance.py",
+    "lines": 101,
+    "bytes": 4513,
+    "imports": [
+      "os",
+      "pathlib",
+      "single_instance",
+      "subprocess",
+      "sys",
+      "tkinter",
+      "unittest",
+      "uuid"
+    ],
+    "functions": 8,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/test_size_estimate.py",
+    "lines": 43,
+    "bytes": 2161,
+    "imports": [
+      "engine",
+      "preferences",
+      "size_estimate",
+      "unittest"
+    ],
+    "functions": 6,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/test_social_detection.py",
+    "lines": 148,
+    "bytes": 8703,
+    "imports": [
+      "engine",
+      "instagram_media",
+      "io",
+      "json",
+      "kwai",
+      "media_picker",
+      "os",
+      "social_media",
+      "tkinter",
+      "unittest",
+      "yt_dlp"
+    ],
+    "functions": 13,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/test_social_media.py",
+    "lines": 210,
+    "bytes": 10951,
+    "imports": [
+      "app",
+      "base64",
+      "engine",
+      "functools",
+      "gallery_dl",
+      "http",
+      "os",
+      "pathlib",
+      "requests",
+      "social_media",
+      "tempfile",
+      "threading",
+      "tiktok_media",
+      "unittest"
+    ],
+    "functions": 20,
+    "nested_loops": 1,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/test_sped_up.py",
+    "lines": 75,
+    "bytes": 3077,
+    "imports": [
+      "app",
+      "audio_tools",
+      "os",
+      "pathlib",
+      "tempfile",
+      "unittest"
+    ],
+    "functions": 6,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/test_spotify_optional.py",
+    "lines": 158,
+    "bytes": 8634,
+    "imports": [
+      "catalog_match",
+      "contextlib",
+      "engine",
+      "io",
+      "json",
+      "metadata",
+      "spotify_public",
+      "unittest"
+    ],
+    "functions": 17,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/test_spotify_search.py",
+    "lines": 88,
+    "bytes": 5092,
+    "imports": [
+      "app",
+      "metadata",
+      "os",
+      "preferences",
+      "spotify_search",
+      "tempfile",
+      "time",
+      "unittest"
+    ],
+    "functions": 6,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/test_svg.py",
+    "lines": 69,
+    "bytes": 3570,
+    "imports": [
+      "PIL",
+      "app",
+      "base64",
+      "image_output",
+      "io",
+      "os",
+      "pathlib",
+      "social_media",
+      "tempfile",
+      "unittest",
+      "xml"
+    ],
+    "functions": 3,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/test_tab_order.py",
+    "lines": 109,
+    "bytes": 4409,
+    "imports": [
+      "app",
+      "os",
+      "pathlib",
+      "preferences",
+      "tab_order",
+      "tempfile",
+      "tkinter",
+      "unittest"
+    ],
+    "functions": 9,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/test_tiktok_media.py",
+    "lines": 41,
+    "bytes": 2292,
+    "imports": [
+      "social_media",
+      "tiktok_media",
+      "unittest"
+    ],
+    "functions": 4,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/test_twitter_media.py",
+    "lines": 60,
+    "bytes": 3813,
+    "imports": [
+      "json",
+      "social_media",
+      "twitter_media",
+      "unittest"
+    ],
+    "functions": 5,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/test_window_position.py",
+    "lines": 87,
+    "bytes": 3967,
+    "imports": [
+      "app",
+      "ctypes",
+      "os",
+      "tempfile",
+      "tkinter",
+      "unittest",
+      "window_position"
+    ],
+    "functions": 4,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/tiktok_media.py",
+    "lines": 59,
+    "bytes": 3332,
+    "imports": [
+      "pathlib",
+      "urllib",
+      "yt_dlp"
+    ],
+    "functions": 3,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/twitter_media.py",
+    "lines": 87,
+    "bytes": 4592,
+    "imports": [
+      "json",
+      "urllib",
+      "yt_dlp"
+    ],
+    "functions": 3,
+    "nested_loops": 1,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/ui.py",
+    "lines": 431,
+    "bytes": 30446,
+    "imports": [
+      "appearance",
+      "catalog_ui",
+      "effects_ui",
+      "engine",
+      "file_output",
+      "history_ui",
+      "images_ui",
+      "interface_fonts",
+      "playlist_options",
+      "playlist_ui",
+      "preview_options",
+      "reset_settings",
+      "settings_scroll",
+      "tab_order",
+      "tkinter"
+    ],
+    "functions": 12,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/version_picker.py",
+    "lines": 120,
+    "bytes": 6243,
+    "imports": [
+      "audio_tools",
+      "tkinter",
+      "webbrowser"
+    ],
+    "functions": 9,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/welcome_ui.py",
+    "lines": 80,
+    "bytes": 4408,
+    "imports": [
+      "engine",
+      "pathlib",
+      "playlist_options",
+      "settings_scroll",
+      "tkinter"
+    ],
+    "functions": 3,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/window_icons.py",
+    "lines": 68,
+    "bytes": 3294,
+    "imports": [
+      "PIL",
+      "math"
+    ],
+    "functions": 3,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Onda/window_position.py",
+    "lines": 68,
+    "bytes": 3129,
+    "imports": [
+      "ctypes",
+      "os",
+      "tkinter",
+      "window_icons"
+    ],
+    "functions": 5,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Celular/app/src/main/python/credentials.py",
+    "lines": 22,
+    "bytes": 706,
+    "imports": [
+      "java",
+      "json"
+    ],
+    "functions": 4,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Celular/app/src/main/python/mobile_backend.py",
+    "lines": 506,
+    "bytes": 23107,
+    "imports": [
+      "PIL",
+      "audio_tools",
+      "catalog_match",
+      "effects_worker",
+      "engine",
+      "file_output",
+      "gallery_dl",
+      "hashlib",
+      "image_output",
+      "io",
+      "json",
+      "matching",
+      "media_links",
+      "media_selection",
+      "metadata",
+      "mutagen",
+      "os",
+      "pathlib",
+      "playlist_files",
+      "playlist_import",
+      "queue",
+      "requests",
+      "review",
+      "shutil",
+      "social_media",
+      "spotify_account",
+      "stat",
+      "subprocess",
+      "sys",
+      "tempfile",
+      "threading",
+      "yt_dlp",
+      "zipfile"
+    ],
+    "functions": 26,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Celular/app/src/debug/python/mobile_smoke.py",
+    "lines": 185,
+    "bytes": 10019,
+    "imports": [
+      "PIL",
+      "audio_tools",
+      "functools",
+      "http",
+      "image_output",
+      "instagram_media",
+      "io",
+      "json",
+      "media_selection",
+      "mobile_backend",
+      "mutagen",
+      "pathlib",
+      "playlist_files",
+      "playlist_import",
+      "shutil",
+      "spotify_account",
+      "subprocess",
+      "tempfile",
+      "threading",
+      "unittest"
+    ],
+    "functions": 16,
+    "nested_loops": 0,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Celular/tools/prepare_native_support.py",
+    "lines": 20,
+    "bytes": 1007,
+    "imports": [
+      "io",
+      "pathlib",
+      "sys",
+      "zipfile"
+    ],
+    "functions": 0,
+    "nested_loops": 2,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "empacotamento/build_package.py",
+    "lines": 56,
+    "bytes": 3043,
+    "imports": [
+      "argparse",
+      "pathlib",
+      "shutil",
+      "struct",
+      "subprocess",
+      "zlib"
+    ],
+    "functions": 1,
+    "nested_loops": 2,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "empacotamento/test_uninstall.py",
+    "lines": 153,
+    "bytes": 7290,
+    "imports": [
+      "argparse",
+      "json",
+      "os",
+      "pathlib",
+      "subprocess",
+      "time",
+      "uuid"
+    ],
+    "functions": 2,
+    "nested_loops": 3,
+    "validation": "AST e compilação sintática; referências/imports e caminhos críticos analisados"
+  },
+  {
+    "file": "Celular/app/src/androidTest/java/br/com/onda/mobile/LiveCatalogTest.kt",
+    "lines": 54,
+    "bytes": 3281,
+    "validation": "Compilador Kotlin e Android lint; testes instrumentados dos fluxos alterados"
+  },
+  {
+    "file": "Celular/app/src/androidTest/java/br/com/onda/mobile/MobileRuntimeTest.kt",
+    "lines": 58,
+    "bytes": 3054,
+    "validation": "Compilador Kotlin e Android lint; testes instrumentados dos fluxos alterados"
+  },
+  {
+    "file": "Celular/app/src/androidTest/java/br/com/onda/mobile/NavigationTest.kt",
+    "lines": 452,
+    "bytes": 30608,
+    "validation": "Compilador Kotlin e Android lint; testes instrumentados dos fluxos alterados"
+  },
+  {
+    "file": "Celular/app/src/androidTest/java/br/com/onda/mobile/StoreOptimizationTest.kt",
+    "lines": 65,
+    "bytes": 3422,
+    "validation": "Compilador Kotlin e Android lint; testes instrumentados dos fluxos alterados"
+  },
+  {
+    "file": "Celular/app/src/main/java/br/com/onda/mobile/ChoiceWindow.kt",
+    "lines": 86,
+    "bytes": 7506,
+    "validation": "Compilador Kotlin e Android lint; testes instrumentados dos fluxos alterados"
+  },
+  {
+    "file": "Celular/app/src/main/java/br/com/onda/mobile/DownloadService.kt",
+    "lines": 130,
+    "bytes": 7864,
+    "validation": "Compilador Kotlin e Android lint; testes instrumentados dos fluxos alterados"
+  },
+  {
+    "file": "Celular/app/src/main/java/br/com/onda/mobile/InterfaceFonts.kt",
+    "lines": 27,
+    "bytes": 1725,
+    "validation": "Compilador Kotlin e Android lint; testes instrumentados dos fluxos alterados"
+  },
+  {
+    "file": "Celular/app/src/main/java/br/com/onda/mobile/MainActivity.kt",
+    "lines": 549,
+    "bytes": 45359,
+    "validation": "Compilador Kotlin e Android lint; testes instrumentados dos fluxos alterados"
+  },
+  {
+    "file": "Celular/app/src/main/java/br/com/onda/mobile/OndaApplication.kt",
+    "lines": 88,
+    "bytes": 4576,
+    "validation": "Compilador Kotlin e Android lint; testes instrumentados dos fluxos alterados"
+  },
+  {
+    "file": "Celular/app/src/main/java/br/com/onda/mobile/OndaStore.kt",
+    "lines": 274,
+    "bytes": 17697,
+    "validation": "Compilador Kotlin e Android lint; testes instrumentados dos fluxos alterados"
+  },
+  {
+    "file": "Celular/app/src/main/java/br/com/onda/mobile/OndaViewModel.kt",
+    "lines": 195,
+    "bytes": 12901,
+    "validation": "Compilador Kotlin e Android lint; testes instrumentados dos fluxos alterados"
+  },
+  {
+    "file": "Celular/app/src/main/java/br/com/onda/mobile/SettingsWindow.kt",
+    "lines": 151,
+    "bytes": 14205,
+    "validation": "Compilador Kotlin e Android lint; testes instrumentados dos fluxos alterados"
+  },
+  {
+    "file": "Celular/app/src/main/java/br/com/onda/mobile/SpotifyBrowser.kt",
+    "lines": 21,
+    "bytes": 900,
+    "validation": "Compilador Kotlin e Android lint; testes instrumentados dos fluxos alterados"
+  },
+  {
+    "file": "Celular/app/src/main/java/br/com/onda/mobile/TrackMatches.kt",
+    "lines": 9,
+    "bytes": 386,
+    "validation": "Compilador Kotlin e Android lint; testes instrumentados dos fluxos alterados"
+  },
+  {
+    "file": "Celular/app/src/main/java/br/com/onda/mobile/YouTubeSessionWindow.kt",
+    "lines": 63,
+    "bytes": 3991,
+    "validation": "Compilador Kotlin e Android lint; testes instrumentados dos fluxos alterados"
+  },
+  {
+    "file": "empacotamento/Launcher.cs",
+    "lines": 47,
+    "bytes": 2099,
+    "validation": "Revisão do launcher e diagnóstico do executável existente"
+  },
+  {
+    "file": "Celular/Compilar Android.ps1",
+    "lines": 36,
+    "bytes": 2245,
+    "validation": "Parser PowerShell"
+  },
+  {
+    "file": "empacotamento/Build-Windows.ps1",
+    "lines": 25,
+    "bytes": 1786,
+    "validation": "Parser PowerShell"
+  },
+  {
+    "file": "Celular/build.gradle.kts",
+    "lines": 6,
+    "bytes": 275,
+    "validation": "Gradle e Android lint"
+  },
+  {
+    "file": "Celular/settings.gradle.kts",
+    "lines": 7,
+    "bytes": 280,
+    "validation": "Gradle e Android lint"
+  },
+  {
+    "file": "Celular/app/build.gradle.kts",
+    "lines": 96,
+    "bytes": 4816,
+    "validation": "Gradle e Android lint"
+  },
+  {
+    "file": "Onda/iniciar.bat",
+    "lines": 15,
+    "bytes": 369,
+    "validation": "Revisão dos comandos de inicialização/instalação"
+  },
+  {
+    "file": "Onda/instalar.bat",
+    "lines": 28,
+    "bytes": 717,
+    "validation": "Revisão dos comandos de inicialização/instalação"
+  },
+  {
+    "file": "empacotamento/Instalação Silenciosa Onda.bat",
+    "lines": 12,
+    "bytes": 489,
+    "validation": "Revisão dos comandos de inicialização/instalação"
+  },
+  {
+    "file": "Celular/app/src/main/AndroidManifest.xml",
+    "lines": 34,
+    "bytes": 2176,
+    "validation": "XML validado sintaticamente e pelo build"
+  },
+  {
+    "file": "Celular/app/src/main/res/drawable/ic_onda.xml",
+    "lines": 1,
+    "bytes": 397,
+    "validation": "XML validado sintaticamente e pelo build"
+  },
+  {
+    "file": "Celular/app/src/main/res/drawable/ic_onda_notification.xml",
+    "lines": 12,
+    "bytes": 439,
+    "validation": "XML validado sintaticamente e pelo build"
+  },
+  {
+    "file": "Celular/app/src/main/res/values/styles.xml",
+    "lines": 1,
+    "bytes": 249,
+    "validation": "XML validado sintaticamente e pelo build"
+  },
+  {
+    "file": "Celular/app/src/main/res/xml/file_paths.xml",
+    "lines": 1,
+    "bytes": 191,
+    "validation": "XML validado sintaticamente e pelo build"
+  },
+  {
+    "file": "Celular/gradle/wrapper/gradle-wrapper.properties",
+    "lines": 8,
+    "bytes": 340,
+    "validation": "Configuração/empacotamento revisados; instalador recompilado"
+  },
+  {
+    "file": "empacotamento/Onda.iss",
+    "lines": 219,
+    "bytes": 7614,
+    "validation": "Configuração/empacotamento revisados; instalador recompilado"
+  }
+]

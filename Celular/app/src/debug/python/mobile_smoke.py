@@ -120,11 +120,30 @@ def verify(folder, callback):
             result=json.loads(run('test-mixed','download',json.dumps(config),MixedCallback()))
             assert result.get('code')==0,(result,events[-5:])
             assert list((root/'mixed').glob('*.jpg')) and list((root/'mixed').glob('*.mp3'))
+            from photo_music import direct_audio
+            for mode in ('photos', 'photo_video'):
+                identity='test-single-photo-'+mode
+                instagram_media.instagram_items=lambda *args,**kwargs:[
+                    (base+'/image.jpg',{'extension':'jpg','title':'Foto com música','user':'ONDA','_photo_audio':direct_audio(base+'/Artista%20-%20M%C3%BAsica.mp3')})]
+                class PhotoCallback:
+                    def onEvent(self,value):
+                        callback.onEvent(value)
+                        if json.loads(value).get('type')=='choose_media':
+                            reply(identity,json.dumps({'selected_ids':['1'],'media_modes':{'1':mode}}))
+                config=dict(config,mode='mp3',folder=str(root/'single-photo'/mode))
+                result=json.loads(run(identity,'download',json.dumps(config),PhotoCallback()))
+                assert result.get('code')==0,(result,events[-5:])
+                output=list((root/'single-photo'/mode).glob('*.mp4' if mode=='photo_video' else '*.jpg'))
+                assert len(output)==1,output
+                if mode=='photo_video':
+                    probe=subprocess.run([str(_native/'libffprobe.so'),'-v','error','-show_streams','-of','json',str(output[0])],capture_output=True,timeout=30)
+                    streams=json.loads(probe.stdout)['streams']
+                    assert {s['codec_type'] for s in streams}=={'video','audio'},streams
         finally:
             instagram_media.instagram_items=original_items
     finally:
         server.shutdown();server.server_close()
-    return json.dumps({'native':native,'effects_tags_and_cover':True,'preview_seek':True,'images_png_webp_svg':True,'playlist_csv_m3u_txt':True,'mixed_media_selection':True,'mixed_post_photo_and_audio':True,'direct_download_photo_video_audio':True,'folder':str(root)},ensure_ascii=False)
+    return json.dumps({'native':native,'effects_tags_and_cover':True,'preview_seek':True,'images_png_webp_svg':True,'playlist_csv_m3u_txt':True,'mixed_media_selection':True,'mixed_post_photo_and_audio':True,'single_photo_image_or_mp4_with_audio':True,'direct_download_photo_video_audio':True,'folder':str(root)},ensure_ascii=False)
 
 
 def create_history_audio(folder):

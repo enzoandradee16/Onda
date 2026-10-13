@@ -109,6 +109,14 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
             finally { busy.value=false; OndaStore.dismissQuestions(id); queryId.value="" }
         }
     }
+    fun openHistoryFolder(uri: String) {
+        viewModelScope.launch {
+            try {
+                val folder=withContext(Dispatchers.IO) {historyFolderUri(getApplication(),Uri.parse(uri))}
+                openHistoryFolder(getApplication(),folder)
+            } catch(error: Exception) {status.value=error.message ?: "Não foi possível abrir a pasta deste arquivo."}
+        }
+    }
     fun connectSpotify() {
         if(OndaStore.settings.value.optString("spotify_client_id").isBlank()) {
             dialogNotice.value="Preencha o Spotify Client ID antes de conectar sua conta. O Client Secret é opcional para esta conexão."
@@ -130,8 +138,8 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
             } catch(error: Exception) {val message=error.message ?: "Não foi possível importar o arquivo";if(dialog) dialogNotice.value=message else status.value=message}
         }
     }
-    fun enqueueLink(url: String): String {
-        val id=OndaStore.enqueue(url)
+    fun enqueueLink(url: String, immediate: Boolean=false): String {
+        val id=OndaStore.enqueue(url,extra=JSONObject().put("_immediate",immediate))
         viewModelScope.launch(Dispatchers.IO) {
             titleSlots.acquire()
             try {
@@ -157,6 +165,7 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
         previewLimit=viewModelScope.launch { delay(seconds*1000L); player.pause();effectsPreviewEnabled.value=false }
     }
     fun stopPreview() { effectsPreviewEnabled.value=false;effectRevision++;if(effectRenderId.isNotBlank()) MobileEngine.cancel(effectRenderId);previewLimit?.cancel(); player.stop();previewActive.value=false;previewUrl.value="" }
+    @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
     fun previewYouTube(url: String) {
         stopPreview();previewFromDialog=true;previewUrl.value=url
         viewModelScope.launch {
@@ -175,17 +184,17 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
             } catch(error: Exception) {dialogNotice.value=error.message ?: "Não foi possível ouvir a prévia"}
         }
     }
-    fun queueTrack(record: JSONObject, options: JSONObject=OndaStore.settings.value, group: String?=null, origin: String=""): String {
+    fun queueTrack(record: JSONObject, options: JSONObject=OndaStore.settings.value, group: String?=null, origin: String="", immediate: Boolean=false): String {
         val url=record.optString("source_url")
         require(url.isNotBlank()) { "Faixa sem link" }
-        val extra=JSONObject().put("_origin",origin)
+        val extra=JSONObject().put("_origin",origin).put("_immediate",immediate)
         if(record.optString("platform")=="Spotify") extra.put("catalog_record",record)
         if(group!=null) extra.put("playlist_title",group)
         return OndaStore.enqueue(url,"${record.stringList("artists")} - ${record.optString("title")}".trim(' ','-'),options,extra)
     }
     fun queueCollection(rows:List<JSONObject>,options:JSONObject,group:String,now:Boolean) {
         viewModelScope.launch {
-            val ids=withContext(Dispatchers.IO) {OndaStore.enqueueBatch {rows.map {queueTrack(it,options,group)}}}
+            val ids=withContext(Dispatchers.IO) {OndaStore.enqueueBatch {rows.map {queueTrack(it,options,group,immediate=now)}}}
             if(now && ids.isNotEmpty()) DownloadService.batch(getApplication(),ids)
             status.value="${ids.size} itens adicionados à fila"
         }

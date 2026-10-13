@@ -6,7 +6,7 @@ import tempfile
 import threading
 import unittest
 from unittest.mock import Mock, patch
-from urllib.parse import parse_qs, urlencode, urlsplit
+from urllib.parse import parse_qs, urlsplit
 
 import requests
 from playlist_files import load_csv, export_text

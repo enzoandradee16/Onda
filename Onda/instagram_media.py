@@ -24,6 +24,8 @@ def product_items(source, product):
     title = (product.get("caption") or {}).get("text") or product.get("code") or "Publicação Instagram"
     if len(media) > 100:
         raise ValueError("Limite de 100 mídias por publicação atingido.")
+    from photo_music import instagram_audio
+    audio = instagram_audio(product)
     for index, item in enumerate(media, 1):
         images = (item.get("image_versions2") or {}).get("candidates") or []
         best = max(images, key=lambda image: (image.get("width") or 0) * (image.get("height") or 0), default={})
@@ -40,6 +42,7 @@ def product_items(source, product):
             yield formats[0]["url"], metadata
         elif best.get("url"):
             extension = PurePosixPath(urlsplit(best["url"]).path).suffix.lstrip(".").lower()
+            metadata["_photo_audio"] = instagram_audio(item) or audio
             metadata["extension"] = extension if extension in ("jpg", "jpeg", "png", "webp", "avif") else "jpg"
             yield best["url"], metadata
         else:

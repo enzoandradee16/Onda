@@ -13,7 +13,7 @@ from library import LibraryStore
 class PlaylistFolderTests(unittest.TestCase):
     def test_playlist_tracks_stay_together_and_invalid_names_stay_inside_root(self):
         with tempfile.TemporaryDirectory() as folder:
-            root = Path(folder)
+            root = Path(folder).resolve()
             record = {"platform": "Deezer", "id": "12", "artists": ["Artist"], "album": "Album"}
             for organization in ("Catálogo", "Artista", "Artista / Álbum", "Pasta de destino"):
                 config = {"folder": folder, "playlist_title": "Minhas favoritas", "organization": organization}
@@ -28,9 +28,9 @@ class PlaylistFolderTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             config = {"folder": folder, "playlist": True}
             info = {"playlist_title": "Minha playlist original", "playlist_index": 1}
-            self.assertEqual(destination(config, info=info), Path(folder) / "Minha playlist original")
-            self.assertEqual(destination({**config, "playlist": False}, info=info), Path(folder))
-            self.assertEqual(destination(config, info={"playlist_id": "PL_ID"}), Path(folder) / "Playlist")
+            self.assertEqual(destination(config, info=info), Path(folder).resolve() / "Minha playlist original")
+            self.assertEqual(destination({**config, "playlist": False}, info=info), Path(folder).resolve())
+            self.assertEqual(destination(config, info={"playlist_id": "PL_ID"}), Path(folder).resolve() / "Playlist")
 
     def test_playlist_title_survives_queue_restore(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -79,9 +79,9 @@ class PlaylistFolderUiTests(unittest.TestCase):
                     app.playlist_page.add()
                 self.assertEqual(len(app.jobs), 2)
                 self.assertEqual({job["playlist_title"] for job in app.jobs.values()}, {"Playlist A", "Playlist B"})
-                self.assertTrue(all(job["folder"] == folder for job in app.jobs.values()))
+                self.assertTrue(all(Path(job["folder"]).resolve() == Path(folder).resolve() for job in app.jobs.values()))
                 app.folder.set(str(Path(folder) / "Outra pasta"))
-                self.assertTrue(all(job["folder"] == folder for job in app.jobs.values()))
+                self.assertTrue(all(Path(job["folder"]).resolve() == Path(folder).resolve() for job in app.jobs.values()))
             finally:
                 app.destroy()
 
