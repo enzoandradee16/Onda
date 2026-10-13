@@ -11,5 +11,11 @@ if not exist ".venv\Scripts\python.exe" (
   pause
   exit /b 1
 )
+".venv\Scripts\python.exe" -c "import sys, tkinter; sys.exit(0 if sys.version_info >= (3,11) else 1)" >nul 2>nul
+if errorlevel 1 (
+  echo O ambiente Python esta invalido. Execute instalar.bat para repara-lo.
+  pause
+  exit /b 1
+)
 ".venv\Scripts\python.exe" app.py
 if errorlevel 1 pause

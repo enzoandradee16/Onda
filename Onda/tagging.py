@@ -38,7 +38,11 @@ def apply_tags(filename, record, match, cover=None):
     provenance = {"catalog": record, "audio_source": match["source_url"],
                   "selection": match.get("selection", "automatic"),
                   "youtube_title": match.get("title"), "match_score": match.get("match_score"),
-                  "note": "Áudio obtido do YouTube; a correspondência é heurística, não comprova a mesma masterização do catálogo."}
+                  "note": match.get("note") or "Áudio obtido do YouTube; a correspondência é heurística, não comprova a mesma masterização do catálogo."}
+    if match.get("provider"):
+        provenance["provider"] = match["provider"]
+        provenance.pop("youtube_title", None)
+        provenance["imported_filename"] = match.get("title")
     raw = json.dumps(provenance, ensure_ascii=False, indent=2)
     temporary = path.with_name(path.stem + ".tagging" + suffix)
     sidecar = path.with_suffix(path.suffix + ".metadata.json")

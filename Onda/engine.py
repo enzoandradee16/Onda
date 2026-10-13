@@ -205,6 +205,7 @@ class Logger:
 def ask_version(record, candidates, input_stream=None):
     fields = ("id", "title", "channel", "uploader", "duration", "match_score", "source_url", "manual_review")
     emit("choose_version", title=record["title"], artists=record.get("artists", []),
+         audio_provider=record.get("_audio_provider", "YouTube"),
          duration_ms=record.get("duration_ms"),
          candidates=[{k: c.get(k) for k in fields} for c in candidates])
     try:
@@ -266,6 +267,18 @@ def ask_media(candidates, input_stream=None):
     return {"selected_ids": selected, "media_modes": modes} if modes else selected
 
 
+def ask_flac_browser(record, url, input_stream=None):
+    from flac_browser import INSTRUCTIONS
+    emit("choose_flac", record=record, url=url, message=INSTRUCTIONS)
+    try:
+        reply = json.loads((input_stream or sys.stdin).readline())
+        if reply.get("cancel") or not reply.get("path"):
+            raise ValueError()
+        return reply["path"]
+    except (ValueError, TypeError, AttributeError):
+        raise ValueError("Seleção do arquivo FLAC cancelada.") from None
+
+
 def run_worker(config: dict) -> int:
     try:
         from yt_dlp.postprocessor.common import PostProcessor
@@ -308,6 +321,11 @@ def run_worker(config: dict) -> int:
             finally:
                 client.close()
             emit("log", message="Metadados e capa: " + record["platform"] + " • " + record["source_url"])
+            if config["mode"] == "flac":
+                if config.get("review_metadata"):
+                    record = ask_review(record)
+                from lossless_source import download_flac
+                return download_flac(config, record, emit, ask_version, ask_duplicate)
             emit("stage", message="Procurando uma versão correspondente no YouTube…")
             match = resolve_youtube(record, Logger(), ask_version,
                                     automatic=bool(config.get("auto_match")), confirm=bool(config.get("confirm_version")))

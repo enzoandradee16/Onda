@@ -30,7 +30,7 @@ val syncSharedEngine by tasks.registering(Sync::class) {
         exclude("test_*", "*_ui.py", "app.py", "ui.py", "desktop_entry.py", "ffmpeg_runtime.py",
             "credentials.py", "preferences.py", "first_run.py", "single_instance.py", "window_*.py", "tab_order.py", "settings_scroll.py",
             "appearance.py", "interface_fonts.py", "library.py", "reset_settings.py",
-            "catalog_picker.py", "media_picker.py", "version_picker.py", "parallel_queue.py", "lazy_ui.py")
+            "flac_browser_ui.py", "catalog_picker.py", "media_picker.py", "version_picker.py", "parallel_queue.py", "lazy_ui.py")
     }
     into("src/main/python/shared")
 }

@@ -92,7 +92,7 @@ class ImagesPane(ttk.Frame):
         self.status.set('Links de imagem ou publicações com fotos. Respeite o acesso permitido pelo site.')
 
     def enqueue(self, start=False):
-        if start and (self.app.active or self.app.running or self.app.updating):
+        if start and self.app.updating:
             messagebox.showinfo('Download em andamento', 'Aguarde a operação atual terminar ou adicione à fila.', parent=self)
             return
         try:

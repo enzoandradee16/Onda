@@ -92,7 +92,7 @@ class PlaylistPane(ttk.Frame):
         panel = ttk.Frame(self)
         panel.grid(row=5, column=0, sticky="nsew")
         self.table = ttk.Treeview(panel, columns=("title", "artist", "duration", "match"), show="headings", selectmode="extended")
-        for key, label, width in (("title", "MÚSICA", 270), ("artist", "ARTISTA", 170), ("duration", "DURAÇÃO", 85), ("match", "VERSÃO NO YOUTUBE", 270)):
+        for key, label, width in (("title", "MÚSICA", 270), ("artist", "ARTISTA", 170), ("duration", "DURAÇÃO", 85), ("match", "VERSÃO DE ÁUDIO", 270)):
             self.table.heading(key, text=label)
             self.table.column(key, width=width, minwidth=60, stretch=key in ("title", "match"))
         self.table.pack(side="left", fill="both", expand=True)
@@ -107,17 +107,17 @@ class PlaylistPane(ttk.Frame):
         self.download_now_button.pack(side="right")
         self.add_button = ttk.Button(controls, text="Adicionar à fila", command=self.add)
         self.add_button.pack(side="right", padx=(0, 8))
-        self.confirm_version_check = ttk.Checkbutton(self, text="Confirmar a versão do YouTube de cada música antes de baixar", variable=self.confirm_version)
+        self.confirm_version_check = ttk.Checkbutton(self, text="Confirmar a versão de cada música antes de baixar", variable=self.confirm_version)
         self.confirm_version_check.grid(row=7, column=0, sticky="w", pady=6)
         self.auto_match_trace = app.auto_match.trace_add("write", self.sync_auto_match)
         self.sync_auto_match()
-        ttk.Label(self, text="Busque por música ou artista. As ações usam somente os itens visíveis selecionados. Formato e qualidade são próprios desta aba. Streaming usa áudio do YouTube; vídeo vira MP3 e original vira M4A.", style="Muted.TLabel", wraplength=790).grid(row=8, column=0, sticky="w", pady=8)
+        ttk.Label(self, text="Busque por música ou artista. As ações usam somente os itens visíveis selecionados. Formato e qualidade são próprios desta aba. Streaming: FLAC usa Monochrome; MP3/M4A usam YouTube. Vídeo vira MP3 e original vira M4A.", style="Muted.TLabel", wraplength=790).grid(row=8, column=0, sticky="w", pady=8)
         self.poll_id = self.after(100, self.poll)
 
     def sync_auto_match(self, *_):
         automatic = self.app.auto_match.get()
         self.confirm_version_check.configure(state="disabled" if automatic else "normal",
-                    text="Seleção automática do YouTube ativada em Configurações → Downloads" if automatic else "Confirmar a versão do YouTube de cada música antes de baixar")
+                    text="Seleção automática ativada em Configurações → Downloads" if automatic else "Confirmar a versão de cada música antes de baixar")
 
     def format_changed(self, _=None):
         mode = MODES[self.app.playlist_mode.get()]
@@ -299,6 +299,7 @@ class PlaylistPane(ttk.Frame):
         generation = self.generation
         credentials = self.app.spotify_client_id.get(), self.app.spotify_client_secret.get()
         automatic = self.app.auto_match.get()
+        flac = MODES[self.app.playlist_mode.get()] == "flac"
         self.set_busy(True)
         self.status.set("Conferindo versões das faixas selecionadas…")
         def worker():
@@ -322,8 +323,15 @@ class PlaylistPane(ttk.Frame):
                                 record = cached_record(row, row['source_url'])
                             else:
                                 record = client.resolve(row["source_url"])
-                            match = find_youtube(record, Quiet(), prefer_best=True) if automatic else find_youtube(record, Quiet())
-                            status = match["title"]
+                            if flac:
+                                from lossless_source import search_matches, choose_match
+                                def need_choice(_record, candidates):
+                                    raise AmbiguousMatch(candidates)
+                                match = choose_match(record, search_matches(record), need_choice, {"auto_match": automatic})
+                                status = "Monochrome • " + match["title"]
+                            else:
+                                match = find_youtube(record, Quiet(), prefer_best=True) if automatic else find_youtube(record, Quiet())
+                                status = match["title"]
                     except (CatalogChoiceRequired, AmbiguousMatch):
                         status = "Escolha necessária ao baixar"
                     except Exception as exc:
@@ -336,9 +344,6 @@ class PlaylistPane(ttk.Frame):
 
     def add(self, start=False):
         if self.busy:
-            return
-        if start and (self.app.active or self.app.running):
-            messagebox.showinfo('Download em andamento', 'Aguarde o download atual terminar ou cancele antes de baixar agora.', parent=self.app)
             return
         if start and self.app.updating:
             self.status.set('Aguarde a atualização das ferramentas terminar.')
@@ -397,7 +402,7 @@ class PlaylistPane(ttk.Frame):
             elif kind == "match" and self.table.exists(value[0]):
                 self.table.set(value[0], "match", value[1])
             elif kind == "checked":
-                self.status.set("Consulta concluída. A seleção do YouTube segue as configurações de Downloads.")
+                self.status.set("Consulta concluída. A seleção de versões segue as configurações de Downloads.")
                 self.set_busy(False)
         self.poll_id = self.after(100, self.poll)
 

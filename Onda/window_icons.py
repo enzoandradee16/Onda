@@ -4,7 +4,7 @@ import math
 
 def icon_kind(title):
     title = title.casefold()
-    for phrase, kind in (("editar áudio", "metadata"), ("lista da playlist", "metadata"), ("conectar spotify", "metadata"), ("boas-vindas", "help"), ("configurações", "settings"), ("detalhes dos downloads", "log"),
+    for phrase, kind in (("flac pelo navegador", "download"), ("editar áudio", "metadata"), ("lista da playlist", "metadata"), ("conectar spotify", "metadata"), ("boas-vindas", "help"), ("configurações", "settings"), ("detalhes dos downloads", "log"),
                          ("sobre o onda", "help"), ("metadados", "metadata"),
                          ("revisar antes", "metadata"), ("escolha a versão", "version"),
                          ("escolha o formato", "download"), ("fotos e vídeos", "media"),

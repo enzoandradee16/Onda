@@ -66,3 +66,15 @@ O fluxo de fotos, vídeos, posts mistos e foto com música nas redes sociais est
 ## Fila e edição de áudio
 
 Downloads simultâneos, retomada, ordem da fila, edição local de tags/capa/letra, normalização com prévia, agendamento e transferência de preferências: consulte [o guia de recursos avançados](../RECURSOS-AVANCADOS.md).
+
+
+### FLAC direto no ONDA
+
+Ao escolher FLAC para uma faixa de Spotify, Deezer ou Apple Music, o ONDA consulta o servidor público Monochrome e baixa o arquivo diretamente, sem abrir navegador. A correspondência compara título, artista, versão, duração e ISRC quando disponível. Versões ambíguas pedem confirmação; a opção de maior similaridade automatiza essa escolha. O download mostra progresso, valida o codec e a decodificação completa, aplica metadados/capa e respeita destino, duplicados, playlists e histórico.
+
+O acervo é limitado e a disponibilidade depende do serviço externo. Se não houver FLAC compatível, o ONDA avisa e não converte silenciosamente YouTube em FLAC. MP3/M4A continuam pelo YouTube. A origem anterior dos arquivos no servidor e a masterização não são comprovadas; o registro de origem identifica Monochrome. Links diretos, vídeos e efeitos continuam permitindo conversão para FLAC, que não recupera qualidade perdida.
+
+
+### Novos downloads durante uma execução
+
+Você pode usar **Baixar agora** enquanto outras mídias estão sendo baixadas. Com vaga no limite de downloads simultâneos, o novo item começa; com todas as vagas ocupadas, aguarda a próxima. Solicitações individuais não iniciam outros itens pendentes que você não pediu para baixar. A fila em execução aceita novos itens sem reiniciar os downloads atuais.

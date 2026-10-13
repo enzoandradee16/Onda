@@ -129,7 +129,7 @@ class CatalogPane(ttk.Frame):
         self.status = tk.StringVar(value="Busque pelo nome. Exemplo: Stardust Music Sounds Better With You")
         self.status_label = ttk.Label(self, textvariable=self.status, style="Muted.TLabel", wraplength=760)
         self.status_label.grid(row=5, column=0, sticky="w")
-        ttk.Label(self, text="Catálogo e capa: plataforma selecionada  •  Áudio completo: YouTube", style="Muted.TLabel").grid(row=6, column=0, sticky="w", pady=(8, 0))
+        ttk.Label(self, text="Catálogo e capa: plataforma selecionada  •  Áudio: YouTube / FLAC: Monochrome", style="Muted.TLabel").grid(row=6, column=0, sticky="w", pady=(8, 0))
         self.bind("<Configure>", self.resize)
         self.poll_id = self.after(100, self.poll)
 
@@ -389,7 +389,7 @@ class TrackDialog(tk.Toplevel):
         self.presets = {"MP3 320": ("mp3", "320 kbps"), "MP3 128": ("mp3", "128 kbps"), "FLAC": ("flac", None), "Personalizar": ("m4a", "256 kbps")}
         options = ttk.Frame(body, style="Card.TFrame", padding=12)
         options.grid(row=1, column=0, sticky="ew")
-        for key, explanation in (("MP3 320", "Alta qualidade · maior compatibilidade"), ("MP3 128", "Arquivo menor · economiza espaço"), ("FLAC", "Conversão da fonte YouTube · tamanho variável"), ("Personalizar", "Escolher MP3 ou M4A e outro bitrate")):
+        for key, explanation in (("MP3 320", "Alta qualidade · maior compatibilidade"), ("MP3 128", "Arquivo menor · economiza espaço"), ("FLAC", "Monochrome · FLAC direto quando disponível"), ("Personalizar", "Escolher MP3 ou M4A e outro bitrate")):
             ttk.Radiobutton(options, text=f"{key}   ·   {explanation}", variable=self.preset, value=key, command=self.update_format).pack(anchor="w", pady=6)
         custom = ttk.Frame(body)
         custom.grid(row=2, column=0, sticky="ew", pady=(12, 0))
@@ -403,7 +403,7 @@ class TrackDialog(tk.Toplevel):
         self.quality_box.bind("<<ComboboxSelected>>", self.update_estimate)
         self.estimate = tk.StringVar()
         ttk.Label(body, textvariable=self.estimate, foreground="#79e2c4").grid(row=3, column=0, sticky="w", pady=(12, 8))
-        self.feedback = tk.StringVar(value="Inclui capa e metadados disponíveis. O áudio completo será buscado no YouTube.")
+        self.feedback = tk.StringVar(value="Inclui capa e metadados disponíveis. MP3/M4A usam YouTube; FLAC usa Monochrome.")
         ttk.Label(body, textvariable=self.feedback, style="Muted.TLabel", wraplength=550).grid(row=4, column=0, sticky="w")
         controls = ttk.Frame(body)
         controls.grid(row=6, column=0, sticky="ew", pady=(12, 0))

@@ -31,11 +31,30 @@ import org.json.JSONObject
     var cover by remember(question) {mutableStateOf(record.cleanString("cover_url"))}
     var coverPath by remember(question) {mutableStateOf("")}
     val pickCover=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) {uri->if(uri!=null) vm.importLocal(uri,"cover",dialog=true) {coverPath=it.absolutePath}}
+    val context=androidx.compose.ui.platform.LocalContext.current
+    val pickFlac=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) {uri->
+        if(uri!=null) vm.importLocal(uri,"flac-browser",dialog=true) {file->
+            if(OndaStore.question.value==question) OndaStore.answer(JSONObject().put("path",file.absolutePath))
+            else file.delete()
+        }
+    }
     val candidates=event.optJSONArray("candidates")?.objects() ?: emptyList()
     val cancel={OndaStore.answer(JSONObject().put("cancel",true))}
-    AlertDialog(onDismissRequest=cancel,title={Text(when(kind) {"choose_version"->"Qual versão você prefere?";"choose_catalog"->"Confirme os metadados";"choose_media"->"O que você quer baixar?";"choose_duplicate"->"Arquivo já existe";else->"Sua música, do seu jeito."})},text={
+    AlertDialog(onDismissRequest=cancel,title={Text(when(kind) {"choose_flac"->"FLAC pelo navegador";"choose_version"->"Qual versão você prefere?";"choose_catalog"->"Confirme os metadados";"choose_media"->"O que você quer baixar?";"choose_duplicate"->"Arquivo já existe";else->"Sua música, do seu jeito."})},text={
         Column(Modifier.fillMaxWidth().heightIn(max=500.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(8.dp)) {
             when(kind) {
+                "choose_flac"->{
+                    Text(record.stringList("artists") + " — " + record.optString("title"))
+                    Text(event.optString("message"))
+                    Text("O arquivo original será preservado. A fila aguarda sua seleção.",style=MaterialTheme.typography.bodySmall)
+                    TextButton(onClick={
+                        val uri=android.net.Uri.parse(event.getString("url"))
+                        if(uri.scheme=="https" && uri.host=="flacdownloader.com") {
+                            try { context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW,uri)) }
+                            catch(_:android.content.ActivityNotFoundException){vm.dialogNotice.value="Nenhum navegador disponível."}
+                        }
+                    }){Text("Abrir serviço")}
+                }
                 "review_metadata"->{
                     AsyncImage(if(coverPath.isNotBlank()) java.io.File(coverPath) else cover,"Capa",Modifier.size(140.dp))
                     OutlinedTextField(title,{title=it},label={Text("Música")},singleLine=true)
@@ -75,7 +94,7 @@ import org.json.JSONObject
                                 }
                                 if(kind=="choose_version") TextButton(onClick={
                                     val url=candidate.optString("source_url","https://www.youtube.com/watch?v=$id")
-                                    vm.previewYouTube(url)
+                                    if(record.optString("_audio_provider")=="Monochrome" || event.optString("audio_provider")=="Monochrome") vm.preview(url) else vm.previewYouTube(url)
                                 }){Text("Ouvir prévia")}
                             }
                         }
@@ -84,7 +103,11 @@ import org.json.JSONObject
             }
             if(kind=="choose_version") PlayerControls(vm)
         }
-    },confirmButton={TextButton(enabled=kind=="review_metadata" || selected.isNotEmpty(),onClick={
+    },confirmButton={TextButton(enabled=kind in setOf("choose_flac","review_metadata") || selected.isNotEmpty(),onClick={
+        if(kind=="choose_flac") {
+            pickFlac.launch(arrayOf("audio/flac","audio/x-flac","application/octet-stream"))
+            return@TextButton
+        }
         val reply=when(kind) {
             "review_metadata"->{val changes=JSONObject().put("title",title).put("artists",JSONArray(artist.split(';').map {it.trim()}.filter {it.isNotBlank()})).put("album",album).put("cover_url",cover)
                 .put("release_date",date).put("genre",genre).put("track_number",track.toIntOrNull() ?: JSONObject.NULL).put("disc_number",disc.toIntOrNull() ?: JSONObject.NULL)
@@ -94,5 +117,5 @@ import org.json.JSONObject
             else->JSONObject().put("selected_id",selected.first())
         }
         OndaStore.answer(reply)
-    }){Text(when(kind){"choose_version"->"Baixar esta versão";"choose_catalog"->"Usar estes metadados";"review_metadata"->"Confirmar e baixar";else->"Confirmar"})}},dismissButton={TextButton(onClick=cancel){Text(if(kind=="review_metadata") "Cancelar download" else "Cancelar")}})
+    }){Text(when(kind){"choose_flac"->"Selecionar FLAC baixado";"choose_version"->"Baixar esta versão";"choose_catalog"->"Usar estes metadados";"review_metadata"->"Confirmar e baixar";else->"Confirmar"})}},dismissButton={TextButton(onClick=cancel){Text(if(kind=="review_metadata") "Cancelar download" else "Cancelar")}})
 }

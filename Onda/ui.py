@@ -363,7 +363,7 @@ class UiMixin:
         ttk.Combobox(downloads, textvariable=self.organization, values=ORGANIZATIONS, state="readonly").pack(fill="x", pady=(6, 8))
         ttk.Label(downloads, text="Quando o arquivo já existir", style="Muted.TLabel").pack(anchor="w")
         ttk.Combobox(downloads, textvariable=self.duplicates, values=list(DUPLICATES), state="readonly").pack(fill="x", pady=(6, 8))
-        ttk.Label(downloads, text="FLAC preserva a qualidade disponível; não melhora uma fonte com perdas.",
+        ttk.Label(downloads, text="Links de catálogo em FLAC baixam diretamente do Monochrome, quando disponíveis. Outros links são convertidos; isso não melhora fontes com perdas.",
                   style="Muted.TLabel", wraplength=480).pack(anchor="w", pady=(4, 0))
 
         audio = categories["Áudio"]

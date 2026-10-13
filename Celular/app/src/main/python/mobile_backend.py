@@ -116,6 +116,15 @@ def ask_duplicate(path, **_):
     return value
 
 
+def ask_flac_browser(record, url, **_):
+    from flac_browser import INSTRUCTIONS
+    path = ask('choose_flac', record=record, url=url, message=INSTRUCTIONS)['path']
+    imported = Path(path).resolve()
+    if imported.parent == (_root / 'imports').resolve() and imported.name.startswith('flac-browser-'):
+        _local.state.setdefault('flac_imports', []).append(imported)
+    return path
+
+
 def ask_media(candidates, **_):
     from media_selection import validate_selection
     value = ask('choose_media', candidates=candidates)
@@ -154,6 +163,7 @@ def configure(root, native, libs):
     engine.emit = effects_worker.emit = emit
     engine.ask_version, engine.ask_catalog = ask_version, ask_catalog
     engine.ask_review, engine.ask_duplicate, engine.ask_media = ask_review, ask_duplicate, ask_media
+    engine.ask_flac_browser = ask_flac_browser
     paths = {name: str(_native / ('lib' + name + '.so')) for name in ('ffmpeg', 'ffprobe')}
     engine.binaries = lambda folder='': all(Path(v).is_file() for v in paths.values())
     def executable(name, folder=''):
@@ -373,7 +383,11 @@ def perform(action, config):
             for record in config['tracks']:
                 if is_streaming_link(record['source_url']):
                     complete=value.resolve(record['source_url'],choose=ask_catalog)
-                    match=resolve_youtube(complete,engine.Logger(),ask_version,automatic=bool(config.get('auto_match')),confirm=bool(config.get('confirm_version')))
+                    if config.get('mode') == 'flac':
+                        from lossless_source import search_matches, choose_match
+                        match=choose_match(complete,search_matches(complete),ask_version,config)
+                    else:
+                        match=resolve_youtube(complete,engine.Logger(),ask_version,automatic=bool(config.get('auto_match')),confirm=bool(config.get('confirm_version')))
                 else:
                     match={'title':'Vídeo original','source_url':record['source_url']}
                 items.append(dict(record,youtube_match=match))
@@ -521,6 +535,8 @@ def run(identity, action, payload, callback):
         # Errors stay in the UI; credentials, cookie contents and OAuth codes are never dumped.
         return json.dumps({'error': readable_error(exc), 'cancelled': state['cancel'].is_set()}, ensure_ascii=False)
     finally:
+        for imported in state.get('flac_imports', []):
+            imported.unlink(missing_ok=True)
         with _lock:
             _jobs.pop(identity, None)
         _local.state = None

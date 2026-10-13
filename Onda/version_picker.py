@@ -19,6 +19,7 @@ class VersionPicker(tk.Toplevel):
         self.geometry("960x470")
         self.minsize(760, 420)
         self.transient(parent)
+        self.provider = event.get("audio_provider", "YouTube")
         self.on_select = on_select
         self.confirmed = False
         from audio_tools import PreviewPlayer
@@ -39,7 +40,7 @@ class VersionPicker(tk.Toplevel):
         panel = ttk.Frame(body)
         panel.grid(row=2, column=0, sticky="nsew")
         self.table = ttk.Treeview(panel, columns=("title", "channel", "duration", "score"), show="headings", selectmode="browse")
-        for key, label, width in (("title", "VERSÃO NO YOUTUBE", 420), ("channel", "CANAL", 240), ("duration", "DURAÇÃO", 90), ("score", "SIMILARIDADE", 110)):
+        for key, label, width in (("title", "VERSÃO NO " + self.provider.upper(), 420), ("channel", "ARTISTA" if self.provider == "Monochrome" else "CANAL", 240), ("duration", "DURAÇÃO", 90), ("score", "SIMILARIDADE", 110)):
             self.table.heading(key, text=label)
             self.table.column(key, width=width, minwidth=65, stretch=key in ("title", "channel"))
         self.table.pack(side="left", fill="both", expand=True)
@@ -55,7 +56,7 @@ class VersionPicker(tk.Toplevel):
         ttk.Label(body, text=instruction, style="Muted.TLabel", wraplength=680).grid(row=3, column=0, sticky="w", pady=12)
         controls = ttk.Frame(body)
         controls.grid(row=4, column=0, sticky="ew")
-        self.open_button = ttk.Button(controls, text="Abrir no YouTube", command=self.open_video, state="disabled")
+        self.open_button = ttk.Button(controls, text="Abrir na fonte" if self.provider == "Monochrome" else "Abrir no YouTube", command=self.open_video, state="disabled")
         self.open_button.pack(side="left")
         self.preview_button = ttk.Button(controls, text="Ouvir / parar prévia", command=self.preview, state="disabled")
         self.preview_button.pack(side="left", padx=8)
@@ -95,7 +96,7 @@ class VersionPicker(tk.Toplevel):
     def open_video(self):
         if self.table.selection():
             row = self.candidates[self.table.selection()[0]]
-            webbrowser.open("https://www.youtube.com/watch?v=" + row["id"])
+            webbrowser.open(row["source_url"] if self.provider == "Monochrome" else "https://www.youtube.com/watch?v=" + row["id"])
 
     def preview(self):
         if self.player.active:
@@ -104,8 +105,8 @@ class VersionPicker(tk.Toplevel):
             return
         if self.table.selection():
             row = self.candidates[self.table.selection()[0]]
-            self.preview_status.set("Preparando a prévia do YouTube…")
-            self.player.play("https://www.youtube.com/watch?v=" + row["id"], self.ffmpeg, youtube=True)
+            self.preview_status.set("Preparando a prévia…")
+            self.player.play(row["source_url"] if self.provider == "Monochrome" else "https://www.youtube.com/watch?v=" + row["id"], self.ffmpeg, youtube=self.provider != "Monochrome")
 
     def poll_preview(self):
         for message in self.player.messages():

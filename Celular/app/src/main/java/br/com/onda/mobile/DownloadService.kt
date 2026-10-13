@@ -24,18 +24,31 @@ class DownloadService:Service() {
     override fun onBind(intent:Intent?):IBinder?=null
     override fun onStartCommand(intent:Intent?,flags:Int,startId:Int):Int {
         if(intent?.action=="stop") {DownloadRuntime.stop();if(worker?.isActive!=true)stopSelf();return START_NOT_STICKY}
+        DownloadRuntime.requests.submit(intent?.getStringExtra("only"),intent?.getStringArrayListExtra("batch")?.toSet())
         if(worker?.isActive==true)return START_NOT_STICKY
-        if(DownloadRuntime.running.get()) {stopSelf();return START_NOT_STICKY}
+        launchWorker()
+        return START_NOT_STICKY
+    }
+    private fun launchWorker() {
         val initial=downloadNotification(this,"Preparando download…",null)
         if(Build.VERSION.SDK_INT>=29)startForeground(1,initial,ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC) else startForeground(1,initial)
         worker=scope.launch {
             try {
                 lock=(getSystemService(POWER_SERVICE) as PowerManager).newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,"ONDA:Downloads").apply {acquire(6*60*60*1000L)}
-                runDownloads(this@DownloadService,intent?.getStringExtra("only"),intent?.getStringArrayListExtra("batch")?.toSet()) {text,percent->getSystemService(NotificationManager::class.java).notify(1,downloadNotification(this@DownloadService,text,percent))}
+                // A scheduled worker may own the engine; it also consumes requests.
+                while(DownloadRuntime.running.get())delay(100)
+                runDownloads(this@DownloadService,requestsOnly=true) {text,percent->getSystemService(NotificationManager::class.java).notify(1,downloadNotification(this@DownloadService,text,percent))}
             } catch(error:Exception) {OndaStore.log(error.message ?: "Falha no download")}
-            finally {if(lock?.isHeld==true)lock?.release();stopForeground(STOP_FOREGROUND_REMOVE);stopSelf()}
+            finally {
+                if(lock?.isHeld==true)lock?.release()
+                withContext(NonCancellable+Dispatchers.Main.immediate) {
+                    worker=null
+                    // A request can arrive after the runner's last idle check.
+                    if(scope.isActive && DownloadRuntime.requests.hasPending())launchWorker()
+                    else {stopForeground(STOP_FOREGROUND_REMOVE);stopSelf()}
+                }
+            }
         }
-        return START_NOT_STICKY
     }
     override fun onTimeout(startId:Int,fgsType:Int) {DownloadRuntime.stop();stopForeground(STOP_FOREGROUND_REMOVE);stopSelf()}
     override fun onDestroy() {if(worker!=null)DownloadRuntime.stop();if(lock?.isHeld==true)lock?.release();scope.cancel();super.onDestroy()}

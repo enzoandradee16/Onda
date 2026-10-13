@@ -1,4 +1,12 @@
-yt-dlp[default,curl-cffi]>=2026.8.19
+yt-dlp[default,curl-cffi]>=2026.8.19; python_version < '3.15'
+# Brotli does not provide a Windows wheel for Python 3.15 yet.
+# Keep the default features with the compatible Brotli implementation.
+yt-dlp[curl-cffi]>=2026.8.19; python_version >= '3.15'
+brotlicffi>=1.2.0.1; python_version >= '3.15'
+certifi; python_version >= '3.15'
+pycryptodomex; python_version >= '3.15'
+websockets>=13.0; python_version >= '3.15'
+yt-dlp-ejs==0.8.0; python_version >= '3.15'
 requests>=2.32.2,<3
 mutagen>=1.47
 gallery-dl>=1.32.16,<2

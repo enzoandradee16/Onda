@@ -236,7 +236,7 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
         Select("Resolução máxima",if(config.isNull("height")) "Melhor disponível" else if(config.optInt("height")==2160) "2160p / 4K" else "${config.optInt("height",1080)}p",heights,Modifier.weight(1f)) {put("height",it.substringBefore(" / ").removeSuffix("p").toIntOrNull() ?: JSONObject.NULL)}
         Select("FPS máximo",if(config.isNull("fps")) "Original" else "${config.optInt("fps")} fps",listOf("Original","24 fps","30 fps","60 fps","120 fps"),Modifier.weight(1f)) {put("fps",it.substringBefore(' ').toIntOrNull() ?: JSONObject.NULL)}
     }
-    if(mode=="flac") Text("FLAC preserva a qualidade disponível; não melhora uma fonte com perdas.",style=MaterialTheme.typography.bodySmall)
+    if(mode=="flac") Text("Links de catálogo em FLAC baixam diretamente do Monochrome, quando disponíveis. Outros links são convertidos; isso não melhora fontes com perdas.",style=MaterialTheme.typography.bodySmall)
 }
 
 @Composable fun SearchPage(vm: OndaViewModel, onConnectSpotify: ()->Unit) {
@@ -286,7 +286,7 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
                     if(item.message.isNotBlank()) Text(item.message,style=MaterialTheme.typography.bodySmall,maxLines=2)
                 }}}
                 Row(Modifier.horizontalScroll(rememberScrollState())) {
-                    TextButton(onClick={DownloadService.batch(OndaStore.context,searchQueue.filter {it.state=="Pendente"}.map {it.id})},enabled=!running && searchQueue.any {it.state=="Pendente"}){Text("Baixar fila da pesquisa")}
+                    TextButton(onClick={DownloadService.batch(OndaStore.context,searchQueue.filter {it.state=="Pendente"}.map {it.id})},enabled=searchQueue.any {it.state=="Pendente"}){Text("Baixar fila da pesquisa")}
                     TextButton(onClick={OndaStore.retry(searchQueue.filter {it.state=="Erro"}.map {it.id}.toSet())},enabled=searchQueue.any {it.state=="Erro"}){Text("Tentar novamente")}
                     TextButton(onClick={OndaStore.remove(searchQueue.filter {it.id!=OndaStore.active.value}.map {it.id}.toSet())}){Text("Limpar fila da pesquisa")}
                 }
@@ -294,7 +294,7 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
         }
         if(results.isEmpty()) item {Text("Sua biblioteca começa com uma busca",fontWeight=FontWeight.Bold);Text("Encontre a música e escolha a versão que você quer.",style=MaterialTheme.typography.bodySmall)}
         items(results,contentType={"search_track"}) {record-> TrackCard(record,vm) }
-        item {Text("Catálogo e capa: plataforma selecionada  •  Áudio completo: YouTube",style=MaterialTheme.typography.bodySmall)}
+        item {Text("Catálogo e capa: plataforma selecionada  •  Áudio: YouTube / FLAC: Monochrome",style=MaterialTheme.typography.bodySmall)}
         item {Spacer(Modifier.height(12.dp))}
     }
 }
@@ -369,7 +369,7 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
             }
         }}
         item {Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-            Button(onClick={DownloadService.start(OndaStore.context)},enabled=!running && queue.any {it.state=="Pendente"}){Text("Baixar fila")}
+            Button(onClick={DownloadService.start(OndaStore.context)},enabled=queue.any {it.state=="Pendente"}){Text("Baixar fila")}
             OutlinedButton(onClick={DownloadService.stop(OndaStore.context)},enabled=running){Text("Parar")}
             TextButton(onClick={showLogs=!showLogs}){Text("Ver detalhes")}
         }}

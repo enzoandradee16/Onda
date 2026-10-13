@@ -104,7 +104,7 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
                 val result=withContext(Dispatchers.IO) { MobileEngine.call(getApplication(),id,action,payload,EventCallback { raw ->
                     val event=JSONObject(raw)
                     when(event.optString("type")) {
-                        "choose_version","choose_catalog","choose_duplicate","choose_media","review_metadata"->OndaStore.ask(id,event)
+                        "choose_flac","choose_version","choose_catalog","choose_duplicate","choose_media","review_metadata"->OndaStore.ask(id,event)
                         "open_browser"->openSpotifyAuthorization(getApplication(),event.getString("url"))
                         "file"->if(!event.optBoolean("skipped")) OndaStore.publish(event.getString("path"),OndaStore.publicationConfig(payload,event).put("_identity",id),event.optString("mode", "MP3"))
                         "done"->if(event.has("path")) OndaStore.publish(event.getString("path"),payload,event.getString("path").substringAfterLast('.'))

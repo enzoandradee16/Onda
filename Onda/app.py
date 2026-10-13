@@ -315,9 +315,6 @@ class App(UiMixin, tk.Tk):
         return added
 
     def download_now(self):
-        if self.active or self.running:
-            messagebox.showinfo("Download em andamento", "Aguarde o download atual terminar ou cancele antes de baixar agora.", parent=self)
-            return
         if self.updating:
             self.status.set("Aguarde a atualização das ferramentas terminar.")
             return
@@ -350,8 +347,8 @@ class App(UiMixin, tk.Tk):
             if size is not None:
                 self.tree.set(item, "size", "≈ " + readable_bytes(size))
         self.pages.select(self.download_page)
-        if start and not self.active:
-            self.start()
+        if start:
+            self.start(only_items=added)
         return True
 
     def open_metadata(self, links=()):
@@ -398,8 +395,6 @@ class App(UiMixin, tk.Tk):
         self.persist_queue()
 
     def start(self, only_item=None, *, only_items=None):
-        if self.active:
-            return
         if self.updating:
             self.status.set("Aguarde a atualização do yt-dlp terminar.")
             return
@@ -414,12 +409,12 @@ class App(UiMixin, tk.Tk):
             messagebox.showerror("FFmpeg necessário", "Selecione a pasta de FFmpeg e ffprobe em Configurações. Consulte Ajuda se necessário.")
             return
         self._schedule_paused=False
-        if int(self.concurrent_downloads.get())>1:
-            self.parallel.start(scope)
+        if self.parallel.workers:
+            if self.running:self.parallel.extend(scope)
+            else:self.status.set("Aguarde os downloads cancelados pararem antes de iniciar novamente.")
             return
-        self.immediate_item = scope if only_items is not None else only_item
-        self.running = True
-        self.next_job()
+        # One scheduler also handles a limit of one, so new requests can join it.
+        self.parallel.start(scope)
 
     def next_job(self):
         if self.parallel.workers:
@@ -561,6 +556,16 @@ class App(UiMixin, tk.Tk):
                 self.set_progress(None)
                 self.status.set(event["message"])
                 self.detail.set("Consultando a plataforma…")
+            elif kind == "choose_flac":
+                if self.cancelled.is_set():
+                    continue
+                from flac_browser_ui import FlacBrowserDialog
+                self.dismiss_version_picker()
+                if item in self.parallel.workers:
+                    self.parallel.choice_item = item
+                self.status.set("Aguardando FLAC do navegador")
+                self.detail.set("Baixe no serviço e selecione o FLAC na janela do ONDA.")
+                self.choice_window = FlacBrowserDialog(self, event, lambda reply, job=item: self.send_reply(job, reply), self.cancel)
             elif kind == "choose_media":
                 if self.cancelled.is_set():
                     continue
@@ -932,8 +937,14 @@ class App(UiMixin, tk.Tk):
             python = Path(sys.executable)
             if python.name.lower() == "pythonw.exe":
                 python = python.with_name("python.exe")
+            packages = ["yt-dlp[default,curl-cffi]", "gallery-dl<2", "Pillow>=10"]
+            if sys.version_info >= (3, 15):
+                packages[0] = "yt-dlp[curl-cffi]"
+                packages.extend(["brotlicffi>=1.2.0.1", "certifi", "mutagen>=1.47",
+                    "pycryptodomex", "requests>=2.32.2,<3", "urllib3>=2.0.2,<3",
+                    "websockets>=13.0", "yt-dlp-ejs==0.8.0"])
             try:
-                with subprocess.Popen([str(python), "-m", "pip", "--disable-pip-version-check", "install", "--upgrade", "yt-dlp[default,curl-cffi]", "gallery-dl<2", "Pillow>=10"],
+                with subprocess.Popen([str(python), "-m", "pip", "--disable-pip-version-check", "install", "--upgrade", *packages],
                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace", **process_options()) as process:
                     for line in process.stdout:
                         self.events.put((None, {"type": "update_log", "message": line.strip()}))

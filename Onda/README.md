@@ -8,6 +8,8 @@ Requisitos: Windows 10/11 x64, Python 3.11 ou superior com Tcl/Tk e acesso à in
 
 Dentro da pasta `Onda` deste repositório, execute `instalar.bat` para criar o ambiente Python e instalar as dependências; depois execute `iniciar.bat`.
 
+Se o Python original foi removido ou mudou de pasta, execute `instalar.bat` novamente. Ele detecta o ambiente inválido, preserva a pasta anterior em `.venv-backup-...` e cria um ambiente com o Python instalado atualmente.
+
 Alternativa pelo terminal, dentro dessa mesma pasta:
 
 ```powershell
@@ -62,3 +64,15 @@ O download usa uma versão fixa de gyan.dev, conferida contra um SHA-256 incluí
 O cache fica em `%LOCALAPPDATA%\Onda\tools\ffmpeg\9.0.2` e funciona tanto com o portátil quanto com a instalação. A preparação mostra progresso, permite adiar e oferece nova tentativa após falha. Para repetir depois, use Configurações → Ferramentas → Preparar FFmpeg. Sem as ferramentas, conversões e prévias ficam indisponíveis até concluir a preparação. Uma pasta personalizada completa é respeitada.
 
 Apagar os dados pessoais e remover o cache das ferramentas são escolhas independentes. Se remover o cache, será necessário baixar o FFmpeg novamente, inclusive na versão portátil deste PC. Atualizações do instalador removem somente os três executáveis da antiga pasta `_runtime/ffmpeg`, se presentes.
+
+
+### FLAC direto no ONDA
+
+Ao escolher FLAC para uma faixa de Spotify, Deezer ou Apple Music, o ONDA consulta o servidor público Monochrome e baixa o arquivo diretamente, sem abrir navegador. A correspondência compara título, artista, versão, duração e ISRC quando disponível. Versões ambíguas pedem confirmação; a opção de maior similaridade automatiza essa escolha. O download mostra progresso, valida o codec e a decodificação completa, aplica metadados/capa e respeita destino, duplicados, playlists e histórico.
+
+O acervo é limitado e a disponibilidade depende do serviço externo. Se não houver FLAC compatível, o ONDA avisa e não converte silenciosamente YouTube em FLAC. MP3/M4A continuam pelo YouTube. A origem anterior dos arquivos no servidor e a masterização não são comprovadas; o registro de origem identifica Monochrome. Links diretos, vídeos e efeitos continuam permitindo conversão para FLAC, que não recupera qualidade perdida.
+
+
+### Novos downloads durante uma execução
+
+Você pode usar **Baixar agora** enquanto outras mídias estão sendo baixadas. Com vaga no limite de downloads simultâneos, o novo item começa; com todas as vagas ocupadas, aguarda a próxima. Solicitações individuais não iniciam outros itens pendentes que você não pediu para baixar. A fila em execução aceita novos itens sem reiniciar os downloads atuais.
