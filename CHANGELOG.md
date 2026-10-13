@@ -1,5 +1,12 @@
 # Histórico de versões
 
+## Windows 1.0.0-beta.2 / Android 1.0.0-alpha.2 — 2026-10-13
+
+- FLAC direto do Monochrome para músicas de catálogo, com correspondência e validação do áudio.
+- Novos downloads durante uma execução e extensão segura do escopo da fila.
+- Correção do progresso após conclusão e testes da interface com downloads simultâneos.
+- Preparação de versões e pacotes de pré-release.
+
 ## Em desenvolvimento
 
 - Navegação e configurações: reutilização de tema/layout no PC, troca direta de categorias no Android e menos trabalho durante transições e arraste dos controles.

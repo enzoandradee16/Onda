@@ -1,23 +1,29 @@
-# ONDA 1.0.0-beta.1
+# ONDA Windows 1.0.0-beta.2 / Android 1.0.0-alpha.2
 
-Primeira beta para Windows 10/11 de 64 bits: músicas, vídeos, imagens, álbuns e playlists em uma interface em português, com metadados, capas, fila e histórico.
+Atualização de testes para Windows 10/11 x64 e Android 8 ou superior, ARM64.
 
-Inclui efeitos Slowed/Sped Up/Reverb com prévia, temas claro/escuro/do sistema e 16 cores de destaque.
+## Novidades
+
+- FLAC de links de Spotify, Deezer e Apple Music baixado diretamente do Monochrome, quando disponível, sem abrir páginas com anúncios.
+- Correspondência por artista, título, versão, duração e ISRC; confirmação de versões ambíguas e opção de maior similaridade.
+- Possibilidade de solicitar novos downloads enquanto outros estão em andamento, respeitando o limite de 1 a 4 downloads simultâneos.
+- Correção da barra de progresso após conclusão e dos textos de estado do arquivo.
+- Ajustes na instalação do ambiente Python de desenvolvimento.
 
 ## Qual arquivo baixar?
 
-- `Onda-1.0.0-beta.1-Portable-Windows-x64.zip`: extraia tudo e abra Onda.exe. Não precisa instalar Python. O FFmpeg é baixado automaticamente no primeiro uso, com internet.
-- `Onda-1.0.0-beta.1-Setup-Windows-x64.exe`: assistente de instalação com atalhos e desinstalador.
-- `Onda-1.0.0-beta.1-Fontes.zip`: código do ONDA e scripts de construção.
-- `Onda-1.0.0-beta.1-Fontes-de-terceiros.zip`: fontes dos componentes Python gallery-dl, Mutagen e yt-dlp; consulte o inventário e os avisos.
-- `SHA256SUMS.txt`: hashes para conferir os arquivos.
+- `Onda-1.0.0-beta.2-Portable-Windows-x64.zip`: extraia tudo e abra Onda.exe; Python e Node incluídos. FFmpeg preparado automaticamente no primeiro uso com internet.
+- `Onda-1.0.0-beta.2-Setup-Windows-x64.exe`: instalação por usuário, com atalhos e desinstalador.
+- `ONDA-Android-1.0.0-alpha.2-arm64-v8a.apk`: aplicativo Android assinado com a chave de produção ONDA. A revisão dos fontes nativos ainda está pendente antes de publicação pública.
+- `Onda-1.0.0-beta.2-Fontes.zip`: código-fonte e scripts de construção das duas plataformas.
+- `SHA256SUMS.txt` e `MANIFEST.json`: integridade, versões e situação da validação/assinatura.
 
-## Antes de usar
+## Observações
 
-É uma versão beta e os executáveis ainda não têm assinatura digital. Plataformas podem mudar, bloquear acessos ou exigir login/cookies. A correspondência de músicas usa uma fonte equivalente no YouTube; não baixa áudio protegido original de Spotify/Apple Music. Exportar FLAC não transforma uma fonte com perdas em lossless.
+Esta é uma pré-release. Os executáveis Windows não têm assinatura Authenticode. A assinatura Android é independente; confira o manifesto.
 
-Use somente conteúdo que você tenha autorização para baixar. Relate problemas sem compartilhar cookies, credenciais ou dados pessoais.
+O acervo FLAC é limitado e depende de terceiros. Confirmar o codec não comprova a origem anterior nem a masterização sem perdas. MP3/M4A de músicas de catálogo continuam usando uma versão equivalente do YouTube; converter áudio com perdas para FLAC não recupera qualidade perdida. Plataformas podem exigir login/cookies ou bloquear acesso.
 
-Desinstalador com escolhas independentes para manter ou apagar dados pessoais e remover as ferramentas baixadas, como o FFmpeg. O padrão é manter ambos. Downloads e ferramentas externas são preservados.
+APK com uma chave diferente da versão instalada não pode atualizar por cima dela. Preserve a chave de produção para as próximas versões; desinstalar uma versão anterior pode apagar dados locais.
 
-Na primeira abertura, o ONDA prepara o FFmpeg diretamente de gyan.dev (aproximadamente 109 MB), com progresso e verificação de integridade. O download é feito uma vez por PC; nas próximas aberturas é reutilizado. É possível adiar e retomar em Configurações → Ferramentas.
+Use conteúdo que você tenha autorização para baixar. Não compartilhe cookies, credenciais ou chaves privadas ao relatar problemas.

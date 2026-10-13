@@ -133,7 +133,7 @@ val categories=linkedMapOf(
                         Text("Python, FFmpeg, FFprobe e QuickJS acompanham esta versão Android de desenvolvimento. Não é necessário instalar Termux.")
                         Button(onClick={vm.operation("update",JSONObject(),dialog=true)}){Text("Atualizar ferramentas")}
                         OutlinedButton(onClick={vm.operation("self_test",JSONObject(),dialog=true){vm.dialogNotice.value="Ferramentas verificadas: ${it.optString("yt_dlp")}"}}){Text("Verificar ferramentas")}
-                        Text("ONDA Android ${BuildConfig.VERSION_NAME} · versão de desenvolvimento",style=MaterialTheme.typography.bodySmall)
+                        Text("ONDA Android ${BuildConfig.VERSION_NAME}" + if(BuildConfig.DEBUG) " · versão de desenvolvimento" else "",style=MaterialTheme.typography.bodySmall)
                     }
                 }
 

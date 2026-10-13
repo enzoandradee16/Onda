@@ -1,8 +1,8 @@
 # ONDA
 
-Aplicativo desktop para baixar e organizar músicas, vídeos e imagens, com interface em português.
+Aplicativo para Windows e Android para baixar e organizar músicas, vídeos e imagens, com interface em português.
 
-**Primeira versão de testes: 1.0.0-beta.1 · Windows 10/11 de 64 bits.**
+**Versões em preparação: Windows 1.0.0-beta.2 · Android 1.0.0-alpha.2 (ARM64, Android 8 ou superior).**
 
 ![ONDA no modo escuro](docs/images/onda-escuro.png)
 
@@ -12,6 +12,7 @@ Os pacotes ficam em [Releases](https://github.com/enzoandradee16/Onda/releases).
 
 - **Portátil:** extraia o ZIP inteiro e abra `Onda.exe`. Mantenha as pastas `Onda` e `_runtime` junto dele. Não precisa instalar Python. No primeiro uso, o ONDA baixa o FFmpeg diretamente de gyan.dev, com barra de progresso e verificação SHA-256; é necessário acesso à internet nessa preparação.
 - **Instalador:** execute o arquivo `Onda-…-Setup-Windows-x64.exe` e siga o assistente. A instalação é por usuário, com atalhos e desinstalador. O FFmpeg também é preparado automaticamente no primeiro uso.
+- **Android:** o APK alpha.2 usa assinatura de produção e requer Android 8 ou superior, em aparelho ARM64. A preparação dos fontes correspondentes das bibliotecas nativas ainda está em revisão antes de publicação pública do APK.
 - **Código-fonte:** consulte [as instruções de desenvolvimento](Onda/README.md).
 
 Os executáveis desta beta não têm assinatura digital. O Windows pode mostrar um aviso de reputação; confira a origem e os hashes antes de executar.
@@ -19,7 +20,7 @@ Os executáveis desta beta não têm assinatura digital. O Windows pode mostrar 
 ## O que faz
 
 - Pesquisa músicas no Deezer, Apple Music e Spotify; obtém metadados e capas. A conexão com Spotify é opcional e amplia os recursos de pesquisa e playlists.
-- Para músicas de streaming, procura uma versão equivalente no YouTube e permite conferir a correspondência antes do download.
+- Para músicas de streaming, MP3/M4A usam uma versão equivalente do YouTube. FLAC usa o acervo Monochrome quando houver uma correspondência compatível, com validação do áudio e seleção de versões.
 - Baixa links de vídeo, áudio e imagem, incluindo publicações com múltiplas mídias de redes sociais, quando acessíveis.
 - Oferece fila persistente, download imediato, histórico, seleção de mídias e organização por pastas.
 - Importa álbuns e playlists, além de TXT, M3U e CSV do Exportify. Permite pesquisar na lista e escolher formato e qualidade próprios.
