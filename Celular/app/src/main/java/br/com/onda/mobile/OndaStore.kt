@@ -62,14 +62,19 @@ object OndaStore {
     }
     fun defaults() = JSONObject().put("mode","mp3").put("audio_quality","320 kbps").put("height",1080).put("fps",JSONObject.NULL)
         .put("playlist_limit",2000).put("link_playlist",false).put("auto_match",false).put("confirm_version",false).put("review_metadata",false)
-        .put("duplicate_policy","ask").put("organization","Pasta de destino").put("interface_font",DEFAULT_INTERFACE_FONT).put("theme","Seguir o sistema").put("accent","Verde-Água")
+        .put("duplicate_policy","ask").put("organization","Pasta de destino").put("interface_font",DEFAULT_INTERFACE_FONT).put("interface_font_size","100%").put("theme","Seguir o sistema").put("accent","Verde-Água")
         .put("concurrent_downloads","1").put("resume_downloads",true).put("resume_queue",false).put("normalize_volume",false)
-        .put("schedule_enabled",false).put("schedule_start","22:00").put("schedule_stop","07:00").put("check_updates",false)
+        .put("schedule_enabled",false).put("schedule_start","22:00").put("schedule_stop","07:00").put("check_updates",false).put("notice_duration","Fechar manualmente")
         .put("search_preview",25).put("effects_preview",25).put("keep_preview",false).put("remember",true)
         .put("image_format","Original").put("image_width",0).put("image_height",0).put("keep_ratio",true)
-        .put("tab_order",JSONArray(listOf("Pesquisar","Links e fila","Imagens","Playlists / Álbuns","Histórico","Efeitos")))
+        .put("tab_order",JSONArray(listOf("Pesquisar","Links e fila","Imagens","Playlists / Álbuns","Histórico","Efeitos","Metadados")))
         .put("output_uri", "").put("cookies_file", "").put("youtube_cookies_file", "").put("spotify_client_id", "")
     fun normalizeAppearance(value:JSONObject) {
+        value.put("interface_font",normalizeInterfaceFont(value.optString("interface_font",DEFAULT_INTERFACE_FONT)))
+        val available=defaults().getJSONArray("tab_order").let {a->(0 until a.length()).map {a.getString(it)}}
+        val saved=value.optJSONArray("tab_order")
+        val ordered=if(saved==null) emptyList() else (0 until saved.length()).map {saved.optString(it)}.filter {it in available}.distinct()
+        value.put("tab_order",JSONArray(ordered+available.filter {it !in ordered}))
         val aliases=mapOf("Menta" to "Verde-Água","Verde-água" to "Verde-Água","Lima" to "Verde-limão","Lavanda" to "Lilás","Pêssego" to "Coral","Prata" to "Cinza")
         aliases[value.optString("accent")]?.let {value.put("accent",it)}
         if(value.optString("theme")=="Sistema") value.put("theme","Seguir o sistema")
@@ -270,6 +275,12 @@ object OndaStore {
             file.delete()
         }
         return uri
+    }
+    fun overwriteAudio(edited: File, config: JSONObject) {
+        val uri=Uri.parse(config.getString("original_uri"))
+        replaceAudioOriginal(context,uri,File(config.getString("source")),edited)
+        database.writableDatabase.execSQL("UPDATE history SET size=? WHERE uri=?",arrayOf(edited.length(),uri.toString()))
+        synchronized(this) {refreshHistory()}
     }
     fun open(uri: String, mode: String = "") {
         val value=Uri.parse(uri)

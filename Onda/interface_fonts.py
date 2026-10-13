@@ -1,6 +1,11 @@
 """Font choices backed by local system fonts; no downloads required."""
 import tkinter.font as tkfont
 
+FONT_SIZES = ('85%', '100%', '115%', '130%')
+
+def font_scale(value):
+    return int(value[:-1]) / 100 if value in FONT_SIZES else 1.0
+
 DEFAULT_FONT = 'Padrão do sistema'
 FONT_PREVIEW = 'Onda · Sua música, do seu jeito. Aa Bb 123'
 FONT_ALIASES = {

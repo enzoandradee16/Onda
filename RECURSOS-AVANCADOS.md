@@ -45,3 +45,27 @@ No Android, o agendamento usa WorkManager com conexão de rede. Economia de bate
 5. Compare a prévia original e normalizada. Faça uma cópia usando somente o checkbox de normalização.
 6. Configure uma janela curta e confira início, parada e itens pendentes. No Android, mantenha o teste sem economia de bateria e aceite possíveis atrasos do sistema.
 7. Exporte as preferências, importe na outra plataforma e confira que nenhuma credencial ou pasta foi incluída.
+
+
+### Salvar a edição no arquivo original
+
+No editor de áudio/metadados, ative **Sobrescrever arquivo original** e use **Salvar no original** para manter o nome e a pasta do arquivo. Desativado, **Salvar cópia editada** continua preservando o original. A opção também vale para normalização e letra quando selecionadas.
+
+No PC, a edição é preparada em um arquivo temporário e substituída ao terminar. No Android, a gravação usa o mesmo URI do histórico, exige permissão de escrita e mantém uma cópia de segurança durante a substituição. Se o original tiver mudado desde a abertura do editor, reabra-o antes de salvar.
+
+### Metadados e capas de coleções
+
+- A aba Metadados abre arquivos locais sem exigir um download ou uma entrada no histórico. O atalho de edição do Histórico continua disponível.
+- O editor aceita MP3, M4A, FLAC, WAV, OGG e OPUS; preserva o original por padrão e permite salvar no mesmo arquivo quando há permissão de escrita.
+- Álbuns e playlists exibem um cartão com capa, título, artista ou criador e quantidade de músicas; listas sem capa mostram um símbolo de música. A ordem configurada das abas é preservada ao acrescentar Metadados.
+
+### Recuperação da conexão FLAC
+
+- Monochrome: até seis tentativas para transferir a faixa e quatro para consultar o catálogo; espera progressiva e respeito a Retry-After. Recusas HTTP 401/403 recebem somente uma nova solicitação, sem contornar restrições do serviço.
+- Quedas durante a transferência retomam os bytes restantes quando o servidor fornece um identificador seguro do arquivo. Se o servidor ignorar a retomada ou mudar o arquivo, a transferência recomeça sem misturar trechos.
+- O arquivo só é publicado após a transferência completa e as validações do FLAC. Bloqueios persistentes e indisponibilidade do serviço ainda podem impedir o download.
+
+### Editor de metadados na página
+
+- A aba se chama Editar metadados nas duas versões. No Android, o formulário fica na própria página; o Histórico abre o arquivo nessa aba e os campos são preservados ao navegar entre abas.
+- Android: capa em uma área central de destaque, com prévia e Desfazer capa. PC: capa maior na área inferior direita do editor, com rolagem para telas menores.

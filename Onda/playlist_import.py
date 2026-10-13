@@ -30,7 +30,11 @@ def spotify_playlist(html, playlist_id, limit=LIMIT):
                          "source_url": "https://open.spotify.com/track/" + match[1], "duration_ms": row.get("duration")})
         if not rows:
             raise ValueError()
+        images=(entity.get("visualIdentity") or {}).get("image") or []
+        valid_images=[image for image in images if isinstance(image,dict) and image.get("url")]
+        cover=max(valid_images,key=lambda image:image.get("maxHeight") or 0)["url"] if valid_images else None
         return {"title": entity.get("title") or "Playlist Spotify", "tracks": rows,
+                "cover_url":cover,"subtitle":entity.get("subtitle") or "Spotify","kind":"playlist",
                 "note": f"Lista pública Spotify: pode mostrar apenas parte da playlist, mesmo com um limite maior. Máximo configurado: {limit}."}
     except (ValueError, TypeError, KeyError, AttributeError):
         raise MetadataError("A playlist não está disponível no embed público Spotify. Tente uma playlist pública diferente ou importe um TXT/M3U com os links das faixas.") from None
@@ -73,6 +77,7 @@ def load_playlist(url, client, limit=LIMIT, account=None, cancelled=lambda: Fals
             if not tracks.get("next"):
                 break
         return {"title": data.get("title") or "Playlist Deezer", "tracks": records,
+                "cover_url":data.get("picture_xl") or data.get("picture_big"),"subtitle":(data.get("creator") or {}).get("name") or "Deezer","kind":"playlist",
                 "note": f"Até {limit} faixas por importação. Itens indisponíveis são omitidos."}
     if host == "open.spotify.com":
         if parts and parts[0].startswith("intl-"):
@@ -92,7 +97,7 @@ def load_playlist(url, client, limit=LIMIT, account=None, cancelled=lambda: Fals
         tracks = [{"title": row.get("title") or "Vídeo", "artists": [row.get("uploader") or row.get("channel") or ""],
                    "source_url": "https://www.youtube.com/watch?v=" + row["id"], "duration_ms": (row.get("duration") or 0) * 1000}
                   for row in (result or {}).get("entries", []) if row and re.fullmatch(r"[A-Za-z0-9_-]{11}", row.get("id", ""))]
-        return {"title": result.get("title") or "Playlist YouTube", "tracks": tracks[:limit], "note": f"YouTube: os próprios vídeos da playlist serão usados; até {limit} itens."}
+        return {"title": result.get("title") or "Playlist YouTube", "tracks": tracks[:limit], "cover_url":next((row.get("url") for row in reversed(result.get("thumbnails") or []) if row.get("url")),None), "subtitle":result.get("uploader") or result.get("channel") or "YouTube", "kind":"playlist", "note": f"YouTube: os próprios vídeos da playlist serão usados; até {limit} itens."}
     raise MetadataError("Use um álbum Spotify, Deezer ou Apple Music, uma playlist Deezer/Spotify/YouTube, ou um TXT/M3U/CSV com links individuais.")
 
 

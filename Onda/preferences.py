@@ -25,7 +25,12 @@ class PreferenceStore:
                 value = 'Verde-Água'
             if isinstance(value, str) and value in choices:
                 result[name] = value
-        from interface_fonts import valid_font
+        from status_notice import NOTICE_DURATIONS
+        if isinstance(data.get("notice_duration"),str) and data["notice_duration"] in NOTICE_DURATIONS:
+            result["notice_duration"]=data["notice_duration"]
+        from interface_fonts import valid_font, FONT_SIZES
+        if data.get("interface_font_size") in FONT_SIZES:
+            result["interface_font_size"] = data["interface_font_size"]
         if valid_font(data.get('interface_font')):
             result['interface_font'] = data['interface_font']
         if type(data.get('effects_keep_pitch')) is bool:

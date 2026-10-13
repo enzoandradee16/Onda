@@ -13,7 +13,8 @@ def finish(title, rows, total, limit, note, album_artists=None):
     artists = album_artists or rows[0].get('album_artists') or rows[0].get('artists') or ['Artista desconhecido']
     artist = ', '.join(name for name in artists if isinstance(name, str) and name.strip()) or 'Artista desconhecido'
     return {'title':title,'tracks':rows[:limit],'note':note,'kind':'album',
-            'folder_title':f'{artist} - {title}'}
+            'folder_title':f'{artist} - {title}', 'subtitle':artist,
+            'cover_url':next((row.get('cover_url') for row in rows if row.get('cover_url')),None)}
 
 
 def spotify_public_album(html, identity, limit):

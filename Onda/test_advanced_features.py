@@ -39,6 +39,47 @@ class AdvancedOptionsTests(unittest.TestCase):
 
 @unittest.skipUnless(os.environ.get('ONDA_FFMPEG'),'FFmpeg integration')
 class AudioLibraryTests(unittest.TestCase):
+    def test_edit_can_replace_original_without_changing_name_or_leaving_a_copy(self):
+        from audio_tools import executable
+        with tempfile.TemporaryDirectory() as folder:
+            source=Path(folder)/'Artista - Música.mp3'
+            subprocess.run([executable('ffmpeg'),'-v','error','-y','-f','lavfi','-i','sine=duration=1','-c:a','libmp3lame',str(source)],check=True,capture_output=True)
+            result=edit_copy({'source':str(source),'overwrite_original':True,'edit_metadata':True,'changes':{'title':'Título corrigido','artists':['Artista']}})
+            self.assertEqual(Path(result['path']),source.resolve())
+            self.assertTrue(result['overwritten'])
+            self.assertEqual(read_audio(source)['title'],'Título corrigido')
+            self.assertEqual(list(Path(folder).iterdir()),[source])
+
+    def test_failed_edit_or_publication_preserves_original(self):
+        from audio_tools import executable
+        with tempfile.TemporaryDirectory() as folder:
+            source=Path(folder)/'Original.mp3'
+            subprocess.run([executable('ffmpeg'),'-v','error','-y','-f','lavfi','-i','sine=duration=1','-c:a','libmp3lame',str(source)],check=True,capture_output=True)
+            original=source.read_bytes()
+            config={'source':str(source),'overwrite_original':True,'edit_metadata':True,'changes':{'title':'Novo'}}
+            with patch('audio_library.write_audio',side_effect=ValueError('edição falhou')):
+                with self.assertRaises(ValueError):edit_copy(config)
+            self.assertEqual(source.read_bytes(),original)
+            with patch('audio_library.os.replace',side_effect=PermissionError('arquivo em uso')):
+                with self.assertRaises(PermissionError):edit_copy(config)
+            self.assertEqual(source.read_bytes(),original)
+            self.assertEqual(list(Path(folder).iterdir()),[source])
+
+    def test_replace_does_not_overwrite_a_concurrent_change(self):
+        from audio_tools import executable
+        from audio_library import write_audio
+        with tempfile.TemporaryDirectory() as folder:
+            source=Path(folder)/'Original.mp3'
+            subprocess.run([executable('ffmpeg'),'-v','error','-y','-f','lavfi','-i','sine=duration=1','-c:a','libmp3lame',str(source)],check=True,capture_output=True)
+            external=source.read_bytes()+b'external-change'
+            def modify(target,*args,**kwargs):
+                write_audio(target,*args,**kwargs)
+                source.write_bytes(external)
+            with patch('audio_library.write_audio',side_effect=modify):
+                with self.assertRaisesRegex(ValueError,'mudou durante'):
+                    edit_copy({'source':str(source),'overwrite_original':True,'edit_metadata':True,'changes':{'title':'Novo'}})
+            self.assertEqual(source.read_bytes(),external)
+
     def test_normalization_preserves_tags_cover_and_supports_editor_and_lrc(self):
         from PIL import Image
         import io
@@ -57,6 +98,12 @@ class AudioLibraryTests(unittest.TestCase):
                     cover_file=root/'capa.jpg';cover_file.write_bytes(art.getvalue())
                     write_audio(source,{'title':'Música','artists':['Artista'],'album':'Álbum'},str(cover_file))
                 else:apply_tags(source,{'title':'Música','artists':['Artista'],'album':'Álbum','source_url':'https://example.com/music'},{'source_url':'https://example.com/audio'},(art.getvalue(),'image/jpeg'))
+                from audio_library import cover_preview
+                import base64
+                preview=cover_preview(source)
+                self.assertTrue(preview,suffix)
+                with Image.open(io.BytesIO(base64.b64decode(preview))) as thumbnail:
+                    self.assertLessEqual(max(thumbnail.size),240)
                 original=source.read_bytes()
                 preview=normalize_audio(source,{'ffmpeg':os.environ['ONDA_FFMPEG']},preview=True)
                 self.assertTrue(preview.is_file());self.assertEqual(read_audio(preview)['title'],'Música')

@@ -1,7 +1,7 @@
 """Stable tab identities and drag ordering without changing active content."""
 import tkinter as tk
 
-DEFAULT_ORDER = ('catalog', 'downloads', 'images', 'playlists', 'history', 'effects')
+DEFAULT_ORDER = ('catalog', 'downloads', 'images', 'playlists', 'history', 'effects', 'metadata')
 
 
 def normalize_order(value):

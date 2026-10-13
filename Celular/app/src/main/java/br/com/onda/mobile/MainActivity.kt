@@ -79,6 +79,7 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
     val busy by vm.busy.collectAsStateWithLifecycle()
     val notice by vm.dialogNotice.collectAsStateWithLifecycle()
     val status by vm.status.collectAsStateWithLifecycle()
+    var statusVisible by rememberStatusNotice(status,busy,settings.optString("notice_duration","Fechar manualmente"))
     val effectsSource by vm.effectsSource.collectAsStateWithLifecycle()
     val shared by OndaStore.sharedLink.collectAsStateWithLifecycle()
     val pureBlack=settings.optString("theme")=="Preto puro"
@@ -96,6 +97,7 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
     ) else baseScheme
     val homeTab=tabs.optString(0,"Pesquisar")
     var tab by rememberSaveable { mutableStateOf(homeTab) }
+    var metadataUri by rememberSaveable {mutableStateOf<String?>(null)}
     var showSettings by rememberSaveable { mutableStateOf(false) }
     var settingsCategory by rememberSaveable { mutableStateOf("Aparência") }
     var youtubeSession by rememberSaveable {mutableStateOf(false)}
@@ -108,7 +110,7 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
     val inputMethod=remember(view) {view.context.getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager}
     val currentTab by rememberUpdatedState(tab)
     var navigationPending by remember {mutableStateOf(false)}
-    val keyboardBlocked by rememberUpdatedState(navigationPending || showSettings || youtubeSession || showLicenses || question!=null || notice.isNotBlank())
+    val keyboardBlocked by rememberUpdatedState(navigationPending || showSettings || youtubeSession || showLicenses || question!=null || notice!=null)
     fun navigateFromDrawer(action: ()->Unit) {
         if(navigationPending) return
         navigationPending=true
@@ -140,14 +142,14 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
     val preferences=OndaStore.context.getSharedPreferences("preferences",0)
     var welcome by remember { mutableStateOf(!preferences.getBoolean("welcome_seen",false)) }
     val permission=rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
-    BackHandler(enabled=(drawer.isOpen || drawer.targetValue==DrawerValue.Open || tab!=homeTab) && !showSettings && !youtubeSession && !showLicenses && !welcome && question==null && notice.isBlank()) {
+    BackHandler(enabled=(drawer.isOpen || drawer.targetValue==DrawerValue.Open || tab!=homeTab) && !showSettings && !youtubeSession && !showLicenses && !welcome && question==null && notice==null) {
         if(drawer.isOpen || drawer.targetValue==DrawerValue.Open) scope.launch {drawer.close()} else tab=homeTab
     }
     LaunchedEffect(Unit) { if(Build.VERSION.SDK_INT>=33) permission.launch(Manifest.permission.POST_NOTIFICATIONS) }
     LaunchedEffect(shared) { if(shared.isNotBlank()) tab="Links e fila" }
     LaunchedEffect(effectsSource) {if(effectsSource.isNotBlank()) tab="Efeitos"}
     LaunchedEffect(tab) { if(!settings.optBoolean("keep_preview")) vm.stopPreview() }
-    val typography=remember(settings.optString("interface_font")) {interfaceTypography(settings.optString("interface_font",DEFAULT_INTERFACE_FONT))}
+    val typography=remember(settings.optString("interface_font"),settings.optString("interface_font_size")) {interfaceTypography(settings.optString("interface_font",DEFAULT_INTERFACE_FONT),settings.optString("interface_font_size","100%"))}
     MaterialTheme(colorScheme=scheme,typography=typography) {
         ModalNavigationDrawer(drawerState=drawer,drawerContent={ModalDrawerSheet(Modifier.width(300.dp)) {
             Row(Modifier.fillMaxWidth().padding(20.dp),horizontalArrangement=Arrangement.Center,verticalAlignment=Alignment.CenterVertically) {Image(painterResource(R.drawable.ic_onda),null,Modifier.size(36.dp).clip(RoundedCornerShape(25)));Text("ONDA",style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.Bold,modifier=Modifier.padding(start=8.dp))}
@@ -162,17 +164,17 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
                 Text("Seus downloads",style=MaterialTheme.typography.labelLarge,modifier=Modifier.padding(16.dp))
                 val queue by OndaStore.items.collectAsStateWithLifecycle()
                 Text("${queue.count {it.state=="Pendente"}} pendentes · ${queue.count {it.state=="Concluído"}} concluídos",modifier=Modifier.padding(horizontal=16.dp),style=MaterialTheme.typography.bodySmall)
-                if(status.isNotBlank()) Text(status,modifier=Modifier.padding(16.dp),style=MaterialTheme.typography.bodySmall)
+                if(statusVisible) Text(status,modifier=Modifier.padding(16.dp),style=MaterialTheme.typography.bodySmall)
             }
             Text("ONDA Android ${BuildConfig.VERSION_NAME}",Modifier.padding(16.dp),style=MaterialTheme.typography.labelSmall)
         }}) {
         Scaffold(topBar={ TopAppBar(navigationIcon={IconButton(onClick={scope.launch {drawer.open()}},modifier=Modifier.testTag("open-menu")){Text("☰",style=MaterialTheme.typography.titleLarge)}},title={Row(verticalAlignment=Alignment.CenterVertically) {Image(painterResource(R.drawable.ic_onda),"Ícone ONDA",Modifier.size(28.dp).clip(RoundedCornerShape(25)));Column(Modifier.padding(start=8.dp)){Text("ONDA",color=MaterialTheme.colorScheme.primary,fontWeight=FontWeight.Bold,style=MaterialTheme.typography.titleMedium);Text(tabLabel(tab),style=MaterialTheme.typography.labelSmall)}}}) }) { padding ->
             Column(Modifier.fillMaxSize().padding(padding)) {
                 if(busy) LinearProgressIndicator(Modifier.fillMaxWidth())
-                if(status.isNotBlank()) Row(Modifier.fillMaxWidth().padding(horizontal=16.dp),verticalAlignment=Alignment.CenterVertically) {
-                    Text(status,Modifier.weight(1f),style=MaterialTheme.typography.bodySmall,maxLines=2)
+                if(statusVisible) Row(Modifier.fillMaxWidth().padding(horizontal=16.dp),verticalAlignment=Alignment.CenterVertically) {
+                    Text(status,Modifier.weight(1f).testTag("app-status"),style=MaterialTheme.typography.bodySmall,maxLines=2)
                     if(busy) TextButton(onClick={vm.cancel()}) {Text("Cancelar")}
-                    else TextButton(onClick={vm.status.value=""}) {Text("×")}
+                    else TextButton(onClick={statusVisible=false}) {Text("×")}
                 }
                 Box(Modifier.weight(1f)) {
                     pages.SaveableStateProvider(tab) {when(tab) {
@@ -180,8 +182,9 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
                         "Links e fila"->LinksPage(vm)
                         "Imagens"->ImagesPage(vm)
                         "Playlists / Álbuns"->CollectionsPage(vm)
-                        "Histórico"->HistoryPage(vm)
+                        "Histórico"->HistoryPage(vm,onEditMetadata={metadataUri=it.uri;tab="Metadados"})
                         "Efeitos"->EffectsPage(vm)
+                        "Metadados"->MetadataPage(vm,metadataUri){metadataUri=null}
                     }}
                 }
             }
@@ -195,10 +198,10 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
             text={Text("Ajuste o básico para começar. Você pode fechar esta janela e configurar tudo depois.")},
             confirmButton={TextButton(onClick={preferences.edit().putBoolean("welcome_seen",true).apply();welcome=false;settingsCategory="Aparência";showSettings=true}){Text("Configurações")}},
             dismissButton={TextButton(onClick={preferences.edit().putBoolean("welcome_seen",true).apply();welcome=false}){Text("Agora não")}})
-        if(notice.isNotBlank()) AlertDialog(onDismissRequest={vm.dialogNotice.value=""},title={Text("Aviso")},text={Column(Modifier.heightIn(max=320.dp).verticalScroll(rememberScrollState())){Text(notice)}},confirmButton={TextButton(onClick={vm.dialogNotice.value=""}){Text("OK")}})
+        notice?.let {current->AlertDialog(onDismissRequest=vm::dismissNotice,title={Text(current.title)},text={Column(Modifier.heightIn(max=320.dp).verticalScroll(rememberScrollState())){Text(current.message)}},confirmButton={TextButton(onClick=vm::dismissNotice){Text("OK")}})}
     }
 }
-fun tabLabel(tab: String)=when(tab) {"Pesquisar"->"Pesquisar músicas";"Efeitos"->"Slowed / Sped Up";"Playlists / Álbuns"->"Álbuns e playlists";else->tab}
+fun tabLabel(tab: String)=when(tab) {"Metadados"->"Editar metadados";"Pesquisar"->"Pesquisar músicas";"Efeitos"->"Slowed / Sped Up";"Playlists / Álbuns"->"Álbuns e playlists";else->tab}
 
 @Composable fun PageTitle(title: String, description: String) {
     Column(Modifier.fillMaxWidth().padding(vertical=8.dp),horizontalAlignment=Alignment.CenterHorizontally) {
@@ -209,7 +212,7 @@ fun tabLabel(tab: String)=when(tab) {"Pesquisar"->"Pesquisar músicas";"Efeitos"
 @Composable fun Select(label: String, value: String, choices: List<String>, modifier: Modifier=Modifier, changed: (String)->Unit) {
     var open by remember { mutableStateOf(false) }
     Column(modifier) {
-        Text(label,style=MaterialTheme.typography.labelMedium)
+        if(label.isNotBlank()) Text(label,style=MaterialTheme.typography.labelMedium)
         Box { OutlinedButton(onClick={open=true},modifier=Modifier.fillMaxWidth().heightIn(min=40.dp),shape=RoundedCornerShape(10.dp),contentPadding=PaddingValues(horizontal=12.dp,vertical=6.dp)) {Text(value,Modifier.weight(1f),maxLines=1,style=MaterialTheme.typography.bodyMedium);Text("▾",Modifier.padding(start=6.dp))}
             DropdownMenu(expanded=open,onDismissRequest={open=false}) { choices.forEach { choice-> DropdownMenuItem(text={Text(choice)},onClick={changed(choice);open=false}) } }
         }
@@ -224,7 +227,7 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
     "Áudio · original, sem recodificar" to "original","Áudio · MP3 (320 kbps)" to "mp3",
     "Áudio · M4A (AAC)" to "m4a","Áudio · FLAC" to "flac","Fotos · todas do carrossel" to "photos",
     "Publicação · fotos e vídeos originais" to "social")
-@Composable fun FormatOptions(config: JSONObject, changed: (JSONObject)->Unit) {
+@Composable fun FormatOptions(config: JSONObject, changed: (JSONObject)->Unit, separated:Boolean=false) {
     fun put(key: String, value: Any) {changed(JSONObject(config.toString()).put(key,value))}
     val mode=config.optString("mode","mp3")
     Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
@@ -234,6 +237,7 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
             Select("Qualidade de áudio",config.optString("audio_quality").takeIf {it in qualities} ?: qualities.first(),qualities,Modifier.weight(1f)) {put("audio_quality",it)}
         }
     }
+    if(separated && mode in listOf("mp4","video","social")) SettingsDivider()
     if(mode in listOf("mp4","video","social")) Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
         val heights=listOf("Melhor disponível","2160p / 4K","1440p","1080p","720p","480p")
         Select("Resolução máxima",if(config.isNull("height")) "Melhor disponível" else if(config.optInt("height")==2160) "2160p / 4K" else "${config.optInt("height",1080)}p",heights,Modifier.weight(1f)) {put("height",it.substringBefore(" / ").removeSuffix("p").toIntOrNull() ?: JSONObject.NULL)}
@@ -250,12 +254,23 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
     val results by vm.searchResults.collectAsStateWithLifecycle()
     var query by rememberSaveable { mutableStateOf("") }
     var provider by rememberSaveable { mutableStateOf("Deezer") }
+    var downloadTrack by rememberSaveable {mutableStateOf<String?>(null)}
     val busy by vm.busy.collectAsStateWithLifecycle()
     val keyboard=LocalSoftwareKeyboardController.current
     fun submitSearch() {
         val text=query.lineSequence().joinToString(" ").trim()
         if(text.isNotBlank() && !vm.busy.value) {keyboard?.hide();vm.search(text,provider)}
     }
+    downloadTrack?.let {raw->key(raw) {
+        val track=remember(raw) {JSONObject(raw)}
+        TrackDownloadDialog(track,OndaStore.settings.value,onDismiss={downloadTrack=null},onSubmit={options,now->
+            try {
+                val id=vm.queueTrack(track,options=options,origin="search",immediate=now)
+                if(now)DownloadService.start(OndaStore.context,id)
+                downloadTrack=null
+            } catch(error:Exception) {vm.showNotice(if(now) "Baixar agora" else "Adicionar à fila",error.message ?: "Não foi possível adicionar a música.")}
+        })
+    }}
     LazyColumn(Modifier.fillMaxSize().padding(horizontal=16.dp),verticalArrangement=Arrangement.spacedBy(6.dp)) {
         item {PageTitle("Encontre sua próxima música.","Pesquise artista ou música, ou cole um link de faixa.")}
         item {OutlinedTextField(query,{query=it},label={Text("Música, artista ou link")},singleLine=true,
@@ -266,9 +281,12 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
                     true
                 } else false
             })}
-        item {Row(horizontalArrangement=Arrangement.spacedBy(8.dp),verticalAlignment=Alignment.CenterVertically) {
-            Select("Catálogo",provider,listOf("Deezer","Apple / iTunes","Spotify"),Modifier.weight(1f)){provider=it}
-            Button(onClick={submitSearch()},enabled=query.isNotBlank() && !busy) {Text("Pesquisar")}
+        item {Column {
+            Text("Catálogo",style=MaterialTheme.typography.labelMedium)
+            Row(horizontalArrangement=Arrangement.spacedBy(8.dp),verticalAlignment=Alignment.CenterVertically) {
+                Select("",provider,listOf("Deezer","Apple / iTunes","Spotify"),Modifier.weight(1f)){provider=it}
+                Button(onClick={submitSearch()},enabled=query.isNotBlank() && !busy) {Text("Pesquisar")}
+            }
         }}
         if(provider=="Spotify") item {
             Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp),verticalAlignment=Alignment.CenterVertically) {
@@ -296,12 +314,12 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
             }}
         }
         if(results.isEmpty()) item {Text("Sua biblioteca começa com uma busca",fontWeight=FontWeight.Bold);Text("Encontre a música e escolha a versão que você quer.",style=MaterialTheme.typography.bodySmall)}
-        items(results,contentType={"search_track"}) {record-> TrackCard(record,vm) }
+        items(results,contentType={"search_track"}) {record-> TrackCard(record,vm,onDownload={downloadTrack=record.toString()}) }
         item {Text("Catálogo e capa: plataforma selecionada  •  Áudio: YouTube / FLAC: Monochrome",style=MaterialTheme.typography.bodySmall)}
         item {Spacer(Modifier.height(12.dp))}
     }
 }
-@Composable fun TrackCard(record: JSONObject, vm: OndaViewModel) {
+@Composable fun TrackCard(record: JSONObject, vm: OndaViewModel, onDownload:()->Unit) {
     val playing by vm.previewActive.collectAsStateWithLifecycle()
     val playingUrl by vm.previewUrl.collectAsStateWithLifecycle()
     val url=record.cleanString("preview_url")
@@ -314,7 +332,7 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
         Row(Modifier.horizontalScroll(rememberScrollState())) {
             TextButton(onClick={if(thisPlaying) vm.stopPreview() else if(url.isNotBlank()) vm.preview(url,OndaStore.settings.value.optInt("search_preview",25)) else vm.status.value="Esta faixa não oferece prévia no catálogo."}) {Text(if(thisPlaying) "Parar prévia" else "Ouvir prévia")}
             TextButton(onClick={vm.queueTrack(record,origin="search")}) {Text("Adicionar à fila")}
-            Button(onClick={DownloadService.start(OndaStore.context,vm.queueTrack(record,origin="search",immediate=true))}) {Text("Baixar agora")}
+            Button(onClick=onDownload) {Text("Baixar agora")}
         }
     }}
 }
@@ -387,14 +405,14 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
     var source by rememberSaveable {mutableStateOf("")}
     var preview by remember {mutableStateOf("")}
     var dimensions by remember {mutableStateOf("")}
-    val local=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) {uri->if(uri!=null) {source="";vm.importLocal(uri,"image") {source=it.absolutePath;link="";preview=""}}}
+    val local=rememberImageSourcePicker(arrayOf("image/*")) {uri->source="";vm.importLocal(uri,"image") {source=it.absolutePath;link="";preview=""}}
     fun imageConfig()=OndaStore.config(JSONObject(settings.toString()).put("mode","photos")).put("url",link).apply {
         if(source.isNotBlank()) put("source",source).put("name",File(source).name.replaceFirst(Regex("^image-[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}-"),""))
     }
     Column(Modifier.verticalScroll(rememberScrollState()).padding(16.dp),verticalArrangement=Arrangement.spacedBy(6.dp)) {
         PageTitle("Imagens do seu jeito.","Baixe, converta e ajuste o tamanho sem cortar a imagem.")
         OutlinedTextField(link,{link=it;source=""},label={Text("Link da imagem ou publicação")},modifier=Modifier.fillMaxWidth(),singleLine=true)
-        TextButton(onClick={local.launch(arrayOf("image/*"))}){Text(if(source.isBlank()) "Escolher imagem" else File(source).name)}
+        TextButton(onClick={local()}){Text(if(source.isBlank()) "Escolher imagem" else File(source).name)}
         ImageOptions(settings,OndaStore::saveSettings)
         OutlinedButton(onClick={vm.operation("image_preview",imageConfig()){preview=it.getString("path");dimensions="${it.optInt("width")} × ${it.optInt("height")}"}},enabled=link.isNotBlank() || source.isNotBlank()){Text("Ver prévia")}
         if(preview.isNotBlank()) {AsyncImage(File(preview),"Prévia da imagem",Modifier.fillMaxWidth().heightIn(max=240.dp));Text(dimensions)}
@@ -403,14 +421,16 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
         Text("SVG incorpora a imagem original; não vetoriza. Animações usam o primeiro quadro.",style=MaterialTheme.typography.bodySmall)
     }
 }
-@Composable fun ImageOptions(config: JSONObject, change: (JSONObject)->Unit) {
+@Composable fun ImageOptions(config: JSONObject, change: (JSONObject)->Unit, separated:Boolean=false) {
     fun put(key: String,value: Any) {change(JSONObject(config.toString()).put(key,value))}
     Select("Formato",config.optString("image_format","Original"),listOf("Original","JPG","PNG","WebP","SVG")){put("image_format",it)}
+    if(separated)SettingsDivider()
     Text("Largura × altura (px)",style=MaterialTheme.typography.labelMedium)
     Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
         OutlinedTextField(config.optInt("image_width").takeIf {it>0}?.toString() ?: "",{put("image_width",it.toIntOrNull()?.coerceIn(0,16384) ?: 0)},label={Text("Largura")},modifier=Modifier.weight(1f),singleLine=true)
         OutlinedTextField(config.optInt("image_height").takeIf {it>0}?.toString() ?: "",{put("image_height",it.toIntOrNull()?.coerceIn(0,16384) ?: 0)},label={Text("Altura")},modifier=Modifier.weight(1f),singleLine=true)
     }
+    if(separated)SettingsDivider()
     Toggle("Manter proporção (sem ampliar ou distorcer)",config.optBoolean("keep_ratio",true)){put("keep_ratio",it)}
 }
 
@@ -450,8 +470,21 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
             TextButton(onClick={import.launch(arrayOf("text/*","application/octet-stream","application/vnd.ms-excel"))}){Text("Importar arquivo")}
             TextButton(onClick={listOnly=true}){Text("Ver lista")}
         }}
-        item {FormatOptions(options){options=it}}
-        item {Text(collection.optString("title"),fontWeight=FontWeight.Bold);Text(collection.optString("note"),style=MaterialTheme.typography.bodySmall)}
+        item {FormatOptions(options,changed={options=it})}
+        if(collection.optString("title").isNotBlank()) item {
+            Card(Modifier.fillMaxWidth().testTag("collection-card"),colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.background)) {
+                Row(Modifier.fillMaxWidth().padding(vertical=12.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+                    if(collection.cleanString("cover_url").isNotBlank()) AsyncImage(model=collection.cleanString("cover_url"),contentDescription="Capa de ${collection.optString("title")}",contentScale=androidx.compose.ui.layout.ContentScale.Crop,modifier=Modifier.size(88.dp).clip(RoundedCornerShape(10.dp)))
+                    else Surface(Modifier.size(88.dp),shape=RoundedCornerShape(10.dp),color=MaterialTheme.colorScheme.surfaceVariant) {Box(contentAlignment=Alignment.Center){Text("♫",style=MaterialTheme.typography.headlineLarge)}}
+                    Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(4.dp)) {
+                        Text(collection.optString("title"),fontWeight=FontWeight.Bold,style=MaterialTheme.typography.titleMedium)
+                        if(collection.cleanString("subtitle").isNotBlank()) Text(collection.cleanString("subtitle"),style=MaterialTheme.typography.bodySmall)
+                        Text("${if(collection.optString("kind")=="album") "Álbum" else "Playlist"} · ${tracks.size} músicas",style=MaterialTheme.typography.bodySmall)
+                    }
+                }
+                if(collection.cleanString("note").isNotBlank()) Text(collection.cleanString("note"),style=MaterialTheme.typography.bodySmall,modifier=Modifier.padding(bottom=8.dp))
+            }
+        }
         item {OutlinedTextField(filter,{filter=it},label={Text("Buscar nesta lista")},modifier=Modifier.fillMaxWidth(),singleLine=true);Text("${visible.size} de ${tracks.size}",style=MaterialTheme.typography.bodySmall)}
         item {Row(Modifier.horizontalScroll(rememberScrollState())) {
             TextButton(onClick={selected=selected+visible.map {it.optString("source_url")}}){Text("Selecionar visíveis")}
@@ -472,8 +505,7 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
     }}}
 }
 
-@Composable fun HistoryPage(vm: OndaViewModel) {
-    var editingAudio by remember {mutableStateOf<HistoryItem?>(null)}
+@Composable fun HistoryPage(vm: OndaViewModel,onEditMetadata:(HistoryItem)->Unit) {
     val history by OndaStore.history.collectAsStateWithLifecycle()
     var filter by rememberSaveable {mutableStateOf("")}
     val visible=remember(history,filter) {history.filter {it.title.contains(filter,true)}}
@@ -487,13 +519,12 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
             }
             Text("${item.mode.uppercase()} · %.1f MB".format(item.size/1048576.0),style=MaterialTheme.typography.bodySmall)
             Row(Modifier.horizontalScroll(rememberScrollState())) {TextButton(onClick={runCatching {OndaStore.open(item.uri,item.mode)}.onFailure {OndaStore.log("Nenhum aplicativo disponível para abrir este arquivo.")}}){Text("Abrir arquivo")};TextButton(onClick={vm.openHistoryFolder(item.uri)},modifier=Modifier.testTag("open-history-folder-${item.id}")){Text("Abrir pasta")};TextButton(onClick={OndaStore.share(item.uri,item.title)}){Text("Compartilhar")}
-                if(item.mode.lowercase() in setOf("mp3","m4a","flac","wav","ogg","opus")) TextButton(onClick={editingAudio=item}) {Text("Editar áudio / letra")}
+                if(item.mode.lowercase() in setOf("mp3","m4a","flac","wav","ogg","opus")) TextButton(onClick={onEditMetadata(item)}) {Text("Editar metadados")}
                 if(historySupportsEffects(item)) TextButton(onClick={vm.useInEffects(item.uri)}) {Text("Usar nos efeitos")}
             }
         }}}
         item {TextButton(onClick={OndaStore.clearHistory()}){Text("Limpar histórico")}}
     }
-    editingAudio?.let {AudioFileWindow(it,vm){editingAudio=null}}
 }
 
 fun historySupportsEffects(item: HistoryItem):Boolean {

@@ -273,9 +273,14 @@ def render_preview(config):
 def perform(action, config):
     if action in ('audio_read','audio_edit','normalize_preview'):
         from audio_library import read_audio,edit_copy,normalize_audio
-        if action=='audio_read':return {'record':read_audio(config['source'])}
+        if action=='audio_read':
+            from audio_library import cover_preview
+            return {'record':read_audio(config['source']), 'cover_preview':cover_preview(config['source'])}
         if action=='normalize_preview':return {'path':str(normalize_audio(config['source'],config,emit,preview=True))}
-        result=edit_copy(config,emit)
+        # Android edits an imported staging file; the original is its content URI.
+        result=edit_copy(dict(config,overwrite_original=False),emit)
+        if config.get('overwrite_original'):
+            return dict(result,message='Arquivo original atualizado.')
         emit('file',**result)
         sidecar=Path(result['path']).with_suffix('.lrc')
         if sidecar.is_file():emit('file',path=str(sidecar),mode='LRC',size=sidecar.stat().st_size)

@@ -20,6 +20,42 @@ fun JSONArray.objects(): List<JSONObject> = (0 until length()).mapNotNull { optJ
 fun JSONObject.cleanString(key: String): String = if(isNull(key)) "" else optString(key)
 fun JSONObject.stringList(key: String): String = optJSONArray(key)?.let { a -> (0 until a.length()).joinToString(", ") { a.optString(it) } } ?: ""
 
+data class DialogNotice(val title:String,val message:String)
+
+private fun operationNoticeTitle(action:String)=when(action) {
+    "settings_export"->"Exportar configurações"
+    "settings_import"->"Importar configurações"
+    "spotify_connect"->"Conectar Spotify"
+    "spotify_disconnect"->"Desconectar Spotify"
+    "app_update"->"Verificar atualização do ONDA"
+    "update"->"Atualizar ferramentas"
+    "self_test"->"Verificar ferramentas"
+    "audio_read","audio_edit"->"Editar metadados"
+    "normalize_preview"->"Ouvir normalizado"
+    "image_preview"->"Ver prévia"
+    "image_convert"->"Baixar agora"
+    "search"->"Pesquisar músicas"
+    "collection"->"Carregar álbum ou playlist"
+    "import"->"Importar arquivo"
+    "matches"->"Conferir correspondências"
+    "export_list"->"Exportar lista"
+    "probe"->"Escolher arquivo de áudio"
+    else->"ONDA"
+}
+
+private fun importNoticeTitle(category:String)=when(category) {
+    "preferences"->"Importar configurações"
+    "cover"->"Escolher outra capa"
+    "cookies"->"Importar cookies.txt"
+    "lyrics"->"Importar letra"
+    "flac-browser"->"Escolher arquivo FLAC"
+    "audio-editor"->"Editar metadados"
+    "audio"->"Usar em efeitos"
+    "image"->"Escolher imagem"
+    "playlist"->"Importar álbum ou playlist"
+    else->"Importar arquivo"
+}
+
 class OndaViewModel(application: Application) : AndroidViewModel(application) {
     private val titleSlots=kotlinx.coroutines.sync.Semaphore(2)
     val effectsSource=MutableStateFlow("")
@@ -27,7 +63,9 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
     val collection=MutableStateFlow(JSONObject())
     val busy=MutableStateFlow(false)
     val status=MutableStateFlow("")
-    val dialogNotice=MutableStateFlow("")
+    val dialogNotice=MutableStateFlow<DialogNotice?>(null)
+    fun showNotice(title:String,message:String) {dialogNotice.value=DialogNotice(title,message)}
+    fun dismissNotice() {dialogNotice.value=null}
     val queryId=MutableStateFlow("")
     private var previewFromDialog=false
     val player=ExoPlayer.Builder(application).build()
@@ -37,7 +75,7 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
         override fun onEvents(player: androidx.media3.common.Player, events: androidx.media3.common.Player.Events) {
             previewActive.value=player.playWhenReady && player.playbackState in listOf(androidx.media3.common.Player.STATE_BUFFERING,androidx.media3.common.Player.STATE_READY)
         }
-        override fun onPlayerError(error:androidx.media3.common.PlaybackException) {previewActive.value=false;val text="Não foi possível reproduzir esta prévia. Tente novamente ou escolha outra faixa.";if(previewFromDialog) dialogNotice.value=text else status.value=text}
+        override fun onPlayerError(error:androidx.media3.common.PlaybackException) {previewActive.value=false;val text="Não foi possível reproduzir esta prévia. Tente novamente ou escolha outra faixa.";if(previewFromDialog) showNotice("Ouvir prévia",text) else status.value=text}
     })}
     private var previewLimit: Job?=null
     val effectsPreviewEnabled=MutableStateFlow(false)
@@ -95,7 +133,7 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
         effectRequests.trySend(effectRevision to JSONObject().put("source",source).put("speed",speed).put("reverb",reverb).put("keep_pitch",pitch).put("start",start).put("duration",OndaStore.settings.value.optInt("effects_preview",25)))
     }
     fun operation(action: String, payload: JSONObject, dialog: Boolean=false, finished: (JSONObject)->Unit = {}) {
-        fun report(text:String) {if(dialog) dialogNotice.value=text else status.value=text}
+        fun report(text:String) {if(dialog) showNotice(operationNoticeTitle(action),text) else status.value=text}
         if(busy.value) { report("Aguarde a operação atual ou cancele."); return }
         val id=UUID.randomUUID().toString()
         busy.value=true; queryId.value=id; status.value="Preparando…"
@@ -113,6 +151,13 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
                         else->if(event.has("message")) status.value=event.optString("message")
                     }
                 }) }
+                if(!result.has("error") && action=="audio_edit" && payload.optBoolean("overwrite_original")) {
+                    withContext(Dispatchers.IO) {
+                        val edited=java.io.File(result.getString("path"))
+                        try { OndaStore.overwriteAudio(edited,payload) }
+                        finally {edited.delete();java.io.File(edited.parentFile,edited.nameWithoutExtension+".lrc").delete()}
+                    }
+                }
                 if(result.has("error")) report(result.optString("error")) else {
                     report(result.optString("message","Concluído"))
                     finished(result)
@@ -131,7 +176,7 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
     }
     fun connectSpotify() {
         if(OndaStore.settings.value.optString("spotify_client_id").isBlank()) {
-            dialogNotice.value="Preencha o Spotify Client ID antes de conectar sua conta. O Client Secret é opcional para esta conexão."
+            showNotice("Conectar Spotify","Preencha o Spotify Client ID antes de conectar sua conta. O Client Secret é opcional para esta conexão.")
             return
         }
         operation("spotify_connect",OndaStore.config(),dialog=true)
@@ -147,7 +192,7 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
                 val file=withContext(Dispatchers.IO) {OndaStore.importDocument(uri,category)}
                 status.value="Arquivo importado"
                 finished(file)
-            } catch(error: Exception) {val message=error.message ?: "Não foi possível importar o arquivo";if(dialog) dialogNotice.value=message else status.value=message}
+            } catch(error: Exception) {val message=error.message ?: "Não foi possível importar o arquivo";if(dialog) showNotice(importNoticeTitle(category),message) else status.value=message}
         }
     }
     fun enqueueLink(url: String, immediate: Boolean=false): String {
@@ -184,7 +229,7 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
             status.value="Preparando prévia da versão escolhida…"
             try {
                 val result=withContext(Dispatchers.IO) {MobileEngine.call(getApplication(),UUID.randomUUID().toString(),"resolve_preview",OndaStore.config().put("url",url),EventCallback {})}
-                if(result.has("error")) {dialogNotice.value=result.getString("error");return@launch}
+                if(result.has("error")) {showNotice("Ouvir prévia",result.getString("error"));return@launch}
                 val headers=result.optJSONObject("headers") ?: JSONObject()
                 val properties=headers.keys().asSequence().associateWith {headers.getString(it)}
                 val http=DefaultHttpDataSource.Factory().setDefaultRequestProperties(properties)
@@ -193,7 +238,7 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
                 previewLimit?.cancel()
                 previewLimit=viewModelScope.launch {delay(OndaStore.settings.value.optInt("search_preview",25)*1000L);player.pause()}
                 status.value="Prévia da versão selecionada"
-            } catch(error: Exception) {dialogNotice.value=error.message ?: "Não foi possível ouvir a prévia"}
+            } catch(error: Exception) {showNotice("Ouvir prévia",error.message ?: "Não foi possível ouvir a prévia")}
         }
     }
     fun queueTrack(record: JSONObject, options: JSONObject=OndaStore.settings.value, group: String?=null, origin: String="", immediate: Boolean=false): String {

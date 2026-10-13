@@ -51,8 +51,8 @@ def transfer(app,importing):
             path=filedialog.asksaveasfilename(parent=app.settings_window,initialfile='ONDA-configuracoes.json',defaultextension='.json')
             if not path:return
             Path(path).write_text(json.dumps(export_settings({k:v.get() for k,v in app.preference_fields.items()},'windows'),ensure_ascii=False,indent=2),encoding='utf-8')
-        messagebox.showinfo('Configurações','Configurações importadas.' if importing else 'Configurações exportadas.',parent=app.settings_window)
-    except Exception as error:messagebox.showerror('Configurações',str(error),parent=app.settings_window)
+        messagebox.showinfo('Importar configurações' if importing else 'Exportar configurações','Configurações importadas.' if importing else 'Configurações exportadas.',parent=app.settings_window)
+    except Exception as error:messagebox.showerror('Importar configurações' if importing else 'Exportar configurações',str(error),parent=app.settings_window)
 
 def check_update(app,manual=False):
     from advanced_options import release_update
@@ -82,39 +82,102 @@ class AudioEditor(tk.Toplevel):
         from audio_tools import PreviewPlayer
         self.app=app;self.source=Path(path);self.title('ONDA • Editar áudio');self.geometry('640x690');self.transient(app)
         self.player=PreviewPlayer();self.results=queue.Queue();self.busy=False;self.preview_path=None
-        self.edit=tk.BooleanVar(value=True);self.normalize=tk.BooleanVar(value=False);self.fields={};self.cover='';self.lyrics=''
-        body=ttk.Frame(self,padding=20);body.pack(fill='both',expand=True)
-        ttk.Label(body,text=self.source.name,wraplength=570,font=('Segoe UI',13,'bold')).pack(fill='x',pady=8)
+        self.edit=tk.BooleanVar(value=True);self.normalize=tk.BooleanVar(value=False);self.overwrite=tk.BooleanVar(value=False);self.fields={};self.cover='';self.lyrics=''
+        import tempfile
+        self.cover_temp=tempfile.TemporaryDirectory(prefix='onda-covers-')
+        from settings_scroll import SettingsCategory
+        scroll=SettingsCategory(self,ttk.Style(self).lookup('TFrame','background'));scroll.pack(fill='both',expand=True)
+        body=scroll.content
+        self.bind('<MouseWheel>',scroll.wheel)
+        from audio_library import cover_preview
+        self.original_cover=cover_preview(self.source)
+        header=ttk.Frame(body);header.pack(fill='x',pady=6)
+        details=ttk.Frame(header);details.pack(side='left',fill='x',expand=True)
+        ttk.Label(details,text=self.source.name,wraplength=440,font=('Segoe UI',13,'bold')).pack(fill='x')
         ttk.Checkbutton(body,text='Editar metadados',variable=self.edit,command=self.toggle).pack(anchor='w')
         self.record=record
         self.entries=[]
         for key,label in (('title','Música'),('artists','Artistas (separados por ;)'),('album','Álbum'),('genre','Gênero'),('release_date','Data')):
-            ttk.Label(body,text=label).pack(anchor='w',pady=(6,0));value=self.record.get(key,'');var=tk.StringVar(value='; '.join(value) if isinstance(value,list) else value);self.fields[key]=var
+            ttk.Label(body,text=label).pack(anchor='w',pady=(4,0));value=self.record.get(key,'');var=tk.StringVar(value='; '.join(value) if isinstance(value,list) else value);self.fields[key]=var
             entry=ttk.Entry(body,textvariable=var);entry.pack(fill='x');self.entries.append(entry)
-        ttk.Button(body,text='Escolher outra capa…',command=self.pick_cover).pack(anchor='w',pady=6)
+        lower=ttk.Frame(body);lower.pack(fill='x',pady=(10,0))
+        controls=ttk.Frame(lower);controls.pack(side='left',fill='both',expand=True)
+        artwork=ttk.Frame(lower);artwork.pack(side='right',padx=(10,0))
+        self.cover_image_label=ttk.Label(artwork,text='Sem capa',width=20,anchor='center')
+        self.cover_image_label.pack()
+        ttk.Button(artwork,text='Escolher outra capa…',command=self.pick_cover).pack(fill='x',pady=(6,0))
+        self.crop_cover_button=ttk.Button(artwork,text='Ajustar capa',command=self.adjust_cover,state='disabled')
+        self.crop_cover_button.pack(fill='x')
+        self.undo_cover_button=ttk.Button(artwork,text='Desfazer capa',command=self.undo_cover,state='disabled')
+        self.undo_cover_button.pack(fill='x')
+        self.show_cover(self.original_cover)
         self.lyrics_label=tk.StringVar(value='Letra opcional · TXT ou LRC')
-        ttk.Button(body,textvariable=self.lyrics_label,command=self.pick_lyrics).pack(anchor='w')
-        ttk.Checkbutton(body,text='Normalizar volume (−16 LUFS)',variable=self.normalize).pack(anchor='w',pady=12)
-        actions=ttk.Frame(body);actions.pack(fill='x')
+        ttk.Button(controls,textvariable=self.lyrics_label,command=self.pick_lyrics).pack(anchor='w')
+        ttk.Checkbutton(controls,text='Normalizar volume (−16 LUFS)',variable=self.normalize).pack(anchor='w',pady=6)
+        actions=ttk.Frame(controls);actions.pack(fill='x')
         ttk.Button(actions,text='Ouvir original',command=lambda:self.player.play(self.source,app.ffmpeg.get(),duration=20)).pack(side='left')
         ttk.Button(actions,text='Ouvir normalizado',command=lambda:self.run(True)).pack(side='left',padx=5)
         ttk.Button(actions,text='Parar',command=self.player.stop).pack(side='left')
-        ttk.Button(body,text='Salvar cópia editada',style='Accent.TButton',command=lambda:self.run(False)).pack(anchor='e',pady=12)
+        ttk.Checkbutton(controls,text='Sobrescrever arquivo original',variable=self.overwrite,command=self.save_mode).pack(anchor='w',pady=(4,0))
+        self.save_text=tk.StringVar(value='Salvar cópia editada')
+        ttk.Button(artwork,textvariable=self.save_text,style='Accent.TButton',command=lambda:self.run(False)).pack(fill='x',pady=(6,0))
         self.status=tk.StringVar(value='O arquivo original será preservado.');ttk.Label(body,textvariable=self.status,wraplength=570).pack(fill='x')
         self.protocol('WM_DELETE_WINDOW',self.close);self._poll=self.after(100,self.poll)
 
+    def save_mode(self):
+        self.save_text.set('Salvar no original' if self.overwrite.get() else 'Salvar cópia editada')
+        if not self.busy:self.status.set('O arquivo original será substituído, mantendo o nome e a pasta.' if self.overwrite.get() else 'O arquivo original será preservado.')
     def toggle(self):
         for entry in self.entries:entry.configure(state='normal' if self.edit.get() else 'disabled')
-    def pick_cover(self):self.cover=filedialog.askopenfilename(parent=self,filetypes=[('Capas','*.png *.jpg *.jpeg')]) or self.cover
+    def show_cover(self,data):
+        from PIL import Image,ImageTk
+        import base64,io
+        self.cover_photo=None
+        if data:
+            with Image.open(io.BytesIO(base64.b64decode(data))) as image:
+                image.thumbnail((180,180));self.cover_photo=ImageTk.PhotoImage(image.copy(),master=self)
+        self.cover_image_label.configure(image=self.cover_photo or '',text='' if self.cover_photo else 'Sem capa')
+    def undo_cover(self):
+        if self.busy:return
+        if self.cover:Path(self.cover).unlink(missing_ok=True)
+        self.cover='';self.show_cover(self.original_cover);self.undo_cover_button.configure(state='disabled');self.crop_cover_button.configure(state='disabled')
+    def pick_cover(self):
+        if self.busy:return
+        path=filedialog.askopenfilename(parent=self,filetypes=[('Capas','*.png *.jpg *.jpeg')])
+        if not path:return
+        try:
+            from review import local_cover
+            import base64,uuid
+            data=local_cover(path)[0]
+            destination=Path(self.cover_temp.name)/(uuid.uuid4().hex+Path(path).suffix.lower())
+            destination.write_bytes(data)
+            self.show_cover(base64.b64encode(data))
+            if self.cover:Path(self.cover).unlink(missing_ok=True)
+            self.cover=str(destination)
+            self.undo_cover_button.configure(state='normal');self.crop_cover_button.configure(state='normal')
+        except Exception as error:messagebox.showerror('Escolher outra capa',str(error),parent=self)
+    def adjust_cover(self):
+        if self.busy or not self.cover:return
+        try:
+            from cover_crop_ui import CoverCropper
+            import uuid
+            destination=Path(self.cover_temp.name)/(uuid.uuid4().hex+'.png')
+            def accepted(cropped):
+                import base64
+                if self.cover:Path(self.cover).unlink(missing_ok=True)
+                self.cover=cropped;self.show_cover(base64.b64encode(Path(cropped).read_bytes()))
+                self.undo_cover_button.configure(state='normal')
+            CoverCropper(self,self.cover,destination,accepted)
+        except Exception as error:messagebox.showerror('Ajustar capa',str(error),parent=self)
     def pick_lyrics(self):
         self.lyrics=filedialog.askopenfilename(parent=self,filetypes=[('Letras','*.lrc *.txt')]) or self.lyrics
         if self.lyrics:self.lyrics_label.set(Path(self.lyrics).name)
     def run(self,preview):
         if self.busy:return
-        self.busy=True;self.status.set('Preparando prévia…' if preview else 'Salvando cópia…')
+        self.busy=True;self.status.set('Preparando prévia…' if preview else 'Salvando no original…' if self.overwrite.get() else 'Salvando cópia…')
         self.player.stop()
         changes={k:v.get() for k,v in self.fields.items()};changes['artists']=[s.strip() for s in changes['artists'].split(';') if s.strip()]
-        config={'source':str(self.source),'folder':str(self.source.parent),'ffmpeg':self.app.ffmpeg.get(),'edit_metadata':self.edit.get(),'changes':changes,'cover_path':self.cover,'lyrics_path':self.lyrics,'normalize_volume':self.normalize.get()}
+        config={'source':str(self.source),'folder':str(self.source.parent),'ffmpeg':self.app.ffmpeg.get(),'edit_metadata':self.edit.get(),'changes':changes,'cover_path':self.cover,'lyrics_path':self.lyrics,'normalize_volume':self.normalize.get(),'overwrite_original':self.overwrite.get()}
         def worker():
             try:
                 from audio_library import normalize_audio,edit_copy
@@ -129,11 +192,19 @@ class AudioEditor(tk.Toplevel):
             elif result.get('preview'):
                 self.preview_path=Path(result['preview']);self.player.play(self.preview_path,self.app.ffmpeg.get(),duration=20);self.status.set('Prévia normalizada · 20 segundos')
             else:
-                self.app.record_history(result['path'],result['mode'].upper(),'');self.status.set('Salvo: '+result['path'])
+                if result.get('overwritten'):
+                    self.app.history_page.refresh()
+                    from audio_library import cover_preview
+                    self.original_cover=cover_preview(self.source);self.cover='';self.show_cover(self.original_cover)
+                    self.crop_cover_button.configure(state='disabled')
+                    self.undo_cover_button.configure(state='disabled')
+                else:self.app.record_history(result['path'],result['mode'].upper(),'')
+                self.status.set('Salvo: '+result['path'])
         except queue.Empty:pass
         self._poll=self.after(100,self.poll)
     def close(self):
         if self.busy:self.status.set('Aguarde o processamento terminar antes de fechar.');return
         self.player.stop()
         if self.preview_path:self.preview_path.unlink(missing_ok=True)
+        self.cover_temp.cleanup()
         self.after_cancel(self._poll);self.destroy()

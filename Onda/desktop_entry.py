@@ -71,7 +71,7 @@ def self_test(target):
                 app.update()
                 report["tabs"] = len(app.pages.tabs())
                 report["downloads"] = app.folder.get()
-                report["ok"] = report["tabs"] == 6
+                report["ok"] = report["tabs"] == 7
             finally:
                 app.destroy()
     except Exception:

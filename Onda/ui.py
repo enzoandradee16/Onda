@@ -17,13 +17,14 @@ FORMAT_LABELS = {"Vídeo (MKV)": "video", "Vídeo (MP4)": "mp4", "MP3": "mp3", "
 class UiMixin:
     def _style(self):
         from appearance import palette
-        from interface_fonts import font_family
+        from interface_fonts import font_family, font_scale
+        scale = font_scale(self.interface_font_size.get())
         family = font_family(self, self.interface_font.get())
         colors = palette(self.theme_mode.get(), self.theme_accent.get())
         BG, SURFACE, INPUT, TEXT, MUTED, ACCENT, LINE = (colors[key] for key in ('bg','surface','input','text','muted','accent','line'))
         style = ttk.Style(self)
         style.theme_use("clam")
-        style.configure(".", background=BG, foreground=TEXT, font=(family, 10),
+        style.configure(".", background=BG, foreground=TEXT, font=(family, round(10 * scale)),
                         bordercolor=LINE, lightcolor=LINE, darkcolor=LINE)
         style.configure("TFrame", background=BG)
         style.configure("Card.TFrame", background=SURFACE)
@@ -41,7 +42,7 @@ class UiMixin:
         style.configure("Quiet.TButton", background=BG, foreground=MUTED, padding=(10, 7))
         style.map("Quiet.TButton", background=[("active", SURFACE), ("disabled", BG)],
                   foreground=[("active", TEXT), ("disabled", colors["disabled"])])
-        style.configure("Accent.TButton", background=ACCENT, foreground=colors["accent_text"], font=(family, 10, "bold"))
+        style.configure("Accent.TButton", background=ACCENT, foreground=colors["accent_text"], font=(family, round(10 * scale), "bold"))
         style.map("Accent.TButton", background=[("active", colors["accent_hover"]), ("disabled", colors["line"])],
                   foreground=[("disabled", colors["muted"]), ("!disabled", colors["accent_text"])])
         style.configure("TEntry", fieldbackground=INPUT, foreground=TEXT, insertcolor=TEXT,
@@ -54,17 +55,17 @@ class UiMixin:
         style.configure("TCheckbutton", background=BG, foreground=MUTED)
         style.map("TCheckbutton", background=[("active", BG)])
         style.configure("Treeview", background=SURFACE, fieldbackground=SURFACE, foreground=TEXT,
-                        rowheight=44, borderwidth=0, relief="flat")
+                        rowheight=round(44 * scale), borderwidth=0, relief="flat")
         style.layout("Treeview", [("Treeview.treearea", {"sticky": "nswe"})])
         style.configure("Treeview.Heading", background=SURFACE, foreground=MUTED,
-                        font=(family, 9), padding=(12, 12), borderwidth=0, relief="flat")
+                        font=(family, round(9 * scale)), padding=(12, 12), borderwidth=0, relief="flat")
         style.map("Treeview.Heading", background=[("active", SURFACE)])
         style.map("Treeview", background=[("selected", colors["selected"])], foreground=[("selected", TEXT)])
         style.configure("Horizontal.TProgressbar", background=ACCENT, troughcolor=LINE,
                         borderwidth=0, thickness=4, lightcolor=ACCENT, darkcolor=ACCENT)
         style.configure("Vertical.TScrollbar", background=LINE, troughcolor=SURFACE,
                         arrowcolor=MUTED, borderwidth=0, arrowsize=12)
-        self.option_add("*TCombobox*Listbox.font", (family, 10))
+        self.option_add("*TCombobox*Listbox.font", (family, round(10 * scale)))
         self.option_add("*TCombobox*Listbox.background", INPUT)
         self.option_add("*TCombobox*Listbox.foreground", TEXT)
         self.option_add("*TCombobox*Listbox.selectBackground", colors["selected"])
@@ -107,11 +108,13 @@ class UiMixin:
         self.pages.add(self.playlist_page, text="Álbuns e playlists")
         self.pages.add(self.history_page, text="Histórico")
         self.pages.add(self.effects_page, text="Slowed / Sped Up")
+        self.metadata_page = LazyPane(self.pages, self, "audio_editor_ui", "MetadataPane")
+        self.pages.add(self.metadata_page, text="Editar metadados")
         from tab_order import TabReorder
         self.tab_reorder = TabReorder(self.pages, {
             'catalog': self.catalog_page, 'downloads': self.download_page,
             'images': self.images_page, 'playlists': self.playlist_page,
-            'history': self.history_page, 'effects': self.effects_page,
+            'history': self.history_page, 'effects': self.effects_page, 'metadata': self.metadata_page,
         }, self.tab_order.get(), lambda order: self.tab_order.set(tuple(order)))
         self.pages.bind("<<NotebookTabChanged>>", self.tab_changed)
         main = self.download_page
@@ -199,8 +202,9 @@ class UiMixin:
         progress = ttk.Frame(main)
         progress.grid(row=5, column=0, sticky="ew", pady=(12, 0))
         progress.columnconfigure(0, weight=1)
-        self.status_label = ttk.Label(progress, textvariable=self.status, font=("Segoe UI", 10, "bold"), wraplength=760)
+        self.status_label = ttk.Label(progress, textvariable=self.notice_display, font=("Segoe UI", 10, "bold"), wraplength=760)
         self.status_label.grid(row=0, column=0, sticky="w")
+        ttk.Button(progress,text="×",style="Quiet.TButton",command=lambda:self.status_notice.dismiss()).grid(row=0,column=2,sticky="e")
         self.progress_text = tk.StringVar(value="")
         ttk.Label(progress, textvariable=self.progress_text, foreground=ACCENT).grid(row=0, column=1, sticky="e", padx=(12, 0))
         self.bar = ttk.Progressbar(progress, mode="determinate", maximum=100)
@@ -312,7 +316,9 @@ class UiMixin:
         ttk.Label(appearance, text='Cor de destaque', style='Muted.TLabel').pack(anchor='w')
         self.theme_accent_combo = ttk.Combobox(appearance, textvariable=self.theme_accent, values=tuple(ACCENTS), state='readonly', width=28)
         self.theme_accent_combo.pack(anchor='w', fill='x', pady=(6, 16))
-        from interface_fonts import font_choices, FONT_PREVIEW
+        from interface_fonts import font_choices, FONT_PREVIEW, FONT_SIZES
+        ttk.Label(appearance, text="Alterar tamanho da fonte").pack(anchor="w", pady=(12, 4))
+        ttk.Combobox(appearance, textvariable=self.interface_font_size, values=FONT_SIZES, state="readonly", width=12).pack(anchor="w")
         ttk.Label(appearance, text='Fonte da interface', style='Muted.TLabel').pack(anchor='w')
         self.interface_font_combo = ttk.Combobox(appearance, textvariable=self.interface_font, values=font_choices(self), state='readonly', width=28)
         self.interface_font_combo.pack(anchor='w', fill='x', pady=(6, 12))
@@ -331,6 +337,10 @@ class UiMixin:
         ttk.Label(general, text="Ative para recuperar suas opções ao abrir o aplicativo novamente.",
                   style="Muted.TLabel", wraplength=480).pack(anchor="w")
 
+        from status_notice import NOTICE_DURATIONS
+        ttk.Label(general,text="Duração dos avisos").pack(anchor="w",pady=(12,4))
+        ttk.Combobox(general,textvariable=self.notice_duration,values=tuple(NOTICE_DURATIONS),state="readonly").pack(anchor="w",fill="x")
+        ttk.Label(general,text="Avisos de operações em andamento permanecem até terminar. O botão × permite fechar manualmente.",style="Muted.TLabel",wraplength=480).pack(anchor="w",pady=(6,0))
         ttk.Separator(general).pack(fill='x', pady=18)
         ttk.Label(general, text='Restaurar configurações', font=('Segoe UI', 13, 'bold')).pack(anchor='w', pady=(0, 8))
         from reset_settings import show_reset

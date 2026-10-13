@@ -75,15 +75,15 @@ class AdvancedFeatureTest {
         try {
             compose.onNodeWithTag("open-menu").performClick();compose.onNodeWithTag("tab-Histórico").performClick()
             compose.onNodeWithText("Pesquisar no histórico").performTextInput("Histórico teste")
-            compose.onAllNodesWithText("Editar áudio / letra").onFirst().performScrollTo().performClick()
+            compose.onAllNodesWithText("Editar metadados").onFirst().performScrollTo().performClick()
             compose.waitUntil(15000) {!vm.busy.value && compose.onAllNodesWithText("Música").fetchSemanticsNodes().isNotEmpty()}
-            compose.onNodeWithText("Música").performTextReplacement("Título corrigido no Android")
+            compose.onNodeWithText("Música").performScrollTo().performTextReplacement("Título corrigido no Android")
             compose.onNodeWithText("Normalizar volume (−16 LUFS)").performScrollTo().assertIsDisplayed()
-            compose.onNodeWithText("Salvar cópia editada").assertIsEnabled().performClick()
+            compose.onNodeWithText("Salvar cópia editada").performScrollTo().assertIsEnabled().performClick()
             compose.waitUntil(30000) {!vm.busy.value}
             assertEquals("Mensagem: ${vm.dialogNotice.value}; status: ${vm.status.value}",2,OndaStore.history.value.count {it.id !in before})
-            compose.onNodeWithText("Cópia editada salva na pasta de destino.").assertIsDisplayed()
-            compose.onNodeWithText("OK").performClick();compose.onNodeWithText("Fechar").performClick()
+            compose.onNodeWithTag("app-status").assertTextEquals("Cópia editada salva na pasta de destino.").assertIsDisplayed()
+            compose.onNodeWithText("Escolher outro arquivo").performScrollTo().performClick()
             assertEquals(2,OndaStore.history.value.count {it.id !in before})
         } finally {
             InstrumentationRegistry.getInstrumentation().runOnMainSync {vm.stopPreview()}

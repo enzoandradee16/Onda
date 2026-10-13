@@ -34,12 +34,14 @@ class PlaylistPane(ttk.Frame):
         self._render_generation = 0
         self.filter_count = tk.StringVar(value="Carregue um álbum ou playlist")
         self.playlist_title = ""
+        self.cover_generation = 0
+        self.cover_image = None
         self.events = queue.Queue()
         self.generation = 0
         self.closed = False
         self.busy = False
         self.columnconfigure(0, weight=1)
-        self.rowconfigure(5, weight=1)
+        self.rowconfigure(6, weight=1)
         ttk.Label(self, text="Seus álbuns e playlists na biblioteca.", font=("Segoe UI", 21, "bold"), anchor="center").grid(row=0, column=0, sticky="ew")
         row = ttk.Frame(self)
         row.grid(row=1, column=0, sticky="ew", pady=18)
@@ -78,8 +80,18 @@ class PlaylistPane(ttk.Frame):
         self.fps_combo = ttk.Combobox(formats, textvariable=app.playlist_fps, values=list(FPS_OPTIONS), state="readonly", width=13)
         self.fps_combo.grid(row=1, column=2, sticky="ew", pady=(4, 0))
         self.format_changed()
+        self.collection_card = ttk.Frame(self, padding=10, style="Card.TFrame")
+        self.collection_card.grid(row=4,column=0,sticky="ew",pady=(0,10))
+        self.collection_card.columnconfigure(1,weight=1)
+        self.collection_cover=ttk.Label(self.collection_card,text="♫",style="Card.TLabel",anchor="center",width=8)
+        self.collection_cover.grid(row=0,column=0,rowspan=2,padx=(0,12))
+        self.collection_name=ttk.Label(self.collection_card,style="Card.TLabel",font=("Segoe UI",13,"bold"))
+        self.collection_name.grid(row=0,column=1,sticky="w")
+        self.collection_detail=ttk.Label(self.collection_card,style="CardMuted.TLabel")
+        self.collection_detail.grid(row=1,column=1,sticky="w")
+        self.collection_card.grid_remove()
         search = ttk.Frame(self)
-        search.grid(row=4, column=0, sticky="ew", pady=(0, 12))
+        search.grid(row=5, column=0, sticky="ew", pady=(0, 12))
         ttk.Label(search, text="Buscar nesta lista", style="Muted.TLabel").pack(anchor="w", pady=(0, 6))
         search_row = ttk.Frame(search)
         search_row.pack(fill="x")
@@ -90,7 +102,7 @@ class PlaylistPane(ttk.Frame):
         self.search_entry.bind("<Escape>", lambda _: self.filter_text.set(""))
         self.filter_text.trace_add("write", self.schedule_filter)
         panel = ttk.Frame(self)
-        panel.grid(row=5, column=0, sticky="nsew")
+        panel.grid(row=6, column=0, sticky="nsew")
         self.table = ttk.Treeview(panel, columns=("title", "artist", "duration", "match"), show="headings", selectmode="extended")
         for key, label, width in (("title", "MÚSICA", 270), ("artist", "ARTISTA", 170), ("duration", "DURAÇÃO", 85), ("match", "VERSÃO DE ÁUDIO", 270)):
             self.table.heading(key, text=label)
@@ -99,7 +111,7 @@ class PlaylistPane(ttk.Frame):
         ttk.Scrollbar(panel, command=self.table.yview).pack(side="right", fill="y")
         self.table.configure(yscrollcommand=panel.winfo_children()[-1].set)
         controls = ttk.Frame(self)
-        controls.grid(row=6, column=0, sticky="ew", pady=12)
+        controls.grid(row=7, column=0, sticky="ew", pady=12)
         ttk.Button(controls, text="Selecionar visíveis", command=lambda: self.table.selection_set(self.table.get_children())).pack(side="left")
         self.check_button = ttk.Button(controls, text="Conferir correspondências", command=self.check)
         self.check_button.pack(side="left", padx=8)
@@ -108,10 +120,10 @@ class PlaylistPane(ttk.Frame):
         self.add_button = ttk.Button(controls, text="Adicionar à fila", command=self.add)
         self.add_button.pack(side="right", padx=(0, 8))
         self.confirm_version_check = ttk.Checkbutton(self, text="Confirmar a versão de cada música antes de baixar", variable=self.confirm_version)
-        self.confirm_version_check.grid(row=7, column=0, sticky="w", pady=6)
+        self.confirm_version_check.grid(row=8, column=0, sticky="w", pady=6)
         self.auto_match_trace = app.auto_match.trace_add("write", self.sync_auto_match)
         self.sync_auto_match()
-        ttk.Label(self, text="Busque por música ou artista. As ações usam somente os itens visíveis selecionados. Formato e qualidade são próprios desta aba. Streaming: FLAC usa Monochrome; MP3/M4A usam YouTube. Vídeo vira MP3 e original vira M4A.", style="Muted.TLabel", wraplength=790).grid(row=8, column=0, sticky="w", pady=8)
+        ttk.Label(self, text="Busque por música ou artista. As ações usam somente os itens visíveis selecionados. Formato e qualidade são próprios desta aba. Streaming: FLAC usa Monochrome; MP3/M4A usam YouTube. Vídeo vira MP3 e original vira M4A.", style="Muted.TLabel", wraplength=790).grid(row=9, column=0, sticky="w", pady=8)
         self.poll_id = self.after(100, self.poll)
 
     def sync_auto_match(self, *_):
@@ -234,6 +246,22 @@ class PlaylistPane(ttk.Frame):
     def display(self, result):
         self.playlist_title = result.get("title") or "Playlist"
         self.playlist_folder_title = result.get("folder_title") or self.playlist_title
+        self.cover_generation += 1
+        self.collection_card.grid()
+        self.collection_name.configure(text=self.playlist_title)
+        detail=" · ".join(str(value) for value in (result.get("subtitle"), "Álbum" if result.get("kind")=="album" else "Playlist", f"{len(result['tracks'])} músicas") if value)
+        self.collection_detail.configure(text=detail)
+        self.collection_cover.configure(image="",text="♫")
+        self.cover_image=None
+        if result.get("cover_url"):
+            generation, cover_generation, url=self.generation,self.cover_generation,result["cover_url"]
+            def load_cover():
+                try:
+                    from catalog_ui import cover_png
+                    image=cover_png(url)
+                except Exception:image=None
+                self.events.put((generation,"cover",(cover_generation,image)))
+            threading.Thread(target=load_cover,daemon=True).start()
         for key in self.records:
             if self.table.exists(key):
                 self.table.delete(key)
@@ -394,7 +422,12 @@ class PlaylistPane(ttk.Frame):
                 break
             if generation != self.generation:
                 continue
-            if kind == "loaded":
+            if kind == "cover":
+                if value[0]==self.cover_generation and value[1]:
+                    import base64
+                    self.cover_image=tk.PhotoImage(data=base64.b64encode(value[1]))
+                    self.collection_cover.configure(image=self.cover_image,text="",width=0)
+            elif kind == "loaded":
                 self.display(value)
             elif kind == "error":
                 self.status.set(value)

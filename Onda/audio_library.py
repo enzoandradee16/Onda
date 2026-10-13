@@ -26,6 +26,35 @@ def read_audio(source):
     record['duration']=getattr(audio.info,'length',0)
     return record
 
+def cover_preview(source):
+    """Small PNG preview of embedded front artwork; never changes the audio."""
+    import base64, io
+    from mutagen import File
+    from mutagen.id3 import ID3
+    from mutagen.flac import Picture
+    from PIL import Image
+    try:
+        audio=File(source)
+        tags=audio.tags or {}
+        data=None
+        if isinstance(tags,ID3):
+            pictures=tags.getall('APIC')
+            picture=next((p for p in pictures if p.type==3),next(iter(pictures),None))
+            data=picture.data if picture else None
+        elif getattr(audio,'pictures',None):
+            picture=next((p for p in audio.pictures if p.type==3),audio.pictures[0]);data=picture.data
+        elif tags.get('covr'):data=bytes(tags['covr'][0])
+        elif tags.get('metadata_block_picture'):
+            pictures=[Picture(base64.b64decode(value)) for value in tags['metadata_block_picture']]
+            picture=next((p for p in pictures if p.type==3),pictures[0]);data=picture.data
+        if not data:return ''
+        with Image.open(io.BytesIO(data)) as image:
+            image.thumbnail((240,240))
+            output=io.BytesIO();image.convert('RGB').save(output,format='PNG')
+            return base64.b64encode(output.getvalue()).decode('ascii')
+    except Exception:return ''
+
+
 def lyrics_text(path):
     source=Path(path)
     if source.suffix.lower() not in ('.txt','.lrc') or source.stat().st_size>1024*1024:
@@ -130,7 +159,9 @@ def edit_copy(config, emit=lambda *args,**kwargs:None):
     from file_output import publish
     source=Path(config['source']).resolve()
     read_audio(source)
-    folder=Path(config.get('folder') or source.parent).resolve();folder.mkdir(parents=True,exist_ok=True)
+    overwrite=bool(config.get('overwrite_original'))
+    original_stat=source.stat()
+    folder=(source.parent if overwrite else Path(config.get('folder') or source.parent).resolve());folder.mkdir(parents=True,exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='.onda-edit-',dir=folder) as directory:
         from file_output import component
         target=Path(directory)/(component(config.get('output_name') or source.stem)+' - Editada'+source.suffix)
@@ -138,7 +169,15 @@ def edit_copy(config, emit=lambda *args,**kwargs:None):
         if config.get('normalize_volume'):normalize_audio(target,config,emit)
         if config.get('edit_metadata'):write_audio(target,config.get('changes',{}),config.get('cover_path',''),config.get('lyrics_path',''))
         elif config.get('lyrics_path'):write_audio(target,{},lyrics=config['lyrics_path'])
-        final,_=publish(target,folder,'keep',None)
+        if overwrite:
+            current=source.stat()
+            if (current.st_mtime_ns,current.st_size)!=(original_stat.st_mtime_ns,original_stat.st_size):
+                raise ValueError('O arquivo original mudou durante a edição. Abra-o novamente antes de salvar.')
+            shutil.copymode(source,target)
+            os.replace(target,source)
+            final=str(source)
+        else:
+            final,_=publish(target,folder,'keep',None)
     if config.get('lyrics_path') and Path(config['lyrics_path']).suffix.lower()=='.lrc':
         Path(final).with_suffix('.lrc').write_text(lyrics_text(config['lyrics_path']),encoding='utf-8')
-    return {'path':final,'mode':source.suffix.lstrip('.'),'size':Path(final).stat().st_size}
+    return {'path':final,'mode':source.suffix.lstrip('.'),'size':Path(final).stat().st_size,'overwritten':overwrite}

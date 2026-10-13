@@ -14,7 +14,15 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class NavigationTest {
-    @get:Rule val compose=createAndroidComposeRule<MainActivity>()
+    @get:Rule(order=0) val permissions=object:org.junit.rules.ExternalResource() {
+        override fun before() {
+            if(android.os.Build.VERSION.SDK_INT>=33) {
+                val instrumentation=InstrumentationRegistry.getInstrumentation()
+                instrumentation.uiAutomation.grantRuntimePermission(instrumentation.targetContext.packageName,android.Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+    }
+    @get:Rule(order=1) val compose=createAndroidComposeRule<MainActivity>()
 
     @Test fun spotifyConnectAppearsOnlyForSpotifyAndValidatesClientId() {
         compose.waitForIdle()
@@ -31,7 +39,7 @@ class NavigationTest {
             compose.onNodeWithText("Client ID").assertIsDisplayed()
             assertFalse(vm.busy.value)
             compose.onNodeWithText("Conectar").performScrollTo().performClick()
-            compose.onNodeWithText("Aviso").assertIsDisplayed()
+            compose.onNode(hasText("Conectar Spotify") and hasAnyAncestor(isDialog())).assertIsDisplayed()
             compose.onNodeWithText("Preencha o Spotify Client ID antes de conectar sua conta. O Client Secret é opcional para esta conexão.").assertIsDisplayed()
             assertFalse(vm.busy.value)
             compose.onNodeWithText("OK").performClick()
@@ -39,7 +47,7 @@ class NavigationTest {
             compose.onNodeWithText("Spotify").performClick()
             compose.onNodeWithText("Apple / iTunes").performClick()
             compose.onNodeWithTag("search-connect-spotify").assertDoesNotExist()
-        } finally {compose.runOnIdle {OndaStore.saveSettings(before);vm.dialogNotice.value=""}}
+        } finally {compose.runOnIdle {OndaStore.saveSettings(before);vm.dismissNotice()}}
     }
 
     @Test fun backReturnsToConfiguredFirstPageThenLeavesApp() {
@@ -246,6 +254,45 @@ class NavigationTest {
             module.callAttr("stop_fixture")
         }
     }
+    @Test fun downloadNowChoosesFormatBeforeAddingTrack() {
+        compose.waitForIdle()
+        if(compose.onAllNodesWithText("Agora não").fetchSemanticsNodes().isNotEmpty())compose.onNodeWithText("Agora não").performClick()
+        val vm=androidx.lifecycle.ViewModelProvider(compose.activity)[OndaViewModel::class.java]
+        val original=JSONObject(OndaStore.settings.value.toString())
+        val before=OndaStore.items.value.map {it.id}.toSet()
+        val record=JSONObject().put("title","Música para escolher formato").put("artists",org.json.JSONArray().put("Artista"))
+            .put("album","Álbum").put("source_url","https://example.com/format-test.mp3").put("duration_ms",180000)
+        try {
+            compose.runOnIdle {
+                OndaStore.saveSettings(JSONObject(original.toString()).put("mode","mp3").put("audio_quality","128 kbps"))
+                vm.searchResults.value=listOf(record)
+            }
+            compose.onNodeWithTag("open-menu").performClick();compose.onNodeWithTag("tab-Pesquisar").performClick()
+            compose.onNodeWithText("Baixar agora").performScrollTo().performClick()
+            compose.onNodeWithText("Escolha o formato").assertIsDisplayed()
+            assertEquals(before,OndaStore.items.value.map {it.id}.toSet())
+            compose.onNodeWithText("Voltar").performClick()
+            compose.onNodeWithText("Escolha o formato").assertDoesNotExist()
+            assertEquals(before,OndaStore.items.value.map {it.id}.toSet())
+            compose.onNodeWithText("Baixar agora").performScrollTo().performClick()
+            compose.onNodeWithText("MP3 320").performClick()
+            compose.onNodeWithText("FLAC").performClick()
+            compose.onNode(hasText("Adicionar à fila") and hasAnyAncestor(isDialog())).performClick()
+            compose.waitUntil(10000) {OndaStore.items.value.any {it.id !in before}}
+            val item=OndaStore.items.value.single {it.id !in before}
+            assertEquals("flac",item.config.getString("mode"))
+            assertEquals("search",item.config.getString("_origin"))
+            assertFalse(item.config.optBoolean("_immediate"))
+            assertEquals("mp3",OndaStore.settings.value.getString("mode"))
+            assertEquals("128 kbps",OndaStore.settings.value.getString("audio_quality"))
+        } finally {
+            compose.runOnIdle {
+                OndaStore.remove(OndaStore.items.value.filter {it.id !in before}.map {it.id}.toSet())
+                OndaStore.saveSettings(original);vm.searchResults.value=emptyList()
+            }
+        }
+    }
+
     @Test fun searchQueueAndWindowNoticesAreVisible() {
         compose.waitForIdle()
         if(compose.onAllNodesWithText("Agora não").fetchSemanticsNodes().isNotEmpty()) compose.onNodeWithText("Agora não").performClick()
@@ -276,7 +323,7 @@ class NavigationTest {
             compose.onNodeWithText("Conectar").assertIsDisplayed()
         } finally {
             OndaStore.remove(OndaStore.items.value.filter {it.id !in before}.map {it.id}.toSet());OndaStore.saveSettings(settings)
-            compose.runOnIdle {vm.dialogNotice.value="";vm.searchResults.value=emptyList()}
+            compose.runOnIdle {vm.dismissNotice();vm.searchResults.value=emptyList()}
         }
     }
     @Test fun removeOnlyOneSearchQueueItem() {
@@ -390,7 +437,12 @@ class NavigationTest {
         if(compose.onAllNodesWithText("Agora não").fetchSemanticsNodes().isNotEmpty()) compose.onNodeWithText("Agora não").performClick()
         val before=JSONObject(OndaStore.settings.value.toString())
         try {
-            compose.runOnIdle {OndaStore.saveSettings(JSONObject(before.toString()).put("interface_font",DEFAULT_INTERFACE_FONT).put("remember",true))}
+            compose.runOnIdle {
+                val legacy="Padr\u00c3\u00a3o do sistema"
+                OndaStore.saveSettings(JSONObject(before.toString()).put("interface_font",legacy).put("remember",true))
+                assertEquals(DEFAULT_INTERFACE_FONT,OndaStore.settings.value.getString("interface_font"))
+                assertEquals("Monoespaçada",normalizeInterfaceFont("Monoespa\u00c3\u00a7ada"))
+            }
             compose.onNodeWithTag("open-menu").performClick();compose.onNodeWithText("Configurações").performScrollTo().performClick()
             compose.onNodeWithTag("font-preview").performScrollTo()
             val initial=compose.onNodeWithText("Tema e cores").captureToImage().asAndroidBitmap()

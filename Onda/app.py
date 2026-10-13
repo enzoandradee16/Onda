@@ -59,6 +59,8 @@ class App(UiMixin, tk.Tk):
         self.theme_accent = tk.StringVar(value='Verde-Água')
         from interface_fonts import DEFAULT_FONT
         self.interface_font = tk.StringVar(value=DEFAULT_FONT)
+        self.interface_font_size = tk.StringVar(value="100%")
+        self.notice_duration = tk.StringVar(value="Fechar manualmente")
         self.mode = tk.StringVar(value=next(iter(MODES)))
         self.height = tk.StringVar(value="1080p")
         self.fps = tk.StringVar(value="Original")
@@ -106,7 +108,7 @@ class App(UiMixin, tk.Tk):
         from advanced_options import DEFAULTS
         for key,value in DEFAULTS.items():
             setattr(self,key,tk.BooleanVar(value=value) if type(value) is bool else tk.StringVar(value=value))
-        self.preference_fields = {name: getattr(self, name) for name in ("theme_mode", "theme_accent", "interface_font", "effects_keep_pitch", "image_format", "image_size", "image_width", "image_height", "image_keep_ratio", "tab_order", "playlist_mode", "playlist_height", "playlist_fps", "playlist_mp3_quality", "playlist_m4a_quality", "mode", "height", "fps", "catalog_provider", "folder", "ffmpeg", "playlist", "playlist_limit", "mp3_quality", "m4a_quality", "review_metadata", "auto_match", "background_preview", "effects_preview_duration", "search_preview_duration", "organization", "duplicates")}
+        self.preference_fields = {name: getattr(self, name) for name in ("theme_mode", "theme_accent", "interface_font", "interface_font_size", "notice_duration", "effects_keep_pitch", "image_format", "image_size", "image_width", "image_height", "image_keep_ratio", "tab_order", "playlist_mode", "playlist_height", "playlist_fps", "playlist_mp3_quality", "playlist_m4a_quality", "mode", "height", "fps", "catalog_provider", "folder", "ffmpeg", "playlist", "playlist_limit", "mp3_quality", "m4a_quality", "review_metadata", "auto_match", "background_preview", "effects_preview_duration", "search_preview_duration", "organization", "duplicates")}
         self.preference_fields.update({key:getattr(self,key) for key in DEFAULTS})
         self.preference_defaults = {name: variable.get() for name, variable in self.preference_fields.items()}
         for name, value in (preferences or {}).items():
@@ -131,11 +133,14 @@ class App(UiMixin, tk.Tk):
         self.spotify_client_id.trace_add("write", self.spotify_credentials_edited)
         self.spotify_client_secret.trace_add("write", self.spotify_credentials_edited)
         self.status = tk.StringVar(value="Pronto para começar")
+        self.notice_display = tk.StringVar(value=self.status.get())
         self.detail = tk.StringVar(value="Cole um link e adicione à fila.")
         from library import LibraryStore
         self.library = LibraryStore(self.preference_store.path.parent / "library.sqlite3")
         self._style()
         self._layout()
+        from status_notice import StatusNotice
+        self.status_notice=StatusNotice(self)
         from appearance import ThemeManager
         self.theme_manager = ThemeManager(self)
         self.restore_queue()
@@ -364,7 +369,7 @@ class App(UiMixin, tk.Tk):
             pair = (self.spotify_client_id.get().strip(), self.spotify_client_secret.get().strip())
             self.credential_store.save(*pair)
         except CredentialError as exc:
-            messagebox.showerror("Credenciais Spotify", str(exc), parent=self)
+            messagebox.showerror("Salvar credenciais Spotify", str(exc), parent=self)
             return
         self._saved_credentials = pair
         self.credential_status.set("Salvas com proteção do Windows. Serão carregadas ao abrir o Onda.")
@@ -380,7 +385,7 @@ class App(UiMixin, tk.Tk):
         try:
             self.credential_store.forget()
         except CredentialError as exc:
-            messagebox.showerror("Credenciais Spotify", str(exc), parent=self)
+            messagebox.showerror("Remover credenciais Spotify", str(exc), parent=self)
             return
         self._saved_credentials = None
         self.spotify_client_id.set("")
@@ -524,7 +529,7 @@ class App(UiMixin, tk.Tk):
                 result=event['result']
                 if result.get('available'):
                     if messagebox.askyesno('Atualização do ONDA',result['message']+'\nAbrir o download oficial?',parent=self):webbrowser.open(result['url'])
-                elif event.get('manual'):messagebox.showinfo('Atualização do ONDA',result['message'],parent=self)
+                elif event.get('manual'):messagebox.showinfo('Verificar atualização do ONDA',result['message'],parent=self)
                 continue
             if kind.startswith("update_"):
                 if kind == "update_log":
@@ -839,6 +844,7 @@ class App(UiMixin, tk.Tk):
             webbrowser.open((BASE / "README.md").as_uri())
 
     def destroy(self):
+        if hasattr(self,"status_notice"):self.status_notice.shutdown()
         if hasattr(self, "history_page"):
             self.history_page.shutdown()
         if hasattr(self, "theme_manager"):
@@ -910,7 +916,7 @@ class App(UiMixin, tk.Tk):
 
     def tab_changed(self, _=None):
         selected = self.pages.select()
-        for page in (self.catalog_page, self.images_page, self.playlist_page, self.history_page, self.effects_page):
+        for page in (self.catalog_page, self.images_page, self.playlist_page, self.history_page, self.effects_page, self.metadata_page):
             if selected == str(page):
                 page.ensure_ready()
                 break

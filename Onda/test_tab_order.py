@@ -9,9 +9,9 @@ from preferences import PreferenceStore
 
 class TabPreferenceTests(unittest.TestCase):
     def test_normalize_old_or_invalid_order_preserves_all_tabs(self):
-        self.assertEqual(normalize_order(['effects','catalog','effects','missing',{}]),['effects','catalog','downloads','images','playlists','history'])
+        self.assertEqual(normalize_order(['effects','catalog','effects','missing',{}]),['effects','catalog','downloads','images','playlists','history','metadata'])
         self.assertEqual(normalize_order('effects'),list(DEFAULT_ORDER))
-        self.assertEqual(normalize_order(['downloads','catalog','playlists','history','effects'])[-1],'images')
+        self.assertEqual(normalize_order(['downloads','catalog','playlists','history','effects'])[-2:],['images','metadata'])
         self.assertNotIn('tab_order',PreferenceStore.clean({'tab_order':'invalid'}))
 
     def test_saved_order_roundtrip(self):

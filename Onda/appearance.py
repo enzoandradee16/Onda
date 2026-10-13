@@ -3,7 +3,7 @@ import os
 import tkinter as tk
 from tkinter import ttk
 import tkinter.font as tkfont
-from interface_fonts import font_family, DEFAULT_FONT
+from interface_fonts import font_family, DEFAULT_FONT, font_scale
 
 THEME_MODES = ('Seguir o sistema', 'Escuro', 'Claro')
 ACCENTS = {
@@ -74,10 +74,11 @@ class ThemeManager:
         self.app = app
         self.colors = None
         self.font_name = None
+        self.font_scale = None
         self.closed = False
         self.generation = 0
         self.after_id = None
-        self.traces = [(var, var.trace_add('write', self.changed)) for var in (app.theme_mode, app.theme_accent, app.interface_font)]
+        self.traces = [(var, var.trace_add('write', self.changed)) for var in (app.theme_mode, app.theme_accent, app.interface_font, app.interface_font_size)]
         self.map_binding = app.bind_all('<Map>', self.mapped, add='+')
         self.apply()
         self.after_id = app.after(1500, self.check_system)
@@ -88,10 +89,12 @@ class ThemeManager:
     def apply(self):
         colors = palette(self.app.theme_mode.get(), self.app.theme_accent.get())
         font_name = self.app.interface_font.get()
-        if colors == self.colors and font_name == self.font_name:
+        scale = font_scale(self.app.interface_font_size.get())
+        if colors == self.colors and font_name == self.font_name and scale == self.font_scale:
             return
         self.colors = colors
         self.font_name = font_name
+        self.font_scale = scale
         self.resolved_font = font_family(self.app, font_name)
         self.generation += 1
         self.app._style()
@@ -160,7 +163,7 @@ class ThemeManager:
                 popup = widget.tk.call('ttk::combobox::PopdownWindow', widget)
                 widget.tk.call(str(popup)+'.f.l','configure','-background',c['input'],'-foreground',c['text'],
                                '-selectbackground',c['selected'],'-selectforeground',c['text'],
-                               '-font',(self.resolved_font, 10))
+                               '-font',(self.resolved_font, round(10 * self.font_scale)))
             if isinstance(widget, (tk.Toplevel, tk.Tk)):
                 self.titlebar(widget)
             widget._onda_theme_generation = self.generation
@@ -175,7 +178,7 @@ class ThemeManager:
             base = tkfont.Font(root=self.app, font=widget.cget('font')).actual()
             widget._onda_base_font = base
             widget._onda_live_font = tkfont.Font(root=self.app, **base)
-        widget._onda_live_font.configure(family=base['family'] if self.font_name == DEFAULT_FONT else self.resolved_font)
+        widget._onda_live_font.configure(family=base['family'] if self.font_name == DEFAULT_FONT else self.resolved_font, size=round(base['size'] * self.font_scale))
         widget.configure(font=widget._onda_live_font)
 
     def apply_canvas_font(self, canvas, item):
@@ -186,7 +189,7 @@ class ThemeManager:
             base = tkfont.Font(root=self.app, font=canvas.itemcget(item, 'font')).actual()
             fonts[item] = (base, tkfont.Font(root=self.app, **base))
         base, live = fonts[item]
-        live.configure(family=base['family'] if self.font_name == DEFAULT_FONT else self.resolved_font)
+        live.configure(family=base['family'] if self.font_name == DEFAULT_FONT else self.resolved_font, size=round(base['size'] * self.font_scale))
         canvas.itemconfigure(item, font=live)
 
     def titlebar(self, window):

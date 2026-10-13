@@ -30,7 +30,7 @@ import org.json.JSONObject
     var disc by remember(question) {mutableStateOf(record.optInt("disc_number").takeIf {it>0}?.toString() ?: "")}
     var cover by remember(question) {mutableStateOf(record.cleanString("cover_url"))}
     var coverPath by remember(question) {mutableStateOf("")}
-    val pickCover=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) {uri->if(uri!=null) vm.importLocal(uri,"cover",dialog=true) {coverPath=it.absolutePath}}
+    val pickCover=rememberImageSourcePicker {uri->vm.importLocal(uri,"cover",dialog=true) {coverPath=it.absolutePath}}
     val context=androidx.compose.ui.platform.LocalContext.current
     val pickFlac=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) {uri->
         if(uri!=null) vm.importLocal(uri,"flac-browser",dialog=true) {file->
@@ -51,7 +51,7 @@ import org.json.JSONObject
                         val uri=android.net.Uri.parse(event.getString("url"))
                         if(uri.scheme=="https" && uri.host=="flacdownloader.com") {
                             try { context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW,uri)) }
-                            catch(_:android.content.ActivityNotFoundException){vm.dialogNotice.value="Nenhum navegador disponível."}
+                            catch(_:android.content.ActivityNotFoundException){vm.showNotice("Abrir serviço","Nenhum navegador disponível.")}
                         }
                     }){Text("Abrir serviço")}
                 }
@@ -67,7 +67,7 @@ import org.json.JSONObject
                         OutlinedTextField(disc,{disc=it},label={Text("Disco")},modifier=Modifier.weight(1f),singleLine=true)
                     }
                     OutlinedTextField(cover,{cover=it},label={Text("Capa · imagem inteira, sem cortes")},singleLine=true)
-                    TextButton(onClick={pickCover.launch(arrayOf("image/jpeg","image/png"))}){Text("Escolher JPEG/PNG")}
+                    TextButton(onClick={pickCover()}){Text("Escolher JPEG/PNG")}
                 }
                 "choose_duplicate"->{Text(event.optString("path").substringAfterLast('/'));listOf("keep" to "Manter ambos","replace" to "Substituir","skip" to "Pular").forEach {(value,label)->Toggle(label,value in selected){selected=setOf(value)}}}
                 else->{

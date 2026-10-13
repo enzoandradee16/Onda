@@ -23,7 +23,7 @@ def clean_advanced(options):
         elif key in ('schedule_start','schedule_stop') and valid_time(value):result[key]=value
     return result
 
-COMMON={'theme','accent','interface_font','mode','audio_quality','height','fps','auto_match','review_metadata','organization','playlist_limit',*DEFAULTS}
+COMMON={'theme','accent','interface_font','notice_duration','mode','audio_quality','height','fps','auto_match','review_metadata','organization','playlist_limit',*DEFAULTS}
 ALIASES={'theme_mode':'theme','theme_accent':'accent','mp3_quality':'audio_quality'}
 
 def export_settings(options,platform):
@@ -53,6 +53,8 @@ def import_settings(payload,platform):
              'organization':{'Catálogo','Pasta de destino','Artista','Artista / Álbum'}}
     for key,allowed in choices.items():
         if key in result and (type(result[key]) is bool or result[key] not in allowed):result.pop(key)
+    from status_notice import NOTICE_DURATIONS
+    if 'notice_duration' in result and (not isinstance(result['notice_duration'],str) or result['notice_duration'] not in NOTICE_DURATIONS):result.pop('notice_duration')
     for key in ('accent','interface_font'):
         if key in result and (not isinstance(result[key],str) or len(result[key])>80):result.pop(key)
     if 'playlist_limit' in result:

@@ -3,8 +3,8 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 
 GROUPS = {
-    'Aparência': {'theme_mode':'Modo claro, escuro ou sistema', 'theme_accent':'Cor de destaque', 'interface_font':'Fonte da interface'},
-    'Geral': {'check_updates':'Verificar atualizações do ONDA', 'tab_order':'Ordem das abas', 'remember_settings':'Lembrar configurações'},
+    'Aparência': {'theme_mode':'Modo claro, escuro ou sistema', 'theme_accent':'Cor de destaque', 'interface_font':'Fonte da interface', 'interface_font_size':'Alterar tamanho da fonte'},
+    'Geral': {'notice_duration':'Duração dos avisos','check_updates':'Verificar atualizações do ONDA', 'tab_order':'Ordem das abas', 'remember_settings':'Lembrar configurações'},
     'Downloads': {'concurrent_downloads':'Downloads simultâneos','resume_downloads':'Retomar arquivos interrompidos','resume_queue':'Retomar fila ao abrir','normalize_volume':'Normalizar volume','schedule_enabled':'Agendar downloads','schedule_start':'Horário de início','schedule_stop':'Horário de parada','folder':'Pasta de destino', 'organization':'Organização por pastas', 'duplicates':'Tratamento de arquivos duplicados', 'review_metadata':'Revisão de metadados', 'auto_match':'Escolha automática da versão', 'playlist_limit':'Limite de itens de playlists'},
     'Links e fila': {'mode':'Formato', 'height':'Resolução máxima', 'fps':'FPS máximo', 'mp3_quality':'Qualidade MP3', 'm4a_quality':'Qualidade M4A', 'playlist':'Baixar playlist de vídeo'},
     'Playlists': {'playlist_mode':'Formato da playlist', 'playlist_height':'Resolução da playlist', 'playlist_fps':'FPS da playlist', 'playlist_mp3_quality':'Qualidade MP3 da playlist', 'playlist_m4a_quality':'Qualidade M4A da playlist'},
