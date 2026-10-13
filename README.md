@@ -1,14 +1,18 @@
 # ONDA
 
-Aplicativo para Windows e Android para baixar e organizar músicas, vídeos e imagens, com interface em português.
+Aplicativo gratuito, de código aberto e **sem anúncios** para Windows e Android. Reúne ferramentas para baixar, organizar e editar músicas, vídeos e imagens, com interface em português.
 
-**Versões em preparação: Windows 1.0.0-beta.2 · Android 1.0.0-alpha.2 (ARM64, Android 8 ou superior).**
+O ONDA nasceu como um projeto pessoal, feito inicialmente para meu uso e de amigos. Resolvi disponibilizá-lo para quem também achar útil ter essas ferramentas no mesmo lugar, sem anúncios e com opções para personalizar a experiência.
+
+O projeto continua em desenvolvimento. Sugestões, contribuições e relatos de problemas são bem-vindos.
+
+**Versões de teste: Windows 1.0.0-beta.2 · Android 1.0.0-alpha.2 (ARM64, Android 8 ou superior).**
 
 ![ONDA no modo escuro](docs/images/onda-escuro.png)
 
 ## Baixar e abrir
 
-Os pacotes ficam em [Releases](https://github.com/enzoandradee16/Onda/releases). Enquanto não houver uma release publicada, este repositório contém o código-fonte.
+Baixe os pacotes oficiais em [Releases](https://github.com/enzoandradee16/Onda/releases). Escolha a versão Windows ou Android; o código-fonte e as instruções de construção também estão disponíveis neste repositório.
 
 - **Portátil:** extraia o ZIP inteiro e abra `Onda.exe`. Mantenha as pastas `Onda` e `_runtime` junto dele. Não precisa instalar Python. No primeiro uso, o ONDA baixa o FFmpeg diretamente de gyan.dev, com barra de progresso e verificação SHA-256; é necessário acesso à internet nessa preparação.
 - **Instalador:** execute o arquivo `Onda-…-Setup-Windows-x64.exe` e siga o assistente. A instalação é por usuário, com atalhos e desinstalador. O FFmpeg também é preparado automaticamente no primeiro uso.
@@ -56,7 +60,7 @@ O aplicativo faz conexões com as plataformas consultadas para pesquisa, metadad
 
 ## Problemas e contribuições
 
-Abra uma [issue](https://github.com/enzoandradee16/Onda/issues) com a versão, Windows, passos para reproduzir e mensagem de erro sem dados pessoais. Consulte [CONTRIBUTING.md](CONTRIBUTING.md) e [SECURITY.md](SECURITY.md).
+Abra uma [issue](https://github.com/enzoandradee16/Onda/issues) com a versão do ONDA, a versão do Windows ou Android, passos para reproduzir e mensagem de erro sem dados pessoais. Consulte [CONTRIBUTING.md](CONTRIBUTING.md) e [SECURITY.md](SECURITY.md).
 
 ## Licença
 
