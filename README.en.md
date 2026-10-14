@@ -74,9 +74,9 @@ Real screenshots of the English interface. Click to enlarge.
   </tr>
   <tr>
     <td align="center" width="50%">
-      <strong>History cards</strong><br>
-      <a href="docs/images/pc/en/historico-cards-escuro.png"><img src="docs/images/pc/en/historico-cards-escuro.png" width="460" alt="ONDA Windows: History cards — Dark · Teal"></a><br>
-      <sub>Dark · Teal</sub>
+      <strong>Images</strong><br>
+      <a href="docs/images/pc/en/imagens-claro.png"><img src="docs/images/pc/en/imagens-claro.png" width="460" alt="ONDA Windows: Images — Light · Gold"></a><br>
+      <sub>Light · Gold</sub>
     </td>
     <td align="center" width="50%">
       <strong>Slowed, Sped Up and Reverb</strong><br>
