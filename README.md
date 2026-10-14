@@ -16,7 +16,7 @@ Baixe os pacotes oficiais em [Releases](https://github.com/enzoandradee16/Onda/r
 
 - **Portátil:** extraia o ZIP inteiro e abra `Onda.exe`. Mantenha as pastas `Onda` e `_runtime` junto dele. Não precisa instalar Python. No primeiro uso, o ONDA baixa o FFmpeg diretamente de gyan.dev, com barra de progresso e verificação SHA-256; é necessário acesso à internet nessa preparação.
 - **Instalador:** execute o arquivo `Onda-…-Setup-Windows-x64.exe` e siga o assistente. A instalação é por usuário, com atalhos e desinstalador. O FFmpeg também é preparado automaticamente no primeiro uso.
-- **Android:** o APK usa assinatura de produção e requer Android 8 ou superior, em aparelho ARM64. Os fontes das ferramentas nativas recompiladas são disponibilizados no pacote Fontes-nativos-Android da mesma release.
+- **Android:** o APK usa assinatura de produção e requer Android 8 ou superior, em aparelho ARM64. As fontes das ferramentas nativas recompiladas são disponibilizadas no pacote Fontes-nativos-Android da mesma release.
 - **Código-fonte:** consulte [as instruções de desenvolvimento](Onda/README.md).
 
 Os executáveis Windows não têm assinatura digital. O Windows pode mostrar um aviso de reputação; confira a origem e os hashes antes de executar.
@@ -64,7 +64,8 @@ Capturas reais do aplicativo nos temas claro, escuro e preto puro. Clique nas im
     <td align="center" width="33%">
       <strong>Imagens</strong><br>
       <a href="docs/images/android/imagens-claro.png"><img src="docs/images/android/imagens-claro.png" width="230" alt="ONDA Android: imagens — tema claro · roxo"></a><br>
-      <sub>Tema claro · Roxo</sub>
+      <sub>Tema claro · Roxo</sub><br>
+      <sub><a href="docs/images/android/imagens-previa-claro.png">Ver prévia e download</a></sub>
     </td>
     <td align="center" width="33%">
       <strong>Slowed, Sped Up e Reverb</strong><br>
