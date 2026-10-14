@@ -7,12 +7,21 @@ import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Rule
+import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class MediaChoiceTest {
-    @get:Rule val compose=createAndroidComposeRule<MainActivity>()
+    @get:Rule(order=0) val permissions=object:org.junit.rules.ExternalResource() {
+        override fun before() {
+            if(android.os.Build.VERSION.SDK_INT>=33) {
+                val instrumentation=InstrumentationRegistry.getInstrumentation()
+                instrumentation.uiAutomation.grantRuntimePermission(instrumentation.targetContext.packageName,android.Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+    }
+    @get:Rule(order=1) val compose=createAndroidComposeRule<MainActivity>()
 
     private fun ready() {
         compose.waitForIdle()

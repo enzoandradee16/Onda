@@ -32,7 +32,7 @@ suspend fun runDownloads(context:Context,only:String?=null,batch:Set<String>?=nu
                 OndaStore.update(item.id,"Baixando")
                 tasks[item.id]=launch(Dispatchers.IO) {
                     try {
-                        val config=JSONObject(item.config.toString()).put("spotify_client_secret",SecureVault.get("spotify-api") ?: "").put("_identity",item.id)
+                        val config=applyVersionSelection(JSONObject(item.config.toString()),OndaStore.settings.value).put("spotify_client_secret",SecureVault.get("spotify-api") ?: "").put("_identity",item.id)
                         var failed=false
                         val progressGate=ProgressGate(150)
                         val result=MobileEngine.call(context,item.id,config.optString("_operation","download"),config,EventCallback {raw->

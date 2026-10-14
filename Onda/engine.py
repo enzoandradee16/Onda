@@ -80,7 +80,7 @@ def build_options(config: dict) -> dict:
         "windowsfilenames": True,
         "noplaylist": not config.get("playlist", False),
         "playlistend": max_items if config.get("playlist", False) else 1,
-        "continuedl": True, "overwrites": False,
+        "overwrites": False,
         "retries": 3, "fragment_retries": 3, "socket_timeout": 20,
         "ignoreerrors": False, "quiet": True, "no_warnings": False,
         "noprogress": True, "continuedl": config.get("resume_downloads",True), "concurrent_fragment_downloads": 2,
@@ -106,23 +106,27 @@ def build_options(config: dict) -> dict:
     elif mode == "photos":
         raise ValueError("Fotos devem ser baixadas pelo extrator de publicações.")
     elif mode in ("video", "mp4"):
-        limit = f"[height<=?{height}]" if height else ""
         fps = config.get("fps")
         if fps not in FPS_OPTIONS.values():
             raise ValueError("FPS inválido.")
         fps_limit = f"[fps<=?{fps}]" if fps else ""
-        options["format"] = f"bestvideo{limit}{fps_limit}+bestaudio/best{limit}{fps_limit}"
-        options["merge_output_format"] = "mkv"
-        options["postprocessors"] = [{"key": "FFmpegVideoRemuxer", "preferedformat": "mkv"}]
-        if mode == "mp4":
-            # Prefer MP4/M4A streams to avoid unnecessary transcoding. Every
-            # fallback must retain the requested resolution and FPS ceilings.
+        # Prefer a native stream within the limits, using the shorter side for
+        # vertical video. A single-quality source can be reduced after download.
+        limits = [f"[height<=?{height}]", f"[width<=?{height}]"] if height else [""]
+        branches = []
+        for limit in limits:
             constraints = limit + fps_limit
-            options["format"] = (f"bestvideo[ext=mp4]{constraints}+bestaudio[ext=m4a]/"
-                                 f"best[ext=mp4]{constraints}/"
-                                 f"bestvideo{constraints}+bestaudio/best{constraints}")
-            options["merge_output_format"] = "mp4/mkv"
-            options["postprocessors"] = [{"key": "FFmpegVideoConvertor", "preferedformat": "mp4"}]
+            if mode == "mp4":
+                branches += [f"bestvideo[ext=mp4]{constraints}+bestaudio[ext=m4a]",
+                             f"best[ext=mp4]{constraints}"]
+            branches += [f"bestvideo{constraints}+bestaudio", f"best{constraints}", f"bestvideo{constraints}"]
+        if height or fps:
+            branches += ["bestvideo+bestaudio", "best", "bestvideo"]
+            options["format_sort"] = ([f"res:{height}"] if height else []) + ([f"fps:{fps}"] if fps else [])
+        options["format"] = "/".join(dict.fromkeys(branches))
+        options["merge_output_format"] = "mp4/mkv" if mode == "mp4" else "mkv"
+        options["postprocessors"] = [{"key": "FFmpegVideoConvertor" if mode == "mp4" else "FFmpegVideoRemuxer",
+                                      "preferedformat": "mp4" if mode == "mp4" else "mkv"}]
     else:
         options["format"] = "bestaudio" if mode == "original" else "bestaudio/best"
         if mode == "original":
@@ -163,11 +167,6 @@ def download_with_recovery(url, options, configure, saved):
                     downloader.add_info_extractor(OndaKwaiIE(downloader))
                     configure(downloader)
                     info = downloader.extract_info(url, download=False, process=False, ie_key=OndaKwaiIE.ie_key())
-                    formats = [f for f in info.get("formats", []) if f.get("width") and f.get("height")]
-                    if formats and all(f["width"] < f["height"] for f in formats):
-                        selector = current.get("format", "best").replace("[height<=?", "[width<=?")
-                        downloader.params["format"] = selector
-                        downloader.format_selector = downloader.build_format_selector(selector)
                     downloader.process_ie_result(info, download=True)
                     return 0
                 configure(downloader)
@@ -375,6 +374,8 @@ def run_worker(config: dict) -> int:
                 path = info.get("filepath") or info.get("_filename")
                 if path and Path(path).is_file():
                     sidecar = None
+                    from video_limits import enforce_video_limits
+                    enforce_video_limits(path, config, emit)
                     if config.get("normalize_volume"):
                         from audio_library import normalize_audio
                         normalize_audio(path,config,emit)

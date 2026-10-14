@@ -9,11 +9,15 @@ class LazyPane(ttk.Frame):
         self._factory = (module, name)
         self._app = app
         super().__init__(parent)
+        from settings_scroll import SettingsCategory
+        from ui import BG
+        self._scroller=SettingsCategory(self,BG,fill_viewport=True,padding=0)
+        self._scroller.pack(fill="both",expand=True)
 
     def ensure_ready(self):
         if self._content is None:
             module, name = self._factory
-            content = getattr(import_module(module), name)(self, self._app)
+            content = getattr(import_module(module), name)(self._scroller.content, self._app)
             self._content = content
             content.pack(fill="both", expand=True)
             manager = getattr(self._app, "theme_manager", None)

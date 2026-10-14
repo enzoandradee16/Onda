@@ -39,15 +39,13 @@ class PlaylistDownloadNowTests(unittest.TestCase):
             page.download_now_button.invoke()
             chosen = [key for key in app.jobs if key != old]
             self.assertEqual(len(chosen), 2)
-            self.assertEqual(tuple(app.immediate_item), tuple(chosen))
+            self.assertEqual(app.parallel.scope, set(chosen))
             self.assertEqual(app.active, chosen[0])
             for key in chosen:
                 self.assertEqual(app.jobs[key]['audio_quality'], '192 kbps')
                 self.assertEqual(app.jobs[key]['playlist_title'], 'Artist - Album')
                 self.assertEqual(app.jobs[key]['mode'], 'mp3')
-                app.set_state(key, 'Concluído')
-                app.active = None
-                app.next_job()
+                app.parallel.finish(key, {'success':True,'cancelled':False})
             self.assertEqual(thread.call_count, 2)
         self.assertFalse(app.running)
         self.assertIsNone(app.immediate_item)
@@ -63,10 +61,10 @@ class PlaylistDownloadNowTests(unittest.TestCase):
         with patch('app.threading.Thread'):
             page.add(start=True)
         self.assertEqual(len(app.jobs), 1)
-        with patch('playlist_ui.messagebox.showinfo') as warning, patch.object(app, 'add') as add:
+        with patch.object(app.parallel, 'extend') as extend:
             page.add(start=True)
-            warning.assert_called_once()
-            add.assert_not_called()
+            extend.assert_called_once()
+        self.assertTrue(app.running)
 
     def test_button_disabled_during_load_and_empty_selection_does_not_start(self):
         page = self.app.playlist_page

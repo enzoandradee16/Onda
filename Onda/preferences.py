@@ -25,6 +25,12 @@ class PreferenceStore:
                 value = 'Verde-Água'
             if isinstance(value, str) and value in choices:
                 result[name] = value
+        if type(data.get("pure_black_separators")) is bool:
+            result["pure_black_separators"] = data["pure_black_separators"]
+        if data.get("history_card_size") in ("Pequeno","Médio","Grande"):
+            result["history_card_size"] = data["history_card_size"]
+        if data.get("history_view") in ("Compacto", "Completa"):
+            result["history_view"] = data["history_view"]
         from status_notice import NOTICE_DURATIONS
         if isinstance(data.get("notice_duration"),str) and data["notice_duration"] in NOTICE_DURATIONS:
             result["notice_duration"]=data["notice_duration"]

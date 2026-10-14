@@ -1,5 +1,22 @@
 # Histórico de versões
 
+## 1.0.0 — 2026-10-13
+
+Primeira versão oficial para Windows e Android.
+
+- Histórico completo em cards ou compacto, com capas e informações da música, seleção individual e ajuste discreto do tamanho dos cards. No PC, Ctrl + roda do mouse também ajusta o tamanho.
+- Preto puro com opção de bordas e separações. No Android, popups e barra de navegação acompanham o tema.
+- Ícone interno acompanha a cor de destaque; no PC, os ícones das janelas também acompanham a cor.
+- PC: rolagem da página inteira, edição de metadados na própria aba e abertura direta pelo histórico, ajustes de capa e destaque de álbum/artista.
+- PC: até 15 downloads simultâneos, com aviso de maior consumo; Backspace também remove itens selecionados nas listas que oferecem remoção.
+- Android: correções na importação de imagens locais e permissões, seleção automática de versões e abertura de metadados pelo histórico.
+- Android: opção de escolher manualmente a versão quando a seleção automática não encontra uma correspondência suficientemente compatível.
+- Correções de acesso às publicações Kwai, consultando páginas desktop e mobile e evitando baixar vídeos recomendados no lugar do solicitado.
+- Vídeos: correção da escolha de resolução/FPS no Kwai e demais plataformas; consideração do lado menor em vídeos verticais, preferência por qualidades nativas compatíveis e redução quando a fonte excede os limites escolhidos.
+- Avisos com duração padrão de três segundos em novas instalações e melhor distribuição dos botões da pesquisa Android.
+- Cache limitado de capas/metadados, menos releituras no histórico, substituição de arquivos Android com cópia de segurança e limpeza de código sem uso.
+
+
 ## Windows 1.0.0-beta.2 / Android 1.0.0-alpha.2 — 2026-10-13
 
 - FLAC direto do Monochrome para músicas de catálogo, com correspondência e validação do áudio.

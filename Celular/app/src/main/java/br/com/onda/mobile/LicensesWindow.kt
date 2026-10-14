@@ -37,7 +37,7 @@ private data class LicenseNotice(val title: String, val text: String)
     }
     val notice = selected?.let { notices.getOrNull(it) }
     fun closePage() { if (selected != null) selected = null else onDismiss() }
-    AlertDialog(onDismissRequest={closePage()}, title={Text(notice?.title ?: "Licenças e fontes")},
+    AlertDialog(containerColor=ondaDialogContainerColor(),onDismissRequest={closePage()}, title={Text(notice?.title ?: "Licenças e fontes")},
         text={
             if (notice == null) LazyColumn(Modifier.heightIn(max=420.dp)) {
                 item {Text(summary, style=MaterialTheme.typography.bodySmall)}

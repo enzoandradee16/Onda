@@ -31,7 +31,8 @@ class SizeAndFpsTests(unittest.TestCase):
     def test_fps_applies_to_both_video_fallbacks(self):
         config = {"mode": "video", "folder": ".", "height": 720, "fps": 30}
         options = build_options(config)
-        self.assertEqual(options["format"], "bestvideo[height<=?720][fps<=?30]+bestaudio/best[height<=?720][fps<=?30]")
+        self.assertTrue(options["format"].startswith("bestvideo[height<=?720][fps<=?30]+bestaudio/best[height<=?720][fps<=?30]"))
+        self.assertIn("best[width<=?720][fps<=?30]",options["format"])
         original = build_options({**config, "fps": None})
         self.assertNotIn("fps", original["format"])
         self.assertEqual(options["outtmpl"], original["outtmpl"])

@@ -1,7 +1,6 @@
 """Reuse the working selection controls for a catalog match, before YouTube."""
 import webbrowser
 from version_picker import VersionPicker, duration_label
-from catalog_match import picker_event
 
 
 class CatalogPicker(VersionPicker):

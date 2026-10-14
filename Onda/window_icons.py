@@ -4,7 +4,7 @@ import math
 
 def icon_kind(title):
     title = title.casefold()
-    for phrase, kind in (("flac pelo navegador", "download"), ("editar áudio", "metadata"), ("lista da playlist", "metadata"), ("conectar spotify", "metadata"), ("boas-vindas", "help"), ("configurações", "settings"), ("detalhes dos downloads", "log"),
+    for phrase, kind in (("ajustar capa", "crop"), ("preparar áudio e vídeo", "download"), ("flac pelo navegador", "download"), ("editar áudio", "metadata"), ("lista da playlist", "metadata"), ("conectar spotify", "metadata"), ("boas-vindas", "help"), ("configurações", "settings"), ("detalhes dos downloads", "log"),
                          ("sobre o onda", "help"), ("metadados", "metadata"),
                          ("revisar antes", "metadata"), ("escolha a versão", "version"),
                          ("escolha o formato", "download"), ("fotos e vídeos", "media"),
@@ -14,13 +14,19 @@ def icon_kind(title):
     return None
 
 
-def draw_icon(kind, size):
+def draw_icon(kind, size, colors=None):
     from PIL import Image, ImageDraw
     image = Image.new("RGBA", (96, 96))
     draw = ImageDraw.Draw(image)
-    ink, pale, dark = "#65dfbd", "#eef3fa", "#10151e"
+    colors=colors or {}
+    ink, pale, dark = colors.get("accent","#65dfbd"), colors.get("text","#eef3fa"), colors.get("bg","#10151e")
     draw.rounded_rectangle((2, 2, 94, 94), radius=22, fill=dark)
-    if kind == "settings":
+    if kind == "onda":
+        for x,top,bottom in ((18,42,54),(32,28,68),(48,16,80),(64,28,68),(78,42,54)):
+            draw.line((x,top,x,bottom),fill=ink,width=6)
+            draw.ellipse((x-3,top-3,x+3,top+3),fill=ink)
+            draw.ellipse((x-3,bottom-3,x+3,bottom+3),fill=ink)
+    elif kind == "settings":
         for index in range(8):
             angle = index * math.pi / 4
             draw.line([(48 + math.cos(angle) * 24, 48 + math.sin(angle) * 24),
@@ -44,6 +50,10 @@ def draw_icon(kind, size):
         draw.line((48, 18, 48, 60), fill=ink, width=8)
         draw.line((28, 44, 48, 64, 68, 44), fill=ink, width=8)
         draw.line((22, 66, 22, 78, 74, 78, 74, 66), fill=pale, width=6)
+    elif kind == "crop":
+        draw.line((28, 16, 28, 68, 80, 68), fill=ink, width=7)
+        draw.line((16, 28, 68, 28, 68, 80), fill=pale, width=7)
+        draw.line((38, 57, 49, 44, 59, 53), fill=ink, width=5)
     elif kind == "media":
         draw.rounded_rectangle((16, 20, 80, 76), radius=5, outline=ink, width=6)
         draw.ellipse((28, 30, 40, 42), fill=pale)
@@ -57,12 +67,16 @@ def draw_icon(kind, size):
     return image.resize((size, size), Image.Resampling.LANCZOS)
 
 
-def apply_window_icon(window):
-    kind = icon_kind(window.title())
-    if kind is None or getattr(window, "_function_icon_kind", None) == kind:
-        return
+def apply_window_icon(window, colors=None):
+    kind = icon_kind(window.title()) or "onda"
+    if colors is None:
+        manager=getattr(window._root(),"theme_manager",None)
+        colors=getattr(manager,"colors",None) or {}
+    key=(kind,colors.get("accent"),colors.get("text"),colors.get("bg"))
+    if getattr(window,"_function_icon_key",None)==key:return
     from PIL import ImageTk
-    icons = [ImageTk.PhotoImage(draw_icon(kind, size), master=window) for size in (16, 32, 48)]
+    icons = [ImageTk.PhotoImage(draw_icon(kind, size, colors), master=window) for size in (16, 32, 48)]
     window.iconphoto(False, *icons)
     window._function_icons = icons  # Tk only stores the image names; keep Python references.
     window._function_icon_kind = kind
+    window._function_icon_key = key

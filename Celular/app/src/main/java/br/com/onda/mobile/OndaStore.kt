@@ -61,10 +61,10 @@ object OndaStore {
         refresh()
     }
     fun defaults() = JSONObject().put("mode","mp3").put("audio_quality","320 kbps").put("height",1080).put("fps",JSONObject.NULL)
-        .put("playlist_limit",2000).put("link_playlist",false).put("auto_match",false).put("confirm_version",false).put("review_metadata",false)
+        .put("pure_black_separators",false).put("history_card_size","Grande").put("history_view","Compacto").put("playlist_limit",2000).put("link_playlist",false).put("auto_match",false).put("confirm_version",false).put("review_metadata",false)
         .put("duplicate_policy","ask").put("organization","Pasta de destino").put("interface_font",DEFAULT_INTERFACE_FONT).put("interface_font_size","100%").put("theme","Seguir o sistema").put("accent","Verde-Água")
         .put("concurrent_downloads","1").put("resume_downloads",true).put("resume_queue",false).put("normalize_volume",false)
-        .put("schedule_enabled",false).put("schedule_start","22:00").put("schedule_stop","07:00").put("check_updates",false).put("notice_duration","Fechar manualmente")
+        .put("schedule_enabled",false).put("schedule_start","22:00").put("schedule_stop","07:00").put("check_updates",false).put("notice_duration","Após 3 segundos")
         .put("search_preview",25).put("effects_preview",25).put("keep_preview",false).put("remember",true)
         .put("image_format","Original").put("image_width",0).put("image_height",0).put("keep_ratio",true)
         .put("tab_order",JSONArray(listOf("Pesquisar","Links e fila","Imagens","Playlists / Álbuns","Histórico","Efeitos","Metadados")))
@@ -91,6 +91,7 @@ object OndaStore {
         if(optString("mode")=="m4a" && optString("audio_quality") !in listOf("256 kbps","192 kbps","128 kbps","96 kbps")) put("audio_quality","256 kbps")
         put("folder", File(context.getExternalFilesDir(null),"Onda Downloads").absolutePath)
         put("ffmpeg", "android-native")
+        applyVersionSelection(this, settings.value)
         put("playlist",options.optBoolean("link_playlist",false))
         if(includeSecrets) put("spotify_client_secret", SecureVault.get("spotify-api") ?: "")
         if(optString("mode")=="photos") put("image_options",JSONObject().put("format", options.optString("image_format","Original"))
@@ -163,6 +164,15 @@ object OndaStore {
         items.value=items.value.filterNot {it.id in removable}
     }
     fun retry(ids: Set<String>) { ids.filter { it!=active.value && it !in DownloadRuntime.ids }.forEach { update(it,"Pendente",0f,"") } }
+    @Synchronized fun retryWithVersionChoice(id:String) {
+        val item=items.value.firstOrNull {it.id==id && it.state=="Erro"} ?: return
+        if(id==active.value || id in DownloadRuntime.ids)return
+        val config=JSONObject(item.config.toString()).put("_manual_version",true)
+        database.writableDatabase.execSQL("UPDATE queue SET config=? WHERE id=?",arrayOf(config.toString(),id))
+        items.value=items.value.map {if(it.id==id)it.copy(config=config) else it}
+        retry(setOf(id))
+        DownloadService.start(context,only=id)
+    }
     @Synchronized fun move(id:String,direction:Int) {
         val order=items.value.toMutableList();val index=order.indexOfFirst {it.id==id}
         if(index<0 || id==active.value || id in DownloadRuntime.ids)return
@@ -227,7 +237,7 @@ object OndaStore {
             if(existing!=null) {
                 when(duplicateChoice(path.name,config)) {
                     "skip"->return existing
-                    "replace"->context.contentResolver.delete(existing,null,null)
+                    "replace"->{replacePublished(existing,path);return existing}
                 }
             }
             val uri=context.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI,values) ?: error("Não foi possível criar o arquivo em Downloads")
@@ -251,14 +261,19 @@ object OndaStore {
         val choice=if(existing!=null) duplicateChoice(path.name,config) else "keep"
         if(existing!=null && choice=="skip") return existing.uri
         val document = if(existing!=null && choice=="replace") {
-            require(existing.delete()) { "Não foi possível substituir o arquivo" }
-            directory.createFile(mime,path.name)
+            replacePublished(existing.uri,path)
+            return existing.uri
         } else directory.createFile(mime,path.name)
         requireNotNull(document) { "Não foi possível salvar na pasta escolhida" }
         try {
             context.contentResolver.openOutputStream(document.uri,"wt")!!.use { target -> path.inputStream().use { it.copyTo(target) } }
         } catch(error: Exception) { document.delete(); throw error }
         return document.uri
+    }
+    private fun replacePublished(uri:Uri, replacement:File) {
+        val original=importDocument(uri,"replace-backup")
+        try {replaceAudioOriginal(context,uri,original,replacement);invalidateHistoryDetails()}
+        finally {original.delete()}
     }
     fun publicationConfig(config: JSONObject, event: JSONObject)=JSONObject(config.toString()).apply {
         if(event.has("duplicate_choice")) put("duplicate_policy",event.getString("duplicate_choice"))
@@ -279,6 +294,7 @@ object OndaStore {
     fun overwriteAudio(edited: File, config: JSONObject) {
         val uri=Uri.parse(config.getString("original_uri"))
         replaceAudioOriginal(context,uri,File(config.getString("source")),edited)
+        invalidateHistoryDetails()
         database.writableDatabase.execSQL("UPDATE history SET size=? WHERE uri=?",arrayOf(edited.length(),uri.toString()))
         synchronized(this) {refreshHistory()}
     }

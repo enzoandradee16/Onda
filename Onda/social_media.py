@@ -192,6 +192,10 @@ def save_media(session, url, metadata, config, emit, ask_duplicate, index):
         path = extract_video_audio(path, config, emit)
         extension = path.suffix.lstrip('.').lower()
         size = path.stat().st_size
+    if extension in VIDEOS:
+        from video_limits import enforce_video_limits
+        enforce_video_limits(path, config, emit)
+        size = path.stat().st_size
     if config.get("normalize_volume") and extension in ("mp3","m4a","flac","wav","ogg","opus"):
         from audio_library import normalize_audio
         normalize_audio(path,config,emit)
@@ -313,9 +317,6 @@ def save_video(session, metadata, config, emit, ask_duplicate, index):
         options['format'] = 'bestaudio/best'
         options['postprocessors'] = [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'best'}]
     info = dict(metadata["_video_info"])
-    dimensions = [f for f in info.get("formats", []) if f.get("width") and f.get("height")]
-    if dimensions and all(f["width"] < f["height"] for f in dimensions):
-        options["format"] = options["format"].replace("[height<=?", "[width<=?")
     name = f"{component(metadata.get('user'))[:50]} - {component(metadata.get('title'))[:100]} - {index:02d}"
     options["outtmpl"] = {"default": name.replace("%", "%%") + ".%(ext)s"}
     info["http_headers"] = {**info.get("http_headers", {}), **metadata.get("_http_headers", {})}
@@ -329,6 +330,8 @@ def save_video(session, metadata, config, emit, ask_duplicate, index):
     class Capture(PostProcessor):
         def run(self, result):
             source = Path(result["filepath"])
+            from video_limits import enforce_video_limits
+            enforce_video_limits(source, config, emit)
             if config.get("normalize_volume"):
                 from audio_library import normalize_audio
                 normalize_audio(source,config,emit)
@@ -464,6 +467,8 @@ def video_fallback(config, emit):
 
 def access_error(exc):
     detail = str(exc)
+    if "O Kwai não encontrou" in detail or "O Kwai não forneceu" in detail:
+        return detail
     if "ip address is blocked" in detail.lower():
         return ("O TikTok bloqueou o acesso desta conexão à publicação. "
                 "Confira se o link abre no seu navegador. Se abrir, você pode tentar cookies.txt da própria sessão "

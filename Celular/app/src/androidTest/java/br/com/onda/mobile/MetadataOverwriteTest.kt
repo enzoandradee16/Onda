@@ -43,6 +43,23 @@ class MetadataOverwriteTest {
             source.delete();imported.delete();edited?.delete()
         }
     }
+    @Test fun duplicateReplacementKeepsTheExistingUri() {
+        val context=InstrumentationRegistry.getInstrumentation().targetContext
+        val source=File(context.getExternalFilesDir(null),"Onda Downloads/duplicate-safe-test.mp3")
+        source.parentFile!!.mkdirs();source.writeText("original")
+        val config=OndaStore.config().put("duplicate_policy","keep")
+        val uri=OndaStore.publish(source.absolutePath,config,"mp3")
+        try {
+            source.writeText("replacement")
+            val result=OndaStore.publish(source.absolutePath,JSONObject(config.toString()).put("duplicate_policy","replace"),"mp3")
+            assertEquals(uri,result)
+            assertEquals("replacement",context.contentResolver.openInputStream(uri)!!.use {String(it.readBytes())})
+        } finally {
+            context.contentResolver.delete(uri,null,null)
+            OndaStore.history.value.filter {it.uri==uri.toString()}.forEach {OndaStore.removeHistory(it.id)}
+            source.delete()
+        }
+    }
     @Test fun aChangedOriginalIsPreservedInsteadOfBeingOverwritten() {
         val context=InstrumentationRegistry.getInstrumentation().targetContext
         val source=File(context.cacheDir,"overwrite-original-test.mp3").apply {writeText("original")}

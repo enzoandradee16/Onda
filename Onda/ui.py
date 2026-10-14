@@ -20,7 +20,7 @@ class UiMixin:
         from interface_fonts import font_family, font_scale
         scale = font_scale(self.interface_font_size.get())
         family = font_family(self, self.interface_font.get())
-        colors = palette(self.theme_mode.get(), self.theme_accent.get())
+        colors = palette(self.theme_mode.get(), self.theme_accent.get(), self.pure_black_separators.get())
         BG, SURFACE, INPUT, TEXT, MUTED, ACCENT, LINE = (colors[key] for key in ('bg','surface','input','text','muted','accent','line'))
         style = ttk.Style(self)
         style.theme_use("clam")
@@ -28,6 +28,9 @@ class UiMixin:
                         bordercolor=LINE, lightcolor=LINE, darkcolor=LINE)
         style.configure("TFrame", background=BG)
         style.configure("Card.TFrame", background=SURFACE)
+        style.configure("HistorySelected.TFrame", background=colors["selected"])
+        style.configure("HistorySelected.TLabel", background=colors["selected"], foreground=TEXT)
+        style.configure("HistorySelectedMuted.TLabel", background=colors["selected"], foreground=MUTED)
         style.configure("TNotebook", background=BG, borderwidth=0)
         style.configure("TNotebook.Tab", background=SURFACE, foreground=MUTED, padding=(8, 9))
         style.map("TNotebook.Tab", background=[("selected", INPUT)], foreground=[("selected", ACCENT)])
@@ -95,7 +98,10 @@ class UiMixin:
 
         self.pages = ttk.Notebook(main)
         self.pages.grid(row=1, column=0, sticky="nsew")
-        self.download_page = ttk.Frame(self.pages, padding=(0, 14, 0, 0))
+        from settings_scroll import SettingsCategory, scroll_page, refresh_page_layout
+        self.download_page = SettingsCategory(self.pages,BG,fill_viewport=True,padding=(0,14,0,0))
+        self.bind("<MouseWheel>",scroll_page,add="+")
+        self.bind("<Configure>", refresh_page_layout, add="+")
         from lazy_ui import LazyPane
         self.catalog_page = LazyPane(self.pages, self, "catalog_ui", "CatalogPane")
         self.pages.add(self.catalog_page, text="Pesquisar músicas")
@@ -110,6 +116,8 @@ class UiMixin:
         self.pages.add(self.effects_page, text="Slowed / Sped Up")
         self.metadata_page = LazyPane(self.pages, self, "audio_editor_ui", "MetadataPane")
         self.pages.add(self.metadata_page, text="Editar metadados")
+        self.bind("<Control-MouseWheel>",lambda event:self.history_page.resize_cards(event)
+                  if self.pages.select()==str(self.history_page) else scroll_page(event))
         from tab_order import TabReorder
         self.tab_reorder = TabReorder(self.pages, {
             'catalog': self.catalog_page, 'downloads': self.download_page,
@@ -117,7 +125,7 @@ class UiMixin:
             'history': self.history_page, 'effects': self.effects_page, 'metadata': self.metadata_page,
         }, self.tab_order.get(), lambda order: self.tab_order.set(tuple(order)))
         self.pages.bind("<<NotebookTabChanged>>", self.tab_changed)
-        main = self.download_page
+        main = self.download_page.content
         main.columnconfigure(0, weight=1)
         main.rowconfigure(4, weight=1, minsize=90)
 
@@ -193,7 +201,11 @@ class UiMixin:
         self.tree.tag_configure("Falhou", foreground="#f2a198")
         self.tree.tag_configure("Cancelado", foreground=MUTED)
         self.tree.bind("<<TreeviewSelect>>", lambda _: self.refresh_queue())
-        self.tree.bind("<Delete>", lambda _: self.remove())
+        def remove_selected(_):
+            self.remove()
+            return "break"
+        for key in ("<Delete>", "<BackSpace>"):
+            self.tree.bind(key, remove_selected)
         self.empty_queue = ttk.Frame(table, style="Card.TFrame")
         ttk.Label(self.empty_queue, text="Sua fila começa aqui", style="Card.TLabel", font=("Segoe UI", 12, "bold")).pack()
         ttk.Label(self.empty_queue, text="Adicione um link para começar.", style="CardMuted.TLabel").pack(pady=(5, 0))
@@ -313,6 +325,7 @@ class UiMixin:
         ttk.Label(appearance, text='Modo de aparência', style='Muted.TLabel').pack(anchor='w')
         self.theme_mode_combo = ttk.Combobox(appearance, textvariable=self.theme_mode, values=THEME_MODES, state='readonly', width=28)
         self.theme_mode_combo.pack(anchor='w', fill='x', pady=(6, 16))
+        ttk.Checkbutton(appearance,text="Mostrar bordas e separações no Preto puro",variable=self.pure_black_separators).pack(anchor="w",pady=(0,12))
         ttk.Label(appearance, text='Cor de destaque', style='Muted.TLabel').pack(anchor='w')
         self.theme_accent_combo = ttk.Combobox(appearance, textvariable=self.theme_accent, values=tuple(ACCENTS), state='readonly', width=28)
         self.theme_accent_combo.pack(anchor='w', fill='x', pady=(6, 16))
@@ -328,6 +341,9 @@ class UiMixin:
         ttk.Label(appearance, text='As mudanças aparecem na hora. Seguir o sistema acompanha o modo dos aplicativos do Windows, inclusive com o Onda aberto.', style='Muted.TLabel', wraplength=480).pack(anchor='w')
         ttk.Label(appearance, text='Para manter sua escolha ao reabrir, ative Lembrar configurações na categoria Geral.', style='Muted.TLabel', wraplength=480).pack(anchor='w', pady=(12, 0))
 
+        ttk.Label(appearance, text="Mostrar músicas no histórico", style="Muted.TLabel").pack(anchor="w", pady=(12,4))
+        ttk.Combobox(appearance, textvariable=self.history_view, values=("Compacto", "Completa"), state="readonly", width=28).pack(anchor="w")
+        ttk.Label(appearance, text="Compacto: lista atual. Completa: cards com capa, artista, álbum e dados do arquivo disponíveis.", style="Muted.TLabel", wraplength=480).pack(anchor="w", pady=(6,12))
         general = categories["Geral"]
         ttk.Label(general, text="Preferências", font=("Segoe UI", 13, "bold")).pack(anchor="w", pady=(0, 12))
         self.remember_checkbox = ttk.Checkbutton(general, text="Lembrar configurações", variable=self.remember_settings,

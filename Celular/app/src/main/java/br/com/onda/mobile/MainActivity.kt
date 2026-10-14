@@ -13,6 +13,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.ImeAction
@@ -79,7 +81,7 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
     val busy by vm.busy.collectAsStateWithLifecycle()
     val notice by vm.dialogNotice.collectAsStateWithLifecycle()
     val status by vm.status.collectAsStateWithLifecycle()
-    var statusVisible by rememberStatusNotice(status,busy,settings.optString("notice_duration","Fechar manualmente"))
+    var statusVisible by rememberStatusNotice(status,busy,settings.optString("notice_duration","Após 3 segundos"))
     val effectsSource by vm.effectsSource.collectAsStateWithLifecycle()
     val shared by OndaStore.sharedLink.collectAsStateWithLifecycle()
     val pureBlack=settings.optString("theme")=="Preto puro"
@@ -88,13 +90,16 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
     val accent=Color(palette[settings.optString("accent")] ?: palette.getValue("Verde-Água"))
     val baseScheme=if(dark) darkColorScheme(primary=accent,background=Color(0xFF0E131B),surface=Color(0xFF161E29),onPrimary=Color(0xFF10171F)) else lightColorScheme(primary=accent)
     val tabs=settings.optJSONArray("tab_order") ?: OndaStore.defaults().getJSONArray("tab_order")
-    val scheme=if(pureBlack) baseScheme.copy(
+    val blackScheme=if(pureBlack) baseScheme.copy(
         background=Color.Black,surface=Color.Black,surfaceTint=Color.Transparent,
         surfaceDim=Color.Black,surfaceBright=Color(0xFF181818),
         surfaceContainerLowest=Color.Black,surfaceContainerLow=Color.Black,surfaceContainer=Color.Black,
         surfaceContainerHigh=Color(0xFF101010),surfaceContainerHighest=Color(0xFF181818),
         surfaceVariant=Color(0xFF181818),outlineVariant=Color(0xFF303030)
     ) else baseScheme
+    val scheme=if(pureBlack) pureBlackSurfaces(blackScheme,settings.optBoolean("pure_black_separators",false)) else blackScheme
+    val activityWindow=(androidx.compose.ui.platform.LocalContext.current as? android.app.Activity)?.window
+    SideEffect {activityWindow?.let {applyNavigationBarTheme(it,scheme.background,dark)}}
     val homeTab=tabs.optString(0,"Pesquisar")
     var tab by rememberSaveable { mutableStateOf(homeTab) }
     var metadataUri by rememberSaveable {mutableStateOf<String?>(null)}
@@ -152,7 +157,7 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
     val typography=remember(settings.optString("interface_font"),settings.optString("interface_font_size")) {interfaceTypography(settings.optString("interface_font",DEFAULT_INTERFACE_FONT),settings.optString("interface_font_size","100%"))}
     MaterialTheme(colorScheme=scheme,typography=typography) {
         ModalNavigationDrawer(drawerState=drawer,drawerContent={ModalDrawerSheet(Modifier.width(300.dp)) {
-            Row(Modifier.fillMaxWidth().padding(20.dp),horizontalArrangement=Arrangement.Center,verticalAlignment=Alignment.CenterVertically) {Image(painterResource(R.drawable.ic_onda),null,Modifier.size(36.dp).clip(RoundedCornerShape(25)));Text("ONDA",style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.Bold,modifier=Modifier.padding(start=8.dp))}
+            Row(Modifier.fillMaxWidth().padding(20.dp),horizontalArrangement=Arrangement.Center,verticalAlignment=Alignment.CenterVertically) {OndaLogo(Modifier.size(36.dp).clip(RoundedCornerShape(25)));Text("ONDA",style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.Bold,modifier=Modifier.padding(start=8.dp))}
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
                 for(index in 0 until tabs.length()) {val name=tabs.getString(index)
                     NavigationDrawerItem(label={Text(tabLabel(name))},selected=tab==name,onClick={navigateFromDrawer {tab=name}},modifier=Modifier.padding(horizontal=10.dp).testTag("tab-$name"))
@@ -168,7 +173,7 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
             }
             Text("ONDA Android ${BuildConfig.VERSION_NAME}",Modifier.padding(16.dp),style=MaterialTheme.typography.labelSmall)
         }}) {
-        Scaffold(topBar={ TopAppBar(navigationIcon={IconButton(onClick={scope.launch {drawer.open()}},modifier=Modifier.testTag("open-menu")){Text("☰",style=MaterialTheme.typography.titleLarge)}},title={Row(verticalAlignment=Alignment.CenterVertically) {Image(painterResource(R.drawable.ic_onda),"Ícone ONDA",Modifier.size(28.dp).clip(RoundedCornerShape(25)));Column(Modifier.padding(start=8.dp)){Text("ONDA",color=MaterialTheme.colorScheme.primary,fontWeight=FontWeight.Bold,style=MaterialTheme.typography.titleMedium);Text(tabLabel(tab),style=MaterialTheme.typography.labelSmall)}}}) }) { padding ->
+        Scaffold(topBar={ TopAppBar(navigationIcon={IconButton(onClick={scope.launch {drawer.open()}},modifier=Modifier.testTag("open-menu")){Text("☰",style=MaterialTheme.typography.titleLarge)}},title={Row(verticalAlignment=Alignment.CenterVertically) {OndaLogo(Modifier.size(28.dp).clip(RoundedCornerShape(25)),"Ícone ONDA");Column(Modifier.padding(start=8.dp)){Text("ONDA",color=MaterialTheme.colorScheme.primary,fontWeight=FontWeight.Bold,style=MaterialTheme.typography.titleMedium);Text(tabLabel(tab),style=MaterialTheme.typography.labelSmall)}}}) }) { padding ->
             Column(Modifier.fillMaxSize().padding(padding)) {
                 if(busy) LinearProgressIndicator(Modifier.fillMaxWidth())
                 if(statusVisible) Row(Modifier.fillMaxWidth().padding(horizontal=16.dp),verticalAlignment=Alignment.CenterVertically) {
@@ -194,11 +199,11 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
         if(showSettings) SettingsWindow(vm,initialCategory=settingsCategory) {showSettings=false}
         if(youtubeSession) YouTubeSessionWindow {youtubeSession=false}
         if(showLicenses) LicensesWindow {showLicenses=false}
-        if(welcome) AlertDialog(onDismissRequest={preferences.edit().putBoolean("welcome_seen",true).apply();welcome=false},title={Text("Bem-vindo ao Onda")},
+        if(welcome) AlertDialog(containerColor=ondaDialogContainerColor(),onDismissRequest={preferences.edit().putBoolean("welcome_seen",true).apply();welcome=false},title={Text("Bem-vindo ao Onda")},
             text={Text("Ajuste o básico para começar. Você pode fechar esta janela e configurar tudo depois.")},
             confirmButton={TextButton(onClick={preferences.edit().putBoolean("welcome_seen",true).apply();welcome=false;settingsCategory="Aparência";showSettings=true}){Text("Configurações")}},
             dismissButton={TextButton(onClick={preferences.edit().putBoolean("welcome_seen",true).apply();welcome=false}){Text("Agora não")}})
-        notice?.let {current->AlertDialog(onDismissRequest=vm::dismissNotice,title={Text(current.title)},text={Column(Modifier.heightIn(max=320.dp).verticalScroll(rememberScrollState())){Text(current.message)}},confirmButton={TextButton(onClick=vm::dismissNotice){Text("OK")}})}
+        notice?.let {current->AlertDialog(containerColor=ondaDialogContainerColor(),onDismissRequest=vm::dismissNotice,title={Text(current.title)},text={Column(Modifier.heightIn(max=320.dp).verticalScroll(rememberScrollState())){Text(current.message)}},confirmButton={TextButton(onClick=vm::dismissNotice){Text("OK")}})}
     }
 }
 fun tabLabel(tab: String)=when(tab) {"Metadados"->"Editar metadados";"Pesquisar"->"Pesquisar músicas";"Efeitos"->"Slowed / Sped Up";"Playlists / Álbuns"->"Álbuns e playlists";else->tab}
@@ -247,6 +252,7 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
 }
 
 @Composable fun SearchPage(vm: OndaViewModel, onConnectSpotify: ()->Unit) {
+    val settings by OndaStore.settings.collectAsStateWithLifecycle()
     val queue by OndaStore.items.collectAsStateWithLifecycle()
     val searchQueue=remember(queue) {queue.filter {it.config.optString("_origin")=="search"}}
     val active by OndaStore.active.collectAsStateWithLifecycle()
@@ -263,7 +269,7 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
     }
     downloadTrack?.let {raw->key(raw) {
         val track=remember(raw) {JSONObject(raw)}
-        TrackDownloadDialog(track,OndaStore.settings.value,onDismiss={downloadTrack=null},onSubmit={options,now->
+        TrackDownloadDialog(track,settings,onDismiss={downloadTrack=null},onSubmit={options,now->
             try {
                 val id=vm.queueTrack(track,options=options,origin="search",immediate=now)
                 if(now)DownloadService.start(OndaStore.context,id)
@@ -302,6 +308,9 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
                         Text(item.title,Modifier.weight(1f),maxLines=2,style=MaterialTheme.typography.bodyMedium)
                         TextButton(onClick={OndaStore.remove(setOf(item.id))},enabled=item.id!=active && item.state !in listOf("Baixando","Aguardando escolha"),modifier=Modifier.testTag("remove-search-${item.id}")){Text("Remover")}
                     }
+                    if(item.state=="Erro" && item.message.contains("Nenhuma versão suficientemente compatível",ignoreCase=true)) {
+                        TextButton(onClick={OndaStore.retryWithVersionChoice(item.id)}) {Text("Escolher versão")}
+                    }
                     Text(item.state,style=MaterialTheme.typography.labelMedium)
                     if(item.state in listOf("Baixando","Aguardando escolha")) LinearProgressIndicator(progress={item.progress/100},modifier=Modifier.fillMaxWidth())
                     if(item.message.isNotBlank()) Text(item.message,style=MaterialTheme.typography.bodySmall,maxLines=2)
@@ -329,10 +338,10 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
             AsyncImage(model=record.cleanString("cover_url"),contentDescription="Capa do álbum",modifier=Modifier.size(60.dp))
             Column(Modifier.padding(start=12.dp).weight(1f)) {Text(record.cleanString("title"),fontWeight=FontWeight.Bold);Text(record.stringList("artists"),style=MaterialTheme.typography.bodySmall);Text(record.cleanString("album"),style=MaterialTheme.typography.bodySmall);if(record.optLong("duration_ms")>0) Text(mediaClock(record.optLong("duration_ms")/1000),style=MaterialTheme.typography.labelSmall)}
         }
-        Row(Modifier.horizontalScroll(rememberScrollState())) {
-            TextButton(onClick={if(thisPlaying) vm.stopPreview() else if(url.isNotBlank()) vm.preview(url,OndaStore.settings.value.optInt("search_preview",25)) else vm.status.value="Esta faixa não oferece prévia no catálogo."}) {Text(if(thisPlaying) "Parar prévia" else "Ouvir prévia")}
-            TextButton(onClick={vm.queueTrack(record,origin="search")}) {Text("Adicionar à fila")}
-            Button(onClick=onDownload) {Text("Baixar agora")}
+        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceEvenly,verticalAlignment=Alignment.CenterVertically) {
+            TextButton(contentPadding=PaddingValues(horizontal=4.dp,vertical=8.dp),onClick={if(thisPlaying) vm.stopPreview() else if(url.isNotBlank()) vm.preview(url,OndaStore.settings.value.optInt("search_preview",25)) else vm.status.value="Esta faixa não oferece prévia no catálogo."}) {Text(if(thisPlaying) "Parar prévia" else "Ouvir prévia")}
+            TextButton(contentPadding=PaddingValues(horizontal=4.dp,vertical=8.dp),onClick={vm.queueTrack(record,origin="search")}) {Text("Adicionar à fila")}
+            Button(contentPadding=PaddingValues(horizontal=10.dp,vertical=8.dp),onClick=onDownload) {Text("Baixar agora")}
         }
     }}
 }
@@ -384,6 +393,9 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
                     if(immediate) TextButton(onClick={OndaStore.remove(setOf(item.id))},enabled=item.id!=active && item.state !in listOf("Baixando","Aguardando escolha")){Text("Remover")}
                 }
                 if(immediate && item.state=="Erro") TextButton(onClick={OndaStore.retry(setOf(item.id))}) {Text("Tentar novamente")}
+                if(item.state=="Erro" && item.message.contains("Nenhuma versão suficientemente compatível",ignoreCase=true)) {
+                    TextButton(onClick={OndaStore.retryWithVersionChoice(item.id)}) {Text("Escolher versão")}
+                }
                 Text("${item.config.optString("mode").uppercase()} · ${item.state}",style=MaterialTheme.typography.labelMedium)
                 if(item.state in listOf("Baixando","Aguardando escolha")) LinearProgressIndicator(progress={item.progress/100},modifier=Modifier.fillMaxWidth().padding(vertical=6.dp))
                 if(item.message.isNotBlank()) Text(item.message,style=MaterialTheme.typography.bodySmall,maxLines=3)
@@ -396,7 +408,7 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
         }}
         if(showLogs) item {Text(logs.takeLast(35).joinToString("\n"),style=MaterialTheme.typography.bodySmall)}
     }
-    if(clear) AlertDialog(onDismissRequest={clear=false},title={Text("Limpar fila?")},text={Text("Remove todos os itens, exceto o download em andamento. Seus arquivos são preservados.")},confirmButton={TextButton(onClick={OndaStore.remove(queue.map {it.id}.toSet());clear=false}){Text("Limpar")}},dismissButton={TextButton(onClick={clear=false}){Text("Cancelar")}})
+    if(clear) AlertDialog(containerColor=ondaDialogContainerColor(),onDismissRequest={clear=false},title={Text("Limpar fila?")},text={Text("Remove todos os itens, exceto o download em andamento. Seus arquivos são preservados.")},confirmButton={TextButton(onClick={OndaStore.remove(queue.map {it.id}.toSet());clear=false}){Text("Limpar")}},dismissButton={TextButton(onClick={clear=false}){Text("Cancelar")}})
 }
 
 @Composable fun ImagesPage(vm: OndaViewModel) {
@@ -506,13 +518,39 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
 }
 
 @Composable fun HistoryPage(vm: OndaViewModel,onEditMetadata:(HistoryItem)->Unit) {
+    LaunchedEffect(Unit) {invalidateHistoryDetails()}
     val history by OndaStore.history.collectAsStateWithLifecycle()
+    val settings by OndaStore.settings.collectAsStateWithLifecycle()
+    val complete = settings.optString("history_view","Compacto") == "Completa"
+    val cardSize=settings.optString("history_card_size","Grande")
+    var sizeMenu by remember {mutableStateOf(false)}
+    var selectedHistory by rememberSaveable {mutableStateOf<Long?>(null)}
     var filter by rememberSaveable {mutableStateOf("")}
     val visible=remember(history,filter) {history.filter {it.title.contains(filter,true)}}
     LazyColumn(Modifier.fillMaxSize().padding(horizontal=16.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
         item {PageTitle("Sua biblioteca de downloads.","Encontre, abra e compartilhe o que já baixou.")}
         item {OutlinedTextField(filter,{filter=it},label={Text("Pesquisar no histórico")},modifier=Modifier.fillMaxWidth(),singleLine=true)}
-        items(visible,key={it.id}) {item->ElevatedCard(Modifier.fillMaxWidth()) {Column(Modifier.padding(12.dp)) {
+        if(complete) item {
+            Box(Modifier.fillMaxWidth(),contentAlignment=Alignment.CenterEnd) {
+                TextButton(onClick={sizeMenu=true},contentPadding=PaddingValues(horizontal=6.dp,vertical=0.dp)) {Text("Cards: $cardSize ▾",style=MaterialTheme.typography.labelSmall)}
+                DropdownMenu(expanded=sizeMenu,onDismissRequest={sizeMenu=false}) {
+                    listOf("Pequeno","Médio","Grande").forEach {size->
+                        DropdownMenuItem(text={Text(size)},onClick={OndaStore.saveSettings(JSONObject(settings.toString()).put("history_card_size",size));sizeMenu=false})
+                    }
+                }
+            }
+        }
+        items(visible,key={it.id}) {item->ElevatedCard(Modifier.fillMaxWidth().testTag("history-card-${item.id}").then(
+            if(complete) Modifier.selectable(selected=selectedHistory==item.id,role=Role.RadioButton,onClick={selectedHistory=item.id})
+                .border(2.dp,if(selectedHistory==item.id) MaterialTheme.colorScheme.primary else Color.Transparent,MaterialTheme.shapes.medium)
+            else Modifier)) {Column(Modifier.padding(if(complete && cardSize=="Pequeno") 6.dp else if(complete && cardSize=="Médio") 9.dp else 12.dp)) {
+            if(complete) {
+                Row(verticalAlignment=Alignment.CenterVertically) {
+                    RadioButton(selected=selectedHistory==item.id,onClick={selectedHistory=item.id})
+                    Text(if(selectedHistory==item.id) "Música selecionada" else "Selecionar música")
+                }
+                CompleteHistoryInformation(item,cardSize)
+            }
             Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
                 Text(item.title,Modifier.weight(1f),fontWeight=FontWeight.Bold)
                 TextButton(onClick={OndaStore.removeHistory(item.id)},modifier=Modifier.testTag("remove-history-${item.id}")){Text("Remover")}

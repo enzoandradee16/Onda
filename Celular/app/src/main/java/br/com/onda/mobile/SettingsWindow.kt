@@ -23,7 +23,7 @@ import org.json.JSONObject
 
 val categories=linkedMapOf(
     "Geral" to listOf("remember","check_updates","notice_duration"),
-    "Aparência" to listOf("theme","accent","tab_order","interface_font","interface_font_size"),
+    "Aparência" to listOf("history_card_size","pure_black_separators","history_view","theme","accent","tab_order","interface_font","interface_font_size"),
     "Downloads" to listOf("concurrent_downloads","resume_downloads","resume_queue","normalize_volume","schedule_enabled","schedule_start","schedule_stop","mode","audio_quality","height","fps","playlist_limit","organization","duplicate_policy","output_uri","auto_match","confirm_version","review_metadata"),
     "Imagens" to listOf("image_format","image_width","image_height","keep_ratio"),
     "Áudio" to listOf("search_preview","effects_preview","keep_preview"),
@@ -62,7 +62,7 @@ val categories=linkedMapOf(
                         Toggle("Lembrar configurações",settings.optBoolean("remember",true)){put("remember",it)}
                         Text("Ative para recuperar suas opções ao abrir o aplicativo novamente.",style=MaterialTheme.typography.bodySmall)
                         SettingsDivider()
-                        Select("Duração dos avisos",settings.optString("notice_duration","Fechar manualmente"),noticeDurations.keys.toList()){put("notice_duration",it)}
+                        Select("Duração dos avisos",settings.optString("notice_duration","Após 3 segundos"),noticeDurations.keys.toList()){put("notice_duration",it)}
                         Text("Avisos de operações em andamento permanecem até terminar. O botão × permite fechar manualmente.",style=MaterialTheme.typography.bodySmall)
                         PreferenceTransfer(vm)
                         SettingsDivider()
@@ -75,6 +75,7 @@ val categories=linkedMapOf(
                         Text("Tema e cores",style=MaterialTheme.typography.titleMedium)
                         SettingsDivider()
                         Select("Modo de aparência",settings.optString("theme"),listOf("Seguir o sistema","Escuro","Preto puro","Claro")){put("theme",it)}
+                        Toggle("Mostrar bordas e separações no Preto puro",settings.optBoolean("pure_black_separators",false)){put("pure_black_separators",it)}
                         SettingsDivider()
                         Select("Cor de destaque",settings.optString("accent"),accents.keys.toList()){put("accent",it)}
                         SettingsDivider()
@@ -83,6 +84,9 @@ val categories=linkedMapOf(
                         Select("Fonte da interface",settings.optString("interface_font",DEFAULT_INTERFACE_FONT),interfaceFonts.keys.toList()){put("interface_font",it)}
                         Text(FONT_PREVIEW,style=MaterialTheme.typography.bodyLarge,modifier=Modifier.testTag("font-preview"))
                         Text("A fonte muda na hora. Ative Lembrar configurações para manter sua escolha ao reabrir.",style=MaterialTheme.typography.bodySmall)
+                        SettingsDivider()
+                        Select("Mostrar músicas no histórico",settings.optString("history_view","Compacto"),listOf("Compacto","Completa")){put("history_view",it)}
+                        Text("Compacto: exibição atual. Completa: cards com capa e informações disponíveis da música e do álbum.",style=MaterialTheme.typography.bodySmall)
                         SettingsDivider()
                         Text("Ordem das abas",style=MaterialTheme.typography.titleMedium)
                         val order=settings.getJSONArray("tab_order").let {a->(0 until a.length()).map {a.getString(it)}}
@@ -114,7 +118,12 @@ val categories=linkedMapOf(
                         SettingsDivider()
                         Toggle("Escolher automaticamente a versão mais semelhante no YouTube",settings.optBoolean("auto_match")){put("auto_match",it)}
                         SettingsDivider()
-                        Toggle("Confirmar a versão do YouTube de cada música antes de baixar",settings.optBoolean("confirm_version")){put("confirm_version",it)}
+                        Text("Vale para os próximos downloads iniciados, inclusive itens já na fila e álbuns. Escolhe a maior similaridade entre as versões compatíveis.",style=MaterialTheme.typography.bodySmall)
+                        if(settings.optBoolean("auto_match")) {
+                            Text("A confirmação de versão fica desativada enquanto a escolha automática está ligada.",style=MaterialTheme.typography.bodySmall)
+                        } else {
+                            Toggle("Confirmar a versão do YouTube de cada música antes de baixar",settings.optBoolean("confirm_version")){put("confirm_version",it)}
+                        }
                         SettingsDivider()
                         Toggle("Revisar metadados antes de baixar",settings.optBoolean("review_metadata")){put("review_metadata",it)}
                         Text("Spotify, Deezer e Apple Music fornecem metadados; o áudio correspondente é obtido do YouTube.",style=MaterialTheme.typography.bodySmall)
@@ -179,7 +188,7 @@ val categories=linkedMapOf(
 
 @Composable fun ResetWindow(close: ()->Unit) {
     var selected by remember {mutableStateOf(categories.keys.toSet())}
-    AlertDialog(onDismissRequest=close,title={Text("Restaurar configurações")},text={Column(Modifier.verticalScroll(rememberScrollState())) {
+    AlertDialog(containerColor=ondaDialogContainerColor(),onDismissRequest=close,title={Text("Restaurar configurações")},text={Column(Modifier.verticalScroll(rememberScrollState())) {
         Text("Escolha quais categorias voltar ao padrão. A fila, o histórico e seus arquivos são preservados.")
         Toggle("TODAS as configurações",selected.size==categories.size){selected=if(it) categories.keys.toSet() else emptySet()}
         categories.keys.forEach {name->Toggle(name,name in selected){selected=if(it) selected+name else selected-name}}

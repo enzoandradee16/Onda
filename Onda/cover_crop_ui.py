@@ -21,7 +21,7 @@ class CoverCropper(tk.Toplevel):
             opened.thumbnail((2048, 2048))
             self.image = ImageOps.exif_transpose(opened).convert('RGBA')
         super().__init__(parent)
-        self.title('ONDA • Ajustar capa'); self.transient(parent)
+        self.title('ONDA • Ajustar capa'); self.transient(parent.winfo_toplevel())
         self.resizable(False, False)
         self.destination=Path(destination); self.accepted=accepted
         self.zoom=tk.DoubleVar(value=1.0); self.x=self.y=0.0; self.drag=None

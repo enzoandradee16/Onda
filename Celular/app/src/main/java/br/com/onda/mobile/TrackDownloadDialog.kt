@@ -17,7 +17,7 @@ import java.util.Locale
     var preset by rememberSaveable {mutableStateOf("MP3 320")}
     var format by rememberSaveable {mutableStateOf("M4A")}
     var quality by rememberSaveable {mutableStateOf("256 kbps")}
-    val qualities=if(format=="MP3")listOf("320 kbps","256 kbps","192 kbps","128 kbps","96 kbps","64 kbps") else listOf("256 kbps","192 kbps","128 kbps","96 kbps","64 kbps")
+    val qualities=if(format=="MP3")listOf("320 kbps","256 kbps","192 kbps","128 kbps","96 kbps") else listOf("256 kbps","192 kbps","128 kbps","96 kbps")
     val mode=when(preset) {"FLAC"->"flac";"Personalizar"->format.lowercase(Locale.ROOT);else->"mp3"}
     val bitrate=when(preset) {"MP3 320"->"320 kbps";"MP3 128"->"128 kbps";else->quality}
     fun submit(now:Boolean) {
@@ -25,7 +25,7 @@ import java.util.Locale
         if(mode!="flac")options.put("audio_quality",bitrate)
         onSubmit(options,now)
     }
-    AlertDialog(onDismissRequest=onDismiss,title={Text("Escolha o formato")},text={
+    AlertDialog(containerColor=ondaDialogContainerColor(),onDismissRequest=onDismiss,title={Text("Escolha o formato")},text={
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
                 AsyncImage(record.cleanString("cover_url"),"Capa do álbum",Modifier.size(64.dp))
@@ -56,8 +56,9 @@ import java.util.Locale
             } else "Tamanho variável · valor real mostrado ao concluir",style=MaterialTheme.typography.bodySmall)
             Text("Inclui capa e metadados disponíveis. MP3/M4A usam YouTube; FLAC usa Monochrome.",style=MaterialTheme.typography.bodySmall)
         }
-    },confirmButton={Column(Modifier.fillMaxWidth(),verticalArrangement=Arrangement.spacedBy(4.dp)) {
+    },confirmButton={Column(Modifier.fillMaxWidth(),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(4.dp)) {
         Button(onClick={submit(true)},enabled=record.optString("source_url").isNotBlank(),modifier=Modifier.fillMaxWidth()){Text("Baixar agora")}
         TextButton(onClick={submit(false)},enabled=record.optString("source_url").isNotBlank(),modifier=Modifier.fillMaxWidth()){Text("Adicionar à fila")}
-    }},dismissButton={TextButton(onClick=onDismiss){Text("Voltar")}})
+        TextButton(onClick=onDismiss,modifier=Modifier.fillMaxWidth()){Text("Voltar")}
+    }})
 }

@@ -19,11 +19,11 @@ def clean_advanced(options):
     for key,default in DEFAULTS.items():
         value=options.get(key)
         if type(default) is bool and type(value) is bool:result[key]=value
-        elif key=='concurrent_downloads' and str(value) in ('1','2','3','4'):result[key]=str(value)
+        elif key=='concurrent_downloads' and str(value) in tuple(str(n) for n in range(1,16)):result[key]=str(value)
         elif key in ('schedule_start','schedule_stop') and valid_time(value):result[key]=value
     return result
 
-COMMON={'theme','accent','interface_font','notice_duration','mode','audio_quality','height','fps','auto_match','review_metadata','organization','playlist_limit',*DEFAULTS}
+COMMON={'history_card_size','pure_black_separators','history_view','theme','accent','interface_font','notice_duration','mode','audio_quality','height','fps','auto_match','review_metadata','organization','playlist_limit',*DEFAULTS}
 ALIASES={'theme_mode':'theme','theme_accent':'accent','mp3_quality':'audio_quality'}
 
 def export_settings(options,platform):
@@ -44,10 +44,10 @@ def import_settings(payload,platform):
     # Only simple preference values; never import secrets, local paths or URIs.
     if any(not isinstance(v,(str,int,float,bool,type(None))) for v in source.values()):raise ValueError('Configuração inválida.')
     result={k:v for k,v in source.items() if k not in DEFAULTS}
-    for key in ('auto_match','review_metadata'):
+    for key in ('auto_match','review_metadata','pure_black_separators'):
         if key in result and type(result[key]) is not bool:result.pop(key)
     from engine import MODES,HEIGHTS,FPS_OPTIONS
-    choices={'mode':set(MODES.values()),'height':set(HEIGHTS.values()),'fps':set(FPS_OPTIONS.values()),
+    choices={'history_card_size':{'Pequeno','Médio','Grande'},'history_view':{'Compacto','Completa'},'mode':set(MODES.values()),'height':set(HEIGHTS.values()),'fps':set(FPS_OPTIONS.values()),
              'theme':{'Claro','Escuro','Preto puro','Seguir o sistema'},
              'audio_quality':{'320 kbps','256 kbps','192 kbps','128 kbps','96 kbps','64 kbps','Melhor disponível'},
              'organization':{'Catálogo','Pasta de destino','Artista','Artista / Álbum'}}

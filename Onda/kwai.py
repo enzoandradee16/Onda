@@ -4,7 +4,7 @@ import re
 from urllib.parse import urlsplit, parse_qs
 
 from yt_dlp.extractor.common import InfoExtractor
-from yt_dlp.utils import ExtractorError, js_to_json, int_or_none, float_or_none, url_or_none
+from yt_dlp.utils import ExtractorError, js_to_json, int_or_none, float_or_none, url_or_none, parse_duration
 
 
 def object_at(text, start):
@@ -91,6 +91,36 @@ def find_post(html, photo_id):
     return None
 
 
+def find_schema_video(html, video_id):
+    """Only accept media explicitly identified as the requested Kwai video."""
+    from social_media import PageData
+    page = PageData()
+    page.feed(html)
+    for script in page.scripts:
+        try:
+            root = json.loads(script)
+        except ValueError:
+            continue
+        for node in walk(root):
+            if node.get("@type") != "VideoObject":
+                continue
+            identity = urlsplit(str(node.get("url") or ""))
+            if identity.hostname not in ("www.kwai.com", "kwai.com", "m.kwai.com"):
+                continue
+            if identity.path.rstrip("/").split("/")[-1] != str(video_id):
+                continue
+            media = url_or_none(node.get("contentUrl"))
+            if media:
+                creator = (node.get("creator") or {}).get("mainEntity") or {}
+                return {"id": str(video_id), "title": node.get("name") or f"Vídeo Kwai {video_id}",
+                        "url": media, "ext": "mp4", "webpage_url": node["url"],
+                        "duration": parse_duration(node.get("duration")),
+                        "width": int_or_none(node.get("width")), "height": int_or_none(node.get("height")),
+                        "uploader": creator.get("name"), "uploader_id": creator.get("alternateName"),
+                        "http_headers": {"Referer": "https://www.kwai.com/"}}
+    return None
+
+
 class OndaKwaiIE(InfoExtractor):
     IE_NAME = "onda:kwai"
     _VALID_URL = r"https?://(?:[\w-]+\.)?(?:kwai\.com|kwai-video\.com|kw\.ai)/(?P<id>[^?#]+)"
@@ -100,9 +130,33 @@ class OndaKwaiIE(InfoExtractor):
         webpage, response = self._download_webpage_handle(url, short_id, impersonate=True)
         canonical = self._og_search_property("url", webpage, default=None) or response.url
         video_id = (parse_qs(urlsplit(canonical).query).get("photoId") or [urlsplit(canonical).path.rstrip("/").split("/")[-1]])[0]
+        schema = find_schema_video(webpage, video_id)
+        if schema:
+            return schema
         post = find_post(webpage, video_id)
         if not post:
-            raise ExtractorError("O Kwai não disponibilizou os dados desta publicação. Ela pode ter sido removida ou exigir login.", expected=True)
+            mobile_page = self._download_webpage(url, short_id, fatal=False,
+                note="Consultando a página móvel do Kwai",
+                headers={"User-Agent": "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36"})
+            if mobile_page:
+                schema = find_schema_video(mobile_page, video_id)
+                if schema:
+                    return schema
+                post = find_post(mobile_page, video_id)
+        if not post and re.fullmatch(r"[0-9]+",video_id):
+            data=self._download_json("https://www.kwai.com/rest/o/w/pwa/feed/slides",video_id,
+                note="Consultando os dados públicos do vídeo",fatal=False,
+                data=json.dumps({"photo_id_str":video_id,"count":3,"request_source":1105,"mobile":True}).encode(),
+                headers={"Content-Type":"application/json","Referer":canonical}) or {}
+            for node in walk(data.get("feeds") or []):
+                identity=node.get("photo_id_str") or node.get("photoId") or node.get("photo_id")
+                if str(identity)==video_id:
+                    post=node
+                    break
+            if not post and data.get("photoNotFound") is True:
+                raise ExtractorError("O Kwai não encontrou este vídeo na consulta pública. Confira se o link ainda abre e reproduz no Kwai; ele pode ter sido removido, estar indisponível nesta região ou ter acesso restrito. Nenhum vídeo recomendado foi baixado.",expected=True)
+        if not post:
+            raise ExtractorError("O Kwai não forneceu os dados públicos deste vídeo. Confira se o link abre e reproduz no aplicativo ou navegador. Não foi possível confirmar a disponibilidade desta publicação.", expected=True)
         formats, seen = [], set()
         manifest = post.get("transcode_manifest_info") or {}
         for adaptation in manifest.get("adaptationSet") or []:

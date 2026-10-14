@@ -6,7 +6,7 @@ O ONDA nasceu como um projeto pessoal, feito inicialmente para meu uso e de amig
 
 O projeto continua em desenvolvimento. Sugestões, contribuições e relatos de problemas são bem-vindos.
 
-**Versões de teste: Windows 1.0.0-beta.2 · Android 1.0.0-alpha.2 (ARM64, Android 8 ou superior).**
+**Versão oficial 1.0.0 para Windows e Android (ARM64, Android 8 ou superior).**
 
 ![ONDA no modo escuro](docs/images/onda-escuro.png)
 
@@ -16,10 +16,10 @@ Baixe os pacotes oficiais em [Releases](https://github.com/enzoandradee16/Onda/r
 
 - **Portátil:** extraia o ZIP inteiro e abra `Onda.exe`. Mantenha as pastas `Onda` e `_runtime` junto dele. Não precisa instalar Python. No primeiro uso, o ONDA baixa o FFmpeg diretamente de gyan.dev, com barra de progresso e verificação SHA-256; é necessário acesso à internet nessa preparação.
 - **Instalador:** execute o arquivo `Onda-…-Setup-Windows-x64.exe` e siga o assistente. A instalação é por usuário, com atalhos e desinstalador. O FFmpeg também é preparado automaticamente no primeiro uso.
-- **Android:** o APK alpha.2 usa assinatura de produção e requer Android 8 ou superior, em aparelho ARM64. Os fontes das ferramentas nativas recompiladas são disponibilizados no pacote Fontes-nativos-Android da mesma release.
+- **Android:** o APK usa assinatura de produção e requer Android 8 ou superior, em aparelho ARM64. Os fontes das ferramentas nativas recompiladas são disponibilizados no pacote Fontes-nativos-Android da mesma release.
 - **Código-fonte:** consulte [as instruções de desenvolvimento](Onda/README.md).
 
-Os executáveis desta beta não têm assinatura digital. O Windows pode mostrar um aviso de reputação; confira a origem e os hashes antes de executar.
+Os executáveis Windows não têm assinatura digital. O Windows pode mostrar um aviso de reputação; confira a origem e os hashes antes de executar.
 
 ## O que faz
 
@@ -29,9 +29,50 @@ Os executáveis desta beta não têm assinatura digital. O Windows pode mostrar 
 - Oferece fila persistente, download imediato, histórico, seleção de mídias e organização por pastas.
 - Importa álbuns e playlists, além de TXT, M3U e CSV do Exportify. Permite pesquisar na lista e escolher formato e qualidade próprios.
 - Converte imagens e cria versões Slowed, Sped Up e Reverb, com presets, prévia, navegação na reprodução e opção de manter o tom.
-- Tem modos claro, escuro e do sistema, 16 cores de destaque e abas reorganizáveis.
+- Tem modos claro, escuro, preto puro e do sistema, 16 cores de destaque e abas reorganizáveis.
 
 ![Configurações e aparência](docs/images/onda-configuracoes.png)
+
+## ONDA no Android
+
+Capturas reais do aplicativo nos temas claro, escuro e preto puro. Clique nas imagens para ampliar.
+
+<table>
+  <tr>
+    <td align="center" width="33%">
+      <strong>Pesquisar músicas</strong><br>
+      <a href="docs/images/android/pesquisa-escuro.png"><img src="docs/images/android/pesquisa-escuro.png" width="230" alt="ONDA Android: pesquisar músicas — tema escuro · verde-água"></a><br>
+      <sub>Tema escuro · Verde-Água</sub>
+    </td>
+    <td align="center" width="33%">
+      <strong>Álbuns e playlists</strong><br>
+      <a href="docs/images/android/album-escuro.png"><img src="docs/images/android/album-escuro.png" width="230" alt="ONDA Android: álbuns e playlists — tema escuro · lilás"></a><br>
+      <sub>Tema escuro · Lilás</sub>
+    </td>
+    <td align="center" width="33%">
+      <strong>Links e fila</strong><br>
+      <a href="docs/images/android/fila-preto-puro.png"><img src="docs/images/android/fila-preto-puro.png" width="230" alt="ONDA Android: links e fila — preto puro · rosa"></a><br>
+      <sub>Preto puro · Rosa</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="33%">
+      <strong>Escolher formato</strong><br>
+      <a href="docs/images/android/escolher-formato.png"><img src="docs/images/android/escolher-formato.png" width="230" alt="ONDA Android: escolher formato — mp3, m4a e flac"></a><br>
+      <sub>MP3, M4A e FLAC</sub>
+    </td>
+    <td align="center" width="33%">
+      <strong>Imagens</strong><br>
+      <a href="docs/images/android/imagens-claro.png"><img src="docs/images/android/imagens-claro.png" width="230" alt="ONDA Android: imagens — tema claro · roxo"></a><br>
+      <sub>Tema claro · Roxo</sub>
+    </td>
+    <td align="center" width="33%">
+      <strong>Slowed, Sped Up e Reverb</strong><br>
+      <a href="docs/images/android/efeitos-claro.png"><img src="docs/images/android/efeitos-claro.png" width="230" alt="ONDA Android: slowed, sped up e reverb — tema claro · vermelho"></a><br>
+      <sub>Tema claro · Vermelho</sub>
+    </td>
+  </tr>
+</table>
 
 ## Uso rápido
 

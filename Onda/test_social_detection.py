@@ -1,3 +1,4 @@
+from yt_dlp import YoutubeDL
 import io
 import json
 import os
@@ -6,7 +7,7 @@ from unittest.mock import Mock, patch
 
 from engine import ask_media
 from instagram_media import product_items
-from kwai import find_post, nuxt_objects, OndaKwaiIE
+from kwai import find_post, nuxt_objects, OndaKwaiIE, find_schema_video
 from social_media import download_selected, access_error, download_post
 
 
@@ -72,6 +73,41 @@ class DetectionTests(unittest.TestCase):
         self.assertEqual(info["formats"][0]["tbr"], 800)
         self.assertEqual(info["duration"], 1)
         self.assertNotIn("errado", info["formats"][0]["url"])
+
+    def test_kwai_mobile_schema_exact_identity(self):
+        import json
+        post = {"@type": "VideoObject", "url": "https://www.kwai.com/@user/video/123",
+                "contentUrl": "https://cdn.example.com/video.mp4", "name": "Example", "duration": "PT59S"}
+        html = '<script type="application/ld+json">' + json.dumps(post) + '</script>'
+        self.assertIsNone(find_schema_video(html, '999'))
+        self.assertEqual(find_schema_video(html, '123')['duration'], 59)
+        with YoutubeDL({'quiet': True}) as downloader:
+            source = OndaKwaiIE(downloader)
+            with patch.object(source, '_download_webpage_handle', return_value=('', Mock(url=post['url']))), patch.object(source, '_download_webpage', return_value=html), patch.object(source, '_download_json') as api:
+                result = source._real_extract('https://kwai-video.com/p/test')
+                self.assertEqual(result['url'], post['contentUrl'])
+                api.assert_not_called()
+
+    def test_kwai_public_api_recovers_missing_page_data(self):
+        from yt_dlp import YoutubeDL
+        with YoutubeDL({'quiet':True}) as downloader:
+            source=OndaKwaiIE(downloader)
+            post=find_post(NUXT,'5209126029585907740')
+            with patch.object(source,'_download_webpage_handle',return_value=('<html></html>',Mock(url='https://www.kwai.com/@autor/video/5209126029585907740'))), patch.object(source,'_download_webpage',return_value=None), patch.object(source,'_download_json',return_value={'result':1,'feeds':[post]}) as api:
+                info=source._real_extract('https://kwai-video.com/p/test')
+                self.assertEqual(info['id'],'5209126029585907740')
+                self.assertIn(b'5209126029585907740',api.call_args.kwargs['data'])
+    def test_kwai_missing_post_never_downloads_recommendations_or_claims_login(self):
+        from yt_dlp import YoutubeDL
+        from social_media import access_error
+        with YoutubeDL({'quiet':True}) as downloader:
+            source=OndaKwaiIE(downloader)
+            post=find_post(NUXT,'5209126029585907740')
+            with patch.object(source,'_download_webpage_handle',return_value=('<html></html>',Mock(url='https://www.kwai.com/@autor/video/5239525327642278367'))), patch.object(source,'_download_webpage',return_value=None), patch.object(source,'_download_json',return_value={'result':1,'photoNotFound':True,'feeds':[post]}):
+                with self.assertRaisesRegex(Exception,'O Kwai não encontrou') as caught:
+                    source._real_extract('https://kwai-video.com/p/9MC9uCVz')
+                self.assertNotIn('exige autenticação',access_error(caught.exception))
+                self.assertNotIn('cookies.txt',access_error(caught.exception))
 
     def test_instagram_keeps_mixed_media_and_largest_photo(self):
         source = Mock()

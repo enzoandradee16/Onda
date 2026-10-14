@@ -11,6 +11,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -30,7 +31,8 @@ import kotlinx.coroutines.withContext
         val value=selectedUri ?: return@LaunchedEffect
         try {
             item=withContext(Dispatchers.IO) {localAudioItem(Uri.parse(value))}
-        } catch(error:Exception) {vm.showNotice("Escolher arquivo de áudio",error.message ?: "Não foi possível abrir o arquivo.");selectedUri=null}
+        } catch(cancelled:CancellationException) {throw cancelled}
+        catch(error:Exception) {vm.showNotice("Escolher arquivo de áudio",error.message ?: "Não foi possível abrir o arquivo.");selectedUri=null}
     }
     val audio=item
     if(audio!=null) {

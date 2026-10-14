@@ -15,7 +15,15 @@ import java.time.LocalTime
 
 @RunWith(AndroidJUnit4::class)
 class AdvancedFeatureTest {
-    @get:Rule val compose=createAndroidComposeRule<MainActivity>()
+    @get:Rule(order=0) val permissions=object:org.junit.rules.ExternalResource() {
+        override fun before() {
+            if(android.os.Build.VERSION.SDK_INT>=33) {
+                val instrumentation=InstrumentationRegistry.getInstrumentation()
+                instrumentation.uiAutomation.grantRuntimePermission(instrumentation.targetContext.packageName,android.Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+    }
+    @get:Rule(order=1) val compose=createAndroidComposeRule<MainActivity>()
     private fun ready() {
         compose.waitForIdle()
         if(compose.onAllNodesWithText("Agora não").fetchSemanticsNodes().isNotEmpty())compose.onNodeWithText("Agora não").performClick()

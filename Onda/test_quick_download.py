@@ -82,13 +82,15 @@ class QuickDownloadTests(unittest.TestCase):
             self.assertEqual(len(self.app.jobs), 0)
             self.assertEqual(self.app.urls.get("1.0", "end").strip(), text)
 
-    def test_busy_download_does_not_add_or_interrupt(self):
+    def test_busy_download_adds_request_without_interrupting_worker(self):
         self.input("https://example.com/now")
+        self.app.running = True
         self.app.active = "busy"
-        with patch("app.messagebox.showinfo") as info:
+        self.app.parallel.workers.add("busy")
+        with patch("app.binaries", return_value=True), patch.object(self.app.parallel, "extend") as extend:
             self.app.download_now()
-        info.assert_called_once()
-        self.assertEqual(len(self.app.jobs), 0)
+        extend.assert_called_once()
+        self.assertEqual(len(self.app.jobs), 1)
         self.assertEqual(self.app.active, "busy")
 
     def test_switching_tabs_obeys_background_setting(self):

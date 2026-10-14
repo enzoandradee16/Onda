@@ -406,7 +406,8 @@ def perform(action, config):
                     emit(kind, **values)
             if config.get('source'):
                 source=Path(temporary)/config.get('name',Path(config['source']).name)
-                shutil.copy2(config['source'],source)
+                # Android may deny copying filesystem attributes; only image bytes are needed.
+                shutil.copyfile(config['source'],source)
             else:
                 work=dict(config,folder=temporary,mode='photos',duplicate_policy='keep')
                 done,_=prepare_link(work,capture,None)

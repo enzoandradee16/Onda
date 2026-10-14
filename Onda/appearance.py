@@ -5,7 +5,7 @@ from tkinter import ttk
 import tkinter.font as tkfont
 from interface_fonts import font_family, DEFAULT_FONT, font_scale
 
-THEME_MODES = ('Seguir o sistema', 'Escuro', 'Claro')
+THEME_MODES = ('Seguir o sistema', 'Escuro', 'Preto puro', 'Claro')
 ACCENTS = {
     'Verde-Água': ('#79e2c4', '#087e69'),
     'Azul': ('#8dbbff', '#245fbe'),
@@ -43,12 +43,14 @@ def blend(first, second, amount):
     return '#' + ''.join(f'{value:02x}' for value in values)
 
 
-def palette(mode='Seguir o sistema', accent='Verde-Água'):
+def palette(mode='Seguir o sistema', accent='Verde-Água', separators=False):
     mode = system_mode() if mode == 'Seguir o sistema' else mode
     light = mode == 'Claro'
     colors = dict(zip(('bg','surface','input','text','muted','line'),
         ('#f3f5f8','#ffffff','#e7edf4','#182335','#53647b','#cad3df') if light else
         ('#101419','#191f27','#222a35','#eef3f8','#91a0b3','#2a3441')))
+    if mode == 'Preto puro':
+        colors.update(bg='#000000', surface='#000000', input='#101010', line='#303030')
     colors['accent'] = ACCENTS.get(accent, ACCENTS['Verde-Água'])[int(light)]
     colors.update(mode=mode, accent_text='#ffffff' if light else '#101419',
                   error='#b12c3c' if light else '#f2a198')
@@ -56,6 +58,9 @@ def palette(mode='Seguir o sistema', accent='Verde-Água'):
     colors['accent_hover'] = blend(colors['accent'], '#000000' if light else '#ffffff', .12)
     colors['selected'] = blend(colors['surface'], colors['accent'], .19)
     colors['disabled'] = blend(colors['muted'], colors['surface'], .35)
+    colors['flat_black'] = mode == 'Preto puro' and not separators
+    if colors['flat_black']:
+        colors.update(bg='#000000', surface='#000000', input='#000000', line='#000000', hover='#000000', selected='#000000')
     return colors
 
 
@@ -78,7 +83,7 @@ class ThemeManager:
         self.closed = False
         self.generation = 0
         self.after_id = None
-        self.traces = [(var, var.trace_add('write', self.changed)) for var in (app.theme_mode, app.theme_accent, app.interface_font, app.interface_font_size)]
+        self.traces = [(var, var.trace_add('write', self.changed)) for var in (app.theme_mode, app.theme_accent, app.interface_font, app.interface_font_size, app.pure_black_separators)]
         self.map_binding = app.bind_all('<Map>', self.mapped, add='+')
         self.apply()
         self.after_id = app.after(1500, self.check_system)
@@ -87,7 +92,7 @@ class ThemeManager:
         self.apply()
 
     def apply(self):
-        colors = palette(self.app.theme_mode.get(), self.app.theme_accent.get())
+        colors = palette(self.app.theme_mode.get(), self.app.theme_accent.get(), self.app.pure_black_separators.get())
         font_name = self.app.interface_font.get()
         scale = font_scale(self.app.interface_font_size.get())
         if colors == self.colors and font_name == self.font_name and scale == self.font_scale:
@@ -166,6 +171,8 @@ class ThemeManager:
                                '-font',(self.resolved_font, round(10 * self.font_scale)))
             if isinstance(widget, (tk.Toplevel, tk.Tk)):
                 self.titlebar(widget)
+                from window_icons import apply_window_icon
+                apply_window_icon(widget,c)
             widget._onda_theme_generation = self.generation
         except tk.TclError:
             pass
@@ -202,10 +209,14 @@ class ThemeManager:
             user32.GetAncestor.argtypes = [wintypes.HWND, wintypes.UINT]
             user32.GetAncestor.restype = wintypes.HWND
             handle = user32.GetAncestor(window.winfo_id(), 2)
-            value = wintypes.BOOL(self.colors['mode'] == 'Escuro')
+            value = wintypes.BOOL(self.colors['mode'] in ('Escuro', 'Preto puro'))
             func = ctypes.windll.dwmapi.DwmSetWindowAttribute
             func.argtypes = [wintypes.HWND,wintypes.DWORD,ctypes.c_void_p,wintypes.DWORD]
             func(handle,20,ctypes.byref(value),ctypes.sizeof(value))
+            flat=self.colors.get('flat_black',False)
+            for attribute in (34,35):
+                color=wintypes.DWORD(0 if flat else 0xffffffff)
+                func(handle,attribute,ctypes.byref(color),ctypes.sizeof(color))
         except (OSError, AttributeError):
             pass
 

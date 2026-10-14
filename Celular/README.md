@@ -2,13 +2,13 @@
 
 Projeto Android separado da distribuição Windows. Kotlin/Compose fornece a interface e os serviços; Python/Chaquopy executa o motor compartilhado do ONDA. O build copia os módulos necessários de `../Onda`, sem editar o programa de PC.
 
-Esta é a versão **1.0.0-alpha.1 de desenvolvimento**. A implementação das funções do PC está sendo adaptada e validada em Android. Compilar não comprova funcionamento de todas as plataformas: login, cookies, correspondências e bloqueios dependem do serviço e do aparelho. Consulte [FUNCIONALIDADES.md](FUNCIONALIDADES.md) e a [auditoria de paridade com o PC](PARIDADE-PC-ANDROID.md).
+Versão oficial **1.0.0** para Android 8 ou superior, ARM64. Kotlin/Compose e o motor compartilhado fornecem busca, downloads, histórico, edição de metadados, imagens e efeitos. Consulte [FUNCIONALIDADES.md](FUNCIONALIDADES.md) e a [auditoria de paridade com o PC](PARIDADE-PC-ANDROID.md).
 
 Resultados e pendências desta compilação: [validation/RESULTADOS.md](validation/RESULTADOS.md).
 
 ## Instalar no celular
 
-Use `APK/ONDA-Android-1.0.0-alpha.1.apk`, transfira para o celular e permita a instalação pela origem escolhida. Android 8 ou superior, processador ARM64; o APK padrão contém somente ARM64 para reduzir o tamanho. Para emulador x86_64, compile com `-Arquitetura x86_64`; para ambas, use `-Arquitetura universal`. A assinatura é de desenvolvimento, não uma chave definitiva de publicação. Não precisa instalar Python, FFmpeg ou Termux.
+Use `APK/ONDA-Android-1.0.0-arm64-v8a.apk`, transfira para o celular e permita a instalação pela origem escolhida. Android 8 ou superior, processador ARM64; o APK padrão contém somente ARM64 para reduzir o tamanho. Para emulador x86_64, compile com `-Arquitetura x86_64`; para ambas, use `-Arquitetura universal`. O APK distribuído é assinado com a chave de produção ONDA; o script de desenvolvimento gera um APK debug separado. Não precisa instalar Python, FFmpeg ou Termux.
 
 Abra o ONDA, conclua ou feche a configuração inicial. Em Links e fila, cole o link e escolha Baixar agora ou Adicionar à fila. Downloads usam notificações; conceda a permissão quando solicitada. Se precisar confirmar metadados/versão/mídias, abra o app e responda à janela.
 
@@ -50,7 +50,7 @@ As preferências, a fila, o histórico, os cookies importados e as credenciais f
 
 ## Distribuição
 
-A alpha.2 usa assinatura de produção. Os fontes das ferramentas nativas estão no pacote Fontes-nativos-Android e a reconstrução está descrita em [nativebuild/README.md](nativebuild/README.md). Há testes ARM64 em emulador; compatibilidade e comportamento em segundo plano devem continuar sendo conferidos em aparelhos reais. Veja [THIRD_PARTY_NOTICES_ANDROID.md](THIRD_PARTY_NOTICES_ANDROID.md).
+A versão 1.0.0 usa assinatura de produção. Os fontes das ferramentas nativas estão no pacote Fontes-nativos-Android e a reconstrução está descrita em [nativebuild/README.md](nativebuild/README.md). Há testes ARM64 em emulador; compatibilidade e comportamento em segundo plano devem continuar sendo conferidos em aparelhos reais. Veja [THIRD_PARTY_NOTICES_ANDROID.md](THIRD_PARTY_NOTICES_ANDROID.md).
 
 Na pesquisa, Adicionar à fila e Baixar agora alimentam a Fila da pesquisa, visível na mesma área. Ela mostra estado/progresso e usa o serviço da fila geral sem repetir downloads. Tempos são exibidos em minutos:segundos. Em Configurações → Contas, Abrir Spotify Developers abre o painel oficial no navegador; conectar exige Client ID, com aviso acima da janela se faltar.
 

@@ -2,7 +2,7 @@ import queue
 import threading
 import tkinter as tk
 import unicodedata
-from tkinter import filedialog, messagebox, ttk
+from tkinter import filedialog, ttk
 
 from engine import MODES, HEIGHTS, FPS_OPTIONS, MP3_QUALITIES, M4A_QUALITIES
 from metadata import MetadataClient, is_streaming_link
@@ -41,7 +41,7 @@ class PlaylistPane(ttk.Frame):
         self.closed = False
         self.busy = False
         self.columnconfigure(0, weight=1)
-        self.rowconfigure(6, weight=1)
+        self.rowconfigure(6, weight=1, minsize=220)
         ttk.Label(self, text="Seus álbuns e playlists na biblioteca.", font=("Segoe UI", 21, "bold"), anchor="center").grid(row=0, column=0, sticky="ew")
         row = ttk.Frame(self)
         row.grid(row=1, column=0, sticky="ew", pady=18)
@@ -84,11 +84,13 @@ class PlaylistPane(ttk.Frame):
         self.collection_card.grid(row=4,column=0,sticky="ew",pady=(0,10))
         self.collection_card.columnconfigure(1,weight=1)
         self.collection_cover=ttk.Label(self.collection_card,text="♫",style="Card.TLabel",anchor="center",width=8)
-        self.collection_cover.grid(row=0,column=0,rowspan=2,padx=(0,12))
-        self.collection_name=ttk.Label(self.collection_card,style="Card.TLabel",font=("Segoe UI",13,"bold"))
+        self.collection_cover.grid(row=0,column=0,rowspan=3,padx=(0,12))
+        self.collection_name=ttk.Label(self.collection_card,style="Card.TLabel",font=("Segoe UI",18,"bold"))
         self.collection_name.grid(row=0,column=1,sticky="w")
+        self.collection_artist=ttk.Label(self.collection_card,style="Card.TLabel",font=("Segoe UI",12,"bold"))
+        self.collection_artist.grid(row=1,column=1,sticky="w",pady=(6,4))
         self.collection_detail=ttk.Label(self.collection_card,style="CardMuted.TLabel")
-        self.collection_detail.grid(row=1,column=1,sticky="w")
+        self.collection_detail.grid(row=2,column=1,sticky="w")
         self.collection_card.grid_remove()
         search = ttk.Frame(self)
         search.grid(row=5, column=0, sticky="ew", pady=(0, 12))
@@ -249,13 +251,14 @@ class PlaylistPane(ttk.Frame):
         self.cover_generation += 1
         self.collection_card.grid()
         self.collection_name.configure(text=self.playlist_title)
-        detail=" · ".join(str(value) for value in (result.get("subtitle"), "Álbum" if result.get("kind")=="album" else "Playlist", f"{len(result['tracks'])} músicas") if value)
+        self.collection_artist.configure(text=result.get("subtitle") or "")
+        detail=" · ".join(str(value) for value in ("Álbum" if result.get("kind")=="album" else "Playlist", f"{len(result['tracks'])} músicas") if value)
         self.collection_detail.configure(text=detail)
         self.collection_cover.configure(image="",text="♫")
         self.cover_image=None
         if result.get("cover_url"):
             generation, cover_generation, url=self.generation,self.cover_generation,result["cover_url"]
-            def load_cover():
+            def load_cover(generation=generation, cover_generation=cover_generation, url=url):
                 try:
                     from catalog_ui import cover_png
                     image=cover_png(url)

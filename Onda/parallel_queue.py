@@ -24,7 +24,7 @@ class ParallelQueue:
 
     def fill(self):
         app=self.app
-        self.limit=max(1,min(4,int(app.concurrent_downloads.get())))
+        self.limit=max(1,min(15,int(app.concurrent_downloads.get())))
         if app.running:
             for item in app.tree.get_children():
                 if len(self.workers)>=self.limit:break

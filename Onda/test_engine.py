@@ -41,10 +41,11 @@ class ValidationTests(unittest.TestCase):
         self.assertIsNotNone(reject_live({"is_live": True}))
         self.assertIsNone(reject_live({"live_status": "was_live"}))
 
-    def test_mp4_limits_apply_to_every_video_fallback(self):
+    def test_mp4_prefers_limits_and_allows_source_for_reduction(self):
         options = build_options({"mode": "mp4", "folder": ".", "height": 720, "fps": 30})
-        for fallback in options["format"].split("/"):
-            self.assertIn("[height<=?720][fps<=?30]", fallback)
+        self.assertIn("[height<=?720][fps<=?30]",options["format"])
+        self.assertIn("[width<=?720][fps<=?30]",options["format"])
+        self.assertTrue(options["format"].endswith("bestvideo+bestaudio/best/bestvideo"))
         self.assertEqual(options["postprocessors"][0]["preferedformat"], "mp4")
 
     def test_stop_process(self):

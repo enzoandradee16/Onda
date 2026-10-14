@@ -372,8 +372,11 @@ class TrackDialog(tk.Toplevel):
         self.geometry("650x610")
         self.minsize(610, 580)
         self.transient(app)
-        body = ttk.Frame(self, padding=24)
-        body.pack(fill="both", expand=True)
+        from settings_scroll import SettingsCategory
+        scroll=SettingsCategory(self,"#101419",padding=24)
+        scroll.pack(fill="both",expand=True)
+        self.bind("<MouseWheel>",scroll.wheel)
+        body=scroll.content
         body.columnconfigure(0, weight=1)
         body.rowconfigure(5, weight=1)
         header = ttk.Frame(body)

@@ -8,6 +8,16 @@ from preferences import PreferenceStore
 
 
 class PaletteTests(unittest.TestCase):
+    def test_pure_black_has_no_surface_separations_unless_enabled(self):
+        flat=palette('Preto puro')
+        for key in ('bg','surface','input','line','hover','selected'):
+            self.assertEqual(flat[key],'#000000',key)
+        separated=palette('Preto puro',separators=True)
+        self.assertNotEqual(separated['input'],separated['bg'])
+        self.assertNotEqual(separated['line'],separated['bg'])
+        self.assertEqual(flat['accent'],separated['accent'])
+        self.assertEqual(PreferenceStore.clean({'pure_black_separators':True}),{'pure_black_separators':True})
+
     def test_all_accents_have_readable_button_text_in_both_modes(self):
         def luminance(color):
             values = [int(color[i:i+2],16)/255 for i in (1,3,5)]
@@ -61,7 +71,11 @@ class AppearanceUiTests(unittest.TestCase):
         window = MetadataWindow(app, [])
         app.theme_manager.walk(window)
         self.assertEqual(window.links.cget('background'),c['surface'])
+        self.assertEqual(window._function_icon_key[1],c['accent'])
+        self.assertEqual(app._function_icon_key[1],c['accent'])
         app.theme_mode.set('Escuro')
+        self.assertEqual(window._function_icon_key[1],palette('Escuro','Roxo')['accent'])
+        self.assertEqual(app._function_icon_key[1],palette('Escuro','Roxo')['accent'])
         self.assertEqual(window.links.cget('background'),palette('Escuro','Roxo')['surface'])
         window.close()
 

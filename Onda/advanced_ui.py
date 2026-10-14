@@ -5,7 +5,6 @@ import queue
 import threading
 import tkinter as tk
 from tkinter import ttk,filedialog,messagebox
-import webbrowser
 
 def move_queue(app,direction):
     order=list(app.tree.get_children());selected=list(app.tree.selection())
@@ -19,11 +18,11 @@ def move_queue(app,direction):
     app.persist_queue()
 
 def settings_tools(app,parent):
-    from advanced_options import DEFAULTS
     ttk.Separator(parent).pack(fill='x',pady=12)
     ttk.Label(parent,text='Fila e agendamento',font=('Segoe UI',12,'bold')).pack(anchor='w')
-    ttk.Label(parent,text='Downloads simultâneos (1 a 4)').pack(anchor='w',pady=(8,3))
-    ttk.Combobox(parent,textvariable=app.concurrent_downloads,values=('1','2','3','4'),state='readonly',width=8).pack(anchor='w')
+    ttk.Label(parent,text='Downloads simultâneos (1 a 15)').pack(anchor='w',pady=(8,3))
+    ttk.Combobox(parent,textvariable=app.concurrent_downloads,values=tuple(str(n) for n in range(1,16)),state='readonly',width=8).pack(anchor='w')
+    ttk.Label(parent,text='Aviso: muitos downloads simultâneos, especialmente de 10 a 15, podem pesar o app e aumentar o uso de memória, processador e internet. Reduza se notar lentidão.',wraplength=460,style='Muted.TLabel').pack(anchor='w',pady=(6,8))
     for key,label in (('resume_downloads','Retomar arquivos interrompidos quando possível'),('resume_queue','Retomar fila ao abrir o ONDA'),('normalize_volume','Normalizar volume dos próximos downloads'),('schedule_enabled','Agendar downloads'),('check_updates','Verificar atualizações do ONDA ao abrir')):
         ttk.Checkbutton(parent,text=label,variable=getattr(app,key)).pack(anchor='w',pady=5)
     hours=ttk.Frame(parent);hours.pack(fill='x',pady=6)
@@ -57,7 +56,7 @@ def transfer(app,importing):
 def check_update(app,manual=False):
     from advanced_options import release_update
     def worker():
-        try:result=release_update('windows','1.0.0-beta.2')
+        try:result=release_update('windows','1.0.0')
         except Exception:result={'available':False,'message':'Não foi possível verificar atualizações. Confira sua conexão.'}
         app.events.put((None,{'type':'app_update','result':result,'manual':manual}))
     threading.Thread(target=worker,daemon=True).start()
@@ -74,26 +73,24 @@ def tick(app):
             app._schedule_paused=True;app.cancel()
     app._schedule_after=app.after(15000,lambda:tick(app))
 
-class AudioEditor(tk.Toplevel):
-    def __init__(self,app,path):
+class AudioEditor(ttk.Frame):
+    def __init__(self,parent,app,path,on_choose):
         from audio_library import read_audio
         record=read_audio(path)
-        super().__init__(app)
+        super().__init__(parent)
         from audio_tools import PreviewPlayer
-        self.app=app;self.source=Path(path);self.title('ONDA • Editar áudio');self.geometry('640x690');self.transient(app)
+        self.app=app;self.source=Path(path);self.closed=False
         self.player=PreviewPlayer();self.results=queue.Queue();self.busy=False;self.preview_path=None
         self.edit=tk.BooleanVar(value=True);self.normalize=tk.BooleanVar(value=False);self.overwrite=tk.BooleanVar(value=False);self.fields={};self.cover='';self.lyrics=''
         import tempfile
         self.cover_temp=tempfile.TemporaryDirectory(prefix='onda-covers-')
-        from settings_scroll import SettingsCategory
-        scroll=SettingsCategory(self,ttk.Style(self).lookup('TFrame','background'));scroll.pack(fill='both',expand=True)
-        body=scroll.content
-        self.bind('<MouseWheel>',scroll.wheel)
+        body=ttk.Frame(self,padding=16);body.pack(fill='both',expand=True)
         from audio_library import cover_preview
         self.original_cover=cover_preview(self.source)
         header=ttk.Frame(body);header.pack(fill='x',pady=6)
         details=ttk.Frame(header);details.pack(side='left',fill='x',expand=True)
         ttk.Label(details,text=self.source.name,wraplength=440,font=('Segoe UI',13,'bold')).pack(fill='x')
+        ttk.Button(header,text='Escolher outro arquivo',style='Accent.TButton',command=on_choose).pack(side='right',padx=(12,0))
         ttk.Checkbutton(body,text='Editar metadados',variable=self.edit,command=self.toggle).pack(anchor='w')
         self.record=record
         self.entries=[]
@@ -122,7 +119,7 @@ class AudioEditor(tk.Toplevel):
         self.save_text=tk.StringVar(value='Salvar cópia editada')
         ttk.Button(artwork,textvariable=self.save_text,style='Accent.TButton',command=lambda:self.run(False)).pack(fill='x',pady=(6,0))
         self.status=tk.StringVar(value='O arquivo original será preservado.');ttk.Label(body,textvariable=self.status,wraplength=570).pack(fill='x')
-        self.protocol('WM_DELETE_WINDOW',self.close);self._poll=self.after(100,self.poll)
+        self._poll=self.after(100,self.poll)
 
     def save_mode(self):
         self.save_text.set('Salvar no original' if self.overwrite.get() else 'Salvar cópia editada')
@@ -143,7 +140,7 @@ class AudioEditor(tk.Toplevel):
         self.cover='';self.show_cover(self.original_cover);self.undo_cover_button.configure(state='disabled');self.crop_cover_button.configure(state='disabled')
     def pick_cover(self):
         if self.busy:return
-        path=filedialog.askopenfilename(parent=self,filetypes=[('Capas','*.png *.jpg *.jpeg')])
+        path=filedialog.askopenfilename(parent=self.winfo_toplevel(),filetypes=[('Capas','*.png *.jpg *.jpeg')])
         if not path:return
         try:
             from review import local_cover
@@ -155,7 +152,7 @@ class AudioEditor(tk.Toplevel):
             if self.cover:Path(self.cover).unlink(missing_ok=True)
             self.cover=str(destination)
             self.undo_cover_button.configure(state='normal');self.crop_cover_button.configure(state='normal')
-        except Exception as error:messagebox.showerror('Escolher outra capa',str(error),parent=self)
+        except Exception as error:messagebox.showerror('Escolher outra capa',str(error),parent=self.winfo_toplevel())
     def adjust_cover(self):
         if self.busy or not self.cover:return
         try:
@@ -168,9 +165,9 @@ class AudioEditor(tk.Toplevel):
                 self.cover=cropped;self.show_cover(base64.b64encode(Path(cropped).read_bytes()))
                 self.undo_cover_button.configure(state='normal')
             CoverCropper(self,self.cover,destination,accepted)
-        except Exception as error:messagebox.showerror('Ajustar capa',str(error),parent=self)
+        except Exception as error:messagebox.showerror('Ajustar capa',str(error),parent=self.winfo_toplevel())
     def pick_lyrics(self):
-        self.lyrics=filedialog.askopenfilename(parent=self,filetypes=[('Letras','*.lrc *.txt')]) or self.lyrics
+        self.lyrics=filedialog.askopenfilename(parent=self.winfo_toplevel(),filetypes=[('Letras','*.lrc *.txt')]) or self.lyrics
         if self.lyrics:self.lyrics_label.set(Path(self.lyrics).name)
     def run(self,preview):
         if self.busy:return
@@ -186,6 +183,7 @@ class AudioEditor(tk.Toplevel):
             except Exception as error:self.results.put({'error':str(error)})
         threading.Thread(target=worker,daemon=True).start()
     def poll(self):
+        if self.closed:return
         try:
             result=self.results.get_nowait();self.busy=False
             if result.get('error'):self.status.set(result['error'])
@@ -202,9 +200,11 @@ class AudioEditor(tk.Toplevel):
                 self.status.set('Salvo: '+result['path'])
         except queue.Empty:pass
         self._poll=self.after(100,self.poll)
-    def close(self):
-        if self.busy:self.status.set('Aguarde o processamento terminar antes de fechar.');return
+    def stop_preview(self):
         self.player.stop()
+    def shutdown(self):
+        if self.closed:return
+        self.closed=True;self.player.stop()
         if self.preview_path:self.preview_path.unlink(missing_ok=True)
         self.cover_temp.cleanup()
-        self.after_cancel(self._poll);self.destroy()
+        if self._poll:self.after_cancel(self._poll);self._poll=None

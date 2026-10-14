@@ -33,7 +33,8 @@ def create_app(*, show_welcome=True, prepare_tools=True):
         app.ffmpeg.set("")
         app.write_log("FFmpeg ainda não preparado. Use Configurações → Ferramentas → Preparar FFmpeg.")
     try:
-        app.iconbitmap(str(ROOT / "onda.ico"))
+        from window_icons import apply_window_icon
+        apply_window_icon(app)
     except Exception:
         pass
     return app

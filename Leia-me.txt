@@ -1,9 +1,9 @@
-ONDA 1.0.0-beta.1
+ONDA 1.0.0
 
-Portátil: abra Portatil\Onda.exe. Mantenha Onda e _runtime junto dele.
-Instalador: execute Instalador\Onda-Setup.exe e siga o assistente.
-Os pacotes para publicação ficam em Release.0.0-beta.1.
+Pacotes oficiais preparados em Release/1.0.0.
+Portátil: extraia o ZIP inteiro e abra Onda.exe.
+Instalador: execute Onda-1.0.0-Setup-Windows-x64.exe.
+Android: instale ONDA-Android-1.0.0-arm64-v8a.apk.
 
-Leia README.md para recursos e limitações, Onda\README.md para executar o código-fonte e PUBLICAR_RELEASE.md antes de publicar.
-Os executáveis desta beta não possuem assinatura digital.
-Licença do código próprio: GPL-2.0-only. Veja LICENSE e THIRD_PARTY_NOTICES.md.
+Consulte README.md, RELEASE_NOTES.md e PUBLICAR_RELEASE.md.
+Licença GPL-2.0-only; veja LICENSE e os avisos de terceiros.

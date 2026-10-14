@@ -1,6 +1,11 @@
 package br.com.onda.mobile
 
 import android.app.Activity
+import android.Manifest
+import android.os.Build
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
+import androidx.compose.ui.platform.LocalContext
 import android.content.Intent
 import android.net.Uri
 import android.provider.MediaStore
@@ -30,8 +35,15 @@ internal fun galleryImageIntent(mimeTypes:Array<String>):Intent {
     }
 }
 
-// Gallery permissions are temporary: callers copy the chosen image immediately.
+internal fun photoPermissions(sdk:Int):Array<String> = when {
+    sdk>=34->arrayOf(Manifest.permission.READ_MEDIA_IMAGES,Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED)
+    sdk>=33->arrayOf(Manifest.permission.READ_MEDIA_IMAGES)
+    else->arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
+}
+
+// Copy the granted content URI immediately; never access a gallery filesystem path.
 @Composable fun rememberImageSourcePicker(mimeTypes:Array<String> = arrayOf("image/jpeg","image/png"),onSelected:(Uri)->Unit):()->Unit {
+    val context=LocalContext.current
     var show by rememberSaveable {mutableStateOf(false)}
     var errorTitle by remember {mutableStateOf("Escolher imagem")}
     var error by remember {mutableStateOf("")}
@@ -42,13 +54,22 @@ internal fun galleryImageIntent(mimeTypes:Array<String>):Intent {
             if(uri!=null)onSelected(uri)
         }
     }
-    if(show)AlertDialog(onDismissRequest={show=false},title={Text("Escolher imagem")},text={
+    fun openGallery() {
+        runCatching {gallery.launch(galleryImageIntent(mimeTypes))}
+            .onFailure {error="Não foi possível abrir a galeria. Use Procurar nos arquivos."}
+    }
+    val permission=rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {grants->
+        if(grants.values.any {it})openGallery()
+        else error="O acesso às fotos não foi permitido. Autorize nas configurações do Android ou use Procurar nos arquivos para escolher somente uma imagem."
+    }
+    if(show)AlertDialog(containerColor=ondaDialogContainerColor(),onDismissRequest={show=false},title={Text("Escolher imagem")},text={
         Column(verticalArrangement=Arrangement.spacedBy(10.dp)) {
             Text("Escolha de onde abrir a imagem.",style=MaterialTheme.typography.bodySmall)
             Button(onClick={
                 show=false;errorTitle="Escolher da galeria"
-                runCatching {gallery.launch(galleryImageIntent(mimeTypes))}
-                    .onFailure {error="Não foi possível abrir a galeria. Use Procurar nos arquivos."}
+                val required=photoPermissions(Build.VERSION.SDK_INT)
+                if(required.any {ContextCompat.checkSelfPermission(context,it)==PackageManager.PERMISSION_GRANTED})openGallery()
+                else permission.launch(required)
             },modifier=Modifier.fillMaxWidth()){Text("Escolher da galeria")}
             OutlinedButton(onClick={
                 show=false;errorTitle="Procurar nos arquivos"
@@ -56,6 +77,6 @@ internal fun galleryImageIntent(mimeTypes:Array<String>):Intent {
             },modifier=Modifier.fillMaxWidth()){Text("Procurar nos arquivos")}
         }
     },confirmButton={},dismissButton={TextButton(onClick={show=false}){Text("Cancelar")}})
-    if(error.isNotBlank())AlertDialog(onDismissRequest={error=""},title={Text(errorTitle)},text={Text(error)},confirmButton={TextButton(onClick={error="";show=true}){Text("Voltar")}})
+    if(error.isNotBlank())AlertDialog(containerColor=ondaDialogContainerColor(),onDismissRequest={error=""},title={Text(errorTitle)},text={Text(error)},confirmButton={TextButton(onClick={error="";show=true}){Text("Voltar")}})
     return {show=true}
 }

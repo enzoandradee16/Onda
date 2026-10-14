@@ -36,6 +36,20 @@ class App:
     def persist_queue(self):pass
 
 class DynamicDownloadsTests(unittest.TestCase):
+    def test_high_concurrency_is_saved_and_bounded_to_fifteen(self):
+        from advanced_options import clean_advanced
+        for limit in (10,15):
+            self.assertEqual(clean_advanced({'concurrent_downloads':str(limit)}),
+                             {'concurrent_downloads':str(limit)})
+        self.assertNotIn('concurrent_downloads',clean_advanced({'concurrent_downloads':'16'}))
+        app=App(15)
+        app.jobs={str(i):{'state':'Na fila'} for i in range(20)}
+        scheduler=ParallelQueue(app)
+        with patch('parallel_queue.threading.Thread'):
+            scheduler.start(None)
+        self.assertEqual(len(scheduler.workers),15)
+        self.assertEqual(sum(job['state']=='Na fila' for job in app.jobs.values()),5)
+
     def test_second_immediate_starts_while_first_is_active(self):
         app=App(2);scheduler=ParallelQueue(app)
         with patch('parallel_queue.threading.Thread'):

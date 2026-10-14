@@ -60,7 +60,7 @@ class App(UiMixin, tk.Tk):
         from interface_fonts import DEFAULT_FONT
         self.interface_font = tk.StringVar(value=DEFAULT_FONT)
         self.interface_font_size = tk.StringVar(value="100%")
-        self.notice_duration = tk.StringVar(value="Fechar manualmente")
+        self.notice_duration = tk.StringVar(value="Após 3 segundos")
         self.mode = tk.StringVar(value=next(iter(MODES)))
         self.height = tk.StringVar(value="1080p")
         self.fps = tk.StringVar(value="Original")
@@ -84,6 +84,9 @@ class App(UiMixin, tk.Tk):
         self.image_width = tk.StringVar(value='1920')
         self.image_height = tk.StringVar(value='1080')
         self.image_keep_ratio = tk.BooleanVar(value=True)
+        self.pure_black_separators = tk.BooleanVar(value=False)
+        self.history_card_size = tk.StringVar(value="Grande")
+        self.history_view = tk.StringVar(value="Compacto")
         self.auto_match = tk.BooleanVar(value=False)
         self.review_metadata = tk.BooleanVar(value=False)
         self.effects_keep_pitch = tk.BooleanVar(value=False)
@@ -108,7 +111,7 @@ class App(UiMixin, tk.Tk):
         from advanced_options import DEFAULTS
         for key,value in DEFAULTS.items():
             setattr(self,key,tk.BooleanVar(value=value) if type(value) is bool else tk.StringVar(value=value))
-        self.preference_fields = {name: getattr(self, name) for name in ("theme_mode", "theme_accent", "interface_font", "interface_font_size", "notice_duration", "effects_keep_pitch", "image_format", "image_size", "image_width", "image_height", "image_keep_ratio", "tab_order", "playlist_mode", "playlist_height", "playlist_fps", "playlist_mp3_quality", "playlist_m4a_quality", "mode", "height", "fps", "catalog_provider", "folder", "ffmpeg", "playlist", "playlist_limit", "mp3_quality", "m4a_quality", "review_metadata", "auto_match", "background_preview", "effects_preview_duration", "search_preview_duration", "organization", "duplicates")}
+        self.preference_fields = {name: getattr(self, name) for name in ("history_card_size", "pure_black_separators", "history_view", "theme_mode", "theme_accent", "interface_font", "interface_font_size", "notice_duration", "effects_keep_pitch", "image_format", "image_size", "image_width", "image_height", "image_keep_ratio", "tab_order", "playlist_mode", "playlist_height", "playlist_fps", "playlist_mp3_quality", "playlist_m4a_quality", "mode", "height", "fps", "catalog_provider", "folder", "ffmpeg", "playlist", "playlist_limit", "mp3_quality", "m4a_quality", "review_metadata", "auto_match", "background_preview", "effects_preview_duration", "search_preview_duration", "organization", "duplicates")}
         self.preference_fields.update({key:getattr(self,key) for key in DEFAULTS})
         self.preference_defaults = {name: variable.get() for name, variable in self.preference_fields.items()}
         for name, value in (preferences or {}).items():
@@ -853,7 +856,7 @@ class App(UiMixin, tk.Tk):
             self.title_lookup.shutdown()
         if hasattr(self, "catalog_page"):
             self.catalog_page.shutdown()
-        for name in ("effects_page", "playlist_page", "images_page"):
+        for name in ("effects_page", "playlist_page", "images_page", "metadata_page"):
             if hasattr(self, name):
                 getattr(self, name).shutdown()
         for name in ("_poll_after", "_preference_after", "_welcome_after", "_schedule_after"):
@@ -867,6 +870,9 @@ class App(UiMixin, tk.Tk):
         super().destroy()
 
     def close(self):
+        if self.metadata_page.busy:
+            messagebox.showinfo("Editar metadados","Aguarde o processamento do arquivo terminar antes de fechar o ONDA.",parent=self)
+            return
         if self.updating:
             messagebox.showinfo("Atualização em andamento", "Aguarde a atualização terminar antes de fechar o Onda.", parent=self)
             return
@@ -924,13 +930,15 @@ class App(UiMixin, tk.Tk):
             self.catalog_page.stop_preview()
         if selected != str(self.effects_page) and not self.background_preview.get():
             self.effects_page.stop_preview()
+        if selected != str(self.metadata_page):
+            self.metadata_page.stop_preview()
         if selected == str(self.history_page):
             self.history_page.refresh()
 
     def update_downloader(self):
         if self.updating:
             return
-        if self.active or self.effects_page.busy or self.playlist_page.busy:
+        if self.active or self.effects_page.busy or self.playlist_page.busy or self.metadata_page.busy:
             self.update_status.set("Termine os downloads, consultas de playlist e exportações antes de atualizar.")
             return
         self.updating = True
