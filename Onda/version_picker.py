@@ -1,4 +1,6 @@
 """Non-blocking version choice while the worker waits for a JSON reply."""
+from i18n import tr
+from i18n_tk import display_var
 import tkinter as tk
 from tkinter import ttk
 import webbrowser
@@ -14,7 +16,7 @@ def duration_label(seconds):
 class VersionPicker(tk.Toplevel):
     def __init__(self, parent, event, on_select, on_cancel):
         super().__init__(parent)
-        self.title("Onda • Escolha a versão")
+        self.title(tr("Onda • Escolha a versão"))
         self.configure(bg="#101419")
         self.geometry("960x470")
         self.minsize(760, 420)
@@ -32,16 +34,18 @@ class VersionPicker(tk.Toplevel):
         body.pack(fill="both", expand=True)
         body.columnconfigure(0, weight=1)
         body.rowconfigure(2, weight=1, minsize=80)
-        ttk.Label(body, text="Qual versão você prefere?", font=("Segoe UI", 20, "bold")).grid(row=0, column=0, sticky="w")
+        ttk.Label(body, text=tr("Qual versão você prefere?"), font=("Segoe UI", 20, "bold")).grid(row=0, column=0, sticky="w")
         target_duration = duration_label(event["duration_ms"] / 1000 if event.get("duration_ms") else None)
-        subtitle = ttk.Label(body, text=f"{event['title']} · {', '.join(event.get('artists', []))} · Catálogo: {target_duration}",
+        subtitle = ttk.Label(body, text=tr(f"{event['title']} · {', '.join(event.get('artists', []))} · Catálogo: {target_duration}"),
                   style="Muted.TLabel", wraplength=680)
         subtitle.grid(row=1, column=0, sticky="ew", pady=(6, 16))
         panel = ttk.Frame(body)
         panel.grid(row=2, column=0, sticky="nsew")
         self.table = ttk.Treeview(panel, columns=("title", "channel", "duration", "score"), show="headings", selectmode="browse")
+        from list_context import bind_version
+        bind_version(self,on_cancel)
         for key, label, width in (("title", "VERSÃO NO " + self.provider.upper(), 420), ("channel", "ARTISTA" if self.provider == "Monochrome" else "CANAL", 240), ("duration", "DURAÇÃO", 90), ("score", "SIMILARIDADE", 110)):
-            self.table.heading(key, text=label)
+            self.table.heading(key, text=tr(label))
             self.table.column(key, width=width, minwidth=65, stretch=key in ("title", "channel"))
         self.table.pack(side="left", fill="both", expand=True)
         scroll = ttk.Scrollbar(panel, command=self.table.yview)
@@ -49,21 +53,21 @@ class VersionPicker(tk.Toplevel):
         self.table.configure(yscrollcommand=scroll.set)
         for key, row in self.candidates.items():
             self.table.insert("", "end", iid=key, values=(row.get("title"), row.get("channel") or row.get("uploader") or "—",
-                              duration_label(row.get("duration")), "Conferir" if row.get("manual_review") else f"{row['match_score']:.0%}"))
+                              duration_label(row.get("duration")), tr("Conferir") if row.get("manual_review") else f"{row['match_score']:.0%}"))
         instruction = ("Correspondência incerta: confira duração e versão. Abra no YouTube antes de confirmar."
                        if any(row.get("manual_review") for row in self.candidates.values()) else
                        "Selecione e confirme, ou dê dois cliques na versão desejada.")
-        ttk.Label(body, text=instruction, style="Muted.TLabel", wraplength=680).grid(row=3, column=0, sticky="w", pady=12)
+        ttk.Label(body, text=tr(instruction), style="Muted.TLabel", wraplength=680).grid(row=3, column=0, sticky="w", pady=12)
         controls = ttk.Frame(body)
         controls.grid(row=4, column=0, sticky="ew")
-        self.open_button = ttk.Button(controls, text="Abrir na fonte" if self.provider == "Monochrome" else "Abrir no YouTube", command=self.open_video, state="disabled")
+        self.open_button = ttk.Button(controls, text=tr("Abrir na fonte" if self.provider == "Monochrome" else "Abrir no YouTube"), command=self.open_video, state="disabled")
         self.open_button.pack(side="left")
-        self.preview_button = ttk.Button(controls, text="Ouvir / parar prévia", command=self.preview, state="disabled")
+        self.preview_button = ttk.Button(controls, text=tr("Ouvir / parar prévia"), command=self.preview, state="disabled")
         self.preview_button.pack(side="left", padx=8)
-        self.select_button = ttk.Button(controls, text="Baixar esta versão", style="Accent.TButton", command=self.choose, state="disabled")
+        self.select_button = ttk.Button(controls, text=tr("Baixar esta versão"), style="Accent.TButton", command=self.choose, state="disabled")
         self.select_button.pack(side="right")
-        ttk.Button(controls, text="Cancelar", command=on_cancel).pack(side="right", padx=8)
-        ttk.Label(body, textvariable=self.preview_status, style="Muted.TLabel", wraplength=680).grid(row=5, column=0, sticky="w", pady=(8, 0))
+        ttk.Button(controls, text=tr("Cancelar"), command=on_cancel).pack(side="right", padx=8)
+        ttk.Label(body, textvariable=display_var(self.preview_status), style="Muted.TLabel", wraplength=680).grid(row=5, column=0, sticky="w", pady=(8, 0))
         self.table.bind("<<TreeviewSelect>>", self.selected)
         self.table.bind("<Double-1>", self.double_click)
         self.table.bind("<Return>", lambda _: self.choose())

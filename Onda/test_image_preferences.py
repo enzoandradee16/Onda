@@ -44,10 +44,13 @@ class ImagePreferenceUiTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder,patch.dict(os.environ,{'LOCALAPPDATA':folder}):
             app=App(show_welcome=False)
             try:
+                app.remember_settings.set(False)
+                app.toggle_remember_settings()
                 app.images_page.format.set('JPG')
                 app.images_page.keep_ratio.set(False)
                 app.close()
                 app=App(show_welcome=False)
+                self.assertFalse(app.remember_settings.get())
                 self.assertEqual(app.images_page.format.get(),'Original')
                 self.assertTrue(app.images_page.keep_ratio.get())
                 self.assertFalse(app.preference_store.path.exists())

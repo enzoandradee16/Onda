@@ -1,13 +1,13 @@
-# Publicação do ONDA 1.0.0
+# Publicação do ONDA 1.1.0
 
-Os pacotes preparados ficam em `Release/1.0.0`. A preparação local não publica a release.
+Pacotes preparados em `Release/1.1.0`. Preparar localmente não cria tag nem publica no GitHub.
 
-1. Revisar e enviar o código-fonte correspondente, incluindo os arquivos novos, para o GitHub.
-2. Criar a tag `v1.0.0` sobre o commit correspondente aos pacotes. Não reutilizar tags antigas.
-3. Criar a release `ONDA 1.0.0`, usando `RELEASE_NOTES.md`. Desmarcar pré-release e marcar como versão mais recente.
-4. Anexar os seis pacotes listados nas notas, `SHA256SUMS.txt`, `MANIFEST.json`, `VALIDACAO.md` e os avisos de terceiros.
-5. Conferir arquivos, hashes e vínculo com o código antes de publicar.
+1. Revisar e enviar todos os fontes novos e alterados para o GitHub; os pacotes foram gerados da árvore local, incluindo mudanças ainda não commitadas.
+2. Confirmar que o commit corresponde ao `SOURCE_MANIFEST.json` e criar a tag **v1.1.0** nesse commit. Não reutilizar tags antigas.
+3. Criar a release com título **ONDA 1.1.0**, usando `RELEASE_NOTES.md`; desmarcar pré-release e escolher versão mais recente, quando a opção existir.
+4. Anexar os seis pacotes, `SHA256SUMS.txt`, `MANIFEST.json`, `SOURCE_MANIFEST.json`, `VALIDACAO.md` e os dois avisos de terceiros.
+5. Conferir hashes e arquivos antes de publicar. As versões Windows e Android devem ser publicadas juntas.
 
-O AppId Windows e a chave Android foram preservados. O APK usa versionCode 16. Executáveis Windows sem Authenticode; o APK é assinado com a chave ONDA. Não anexar configurações pessoais, cookies, credenciais, chaves privadas, mídias ou a pasta de desenvolvimento inteira.
+O AppId Windows e a chave de produção Android foram preservados. APK: versionName 1.1.0, versionCode 18. Windows: versão de arquivo 1.1.0.0, sem Authenticode. A pasta Release/1.0.0 não foi alterada.
 
-O desinstalador mantém as escolhas independentes de configurações e cache de ferramentas; os downloads são preservados. O FFmpeg Windows continua preparado no primeiro uso e não é redistribuído nos pacotes.
+Não distribuir cookies, configurações pessoais, credenciais, chaves privadas, mídias ou a pasta de desenvolvimento inteira. O FFmpeg Windows é preparado no primeiro uso e não é redistribuído nos pacotes. Desinstalação mantém as escolhas independentes de dados e cache; downloads são preservados.

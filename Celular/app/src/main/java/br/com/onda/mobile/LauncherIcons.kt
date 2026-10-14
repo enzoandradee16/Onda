@@ -1,0 +1,96 @@
+package br.com.onda.mobile
+
+import android.app.Activity
+import android.app.ActivityManager
+import android.content.ComponentName
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.drawable.AdaptiveIconDrawable
+import android.graphics.drawable.ColorDrawable
+import android.os.Build
+import org.json.JSONObject
+import java.util.WeakHashMap
+
+/** Vector-only launcher variants; the MainActivity itself always remains enabled. */
+internal object LauncherIcons {
+    private val colors=linkedMapOf(
+        "Verde-Água" to "Aqua",
+        "Azul" to "Blue",
+        "Roxo" to "Purple",
+        "Rosa" to "Pink",
+        "Laranja" to "Orange",
+        "Vermelho" to "Red",
+        "Verde" to "Green",
+        "Verde-limão" to "Lime",
+        "Amarelo" to "Yellow",
+        "Dourado" to "Gold",
+        "Ciano" to "Cyan",
+        "Turquesa" to "Turquoise",
+        "Índigo" to "Indigo",
+        "Lilás" to "Lilac",
+        "Coral" to "Coral",
+        "Cinza" to "Gray")
+    private var activeName:String?=null
+    private val taskIcons=WeakHashMap<Activity,String>()
+
+    internal fun aliasFor(context:Context,settings:JSONObject):ComponentName {
+        val mode=when(settings.optString("theme")) {"Claro"->"Light";"Escuro"->"Dark";"Preto puro"->"Black";else->"System"}
+        val color=colors[settings.optString("accent")] ?: "Aqua"
+        return ComponentName(context.packageName,"${context.packageName}.Launcher$mode$color")
+    }
+
+    @Suppress("DEPRECATION")
+    internal fun enabledAliases(context:Context)=context.packageManager.queryIntentActivities(
+        Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER).setPackage(context.packageName),0
+    ).map {ComponentName(it.activityInfo.packageName,it.activityInfo.name)}
+
+    @Synchronized fun sync(context:Context,settings:JSONObject) {
+        val desired=aliasFor(context,settings)
+        if(activeName==desired.className)return
+        try {
+            val pm=context.packageManager
+            val enabled=enabledAliases(context)
+            if(enabled!=listOf(desired)) {
+                // Enable the replacement before removing old entries on Android 8–12.
+                if(Build.VERSION.SDK_INT>=33) {
+                    val changes=mutableListOf(PackageManager.ComponentEnabledSetting(desired,PackageManager.COMPONENT_ENABLED_STATE_ENABLED,PackageManager.DONT_KILL_APP))
+                    enabled.filter {it!=desired && it.className.startsWith(context.packageName+".Launcher")}.forEach {
+                        changes+=PackageManager.ComponentEnabledSetting(it,PackageManager.COMPONENT_ENABLED_STATE_DISABLED,PackageManager.DONT_KILL_APP)
+                    }
+                    pm.setComponentEnabledSettings(changes)
+                } else {
+                    pm.setComponentEnabledSetting(desired,PackageManager.COMPONENT_ENABLED_STATE_ENABLED,PackageManager.DONT_KILL_APP)
+                    enabled.filter {it!=desired && it.className.startsWith(context.packageName+".Launcher")}.forEach {
+                        pm.setComponentEnabledSetting(it,PackageManager.COMPONENT_ENABLED_STATE_DISABLED,PackageManager.DONT_KILL_APP)
+                    }
+                }
+            }
+            activeName=desired.className
+        } catch(error:RuntimeException) {
+            android.util.Log.w("ONDA","Could not update launcher icon",error)
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    internal fun drawable(context:Context,settings:JSONObject):AdaptiveIconDrawable {
+        val info=context.packageManager.getActivityInfo(aliasFor(context,settings),PackageManager.MATCH_DISABLED_COMPONENTS)
+        return context.getDrawable(info.icon) as AdaptiveIconDrawable
+    }
+
+    @Suppress("DEPRECATION")
+    fun updateTaskIcon(activity:Activity,settings:JSONObject,dark:Boolean) {
+        val key=aliasFor(activity,settings).className+dark
+        if(taskIcons[activity]==key)return
+        runCatching {
+            val icon=drawable(activity,settings)
+            val bitmap=Bitmap.createBitmap(108,108,Bitmap.Config.ARGB_8888)
+            icon.setBounds(0,0,108,108);icon.draw(Canvas(bitmap))
+            val background=(icon.background as? ColorDrawable)?.color ?: android.graphics.Color.BLACK
+            activity.setTaskDescription(ActivityManager.TaskDescription("ONDA",bitmap,background))
+            taskIcons[activity]=key
+        }.onFailure {android.util.Log.w("ONDA","Could not update recent-app icon",it)}
+    }
+}

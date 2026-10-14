@@ -2,25 +2,29 @@
 
 Projeto Android separado da distribuição Windows. Kotlin/Compose fornece a interface e os serviços; Python/Chaquopy executa o motor compartilhado do ONDA. O build copia os módulos necessários de `../Onda`, sem editar o programa de PC.
 
-Versão oficial **1.0.0** para Android 8 ou superior, ARM64. Kotlin/Compose e o motor compartilhado fornecem busca, downloads, histórico, edição de metadados, imagens e efeitos. Consulte [FUNCIONALIDADES.md](FUNCIONALIDADES.md) e a [auditoria de paridade com o PC](PARIDADE-PC-ANDROID.md).
+Versão oficial **1.1.0** para Android 8 ou superior, ARM64. Kotlin/Compose e o motor compartilhado fornecem busca, downloads, histórico, edição de metadados, imagens e efeitos. Consulte [FUNCIONALIDADES.md](FUNCIONALIDADES.md) e a [auditoria de paridade com o PC](PARIDADE-PC-ANDROID.md).
 
 Resultados e pendências desta compilação: [validation/RESULTADOS.md](validation/RESULTADOS.md).
 
 ## Instalar no celular
 
-Use `APK/ONDA-Android-1.0.0-arm64-v8a.apk`, transfira para o celular e permita a instalação pela origem escolhida. Android 8 ou superior, processador ARM64; o APK padrão contém somente ARM64 para reduzir o tamanho. Para emulador x86_64, compile com `-Arquitetura x86_64`; para ambas, use `-Arquitetura universal`. O APK distribuído é assinado com a chave de produção ONDA; o script de desenvolvimento gera um APK debug separado. Não precisa instalar Python, FFmpeg ou Termux.
+Use `APK/ONDA-Android-1.1.0-arm64-v8a.apk`, transfira para o celular e permita a instalação pela origem escolhida. Android 8 ou superior, processador ARM64; o APK padrão contém somente ARM64 para reduzir o tamanho. Para emulador x86_64, compile com `-Arquitetura x86_64`; para ambas, use `-Arquitetura universal`. O APK distribuído é assinado com a chave de produção ONDA; o script de desenvolvimento gera um APK debug separado. Não precisa instalar Python, FFmpeg ou Termux.
 
 Abra o ONDA, conclua ou feche a configuração inicial. Em Links e fila, cole o link e escolha Baixar agora ou Adicionar à fila. Downloads usam notificações; conceda a permissão quando solicitada. Se precisar confirmar metadados/versão/mídias, abra o app e responda à janela.
 
 No Android 10+, a pasta padrão é Downloads/ONDA. Em Configurações → Downloads é possível escolher outra pasta pelo seletor do sistema. Android 8/9 usa a pasta do aplicativo se nenhuma pasta for escolhida; escolha uma pasta para preservar os downloads ao desinstalar. Histórico permite abrir o arquivo, abrir sua pasta de origem, compartilhar e usar áudio/vídeo nos efeitos. Abrir pasta usa o gerenciador compatível ou o seletor de arquivos do Android; a localização vem do arquivo do histórico, mesmo após mudar a pasta padrão.
 
-Músicas de streaming usam metadados do catálogo e áudio equivalente do YouTube. A API Spotify é opcional para links individuais. Para conectar uma conta, cadastre `http://127.0.0.1:8765/callback` no Spotify Developers e informe seu Client ID. O retorno fica no próprio celular e usa PKCE. As restrições da API e o limite do embed público continuam aplicáveis; CSV do Exportify é uma alternativa.
+Músicas de streaming usam metadados do catálogo: MP3/M4A usam uma versão correspondente no YouTube; FLAC usa Monochrome quando há uma correspondência compatível, sem converter silenciosamente YouTube em FLAC. A API Spotify é opcional para links individuais. Para conectar uma conta, cadastre `http://127.0.0.1:8765/callback` no Spotify Developers e informe seu Client ID. O retorno fica no próprio celular e usa PKCE. As restrições da API e o limite do embed público continuam aplicáveis; CSV do Exportify é uma alternativa.
 
 ## Interface e acesso ao YouTube
 
 Abra o menu ☰ para alternar entre as áreas, acessar Configurações e consultar a fila. Os títulos e controles seguem a nomenclatura do programa de PC; seletores foram compactados para o celular. Em Efeitos, o preset selecionado acompanha os sliders e permanece ao trocar de área. Na busca, Ouvir muda para Parar enquanto a prévia está ativa.
 
+Em Configurações → Geral → Idioma, a ordem é Português (Brasil), Español, English, com português como padrão e mudança imediata. Em Links e fila e no Histórico, seletores discretos permitem escolher compacto/completo e o tamanho dos cards, independentemente entre as duas áreas. No Histórico, os controles ficam centralizados junto de Limpar histórico, abaixo da pesquisa.
+
 Se o YouTube exigir verificação, abra Menu → Sessão do YouTube e tente concluir a verificação na janela do próprio app. Toque em Usar esta sessão e tente novamente o download. A sessão é salva apenas no armazenamento privado do ONDA. O login ou a liberação podem ser recusados pelo YouTube em navegador incorporado; nesse caso, importe cookies.txt da sua própria sessão em Configurações → Contas. Nenhum desses caminhos garante remover bloqueios por IP ou exigências adicionais do serviço. Para apagar a sessão, use Remover sessão do YouTube nas configurações.
+
+O ícone da tela inicial e dos aplicativos recentes acompanha o destaque e a aparência escolhidos, incluindo Seguir o sistema. A atualização visual do launcher depende do cache do aparelho; um atalho de versões antigas pode precisar ser recriado. Consulte [ícones e tema](../docs/ANDROID-ICONE.md).
 
 ## Compilar no Windows
 
@@ -50,7 +54,7 @@ As preferências, a fila, o histórico, os cookies importados e as credenciais f
 
 ## Distribuição
 
-A versão 1.0.0 usa assinatura de produção. Os fontes das ferramentas nativas estão no pacote Fontes-nativos-Android e a reconstrução está descrita em [nativebuild/README.md](nativebuild/README.md). Há testes ARM64 em emulador; compatibilidade e comportamento em segundo plano devem continuar sendo conferidos em aparelhos reais. Veja [THIRD_PARTY_NOTICES_ANDROID.md](THIRD_PARTY_NOTICES_ANDROID.md).
+A versão 1.1.0 usa assinatura de produção. As fontes das ferramentas nativas estão no pacote Fontes-nativos-Android e a reconstrução está descrita em [nativebuild/README.md](nativebuild/README.md). Há testes ARM64 em emulador; compatibilidade e comportamento em segundo plano devem continuar sendo conferidos em aparelhos reais. Veja [THIRD_PARTY_NOTICES_ANDROID.md](THIRD_PARTY_NOTICES_ANDROID.md).
 
 Na pesquisa, Adicionar à fila e Baixar agora alimentam a Fila da pesquisa, visível na mesma área. Ela mostra estado/progresso e usa o serviço da fila geral sem repetir downloads. Tempos são exibidos em minutos:segundos. Em Configurações → Contas, Abrir Spotify Developers abre o painel oficial no navegador; conectar exige Client ID, com aviso acima da janela se faltar.
 
@@ -81,3 +85,8 @@ O acervo é limitado e a disponibilidade depende do serviço externo. Se não ho
 ### Novos downloads durante uma execução
 
 Você pode usar **Baixar agora** enquanto outras mídias estão sendo baixadas. Com vaga no limite de downloads simultâneos, o novo item começa; com todas as vagas ocupadas, aguarda a próxima. Solicitações individuais não iniciam outros itens pendentes que você não pediu para baixar. A fila em execução aceita novos itens sem reiniciar os downloads atuais.
+
+
+## Atualizações dentro do app
+
+No Android, novas versões podem ser baixadas dentro do ONDA, com progresso e continuidade em segundo plano. Ao terminar, toque em Instalar atualização; na primeira vez, permita a instalação pelo ONDA nas configurações do Android. O sistema pede confirmação e os dados são preservados. O gerenciador de downloads do Android mantém a transferência mesmo com a tela de configurações fechada. Volte às configurações para instalar, cancelar ou descartar o APK. A atualização aceita apenas links da release oficial e confere pacote, versão superior e assinatura igual à instalação atual. Se a instalação for cancelada, o botão permanece disponível.

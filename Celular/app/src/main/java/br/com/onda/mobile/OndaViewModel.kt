@@ -179,7 +179,11 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
             showNotice("Conectar Spotify","Preencha o Spotify Client ID antes de conectar sua conta. O Client Secret é opcional para esta conexão.")
             return
         }
-        operation("spotify_connect",OndaStore.config(),dialog=true)
+        val options=OndaStore.config()
+        val callbackMessages=JSONObject()
+        for(text in listOf("Autorização recebida. Volte para o ONDA.","Autorização não concedida. Volte para o ONDA.","Retorno inválido. Volte para o ONDA e tente novamente.","Voltar para o ONDA","Fechar esta aba","Voltando em {seconds} segundos…","Voltando para o ONDA…","Se a aba continuar aberta, você pode fechá-la e voltar para o ONDA.","Voltando em 3 segundos…","Feche esta aba e tente conectar novamente.")) callbackMessages.put(text,translateUi(text))
+        options.put("ui_messages",callbackMessages)
+        operation("spotify_connect",options,dialog=true)
     }
     fun cancel() { OndaStore.dismissQuestions(queryId.value);MobileEngine.cancel(queryId.value) }
     fun search(query: String, provider: String) = operation("search",OndaStore.config().put("query",query).put("provider",provider)) { searchResults.value=it.optJSONArray("tracks")?.objects() ?: emptyList() }
@@ -197,15 +201,38 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
     }
     fun enqueueLink(url: String, immediate: Boolean=false): String {
         val id=OndaStore.enqueue(url,extra=JSONObject().put("_immediate",immediate))
+        queueInformationRequested.add(id)
         viewModelScope.launch(Dispatchers.IO) {
             titleSlots.acquire()
             try {
-                val result=MobileEngine.call(getApplication(),"title-$id","describe",OndaStore.config().put("url",url),EventCallback {})
-                if(!result.has("error")) OndaStore.rename(id,result.optString("title"))
+                repeat(2) {attempt->
+                    val current=OndaStore.items.value.firstOrNull {it.id==id}
+                    if(current==null || current.state!="Pendente" || current.title!=url)return@launch
+                    val result=MobileEngine.call(getApplication(),"title-$id","describe",OndaStore.config().put("url",url),EventCallback {})
+                    if(!result.has("error")) {
+                        OndaStore.renamePendingLink(id,url,result.optString("title"),result.optJSONObject("queue_info"))
+                        return@launch
+                    }
+                    if(attempt==0)delay(1000)
+                }
             } catch(_: Exception) { /* The original link remains usable if title lookup fails. */ }
             finally {titleSlots.release()}
         }
         return id
+    }
+    private val queueInformationRequested=java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+    fun loadQueueInformation(item:DownloadItem) {
+        if(!queueInformationRequested.add(item.id))return
+        val url=item.config.optString("url")
+        if(!url.contains("spotify") && !url.contains("deezer") && !url.contains("apple.com") && !url.contains("youtu"))return
+        viewModelScope.launch(Dispatchers.IO) {
+            titleSlots.acquire()
+            try {
+                val result=MobileEngine.call(getApplication(),"info-${item.id}","describe",OndaStore.config().put("url",url),EventCallback {})
+                result.optJSONObject("queue_info")?.let {OndaStore.updateQueueInformation(item.id,url,it)}
+            } catch(_:Exception) { /* Optional display metadata must not block the queue. */ }
+            finally {titleSlots.release()}
+        }
     }
     fun useInEffects(uri: String) {
         importLocal(Uri.parse(uri),"audio") { file ->
@@ -244,7 +271,7 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
     fun queueTrack(record: JSONObject, options: JSONObject=OndaStore.settings.value, group: String?=null, origin: String="", immediate: Boolean=false): String {
         val url=record.optString("source_url")
         require(url.isNotBlank()) { "Faixa sem link" }
-        val extra=JSONObject().put("_origin",origin).put("_immediate",immediate)
+        val extra=JSONObject().put("_origin",origin).put("_immediate",immediate).put("queue_info",JSONObject().apply {listOf("title","artists","album","cover_url","duration_ms","release_date","genre","track_number","disc_number","platform").forEach {key->if(record.has(key) && !record.isNull(key))put(key,record.get(key))}})
         if(record.optString("platform")=="Spotify") extra.put("catalog_record",record)
         if(group!=null) extra.put("playlist_title",group)
         return OndaStore.enqueue(url,"${record.stringList("artists")} - ${record.optString("title")}".trim(' ','-'),options,extra)

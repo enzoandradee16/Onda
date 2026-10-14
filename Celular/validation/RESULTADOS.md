@@ -1,6 +1,10 @@
-# Validação atual — ONDA 1.0.0
+# Validação atual — ONDA 1.1.0
 
-A distribuição atual é 1.0.0, versionCode 16, ARM64, com assinatura de produção. O usuário confirmou os fluxos principais e as correções finais em aparelho físico. A correção mais recente de resolução/FPS foi validada no PC e em emulador Android com binários ARM64; o usuário ainda não relatou um novo teste físico dessa correção.
+APK 1.1.0/code18 preparado localmente. Consulte [validação da 1.1.0](../../docs/VALIDACAO-1.1.0.md). A publicação é uma etapa separada.
+
+## Histórico da versão 1.0.0
+
+A distribuição anterior era 1.0.0, versionCode 16, ARM64, com assinatura de produção. O usuário confirmou os fluxos principais e as correções finais em aparelho físico. A correção mais recente de resolução/FPS foi validada no PC e em emulador Android com binários ARM64; o usuário ainda não relatou um novo teste físico dessa correção.
 
 Consulte [revisão antes da 1.0.0](../../docs/VALIDACAO-PRE-1.0.0.md) e [testes de resolução/FPS](../../docs/CORRECAO-RESOLUCAO-FPS.md). O arquivo VALIDACAO.md nos pacotes de release consolida as verificações da distribuição.
 

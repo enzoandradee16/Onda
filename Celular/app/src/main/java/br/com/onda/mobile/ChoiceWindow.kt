@@ -40,38 +40,38 @@ import org.json.JSONObject
     }
     val candidates=event.optJSONArray("candidates")?.objects() ?: emptyList()
     val cancel={OndaStore.answer(JSONObject().put("cancel",true))}
-    AlertDialog(containerColor=ondaDialogContainerColor(),onDismissRequest=cancel,title={Text(when(kind) {"choose_flac"->"FLAC pelo navegador";"choose_version"->"Qual versão você prefere?";"choose_catalog"->"Confirme os metadados";"choose_media"->"O que você quer baixar?";"choose_duplicate"->"Arquivo já existe";else->"Sua música, do seu jeito."})},text={
+    AlertDialog(containerColor=ondaDialogContainerColor(),onDismissRequest=cancel,title={UiText(when(kind) {"choose_flac"->"FLAC pelo navegador";"choose_version"->"Qual versão você prefere?";"choose_catalog"->"Confirme os metadados";"choose_media"->"O que você quer baixar?";"choose_duplicate"->"Arquivo já existe";else->"Sua música, do seu jeito."})},text={
         Column(Modifier.fillMaxWidth().heightIn(max=500.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(8.dp)) {
             when(kind) {
                 "choose_flac"->{
                     Text(record.stringList("artists") + " — " + record.optString("title"))
-                    Text(event.optString("message"))
-                    Text("O arquivo original será preservado. A fila aguarda sua seleção.",style=MaterialTheme.typography.bodySmall)
+                    UiText(event.optString("message"))
+                    UiText("O arquivo original será preservado. A fila aguarda sua seleção.",style=MaterialTheme.typography.bodySmall)
                     TextButton(onClick={
                         val uri=android.net.Uri.parse(event.getString("url"))
                         if(uri.scheme=="https" && uri.host=="flacdownloader.com") {
                             try { context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW,uri)) }
                             catch(_:android.content.ActivityNotFoundException){vm.showNotice("Abrir serviço","Nenhum navegador disponível.")}
                         }
-                    }){Text("Abrir serviço")}
+                    }){UiText("Abrir serviço")}
                 }
                 "review_metadata"->{
-                    AsyncImage(if(coverPath.isNotBlank()) java.io.File(coverPath) else cover,"Capa",Modifier.size(140.dp))
-                    OutlinedTextField(title,{title=it},label={Text("Música")},singleLine=true)
-                    OutlinedTextField(artist,{artist=it},label={Text("Artistas (separados por ;)")},singleLine=true)
-                    OutlinedTextField(album,{album=it},label={Text("Álbum")},singleLine=true)
-                    OutlinedTextField(date,{date=it},label={Text("Data")},singleLine=true)
-                    OutlinedTextField(genre,{genre=it},label={Text("Gênero")},singleLine=true)
+                    AsyncImage(if(coverPath.isNotBlank()) java.io.File(coverPath) else cover,translateUi("Capa",LocalUiLanguage.current),Modifier.size(140.dp))
+                    OutlinedTextField(title,{title=it},label={UiText("Música")},singleLine=true)
+                    OutlinedTextField(artist,{artist=it},label={UiText("Artistas (separados por ;)")},singleLine=true)
+                    OutlinedTextField(album,{album=it},label={UiText("Álbum")},singleLine=true)
+                    OutlinedTextField(date,{date=it},label={UiText("Data")},singleLine=true)
+                    OutlinedTextField(genre,{genre=it},label={UiText("Gênero")},singleLine=true)
                     Row(horizontalArrangement=Arrangement.spacedBy(6.dp)) {
-                        OutlinedTextField(track,{track=it},label={Text("Faixa")},modifier=Modifier.weight(1f),singleLine=true)
-                        OutlinedTextField(disc,{disc=it},label={Text("Disco")},modifier=Modifier.weight(1f),singleLine=true)
+                        OutlinedTextField(track,{track=it},label={UiText("Faixa")},modifier=Modifier.weight(1f),singleLine=true)
+                        OutlinedTextField(disc,{disc=it},label={UiText("Disco")},modifier=Modifier.weight(1f),singleLine=true)
                     }
-                    OutlinedTextField(cover,{cover=it},label={Text("Capa · imagem inteira, sem cortes")},singleLine=true)
-                    TextButton(onClick={pickCover()}){Text("Escolher JPEG/PNG")}
+                    OutlinedTextField(cover,{cover=it},label={UiText("Capa · imagem inteira, sem cortes")},singleLine=true)
+                    TextButton(onClick={pickCover()}){UiText("Escolher JPEG/PNG")}
                 }
-                "choose_duplicate"->{Text(event.optString("path").substringAfterLast('/'));listOf("keep" to "Manter ambos","replace" to "Substituir","skip" to "Pular").forEach {(value,label)->Toggle(label,value in selected){selected=setOf(value)}}}
+                "choose_duplicate"->{UiText(event.optString("path").substringAfterLast('/'));listOf("keep" to "Manter ambos","replace" to "Substituir","skip" to "Pular").forEach {(value,label)->Toggle(label,value in selected){selected=setOf(value)}}}
                 else->{
-                    if(kind=="choose_media") TextButton(onClick={selected=candidates.map {it.get("id").toString()}.toSet()}){Text("Selecionar todos")}
+                    if(kind=="choose_media") TextButton(onClick={selected=candidates.map {it.get("id").toString()}.toSet()}){UiText("Selecionar todos")}
                     candidates.forEach {candidate->
                         val id=if(kind=="choose_catalog") candidate.optString("source_url") else candidate.opt("id")?.toString().orEmpty()
                         val video=candidate.optString("kind") in listOf("video","Vídeo") || candidate.optString("type")=="video"
@@ -79,9 +79,9 @@ import org.json.JSONObject
                             Column(Modifier.padding(10.dp)) {
                                 Toggle(candidate.optString("title",candidate.optString("label","Mídia $id")),id in selected){selected=if(kind=="choose_media") if(it) selected+id else selected-id else setOf(id)}
                                 Text(candidate.optString("channel",candidate.optString("uploader",candidate.stringList("artists"))),style=MaterialTheme.typography.bodySmall)
-                                if(candidate.has("match_score")) Text("Similaridade: ${(candidate.optDouble("match_score")*100).toInt()}%",style=MaterialTheme.typography.bodySmall)
+                                if(candidate.has("match_score")) UiText("Similaridade: ${(candidate.optDouble("match_score")*100).toInt()}%",style=MaterialTheme.typography.bodySmall)
                                 val thumbnail=candidate.optString("thumbnail",candidate.optString("preview_url"))
-                                if(thumbnail.startsWith("https://")) AsyncImage(thumbnail,"Prévia da mídia",Modifier.height(110.dp))
+                                if(thumbnail.startsWith("https://")) AsyncImage(thumbnail,translateUi("Prévia da mídia",LocalUiLanguage.current),Modifier.height(110.dp))
                                 if(kind=="choose_media" && video) {
                                     val outputs=linkedMapOf("Vídeo · MP4" to "mp4", "Vídeo · MKV" to "video", "Só áudio · MP3" to "mp3", "Só áudio · M4A" to "m4a", "Só áudio · FLAC" to "flac", "Só áudio · original" to "original")
                                     val mode=mediaModes[id] ?: candidate.optString("default_mode", "mp4")
@@ -90,12 +90,12 @@ import org.json.JSONObject
                                 if(kind=="choose_media" && candidate.optBoolean("photo_choice")) {
                                     val outputs=if(candidate.optBoolean("has_audio")) linkedMapOf("Só foto" to "photos", "Foto com música · MP4" to "photo_video") else linkedMapOf("Só foto" to "photos")
                                     Select("Baixar esta foto como",outputs.entries.firstOrNull {it.value==mediaModes[id]}?.key ?: "Só foto",outputs.keys.toList()){mediaModes=mediaModes+(id to outputs.getValue(it))}
-                                    if(!candidate.optBoolean("has_audio")) Text("A plataforma não disponibilizou a música desta foto.",style=MaterialTheme.typography.bodySmall)
+                                    if(!candidate.optBoolean("has_audio")) UiText("A plataforma não disponibilizou a música desta foto.",style=MaterialTheme.typography.bodySmall)
                                 }
                                 if(kind=="choose_version") TextButton(onClick={
                                     val url=candidate.optString("source_url","https://www.youtube.com/watch?v=$id")
                                     if(record.optString("_audio_provider")=="Monochrome" || event.optString("audio_provider")=="Monochrome") vm.preview(url) else vm.previewYouTube(url)
-                                }){Text("Ouvir prévia")}
+                                }){UiText("Ouvir prévia")}
                             }
                         }
                     }
@@ -117,5 +117,5 @@ import org.json.JSONObject
             else->JSONObject().put("selected_id",selected.first())
         }
         OndaStore.answer(reply)
-    }){Text(when(kind){"choose_flac"->"Selecionar FLAC baixado";"choose_version"->"Baixar esta versão";"choose_catalog"->"Usar estes metadados";"review_metadata"->"Confirmar e baixar";else->"Confirmar"})}},dismissButton={TextButton(onClick=cancel){Text(if(kind=="review_metadata") "Cancelar download" else "Cancelar")}})
+    }){UiText(when(kind){"choose_flac"->"Selecionar FLAC baixado";"choose_version"->"Baixar esta versão";"choose_catalog"->"Usar estes metadados";"review_metadata"->"Confirmar e baixar";else->"Confirmar"})}},dismissButton={TextButton(onClick=cancel){UiText(if(kind=="review_metadata") "Cancelar download" else "Cancelar")}})
 }

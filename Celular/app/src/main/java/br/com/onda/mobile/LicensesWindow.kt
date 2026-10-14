@@ -37,26 +37,26 @@ private data class LicenseNotice(val title: String, val text: String)
     }
     val notice = selected?.let { notices.getOrNull(it) }
     fun closePage() { if (selected != null) selected = null else onDismiss() }
-    AlertDialog(containerColor=ondaDialogContainerColor(),onDismissRequest={closePage()}, title={Text(notice?.title ?: "Licenças e fontes")},
+    AlertDialog(containerColor=ondaDialogContainerColor(),onDismissRequest={closePage()}, title={UiText(notice?.title ?: "Licenças e fontes")},
         text={
             if (notice == null) LazyColumn(Modifier.heightIn(max=420.dp)) {
-                item {Text(summary, style=MaterialTheme.typography.bodySmall)}
+                item {UiText(summary, style=MaterialTheme.typography.bodySmall)}
                 itemsIndexed(notices) { index, entry ->
                     TextButton(onClick={selected=index}, modifier=Modifier.fillMaxWidth()) {
-                        Text(entry.title, style=MaterialTheme.typography.bodySmall)
+                        UiText(entry.title, style=MaterialTheme.typography.bodySmall)
                     }
                 }
             } else key(selected) {
                 val paragraphs = remember(notice) { notice.text.split(Regex("\\n\\s*\\n")) }
                 LazyColumn(Modifier.heightIn(max=420.dp).testTag("license-details")) {
-                    items(paragraphs) { paragraph -> Text(paragraph, style=MaterialTheme.typography.bodySmall) }
+                    items(paragraphs) { paragraph -> UiText(paragraph, style=MaterialTheme.typography.bodySmall) }
                 }
             }
         },
-        confirmButton={TextButton(onClick=onDismiss) {Text("Fechar")}},
+        confirmButton={TextButton(onClick=onDismiss) {UiText("Fechar")}},
         dismissButton={
-            if (notice != null) TextButton(onClick={selected=null}) {Text("Voltar")}
+            if (notice != null) TextButton(onClick={selected=null}) {UiText("Voltar")}
             else TextButton(onClick={context.startActivity(Intent(Intent.ACTION_VIEW,
-                Uri.parse("https://github.com/enzoandradee16/Onda/releases")))}) {Text("Abrir fontes")}
+                Uri.parse("https://github.com/enzoandradee16/Onda/releases")))}) {UiText("Abrir fontes")}
         })
 }

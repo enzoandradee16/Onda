@@ -6,7 +6,7 @@ from pathlib import Path
 import sqlite3
 
 JOB_FIELDS = {"work_id", "normalize_volume", "resume_downloads", "url", "mode", "height", "fps", "audio_quality", "folder", "playlist", "playlist_limit", "state", "streaming",
-              "selected_catalog_url", "review_metadata", "organization", "duplicate_policy", "confirm_version", "playlist_title", "image_options", "catalog_record", "display_name"}
+              "selected_catalog_url", "review_metadata", "organization", "duplicate_policy", "confirm_version", "playlist_title", "image_options", "catalog_record", "display_name", "queue_info"}
 
 
 class LibraryStore:

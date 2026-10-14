@@ -12,12 +12,60 @@ class PreferenceStore:
         root = Path(os.environ["LOCALAPPDATA"]) if os.environ.get("LOCALAPPDATA") else Path.home() / ".config"
         self.path = Path(path) if path is not None else root / "Onda" / "settings.json"
 
+    def remember_enabled(self):
+        if self.path.exists():
+            return True
+        try:
+            return json.loads(self.path.with_name("remember.json").read_text(encoding="utf-8")) is not False
+        except (OSError, ValueError, TypeError):
+            return True
+
+    def load_language(self):
+        try:
+            value = json.loads(self.path.with_name("language.json").read_text(encoding="utf-8"))
+            return value if value in ("pt-BR", "es", "en") else "pt-BR"
+        except (OSError, ValueError, TypeError):
+            return "pt-BR"
+
+    def save_language(self, value):
+        if value not in ("pt-BR", "es", "en"):
+            raise ValueError("Idioma inválido.")
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        temporary = self.path.with_name("language.json.tmp")
+        try:
+            temporary.write_text(json.dumps(value), encoding="utf-8")
+            temporary.replace(self.path.with_name("language.json"))
+        finally:
+            temporary.unlink(missing_ok=True)
+
+    DISPLAY_FIELDS = ("queue_view", "queue_card_size", "history_view", "history_card_size")
+
+    def load_display(self):
+        try:
+            data = self.clean(json.loads(self.path.with_name("display.json").read_text(encoding="utf-8")))
+            return {key: data[key] for key in self.DISPLAY_FIELDS if key in data}
+        except (OSError, ValueError, TypeError):
+            return {}
+
+    def save_display(self, values):
+        data = self.clean(values)
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        target = self.path.with_name("display.json")
+        temporary = target.with_suffix(".json.tmp")
+        try:
+            temporary.write_text(json.dumps({key: data[key] for key in self.DISPLAY_FIELDS if key in data}), encoding="utf-8")
+            temporary.replace(target)
+        finally:
+            temporary.unlink(missing_ok=True)
+
     @staticmethod
     def clean(data):
         if not isinstance(data, dict):
             return {}
         from advanced_options import clean_advanced
         result = clean_advanced(data)
+        if data.get("language") in ("pt-BR", "es", "en"):
+            result["language"] = data["language"]
         from appearance import THEME_MODES, ACCENTS
         for name, choices in (('theme_mode', THEME_MODES), ('theme_accent', ACCENTS)):
             value = data.get(name)
@@ -27,6 +75,10 @@ class PreferenceStore:
                 result[name] = value
         if type(data.get("pure_black_separators")) is bool:
             result["pure_black_separators"] = data["pure_black_separators"]
+        if data.get("queue_card_size") in ("Pequeno","Médio","Grande"):
+            result["queue_card_size"] = data["queue_card_size"]
+        if data.get("queue_view") in ("Compacto","Completa"):
+            result["queue_view"] = data["queue_view"]
         if data.get("history_card_size") in ("Pequeno","Médio","Grande"):
             result["history_card_size"] = data["history_card_size"]
         if data.get("history_view") in ("Compacto", "Completa"):
@@ -126,4 +178,12 @@ class PreferenceStore:
                 temporary.unlink(missing_ok=True)
 
     def forget(self):
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        target = self.path.with_name("remember.json")
+        temporary = target.with_suffix(".json.tmp")
+        try:
+            temporary.write_text("false", encoding="utf-8")
+            temporary.replace(target)
+        finally:
+            temporary.unlink(missing_ok=True)
         self.path.unlink(missing_ok=True)

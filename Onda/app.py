@@ -1,5 +1,6 @@
 """Onda — desktop media downloader. Run with Python 3.10+."""
 from __future__ import annotations
+from i18n import tr
 
 import importlib.util
 import json
@@ -38,7 +39,7 @@ class App(UiMixin, tk.Tk):
         super().__init__()
         from window_position import install_window_centering
         install_window_centering(self)
-        self.title("Onda • Vídeo, áudio & fotos")
+        self.title(tr("Onda • Vídeo, áudio & fotos"))
         self.geometry("980x780")
         self.minsize(840, 720)
         self.configure(bg=BG)
@@ -85,6 +86,8 @@ class App(UiMixin, tk.Tk):
         self.image_height = tk.StringVar(value='1080')
         self.image_keep_ratio = tk.BooleanVar(value=True)
         self.pure_black_separators = tk.BooleanVar(value=False)
+        self.queue_card_size = tk.StringVar(value="Grande")
+        self.queue_view = tk.StringVar(value="Compacto")
         self.history_card_size = tk.StringVar(value="Grande")
         self.history_view = tk.StringVar(value="Compacto")
         self.auto_match = tk.BooleanVar(value=False)
@@ -106,16 +109,25 @@ class App(UiMixin, tk.Tk):
             preferences = self.preference_store.load()
         except (ValueError, OSError) as exc:
             preference_warning = str(exc)
-        self.remember_settings = tk.BooleanVar(value=preferences is not None)
-        self.preference_status = tk.StringVar(value="Salvamento automático ativado." if preferences is not None else "Desmarcado: opções só para esta sessão.")
+        self.language = tk.StringVar(value=self.preference_store.load_language())
+        self.remember_settings = tk.BooleanVar(value=self.preference_store.remember_enabled())
+        self.preference_status = tk.StringVar(value="Salvamento automático ativado." if self.remember_settings.get() else "Desmarcado: opções só para esta sessão.")
         from advanced_options import DEFAULTS
         for key,value in DEFAULTS.items():
             setattr(self,key,tk.BooleanVar(value=value) if type(value) is bool else tk.StringVar(value=value))
-        self.preference_fields = {name: getattr(self, name) for name in ("history_card_size", "pure_black_separators", "history_view", "theme_mode", "theme_accent", "interface_font", "interface_font_size", "notice_duration", "effects_keep_pitch", "image_format", "image_size", "image_width", "image_height", "image_keep_ratio", "tab_order", "playlist_mode", "playlist_height", "playlist_fps", "playlist_mp3_quality", "playlist_m4a_quality", "mode", "height", "fps", "catalog_provider", "folder", "ffmpeg", "playlist", "playlist_limit", "mp3_quality", "m4a_quality", "review_metadata", "auto_match", "background_preview", "effects_preview_duration", "search_preview_duration", "organization", "duplicates")}
+        self.preference_fields = {name: getattr(self, name) for name in ("language", "queue_card_size", "queue_view", "history_card_size", "pure_black_separators", "history_view", "theme_mode", "theme_accent", "interface_font", "interface_font_size", "notice_duration", "effects_keep_pitch", "image_format", "image_size", "image_width", "image_height", "image_keep_ratio", "tab_order", "playlist_mode", "playlist_height", "playlist_fps", "playlist_mp3_quality", "playlist_m4a_quality", "mode", "height", "fps", "catalog_provider", "folder", "ffmpeg", "playlist", "playlist_limit", "mp3_quality", "m4a_quality", "review_metadata", "auto_match", "background_preview", "effects_preview_duration", "search_preview_duration", "organization", "duplicates")}
         self.preference_fields.update({key:getattr(self,key) for key in DEFAULTS})
         self.preference_defaults = {name: variable.get() for name, variable in self.preference_fields.items()}
-        for name, value in (preferences or {}).items():
-            self.preference_fields[name].set(value)
+        self.preference_defaults["language"] = "pt-BR"
+        for name, value in {**(preferences or {}), **self.preference_store.load_display()}.items():
+            if name != "language":
+                self.preference_fields[name].set(value)
+        from i18n import set_language
+        set_language(self.language.get())
+        self.title(tr("Onda • Vídeo, áudio & fotos"))
+        self._last_language_choice = self.language.get()
+        self._applied_language = self.language.get()
+        self.language.trace_add("write", self.language_changed)
         self.credential_store = CredentialStore()
         credential_warning = ""
         saved = None
@@ -184,19 +196,46 @@ class App(UiMixin, tk.Tk):
         from welcome_ui import WelcomeWindow
         self.welcome_window = WelcomeWindow(self)
 
+    def language_changed(self, *_):
+        if self.language.get() == self._last_language_choice:
+            return
+        self._last_language_choice = self.language.get()
+        try:
+            self.preference_store.save_language(self.language.get())
+        except OSError as error:
+            messagebox.showerror(tr("Idioma"), tr(str(error)), parent=self)
+            return
+        self.refresh_restart_button()
+
+    def refresh_restart_button(self):
+        if not hasattr(self,"restart_button"):return
+        if self.language.get()!=self._applied_language:self.restart_button.pack(anchor="w",pady=(4,8))
+        else:self.restart_button.pack_forget()
+
+    def restart_app(self):
+        if self.language.get()==self._applied_language:return
+        if self.running or self.updating or self.effects_page.busy or self.playlist_page.busy or self.metadata_page.busy:
+            messagebox.showinfo(tr("Reiniciar"),tr("Termine as operações em andamento antes de reiniciar o ONDA."),parent=self)
+            return
+        self.restart_requested=True
+        self.close()
+
     def mode_changed(self, _=None):
         self.update_quality_selector()
 
     def schedule_preferences(self, *_):
-        if self.remember_settings.get():
-            if self._preference_after is not None:
-                self.after_cancel(self._preference_after)
-            self._preference_after = self.after(400, self.persist_preferences)
+        if self._preference_after is not None:
+            self.after_cancel(self._preference_after)
+        self._preference_after = self.after(400, self.persist_preferences)
 
     def persist_preferences(self):
         if self._preference_after is not None:
             self.after_cancel(self._preference_after)
             self._preference_after = None
+        try:
+            self.preference_store.save_display({name: self.preference_fields[name].get() for name in self.preference_store.DISPLAY_FIELDS})
+        except OSError:
+            self.write_log("Não foi possível salvar as configurações deste computador.")
         if not self.remember_settings.get():
             return
         try:
@@ -221,12 +260,12 @@ class App(UiMixin, tk.Tk):
                 self.preference_status.set("Não foi possível remover as configurações salvas.")
 
     def choose_folder(self):
-        folder = filedialog.askdirectory(title="Pasta de destino")
+        folder = filedialog.askdirectory(title=tr("Pasta de destino"))
         if folder:
             self.folder.set(folder)
 
     def choose_ffmpeg(self):
-        folder = filedialog.askdirectory(title="Pasta que contém ffmpeg e ffprobe")
+        folder = filedialog.askdirectory(title=tr("Pasta que contém ffmpeg e ffprobe"))
         if folder:
             self.ffmpeg.set(folder)
 
@@ -238,7 +277,7 @@ class App(UiMixin, tk.Tk):
             self.write_log("FFmpeg pronto para uso neste computador.")
 
     def choose_social_cookies(self):
-        path = filedialog.askopenfilename(title="Cookies no formato Netscape", filetypes=[("Cookies", "*.txt"), ("Todos", "*.*")])
+        path = filedialog.askopenfilename(title=tr("Cookies no formato Netscape"), filetypes=[("Cookies", "*.txt"), (tr("Todos os arquivos"), "*.*")])
         if path:
             self.social_cookies.set(path)
 
@@ -251,13 +290,13 @@ class App(UiMixin, tk.Tk):
         if not lines:
             return
         if not self.folder.get().strip():
-            messagebox.showwarning("Destino", "Escolha uma pasta de destino.")
+            messagebox.showwarning(tr("Destino"), tr("Escolha uma pasta de destino."))
             return
         invalid = []
         try:
             from metadata import is_streaming_link
         except ImportError:
-            messagebox.showerror("Dependência ausente", "Execute instalar.bat para atualizar as dependências.")
+            messagebox.showerror(tr("Dependência ausente"), tr("Execute instalar.bat para atualizar as dependências."))
             return
         existing = {(job["url"], job["mode"], job["folder"], job["height"], job["playlist"], job.get("audio_quality"), job.get("fps"), job.get("selected_catalog_url"), job.get("playlist_title"), job.get("playlist_limit", 1000) if job["playlist"] else None, json.dumps(job.get("image_options"), sort_keys=True)): item
                     for item, job in self.jobs.items() if job["state"] in ("Na fila", "Em andamento")}
@@ -302,7 +341,7 @@ class App(UiMixin, tk.Tk):
             if job["state"] in ("Na fila", "Em andamento"):
                 existing[key] = None
             format_name = {"photos": "FOTOS", "social": "POST"}.get(job["mode"], job["mode"].upper()) + (" " + job["audio_quality"].split()[0] if job["audio_quality"] else "")
-            item = self.tree.insert("", "end", values=(job.get("display_name") or url, format_name, "A consultar", job["state"]), tags=(job["state"],))
+            item = self.tree.insert("", "end", values=(job.get("display_name") or url, format_name, tr("A consultar"), tr(job["state"])), tags=(job["state"],))
             self.jobs[item] = job
             added.append(item)
         if from_input:
@@ -313,13 +352,14 @@ class App(UiMixin, tk.Tk):
             for item in added:
                 job = self.jobs[item]
                 if not job.get('display_name') and job['mode'] not in ('photos', 'social') and supports_lookup(job['url']):
+                    job['_queue_lookup_requested']=True
                     self.title_lookup.submit(item, job['url'], (self.spotify_client_id.get(), self.spotify_client_secret.get()), self.social_cookies.get().strip())
         self.refresh_queue()
         if restored_jobs is None:
             self.persist_queue()
         self.refresh_placeholder()
         if invalid:
-            messagebox.showwarning("Links não adicionados", "Alguns links não são aceitos. Use Ver detalhes para consultar o motivo.")
+            messagebox.showwarning(tr("Links não adicionados"), tr("Alguns links não são aceitos. Use Ver detalhes para consultar o motivo."))
         return added
 
     def download_now(self):
@@ -328,7 +368,7 @@ class App(UiMixin, tk.Tk):
             return
         lines = [line.strip() for line in self.urls.get("1.0", "end").splitlines() if line.strip()]
         if len(lines) != 1:
-            messagebox.showwarning("Baixar agora", "Cole apenas um link para baixar agora. Para vários links, use Adicionar à fila.", parent=self)
+            messagebox.showwarning(tr("Baixar agora"), tr("Cole apenas um link para baixar agora. Para vários links, use Adicionar à fila."), parent=self)
             return
         added = self.add(lines=lines, overrides={"playlist": False}, reuse_existing=True)
         if added:
@@ -338,7 +378,8 @@ class App(UiMixin, tk.Tk):
 
     def queue_catalog(self, record, mode, quality=None, start=False):
         from queue_titles import record_name
-        overrides = {"mode": mode, "audio_quality": quality, "display_name": record_name(record)}
+        from queue_details import queue_info
+        overrides = {"mode": mode, "audio_quality": quality, "display_name": record_name(record), "queue_info": queue_info(record)}
         if record.get('platform') == 'Spotify' and record.get('method') == 'Spotify Web API':
             from spotify_search import cached_record
             overrides['catalog_record'] = cached_record(record, record['source_url'])
@@ -363,7 +404,7 @@ class App(UiMixin, tk.Tk):
         try:
             from metadata_ui import MetadataWindow
         except ImportError:
-            messagebox.showerror("Dependência ausente", "Execute instalar.bat para instalar as dependências de metadados.")
+            messagebox.showerror(tr("Dependência ausente"), tr("Execute instalar.bat para instalar as dependências de metadados."))
             return
         return MetadataWindow(self, links)
 
@@ -372,7 +413,7 @@ class App(UiMixin, tk.Tk):
             pair = (self.spotify_client_id.get().strip(), self.spotify_client_secret.get().strip())
             self.credential_store.save(*pair)
         except CredentialError as exc:
-            messagebox.showerror("Salvar credenciais Spotify", str(exc), parent=self)
+            messagebox.showerror(tr("Salvar credenciais Spotify"), tr(str(exc)), parent=self)
             return
         self._saved_credentials = pair
         self.credential_status.set("Salvas com proteção do Windows. Serão carregadas ao abrir o Onda.")
@@ -388,7 +429,7 @@ class App(UiMixin, tk.Tk):
         try:
             self.credential_store.forget()
         except CredentialError as exc:
-            messagebox.showerror("Remover credenciais Spotify", str(exc), parent=self)
+            messagebox.showerror(tr("Remover credenciais Spotify"), tr(str(exc)), parent=self)
             return
         self._saved_credentials = None
         self.spotify_client_id.set("")
@@ -397,7 +438,7 @@ class App(UiMixin, tk.Tk):
 
     def set_state(self, item, state):
         self.jobs[item]["state"] = state
-        self.tree.set(item, "status", state)
+        self.tree.set(item, "status", tr(state))
         self.tree.item(item, tags=(state,))
         self.refresh_queue()
         self.persist_queue()
@@ -407,14 +448,14 @@ class App(UiMixin, tk.Tk):
             self.status.set("Aguarde a atualização do yt-dlp terminar.")
             return
         if not importlib.util.find_spec("yt_dlp"):
-            messagebox.showerror("Dependência ausente", "Execute instalar.bat para instalar yt-dlp.")
+            messagebox.showerror(tr("Dependência ausente"), tr("Execute instalar.bat para instalar yt-dlp."))
             return
         scope = tuple(dict.fromkeys(only_items)) if only_items is not None else ((only_item,) if only_item is not None else None)
         if scope == ():
             return
         if any(job["state"] == "Na fila" and job["mode"] not in ("photos", "social")
                for item, job in self.jobs.items() if scope is None or item in scope) and not binaries(self.ffmpeg.get().strip()):
-            messagebox.showerror("FFmpeg necessário", "Selecione a pasta de FFmpeg e ffprobe em Configurações. Consulte Ajuda se necessário.")
+            messagebox.showerror(tr("FFmpeg necessário"), tr("Selecione a pasta de FFmpeg e ffprobe em Configurações. Consulte Ajuda se necessário."))
             return
         self._schedule_paused=False
         if self.parallel.workers:
@@ -521,6 +562,7 @@ class App(UiMixin, tk.Tk):
             self.bar.configure(mode="determinate", value=value)
 
     def poll_events(self):
+        if hasattr(self,"queue_cards"):self.queue_cards.refresh()
         titles_changed = False
         for _ in range(150):
             try:
@@ -531,8 +573,8 @@ class App(UiMixin, tk.Tk):
             if kind == 'app_update':
                 result=event['result']
                 if result.get('available'):
-                    if messagebox.askyesno('Atualização do ONDA',result['message']+'\nAbrir o download oficial?',parent=self):webbrowser.open(result['url'])
-                elif event.get('manual'):messagebox.showinfo('Verificar atualização do ONDA',result['message'],parent=self)
+                    if messagebox.askyesno(tr('Atualização do ONDA'),tr(result['message'])+'\n'+tr('Abrir o download oficial?'),parent=self):webbrowser.open(result['url'])
+                elif event.get('manual'):messagebox.showinfo(tr('Verificar atualização do ONDA'),tr(result['message']),parent=self)
                 continue
             if kind.startswith("update_"):
                 if kind == "update_log":
@@ -544,6 +586,9 @@ class App(UiMixin, tk.Tk):
                 continue
             if kind == 'queue_title':
                 job = self.jobs.get(item)
+                if job and job['url']==event.get('url') and event.get('queue_info'):
+                    job['queue_info']={**event['queue_info'],**{k:v for k,v in (job.get('queue_info') or {}).items() if v not in (None,'',[],{})}}
+                    titles_changed=True
                 if job and job['url'] == event.get('url') and not job.get('display_name') and job['state'] in ('Na fila', 'Falhou'):
                     job['display_name'] = event['title']
                     self.tree.set(item, 'name', event['title'])
@@ -683,7 +728,7 @@ class App(UiMixin, tk.Tk):
         if not text:
             return
         self.log.configure(state="normal")
-        self.log.insert("end", text + "\n")
+        self.log.insert("end", tr(text) + "\n")
         if int(self.log.index("end-1c").split(".")[0]) > 350:
             self.log.delete("1.0", "100.0")
         self.log.see("end")
@@ -781,7 +826,7 @@ class App(UiMixin, tk.Tk):
             if not resume:self.cancel()
             self.persist_queue();self.refresh_queue();return True
         if self.active in selected and not self.jobs[self.active].get("remove_after_stop"):
-            if not messagebox.askyesno("Remover da fila", "Interromper o download em andamento e removê-lo da fila?\nOs arquivos já concluídos serão preservados.", parent=self):
+            if not messagebox.askyesno(tr("Remover da fila"), tr("Interromper o download em andamento e removê-lo da fila?\nOs arquivos já concluídos serão preservados."), parent=self):
                 return
             self.jobs[self.active]["remove_after_stop"] = True
             self.jobs[self.active]["resume_after_remove"] = self.running and resume
@@ -807,11 +852,11 @@ class App(UiMixin, tk.Tk):
             else:
                 subprocess.Popen(["open" if sys.platform == "darwin" else "xdg-open", str(path)])
         except OSError as exc:
-            messagebox.showerror("Pasta", str(exc))
+            messagebox.showerror(tr("Pasta"), tr(str(exc)))
 
     def help(self):
         window = tk.Toplevel(self)
-        window.title("Sobre o Onda")
+        window.title(tr("Sobre o Onda"))
         window.configure(bg=BG)
         window.geometry("670x490")
         text = ("Onda • downloads de vídeo, áudio e fotos\n\n"
@@ -830,15 +875,15 @@ class App(UiMixin, tk.Tk):
                 "Configurações de formato, pasta e playlist são capturadas ao adicionar. "
                 "Cancelar para a fila; tentar novamente pode retomar arquivos .part. "
                 "A fila pendente é salva e restaurada pausada ao abrir. Use conteúdo seu ou autorizado.")
-        ttk.Label(window, text=text, wraplength=620, justify="left", padding=20).pack(fill="both", expand=True)
-        ttk.Button(window, text="Guia completo (README)", command=lambda: self.open_readme()).pack(pady=8)
+        ttk.Label(window, text=tr(text), wraplength=620, justify="left", padding=20).pack(fill="both", expand=True)
+        ttk.Button(window, text=tr("Guia completo (README)"), command=lambda: self.open_readme()).pack(pady=8)
         buttons = ttk.Frame(window)
         buttons.pack(pady=(0, 15))
         for label, url in (("FFmpeg", "https://ffmpeg.org/download.html"),
                            ("Deno", "https://docs.deno.com/runtime/getting_started/installation/"),
                            ("Spotify", "https://support.spotify.com/br-pt/article/listen-offline/"),
                            ("Apple Lossless", "https://support.apple.com/118295")):
-            ttk.Button(buttons, text=label, command=lambda address=url: webbrowser.open(address)).pack(side="left", padx=4)
+            ttk.Button(buttons, text=tr(label), command=lambda address=url: webbrowser.open(address)).pack(side="left", padx=4)
 
     def open_readme(self):
         if os.name == "nt":
@@ -867,14 +912,15 @@ class App(UiMixin, tk.Tk):
                 except tk.TclError:
                     pass
                 setattr(self, name, None)
+        if hasattr(self,"queue_cards"):self.queue_cards.shutdown()
         super().destroy()
 
     def close(self):
         if self.metadata_page.busy:
-            messagebox.showinfo("Editar metadados","Aguarde o processamento do arquivo terminar antes de fechar o ONDA.",parent=self)
+            messagebox.showinfo(tr("Editar metadados"),tr("Aguarde o processamento do arquivo terminar antes de fechar o ONDA."),parent=self)
             return
         if self.updating:
-            messagebox.showinfo("Atualização em andamento", "Aguarde a atualização terminar antes de fechar o Onda.", parent=self)
+            messagebox.showinfo(tr("Atualização em andamento"), tr("Aguarde a atualização terminar antes de fechar o Onda."), parent=self)
             return
         self.persist_preferences()
         self.persist_queue()

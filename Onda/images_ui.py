@@ -1,4 +1,6 @@
 """Dedicated image controls; transfers still use the shared supervised queue."""
+from i18n import tr
+from i18n_tk import TranslatedCombobox, display_var
 import io
 import queue
 import tempfile
@@ -26,36 +28,36 @@ class ImagesPane(ttk.Frame):
         self.busy, self.closed, self.preview_bytes, self.preview_url = False, False, None, None
         self.columnconfigure(0, weight=1)
         self.rowconfigure(3, weight=1)
-        ttk.Label(self, text='Imagens do seu jeito.', font=('Segoe UI', 21, 'bold'), anchor='center').grid(row=0, column=0, sticky='ew')
-        ttk.Label(self, text='Baixe, converta e ajuste o tamanho sem cortar a imagem.', style='Muted.TLabel', anchor='center').grid(row=1, column=0, sticky='ew', pady=(5, 16))
+        ttk.Label(self, text=tr('Imagens do seu jeito.'), font=('Segoe UI', 21, 'bold'), anchor='center').grid(row=0, column=0, sticky='ew')
+        ttk.Label(self, text=tr('Baixe, converta e ajuste o tamanho sem cortar a imagem.'), style='Muted.TLabel', anchor='center').grid(row=1, column=0, sticky='ew', pady=(5, 16))
         card = ttk.Frame(self, style='Card.TFrame', padding=14)
         card.grid(row=2, column=0, sticky='ew')
         card.columnconfigure(0, weight=1)
         ttk.Entry(card, textvariable=self.url).grid(row=0, column=0, sticky='ew', columnspan=3)
-        self.preview_button = ttk.Button(card, text='Ver prévia', command=self.preview)
+        self.preview_button = ttk.Button(card, text=tr('Ver prévia'), command=self.preview)
         self.preview_button.grid(row=0, column=3, padx=(8, 0))
         options = ttk.Frame(card, style='Card.TFrame')
         options.grid(row=1, column=0, columnspan=4, sticky='ew', pady=(12, 0))
         for col, text, var, values, width in ((0, 'Formato', self.format, tuple(FORMATS), 12), (1, 'Tamanho máximo', self.size, tuple(SIZES), 22)):
-            ttk.Label(options, text=text, style='CardMuted.TLabel').grid(row=0, column=col, sticky='w')
-            ttk.Combobox(options, textvariable=var, values=values, state='readonly', width=width).grid(row=1, column=col, sticky='w', padx=(0, 12), pady=(4, 0))
+            ttk.Label(options, text=tr(text), style='CardMuted.TLabel').grid(row=0, column=col, sticky='w')
+            TranslatedCombobox(options, textvariable=var, values=values, state='readonly', width=width).grid(row=1, column=col, sticky='w', padx=(0, 12), pady=(4, 0))
         self.custom = ttk.Frame(card, style='Card.TFrame')
         self.custom.grid(row=2, column=0, columnspan=4, sticky='ew', pady=(10, 0))
-        ttk.Label(self.custom, text='Largura × altura (px)', style='CardMuted.TLabel').pack(side='left', padx=(0, 10))
+        ttk.Label(self.custom, text=tr('Largura × altura (px)'), style='CardMuted.TLabel').pack(side='left', padx=(0, 10))
         ttk.Entry(self.custom, textvariable=self.width, width=7).pack(side='left')
-        ttk.Label(self.custom, text=' × ', style='CardMuted.TLabel').pack(side='left')
+        ttk.Label(self.custom, text=tr(' × '), style='CardMuted.TLabel').pack(side='left')
         ttk.Entry(self.custom, textvariable=self.height, width=7).pack(side='left')
-        ttk.Checkbutton(card, text='Manter proporção (sem ampliar ou distorcer)', variable=self.keep_ratio).grid(row=3, column=0, columnspan=4, sticky='w', pady=(10, 0))
-        self.format_note = ttk.Label(card, text='SVG incorpora a imagem original; não vetoriza. Animações usam o primeiro quadro.', style='CardMuted.TLabel', wraplength=680)
+        ttk.Checkbutton(card, text=tr('Manter proporção (sem ampliar ou distorcer)'), variable=self.keep_ratio).grid(row=3, column=0, columnspan=4, sticky='w', pady=(10, 0))
+        self.format_note = ttk.Label(card, text=tr('SVG incorpora a imagem original; não vetoriza. Animações usam o primeiro quadro.'), style='CardMuted.TLabel', wraplength=680)
         self.format_note.grid(row=4, column=0, columnspan=4, sticky='w', pady=(8, 0))
-        self.preview_label = ttk.Label(self, text='A prévia aparecerá aqui.', anchor='center', style='Muted.TLabel')
+        self.preview_label = ttk.Label(self, text=tr('A prévia aparecerá aqui.'), anchor='center', style='Muted.TLabel')
         self.preview_label.grid(row=3, column=0, sticky='nsew', pady=12)
-        ttk.Label(self, textvariable=self.status, wraplength=740, anchor='center', style='Muted.TLabel').grid(row=4, column=0, sticky='ew')
+        ttk.Label(self, textvariable=display_var(self.status), wraplength=740, anchor='center', style='Muted.TLabel').grid(row=4, column=0, sticky='ew')
         actions = ttk.Frame(self)
         actions.grid(row=5, column=0, sticky='ew', pady=12)
-        ttk.Button(actions, text='Adicionar à fila', command=self.enqueue).pack(side='right')
-        ttk.Button(actions, text='Baixar agora', style='Accent.TButton', command=lambda:self.enqueue(True)).pack(side='right', padx=8)
-        ttk.Button(actions, text='Abrir pasta', command=app.open_folder).pack(side='left')
+        ttk.Button(actions, text=tr('Adicionar à fila'), command=self.enqueue).pack(side='right')
+        ttk.Button(actions, text=tr('Baixar agora'), style='Accent.TButton', command=lambda:self.enqueue(True)).pack(side='right', padx=8)
+        ttk.Button(actions, text=tr('Abrir pasta'), command=app.open_folder).pack(side='left')
         self.size.trace_add('write', self.changed)
         for var in (self.format, self.width, self.height, self.keep_ratio):
             var.trace_add('write', self.changed)
@@ -88,19 +90,19 @@ class ImagesPane(ttk.Frame):
 
     def link_changed(self, *_):
         self.preview_bytes = None
-        self.preview_label.configure(image='', text='Clique em Ver prévia para conferir a imagem.')
+        self.preview_label.configure(image='', text=tr('Clique em Ver prévia para conferir a imagem.'))
         self.status.set('Links de imagem ou publicações com fotos. Respeite o acesso permitido pelo site.')
 
     def enqueue(self, start=False):
         if start and self.app.updating:
-            messagebox.showinfo('Download em andamento', 'Aguarde a operação atual terminar ou adicione à fila.', parent=self)
+            messagebox.showinfo(tr('Download em andamento'), tr('Aguarde a operação atual terminar ou adicione à fila.'), parent=self)
             return
         try:
             options = self.options()
             from engine import validate_url
             url = validate_url(self.url.get())
         except (ValueError, KeyError) as exc:
-            messagebox.showwarning('Imagens', str(exc), parent=self)
+            messagebox.showwarning(tr('Imagens'), tr(str(exc)), parent=self)
             return
         added = self.app.add(lines=[url], overrides={'mode':'photos', 'playlist':False, 'image_options':options}, reuse_existing=start)
         if added:
@@ -116,7 +118,7 @@ class ImagesPane(ttk.Frame):
             url = validate_url(self.url.get())
             self.options()
         except (ValueError, KeyError) as exc:
-            messagebox.showwarning('Prévia', str(exc), parent=self)
+            messagebox.showwarning(tr('Prévia'), tr(str(exc)), parent=self)
             return
         cookies = self.app.social_cookies.get().strip()
         requested = self.url.get().strip()
@@ -153,7 +155,7 @@ class ImagesPane(ttk.Frame):
                     dimensions=image.size
                     image.thumbnail((600, 270), Image.Resampling.LANCZOS)
                     self.photo=ImageTk.PhotoImage(image, master=self)
-                self.preview_label.configure(image=self.photo, text='')
+                self.preview_label.configure(image=self.photo, text=tr(''))
                 self.status.set(f'{dimensions[0]} × {dimensions[1]} px · tamanho estimado: {output.stat().st_size / 1024:.1f} KB · prévia do primeiro quadro')
         except (ValueError, OSError, KeyError) as exc:
             self.status.set(str(exc))

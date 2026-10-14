@@ -1,0 +1,22 @@
+<resources>
+    <color name="launcher_system_background">#FEF7FF</color>
+    <color name="launcher_system_aqua">#087E69</color>
+    <color name="launcher_system_blue">#245FBE</color>
+    <color name="launcher_system_purple">#7544B8</color>
+    <color name="launcher_system_pink">#AF286D</color>
+    <color name="launcher_system_orange">#A6500B</color>
+    <color name="launcher_system_red">#B42F3B</color>
+    <color name="launcher_system_green">#257342</color>
+    <color name="launcher_system_lime">#537512</color>
+    <color name="launcher_system_yellow">#806600</color>
+    <color name="launcher_system_gold">#8C650F</color>
+    <color name="launcher_system_cyan">#07758A</color>
+    <color name="launcher_system_turquoise">#087575</color>
+    <color name="launcher_system_indigo">#4856B9</color>
+    <color name="launcher_system_lilac">#865098</color>
+    <color name="launcher_system_coral">#B34332</color>
+    <color name="launcher_system_gray">#576475</color>
+    <color name="launcher_background_dark">#161E29</color>
+    <color name="launcher_background_light">#FEF7FF</color>
+    <color name="launcher_background_black">#000000</color>
+</resources>

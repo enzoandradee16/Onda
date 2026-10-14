@@ -1,3 +1,5 @@
+from i18n import tr
+from i18n_tk import TranslatedCombobox, display_var
 import queue
 import threading
 import tkinter as tk
@@ -42,48 +44,48 @@ class PlaylistPane(ttk.Frame):
         self.busy = False
         self.columnconfigure(0, weight=1)
         self.rowconfigure(6, weight=1, minsize=220)
-        ttk.Label(self, text="Seus álbuns e playlists na biblioteca.", font=("Segoe UI", 21, "bold"), anchor="center").grid(row=0, column=0, sticky="ew")
+        ttk.Label(self, text=tr("Seus álbuns e playlists na biblioteca."), font=("Segoe UI", 21, "bold"), anchor="center").grid(row=0, column=0, sticky="ew")
         row = ttk.Frame(self)
         row.grid(row=1, column=0, sticky="ew", pady=18)
         link_row = ttk.Frame(row)
         link_row.pack(fill="x")
         ttk.Entry(link_row, textvariable=self.url).pack(side="left", fill="x", expand=True)
-        self.load_button = ttk.Button(link_row, text="Carregar álbum ou playlist", command=self.load)
+        self.load_button = ttk.Button(link_row, text=tr("Carregar álbum ou playlist"), command=self.load)
         self.load_button.pack(side="left", padx=8)
         tools = ttk.Frame(row)
         tools.pack(fill="x", pady=(10, 0))
-        self.import_button = ttk.Button(tools, text="Importar arquivo", command=self.text_file)
+        self.import_button = ttk.Button(tools, text=tr("Importar arquivo"), command=self.text_file)
         self.import_button.pack(side="left")
-        self.export_button = ttk.Button(tools, text="Exportar lista", command=self.export_file, state="disabled")
+        self.export_button = ttk.Button(tools, text=tr("Exportar lista"), command=self.export_file, state="disabled")
         self.export_button.pack(side="left", padx=8)
-        self.spotify_button = ttk.Button(tools, text="Spotify conectado" if self.spotify_account.connected else "Conectar Spotify", command=self.connect_spotify)
+        self.spotify_button = ttk.Button(tools, text=tr("Spotify conectado" if self.spotify_account.connected else "Conectar Spotify"), command=self.connect_spotify)
         self.spotify_button.pack(side="left")
-        self.list_button = ttk.Button(tools, text="Ver lista", command=self.show_list, state="disabled")
+        self.list_button = ttk.Button(tools, text=tr("Ver lista"), command=self.show_list, state="disabled")
         self.list_button.pack(side="right")
-        ttk.Label(self, textvariable=self.status, style="Muted.TLabel", wraplength=790, anchor="center", justify="center").grid(row=2, column=0, sticky="ew", pady=(0, 12))
+        ttk.Label(self, textvariable=display_var(self.status), style="Muted.TLabel", wraplength=790, anchor="center", justify="center").grid(row=2, column=0, sticky="ew", pady=(0, 12))
         formats = ttk.Frame(self)
         formats.grid(row=3, column=0, sticky="ew", pady=(0, 12))
         formats.columnconfigure(0, weight=2)
         formats.columnconfigure(1, weight=1)
         formats.columnconfigure(2, weight=1)
-        ttk.Label(formats, text="Formato de download", style="Muted.TLabel").grid(row=0, column=0, sticky="w")
-        mode = ttk.Combobox(formats, textvariable=app.playlist_mode, state="readonly",
+        ttk.Label(formats, text=tr("Formato de download"), style="Muted.TLabel").grid(row=0, column=0, sticky="w")
+        mode = TranslatedCombobox(formats, textvariable=app.playlist_mode, state="readonly",
                             values=[key for key, value in MODES.items() if value not in ("photos", "social")], width=30)
         mode.grid(row=1, column=0, sticky="ew", padx=(0, 12), pady=(4, 0))
         mode.bind("<<ComboboxSelected>>", self.format_changed)
-        self.quality_label = ttk.Label(formats, text="Qualidade de áudio", style="Muted.TLabel")
+        self.quality_label = ttk.Label(formats, text=tr("Qualidade de áudio"), style="Muted.TLabel")
         self.quality_label.grid(row=0, column=1, sticky="w")
-        self.quality_combo = ttk.Combobox(formats, state="readonly", width=16)
+        self.quality_combo = TranslatedCombobox(formats, state="readonly", width=16)
         self.quality_combo.grid(row=1, column=1, sticky="ew", padx=(0, 12), pady=(4, 0))
-        self.fps_label = ttk.Label(formats, text="FPS máximo", style="Muted.TLabel")
+        self.fps_label = ttk.Label(formats, text=tr("FPS máximo"), style="Muted.TLabel")
         self.fps_label.grid(row=0, column=2, sticky="w")
-        self.fps_combo = ttk.Combobox(formats, textvariable=app.playlist_fps, values=list(FPS_OPTIONS), state="readonly", width=13)
+        self.fps_combo = TranslatedCombobox(formats, textvariable=app.playlist_fps, values=list(FPS_OPTIONS), state="readonly", width=13)
         self.fps_combo.grid(row=1, column=2, sticky="ew", pady=(4, 0))
         self.format_changed()
         self.collection_card = ttk.Frame(self, padding=10, style="Card.TFrame")
         self.collection_card.grid(row=4,column=0,sticky="ew",pady=(0,10))
         self.collection_card.columnconfigure(1,weight=1)
-        self.collection_cover=ttk.Label(self.collection_card,text="♫",style="Card.TLabel",anchor="center",width=8)
+        self.collection_cover=ttk.Label(self.collection_card,text=tr("♫"),style="Card.TLabel",anchor="center",width=8)
         self.collection_cover.grid(row=0,column=0,rowspan=3,padx=(0,12))
         self.collection_name=ttk.Label(self.collection_card,style="Card.TLabel",font=("Segoe UI",18,"bold"))
         self.collection_name.grid(row=0,column=1,sticky="w")
@@ -94,44 +96,46 @@ class PlaylistPane(ttk.Frame):
         self.collection_card.grid_remove()
         search = ttk.Frame(self)
         search.grid(row=5, column=0, sticky="ew", pady=(0, 12))
-        ttk.Label(search, text="Buscar nesta lista", style="Muted.TLabel").pack(anchor="w", pady=(0, 6))
+        ttk.Label(search, text=tr("Buscar nesta lista"), style="Muted.TLabel").pack(anchor="w", pady=(0, 6))
         search_row = ttk.Frame(search)
         search_row.pack(fill="x")
         self.search_entry = ttk.Entry(search_row, textvariable=self.filter_text)
         self.search_entry.pack(side="left", fill="x", expand=True)
-        ttk.Button(search_row, text="Limpar", command=lambda: self.filter_text.set("")).pack(side="left", padx=8)
-        ttk.Label(search_row, textvariable=self.filter_count, style="Muted.TLabel").pack(side="right")
+        ttk.Button(search_row, text=tr("Limpar"), command=lambda: self.filter_text.set("")).pack(side="left", padx=8)
+        ttk.Label(search_row, textvariable=display_var(self.filter_count), style="Muted.TLabel").pack(side="right")
         self.search_entry.bind("<Escape>", lambda _: self.filter_text.set(""))
         self.filter_text.trace_add("write", self.schedule_filter)
         panel = ttk.Frame(self)
         panel.grid(row=6, column=0, sticky="nsew")
         self.table = ttk.Treeview(panel, columns=("title", "artist", "duration", "match"), show="headings", selectmode="extended")
+        from list_context import bind_playlist
+        bind_playlist(self)
         for key, label, width in (("title", "MÚSICA", 270), ("artist", "ARTISTA", 170), ("duration", "DURAÇÃO", 85), ("match", "VERSÃO DE ÁUDIO", 270)):
-            self.table.heading(key, text=label)
+            self.table.heading(key, text=tr(label))
             self.table.column(key, width=width, minwidth=60, stretch=key in ("title", "match"))
         self.table.pack(side="left", fill="both", expand=True)
         ttk.Scrollbar(panel, command=self.table.yview).pack(side="right", fill="y")
         self.table.configure(yscrollcommand=panel.winfo_children()[-1].set)
         controls = ttk.Frame(self)
         controls.grid(row=7, column=0, sticky="ew", pady=12)
-        ttk.Button(controls, text="Selecionar visíveis", command=lambda: self.table.selection_set(self.table.get_children())).pack(side="left")
-        self.check_button = ttk.Button(controls, text="Conferir correspondências", command=self.check)
+        ttk.Button(controls, text=tr("Selecionar visíveis"), command=lambda: self.table.selection_set(self.table.get_children())).pack(side="left")
+        self.check_button = ttk.Button(controls, text=tr("Conferir correspondências"), command=self.check)
         self.check_button.pack(side="left", padx=8)
-        self.download_now_button = ttk.Button(controls, text="Baixar agora", command=lambda: self.add(start=True), style="Accent.TButton")
+        self.download_now_button = ttk.Button(controls, text=tr("Baixar agora"), command=lambda: self.add(start=True), style="Accent.TButton")
         self.download_now_button.pack(side="right")
-        self.add_button = ttk.Button(controls, text="Adicionar à fila", command=self.add)
+        self.add_button = ttk.Button(controls, text=tr("Adicionar à fila"), command=self.add)
         self.add_button.pack(side="right", padx=(0, 8))
-        self.confirm_version_check = ttk.Checkbutton(self, text="Confirmar a versão de cada música antes de baixar", variable=self.confirm_version)
+        self.confirm_version_check = ttk.Checkbutton(self, text=tr("Confirmar a versão de cada música antes de baixar"), variable=self.confirm_version)
         self.confirm_version_check.grid(row=8, column=0, sticky="w", pady=6)
         self.auto_match_trace = app.auto_match.trace_add("write", self.sync_auto_match)
         self.sync_auto_match()
-        ttk.Label(self, text="Busque por música ou artista. As ações usam somente os itens visíveis selecionados. Formato e qualidade são próprios desta aba. Streaming: FLAC usa Monochrome; MP3/M4A usam YouTube. Vídeo vira MP3 e original vira M4A.", style="Muted.TLabel", wraplength=790).grid(row=9, column=0, sticky="w", pady=8)
+        ttk.Label(self, text=tr("Busque por música ou artista. As ações usam somente os itens visíveis selecionados. Formato e qualidade são próprios desta aba. Streaming: FLAC usa Monochrome; MP3/M4A usam YouTube. Vídeo vira MP3 e original vira M4A."), style="Muted.TLabel", wraplength=790).grid(row=9, column=0, sticky="w", pady=8)
         self.poll_id = self.after(100, self.poll)
 
     def sync_auto_match(self, *_):
         automatic = self.app.auto_match.get()
         self.confirm_version_check.configure(state="disabled" if automatic else "normal",
-                    text="Seleção automática ativada em Configurações → Downloads" if automatic else "Confirmar a versão de cada música antes de baixar")
+                    text=tr("Seleção automática ativada em Configurações → Downloads" if automatic else "Confirmar a versão de cada música antes de baixar"))
 
     def format_changed(self, _=None):
         mode = MODES[self.app.playlist_mode.get()]
@@ -140,10 +144,10 @@ class PlaylistPane(ttk.Frame):
         for widget in (self.fps_label, self.fps_combo):
             widget.grid() if mode in ("video", "mp4") else widget.grid_remove()
         if mode in ("video", "mp4"):
-            self.quality_label.configure(text="Resolução máxima")
+            self.quality_label.configure(text=tr("Resolução máxima"))
             self.quality_combo.configure(textvariable=self.app.playlist_height, values=list(HEIGHTS))
         elif mode in ("mp3", "m4a"):
-            self.quality_label.configure(text="Qualidade de áudio")
+            self.quality_label.configure(text=tr("Qualidade de áudio"))
             variable = self.app.playlist_mp3_quality if mode == "mp3" else self.app.playlist_m4a_quality
             self.quality_combo.configure(textvariable=variable, values=MP3_QUALITIES if mode == "mp3" else M4A_QUALITIES)
         else:
@@ -184,7 +188,7 @@ class PlaylistPane(ttk.Frame):
     def text_file(self):
         if self.busy:
             return
-        path = filedialog.askopenfilename(parent=self.app, filetypes=[("Listas e CSV", "*.txt *.m3u *.m3u8 *.csv"), ("CSV do Exportify", "*.csv"), ("TXT / M3U", "*.txt *.m3u *.m3u8")])
+        path = filedialog.askopenfilename(parent=self.app, filetypes=[(tr("Listas e CSV"), "*.txt *.m3u *.m3u8 *.csv"), (tr("CSV do Exportify"), "*.csv"), ("TXT / M3U", "*.txt *.m3u *.m3u8")])
         if path:
             try:
                 from pathlib import Path
@@ -224,9 +228,9 @@ class PlaylistPane(ttk.Frame):
         from pathlib import Path
         from playlist_files import export_text
         from file_output import component
-        path = filedialog.asksaveasfilename(parent=self.app, title="Exportar toda a playlist carregada",
+        path = filedialog.asksaveasfilename(parent=self.app, title=tr("Exportar toda a playlist carregada"),
                     initialfile=component(self.playlist_title) + ".txt", defaultextension=".txt",
-                    filetypes=[("TXT (links)", "*.txt"), ("M3U (links e títulos)", "*.m3u"), ("M3U UTF-8", "*.m3u8")])
+                    filetypes=[(tr("TXT (links)"), "*.txt"), (tr("M3U (links e títulos)"), "*.m3u"), ("M3U UTF-8", "*.m3u8")])
         if not path:
             return
         temporary = None
@@ -253,8 +257,8 @@ class PlaylistPane(ttk.Frame):
         self.collection_name.configure(text=self.playlist_title)
         self.collection_artist.configure(text=result.get("subtitle") or "")
         detail=" · ".join(str(value) for value in ("Álbum" if result.get("kind")=="album" else "Playlist", f"{len(result['tracks'])} músicas") if value)
-        self.collection_detail.configure(text=detail)
-        self.collection_cover.configure(image="",text="♫")
+        self.collection_detail.configure(text=tr(detail))
+        self.collection_cover.configure(image="",text=tr("♫"))
         self.cover_image=None
         if result.get("cover_url"):
             generation, cover_generation, url=self.generation,self.cover_generation,result["cover_url"]
@@ -294,7 +298,7 @@ class PlaylistPane(ttk.Frame):
                     self.set_busy(False)
                     return
                 self.table.insert("", "end", iid=key, values=(row["title"], ", ".join(row.get("artists", [])),
-                    duration_label(row["duration_ms"] / 1000 if row.get("duration_ms") else None), "A consultar"))
+                    duration_label(row["duration_ms"] / 1000 if row.get("duration_ms") else None), tr("A consultar")))
             self._render_after = self.after(1, render_batch)
         render_batch()
 
@@ -347,7 +351,7 @@ class PlaylistPane(ttk.Frame):
                         return
                     try:
                         if not is_streaming_link(row["source_url"]):
-                            status = "Vídeo da própria playlist"
+                            status = tr("Vídeo da própria playlist")
                         else:
                             if row.get('platform') == 'Spotify' and row.get('method') in ('Spotify Web API', 'Spotify Embed público'):
                                 from spotify_search import cached_record
@@ -364,9 +368,9 @@ class PlaylistPane(ttk.Frame):
                                 match = find_youtube(record, Quiet(), prefer_best=True) if automatic else find_youtube(record, Quiet())
                                 status = match["title"]
                     except (CatalogChoiceRequired, AmbiguousMatch):
-                        status = "Escolha necessária ao baixar"
+                        status = tr("Escolha necessária ao baixar")
                     except Exception as exc:
-                        status = str(exc)
+                        status = tr(str(exc))
                     self.events.put((generation, "match", (key, status)))
             finally:
                 client.close()
@@ -397,6 +401,8 @@ class PlaylistPane(ttk.Frame):
             if job is None:
                 continue
             row = by_url.get(job['url'], {})
+            from queue_details import queue_info
+            job['queue_info']=queue_info(row)
             name = record_name(row)
             if name:
                 job['display_name'] = name
@@ -429,7 +435,7 @@ class PlaylistPane(ttk.Frame):
                 if value[0]==self.cover_generation and value[1]:
                     import base64
                     self.cover_image=tk.PhotoImage(data=base64.b64encode(value[1]))
-                    self.collection_cover.configure(image=self.cover_image,text="",width=0)
+                    self.collection_cover.configure(image=self.cover_image,text=tr(""),width=0)
             elif kind == "loaded":
                 self.display(value)
             elif kind == "error":

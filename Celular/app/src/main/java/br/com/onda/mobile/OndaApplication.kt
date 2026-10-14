@@ -24,6 +24,7 @@ class OndaApplication : Application(), coil.ImageLoaderFactory {
         super.onCreate()
         SecureVault.initialize(this)
         OndaStore.initialize(this)
+        LauncherIcons.sync(this,OndaStore.settings.value)
     }
 }
 

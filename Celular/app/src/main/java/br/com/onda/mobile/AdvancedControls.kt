@@ -16,7 +16,7 @@ import org.json.JSONObject
 import java.io.File
 
 @Composable fun AdvancedDownloadOptions(settings:JSONObject,put:(String,Any)->Unit) {
-    Text("Fila e agendamento",style=MaterialTheme.typography.titleMedium)
+    UiText("Fila e agendamento",style=MaterialTheme.typography.titleMedium)
     SettingsDivider()
     Select("Downloads simultâneos (1 a 4)",settings.optString("concurrent_downloads","1"),listOf("1","2","3","4")){put("concurrent_downloads",it)}
     SettingsDivider()
@@ -29,14 +29,14 @@ import java.io.File
     Toggle("Agendar downloads",settings.optBoolean("schedule_enabled")){put("schedule_enabled",it)}
     SettingsDivider()
     Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-        OutlinedTextField(settings.optString("schedule_start","22:00"),{put("schedule_start",it)},label={Text("Começar · HH:MM")},singleLine=true,modifier=Modifier.weight(1f))
-        OutlinedTextField(settings.optString("schedule_stop","07:00"),{put("schedule_stop",it)},label={Text("Parar · HH:MM")},singleLine=true,modifier=Modifier.weight(1f))
+        OutlinedTextField(settings.optString("schedule_start","22:00"),{put("schedule_start",it)},label={UiText("Começar · HH:MM")},singleLine=true,modifier=Modifier.weight(1f))
+        OutlinedTextField(settings.optString("schedule_stop","07:00"),{put("schedule_stop",it)},label={UiText("Parar · HH:MM")},singleLine=true,modifier=Modifier.weight(1f))
     }
     if(settings.optBoolean("schedule_enabled")) {
         val valid=runCatching {java.time.LocalTime.parse(settings.optString("schedule_start"))!=java.time.LocalTime.parse(settings.optString("schedule_stop"))}.getOrDefault(false)
-        if(!valid)Text("Informe horários diferentes no formato HH:MM.",color=MaterialTheme.colorScheme.error)
+        if(!valid)UiText("Informe horários diferentes no formato HH:MM.",color=MaterialTheme.colorScheme.error)
     }
-    Text("O Android pode atrasar o início para economizar bateria. A fila interrompida fica pendente para retomar.",style=MaterialTheme.typography.bodySmall)
+    UiText("O Android pode atrasar o início para economizar bateria. A fila interrompida fica pendente para retomar.",style=MaterialTheme.typography.bodySmall)
 }
 
 @Composable fun PreferenceTransfer(vm:OndaViewModel) {
@@ -54,10 +54,10 @@ import java.io.File
         }
     }}
     SettingsDivider()
-    TextButton(onClick={export.launch("ONDA-configuracoes.json")}){Text("Exportar configurações…")}
+    TextButton(onClick={export.launch("ONDA-configuracoes.json")}){UiText("Exportar configurações…")}
     SettingsDivider()
-    TextButton(onClick={importFile.launch(arrayOf("application/json","text/plain"))}){Text("Importar configurações…")}
-    Text("A transferência não inclui contas, cookies nem caminhos de pastas.",style=MaterialTheme.typography.bodySmall)
+    TextButton(onClick={importFile.launch(arrayOf("application/json","text/plain"))}){UiText("Importar configurações…")}
+    UiText("A transferência não inclui contas, cookies nem caminhos de pastas.",style=MaterialTheme.typography.bodySmall)
 }
 
 @Composable fun AppUpdateControls(vm:OndaViewModel) {
@@ -66,11 +66,38 @@ import java.io.File
     SettingsDivider()
     Toggle("Verificar atualizações do ONDA ao abrir",settings.optBoolean("check_updates")){OndaStore.saveSettings(JSONObject(settings.toString()).put("check_updates",it))}
     SettingsDivider()
-    OutlinedButton(onClick={vm.operation("app_update",JSONObject().put("version",BuildConfig.VERSION_NAME),dialog=true){update=it;vm.showNotice("Verificar atualização do ONDA",it.optString("message"))}}){Text("Verificar atualização do ONDA")}
-    if(update?.optBoolean("available")==true)Button(onClick={
-        runCatching {OndaStore.context.startActivity(Intent(Intent.ACTION_VIEW,Uri.parse(update!!.getString("url"))).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))}.onFailure {vm.showNotice("Baixar nova versão","Não foi possível abrir o navegador.")}
-    }){Text("Baixar nova versão")}
-    Text("O download usa a Release oficial. A instalação é confirmada pelo Android e preserva os dados quando o APK é compatível.",style=MaterialTheme.typography.bodySmall)
+    OutlinedButton(onClick={vm.operation("app_update",JSONObject().put("version",BuildConfig.VERSION_NAME),dialog=true){update=it;vm.showNotice("Verificar atualização do ONDA",it.optString("message"))}}){UiText("Verificar atualização do ONDA")}
+    val updater=remember {InAppUpdate(OndaStore.context)}
+    var download by remember {mutableStateOf(UpdateDownload())}
+    val language=LocalUiLanguage.current
+    LaunchedEffect(updater) {
+        while(true) {
+            download=runCatching {updater.state()}.getOrDefault(UpdateDownload(android.app.DownloadManager.STATUS_FAILED))
+            kotlinx.coroutines.delay(700)
+        }
+    }
+    val downloading=download.status in listOf(android.app.DownloadManager.STATUS_PENDING,android.app.DownloadManager.STATUS_RUNNING,android.app.DownloadManager.STATUS_PAUSED)
+    if(downloading) {
+        UiText("Baixando atualização do ONDA")
+        if(download.total>0) {
+            val progress=(download.bytes.toFloat()/download.total).coerceIn(0f,1f)
+            LinearProgressIndicator(progress={progress},modifier=Modifier.fillMaxWidth())
+            Text("${(progress*100).toInt()}%")
+        } else LinearProgressIndicator(modifier=Modifier.fillMaxWidth())
+        TextButton(onClick={updater.cancel();download=UpdateDownload()}) {UiText("Cancelar download da atualização")}
+    } else if(download.status==android.app.DownloadManager.STATUS_SUCCESSFUL) {
+        Button(onClick={runCatching {updater.install()}.onSuccess {opened->
+            if(!opened)vm.showNotice("Instalar atualização","Permita a instalação pelo ONDA e volte para tocar em Instalar atualização.")
+        }.onFailure {vm.showNotice("Instalar atualização",it.message ?: "Não foi possível iniciar a instalação.")}}) {UiText("Instalar atualização")}
+        TextButton(onClick={updater.cancel();download=UpdateDownload()}) {UiText("Descartar atualização baixada")}
+    } else {
+        if(download.status==android.app.DownloadManager.STATUS_FAILED)UiText("Não foi possível baixar a atualização. Tente novamente.")
+        if(update?.optBoolean("available")==true)Button(onClick={
+            runCatching {updater.start(update!!.getString("url"),language);download=updater.state()}
+                .onFailure {vm.showNotice("Baixar nova versão",it.message ?: "Não foi possível baixar a atualização. Tente novamente.")}
+        }){UiText("Baixar nova versão")}
+    }
+    UiText("A atualização é baixada dentro do ONDA e continua em segundo plano. Ao terminar, toque em Instalar atualização e confirme no Android. Seus dados são preservados.",style=MaterialTheme.typography.bodySmall)
 }
 
 @Composable fun AudioFileEditor(item:HistoryItem,vm:OndaViewModel,close:()->Unit) {
@@ -98,37 +125,37 @@ import java.io.File
     Column(Modifier.fillMaxSize().padding(horizontal=16.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(10.dp)) {
         Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(12.dp),verticalAlignment=androidx.compose.ui.Alignment.CenterVertically) {
             Text(item.title,modifier=Modifier.weight(1f),maxLines=2,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-            Button(enabled=!busy,onClick={finish()},contentPadding=PaddingValues(horizontal=16.dp)){Text("Escolher outro arquivo",maxLines=1,softWrap=false)}
+            Button(enabled=!busy,onClick={finish()},contentPadding=PaddingValues(horizontal=16.dp)){UiText("Escolher outro arquivo",maxLines=1,softWrap=false)}
         }
             OutlinedCard(Modifier.fillMaxWidth()) {
                 Column(Modifier.fillMaxWidth().padding(16.dp),horizontalAlignment=androidx.compose.ui.Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(8.dp)) {
-                    Text("Capa do álbum",style=MaterialTheme.typography.titleMedium)
+                    UiText("Capa do álbum",style=MaterialTheme.typography.titleMedium)
             val originalBitmap=remember(originalCover) {runCatching {val bytes=android.util.Base64.decode(originalCover,android.util.Base64.DEFAULT);android.graphics.BitmapFactory.decodeByteArray(bytes,0,bytes.size)}.getOrNull()}
-            if(cover.isNotBlank() || originalBitmap!=null) coil.compose.AsyncImage(model=if(cover.isNotBlank())File(cover) else originalBitmap,contentDescription="Capa do álbum",modifier=Modifier.size(208.dp))
-            else Text("Sem capa",style=MaterialTheme.typography.bodySmall)
+            if(cover.isNotBlank() || originalBitmap!=null) coil.compose.AsyncImage(model=if(cover.isNotBlank())File(cover) else originalBitmap,contentDescription=translateUi("Capa do álbum",LocalUiLanguage.current),modifier=Modifier.size(208.dp))
+            else UiText("Sem capa",style=MaterialTheme.typography.bodySmall)
             Row(horizontalArrangement=Arrangement.Center) {
-                TextButton(onClick={pickCover()},enabled=editing && !busy){Text("Escolher outra capa…")}
-                TextButton(onClick={File(cover).delete();cover=""},enabled=cover.isNotBlank() && !busy){Text("Desfazer capa")}
+                TextButton(onClick={pickCover()},enabled=editing && !busy){UiText("Escolher outra capa…")}
+                TextButton(onClick={File(cover).delete();cover=""},enabled=cover.isNotBlank() && !busy){UiText("Desfazer capa")}
             }
-            OutlinedButton(onClick={cropCandidate=cover},enabled=cover.isNotBlank() && editing && !busy){Text("Ajustar capa")}
+            OutlinedButton(onClick={cropCandidate=cover},enabled=cover.isNotBlank() && editing && !busy){UiText("Ajustar capa")}
                 }
             }
             Toggle("Editar metadados",editing){editing=it}
             for((key,label) in listOf("title" to "Música","artists" to "Artistas (separados por ;)","album" to "Álbum","genre" to "Gênero","release_date" to "Data")) {
                 val text=if(key=="artists")changes.optJSONArray(key)?.let {a->(0 until a.length()).joinToString("; "){a.optString(it)}} ?: "" else changes.optString(key)
-                OutlinedTextField(text,{value->changes=JSONObject(changes.toString()).put(key,if(key=="artists")org.json.JSONArray(value.split(';').map {it.trim()}.filter {it.isNotBlank()}) else value)},label={Text(label)},singleLine=true,enabled=editing && !busy,modifier=Modifier.fillMaxWidth())
+                OutlinedTextField(text,{value->changes=JSONObject(changes.toString()).put(key,if(key=="artists")org.json.JSONArray(value.split(';').map {it.trim()}.filter {it.isNotBlank()}) else value)},label={UiText(label)},singleLine=true,enabled=editing && !busy,modifier=Modifier.fillMaxWidth())
             }
-            TextButton(onClick={pickLyrics.launch(arrayOf("text/plain","application/x-lrc","application/octet-stream"))},enabled=!busy){Text(if(lyrics.isBlank())"Importar letra · TXT ou LRC" else "Letra selecionada")}
+            TextButton(onClick={pickLyrics.launch(arrayOf("text/plain","application/x-lrc","application/octet-stream"))},enabled=!busy){UiText(if(lyrics.isBlank())"Importar letra · TXT ou LRC" else "Letra selecionada")}
             Toggle("Normalizar volume (−16 LUFS)",normalize){normalize=it}
             Row {
-                TextButton(onClick={vm.preview(source,20)},enabled=source.isNotBlank() && !busy){Text("Ouvir original")}
-                TextButton(onClick={vm.stopPreview();vm.operation("normalize_preview",config(),dialog=false){preview=it.getString("path");vm.preview(preview,20)}},enabled=source.isNotBlank() && !busy){Text("Ouvir normalizado")}
+                TextButton(onClick={vm.preview(source,20)},enabled=source.isNotBlank() && !busy){UiText("Ouvir original")}
+                TextButton(onClick={vm.stopPreview();vm.operation("normalize_preview",config(),dialog=false){preview=it.getString("path");vm.preview(preview,20)}},enabled=source.isNotBlank() && !busy){UiText("Ouvir normalizado")}
             }
             PlayerControls(vm)
             Toggle("Sobrescrever arquivo original",overwrite){if(!busy)overwrite=it}
-            Text(if(overwrite) "O arquivo original será substituído, mantendo o nome e a pasta." else "O arquivo original será preservado. Uma cópia será salva na pasta de destino.",style=MaterialTheme.typography.bodySmall)
+            UiText(if(overwrite) "O arquivo original será substituído, mantendo o nome e a pasta." else "O arquivo original será preservado. Uma cópia será salva na pasta de destino.",style=MaterialTheme.typography.bodySmall)
             if(busy)LinearProgressIndicator(Modifier.fillMaxWidth())
-        Button(enabled=loaded && !busy,onClick={vm.operation("audio_edit",config(),dialog=false){if(overwrite)finish();vm.status.value=if(overwrite) "Arquivo original atualizado." else "Cópia editada salva na pasta de destino."}},modifier=Modifier.fillMaxWidth()){Text(if(overwrite) "Salvar no original" else "Salvar cópia editada")}
+        Button(enabled=loaded && !busy,onClick={vm.operation("audio_edit",config(),dialog=false){if(overwrite)finish();vm.status.value=if(overwrite) "Arquivo original atualizado." else "Cópia editada salva na pasta de destino."}},modifier=Modifier.fillMaxWidth()){UiText(if(overwrite) "Salvar no original" else "Salvar cópia editada")}
         Spacer(Modifier.height(16.dp))
     }
 }

@@ -1,4 +1,6 @@
 """Search → catalog result → preview and format → existing download queue."""
+from i18n import tr
+from i18n_tk import TranslatedCombobox, display_var
 import base64
 from functools import lru_cache
 import io
@@ -62,8 +64,8 @@ class CatalogPane(ttk.Frame):
         self.dialog = None
         self.columnconfigure(0, weight=1)
         self.rowconfigure(3, weight=1)
-        ttk.Label(self, text="Encontre sua próxima música.", font=("Segoe UI", 22, "bold"), anchor="center").grid(row=0, column=0, sticky="ew")
-        ttk.Label(self, text="Pesquise artista ou música, ou cole um link de faixa.", style="Muted.TLabel", anchor="center").grid(row=1, column=0, sticky="ew", pady=(5, 18))
+        ttk.Label(self, text=tr("Encontre sua próxima música."), font=("Segoe UI", 22, "bold"), anchor="center").grid(row=0, column=0, sticky="ew")
+        ttk.Label(self, text=tr("Pesquise artista ou música, ou cole um link de faixa."), style="Muted.TLabel", anchor="center").grid(row=1, column=0, sticky="ew", pady=(5, 18))
         search = ttk.Frame(self)
         search.grid(row=2, column=0, sticky="ew", pady=(0, 14))
         search.columnconfigure(0, weight=1)
@@ -73,10 +75,10 @@ class CatalogPane(ttk.Frame):
         self.entry.bind("<Return>", self.enter_search)
         self.entry.bind("<KP_Enter>", self.enter_search)
         self.provider = app.catalog_provider
-        ttk.Combobox(search, textvariable=self.provider, values=("Deezer", "Apple / iTunes", "Spotify"), state="readonly", width=15).grid(row=0, column=1, padx=(0, 10))
-        self.search_button = ttk.Button(search, text="Pesquisar", style="Accent.TButton", command=self.search)
+        TranslatedCombobox(search, textvariable=self.provider, values=("Deezer", "Apple / iTunes", "Spotify"), state="readonly", width=15).grid(row=0, column=1, padx=(0, 10))
+        self.search_button = ttk.Button(search, text=tr("Pesquisar"), style="Accent.TButton", command=self.search)
         self.search_button.grid(row=0, column=2)
-        self.spotify_connect_button = ttk.Button(search, text='Conectar Spotify', command=lambda: self.app.playlist_page.connect_spotify())
+        self.spotify_connect_button = ttk.Button(search, text=tr('Conectar Spotify'), command=lambda: self.app.playlist_page.connect_spotify())
         self.spotify_connect_button.grid(row=1, column=0, columnspan=3, sticky='e', pady=(8, 0))
         def provider_changed(*_):
             if self.provider.get() == 'Spotify':
@@ -92,8 +94,10 @@ class CatalogPane(ttk.Frame):
         panel.columnconfigure(0, weight=1)
         panel.rowconfigure(0, weight=1)
         self.table = ttk.Treeview(panel, columns=("title", "artist", "album", "duration"), show="headings", selectmode="browse", height=6)
+        from list_context import bind_catalog
+        bind_catalog(self)
         for key, label, width in (("title", "MÚSICA / VERSÃO", 260), ("artist", "ARTISTA", 150), ("album", "ÁLBUM", 220), ("duration", "DURAÇÃO", 90)):
-            self.table.heading(key, text=label, anchor="w")
+            self.table.heading(key, text=tr(label), anchor="w")
             self.table.column(key, width=width, minwidth=70, stretch=key != "duration")
         self.table.grid(row=0, column=0, sticky="nsew")
         scroll = ttk.Scrollbar(panel, command=self.table.yview)
@@ -103,33 +107,33 @@ class CatalogPane(ttk.Frame):
         self.table.bind("<Double-1>", self.open_clicked)
         self.table.bind("<Return>", lambda _: self.open_track())
         self.empty = ttk.Frame(panel, style="Card.TFrame")
-        ttk.Label(self.empty, text="Sua biblioteca começa com uma busca", style="Card.TLabel", font=("Segoe UI", 12, "bold")).pack()
-        ttk.Label(self.empty, text="Encontre a música e escolha a versão que você quer.", style="CardMuted.TLabel").pack(pady=(5, 0))
+        ttk.Label(self.empty, text=tr("Sua biblioteca começa com uma busca"), style="Card.TLabel", font=("Segoe UI", 12, "bold")).pack()
+        ttk.Label(self.empty, text=tr("Encontre a música e escolha a versão que você quer."), style="CardMuted.TLabel").pack(pady=(5, 0))
         self.empty.place(relx=.5, rely=.55, anchor="center")
 
         card = ttk.Frame(self, style="Card.TFrame", padding=14)
         card.grid(row=4, column=0, sticky="ew", pady=(14, 10))
         card.columnconfigure(1, weight=1)
-        self.art = ttk.Label(card, text="♪", style="CardMuted.TLabel", font=("Segoe UI", 38), anchor="center", width=4)
+        self.art = ttk.Label(card, text=tr("♪"), style="CardMuted.TLabel", font=("Segoe UI", 38), anchor="center", width=4)
         self.art.grid(row=0, column=0, rowspan=3, sticky="ns", padx=(0, 16))
-        self.track_title = tk.StringVar(value="Escolha uma música nos resultados")
-        self.track_info = tk.StringVar(value="Capa, álbum e metadados acompanham o arquivo.")
+        self.track_title = tk.StringVar(value=tr("Escolha uma música nos resultados"))
+        self.track_info = tk.StringVar(value=tr("Capa, álbum e metadados acompanham o arquivo."))
         self.title_label = ttk.Label(card, textvariable=self.track_title, style="Card.TLabel", font=("Segoe UI", 12, "bold"), wraplength=560)
         self.title_label.grid(row=0, column=1, sticky="w")
         self.info_label = ttk.Label(card, textvariable=self.track_info, style="CardMuted.TLabel", wraplength=560)
         self.info_label.grid(row=1, column=1, sticky="w", pady=(4, 10))
         actions = ttk.Frame(card, style="Card.TFrame")
         actions.grid(row=2, column=1, sticky="ew")
-        self.preview_button = ttk.Button(actions, text="Ouvir prévia", command=self.preview, state="disabled")
+        self.preview_button = ttk.Button(actions, text=tr("Ouvir prévia"), command=self.preview, state="disabled")
         self.preview_button.pack(side="left")
-        self.source_button = ttk.Button(actions, text="Ver no catálogo", command=self.open_source, state="disabled")
+        self.source_button = ttk.Button(actions, text=tr("Ver no catálogo"), command=self.open_source, state="disabled")
         self.source_button.pack(side="left", padx=8)
-        self.download_button = ttk.Button(actions, text="Baixar…", style="Accent.TButton", command=self.open_track, state="disabled")
+        self.download_button = ttk.Button(actions, text=tr("Baixar…"), style="Accent.TButton", command=self.open_track, state="disabled")
         self.download_button.pack(side="right")
         self.status = tk.StringVar(value="Busque pelo nome. Exemplo: Stardust Music Sounds Better With You")
-        self.status_label = ttk.Label(self, textvariable=self.status, style="Muted.TLabel", wraplength=760)
+        self.status_label = ttk.Label(self, textvariable=display_var(self.status), style="Muted.TLabel", wraplength=760)
         self.status_label.grid(row=5, column=0, sticky="w")
-        ttk.Label(self, text="Catálogo e capa: plataforma selecionada  •  Áudio: YouTube / FLAC: Monochrome", style="Muted.TLabel").grid(row=6, column=0, sticky="w", pady=(8, 0))
+        ttk.Label(self, text=tr("Catálogo e capa: plataforma selecionada  •  Áudio: YouTube / FLAC: Monochrome"), style="Muted.TLabel").grid(row=6, column=0, sticky="w", pady=(8, 0))
         self.bind("<Configure>", self.resize)
         self.poll_id = self.after(100, self.poll)
 
@@ -149,7 +153,7 @@ class CatalogPane(ttk.Frame):
     def search(self):
         if self.search_button.cget("text") == "Cancelar":
             self.generation += 1
-            self.search_button.configure(text="Pesquisar")
+            self.search_button.configure(text=tr("Pesquisar"))
             self.status.set("Pesquisa cancelada.")
             return
         query = self.query.get().strip()
@@ -171,7 +175,7 @@ class CatalogPane(ttk.Frame):
         self.records = []
         self.table.delete(*self.table.get_children())
         self.selected()
-        self.search_button.configure(text="Cancelar")
+        self.search_button.configure(text=tr("Cancelar"))
         self.status.set("Consultando o catálogo…")
         def worker():
             client = MetadataClient(*credentials)
@@ -197,13 +201,13 @@ class CatalogPane(ttk.Frame):
         for button in (self.download_button, self.source_button):
             button.configure(state="normal" if record else "disabled")
         self.preview_button.configure(state="normal" if record and record.get("preview_url") else "disabled")
-        self.art.configure(image="", text="♪")
+        self.art.configure(image="", text=tr("♪"))
         self.photo = None
         if not record:
-            self.track_title.set("Escolha uma música nos resultados")
-            self.track_info.set("Capa, álbum e metadados acompanham o arquivo.")
+            self.track_title.set(tr("Escolha uma música nos resultados"))
+            self.track_info.set(tr("Capa, álbum e metadados acompanham o arquivo."))
             return
-        self.track_title.set(record.get("title") or "Música")
+        self.track_title.set(record.get("title") or tr("Música"))
         self.track_info.set(" · ".join(filter(None, [", ".join(record.get("artists", [])), record.get("album"), record.get("platform")])))
         if record.get("cover_url"):
             generation, url, folder = self.cover_generation, record["cover_url"], self.app.ffmpeg.get()
@@ -253,7 +257,7 @@ class CatalogPane(ttk.Frame):
             duration = preview_seconds(self.app.search_preview_duration.get())
             self.player = subprocess.Popen([ffplay, "-nodisp", "-autoexit", "-loglevel", "error", "-t", str(duration), url],
                 stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, **media_args())
-            self.preview_button.configure(text="Parar prévia")
+            self.preview_button.configure(text=tr("Parar prévia"))
             self.status.set(f"Ouvindo prévia de até {duration} segundos do catálogo; limitada ao trecho disponível.")
         except (OSError, ValueError):
             self.status.set("Não foi possível iniciar a prévia. Confira o FFmpeg e a duração nas configurações.")
@@ -270,7 +274,7 @@ class CatalogPane(ttk.Frame):
                     player.kill()
                     player.communicate()
             threading.Thread(target=reap, daemon=True).start()
-        self.preview_button.configure(text="Ouvir prévia")
+        self.preview_button.configure(text=tr("Ouvir prévia"))
 
     def poll(self):
         if self.closed:
@@ -284,13 +288,13 @@ class CatalogPane(ttk.Frame):
                 if generation == self.cover_generation and value:
                     try:
                         self.photo = tk.PhotoImage(data=base64.b64encode(value))
-                        self.art.configure(image=self.photo, text="", width=0)
+                        self.art.configure(image=self.photo, text=tr(""), width=0)
                     except tk.TclError:
                         pass
                 continue
             if generation != self.generation:
                 continue
-            self.search_button.configure(text="Pesquisar")
+            self.search_button.configure(text=tr("Pesquisar"))
             if kind == "catalog_choice":
                 from catalog_picker import CatalogPicker, picker_event
                 anchor, candidates = value
@@ -320,7 +324,7 @@ class CatalogPane(ttk.Frame):
             code = self.player.returncode
             self.player.communicate()
             self.player = None
-            self.preview_button.configure(text="Ouvir prévia")
+            self.preview_button.configure(text=tr("Ouvir prévia"))
             self.status.set("Prévia concluída." if code == 0 else "Não foi possível reproduzir a prévia desta faixa.")
         self.poll_id = self.after(100, self.poll)
 
@@ -341,7 +345,7 @@ class CatalogPane(ttk.Frame):
             return
         self.dialog.destroy()
         self.dialog = None
-        self.search_button.configure(text="Cancelar")
+        self.search_button.configure(text=tr("Cancelar"))
         self.status.set("Obtendo os metadados completos da faixa escolhida…")
         def worker():
             client = MetadataClient()
@@ -367,7 +371,7 @@ class TrackDialog(tk.Toplevel):
     def __init__(self, app, record, photo=None):
         super().__init__(app)
         self.app, self.record, self.photo = app, record, photo
-        self.title("Onda • Escolha o formato")
+        self.title(tr("Onda • Escolha o formato"))
         self.configure(bg="#101419")
         self.geometry("650x610")
         self.minsize(610, 580)
@@ -385,34 +389,34 @@ class TrackDialog(tk.Toplevel):
             ttk.Label(header, image=photo).pack(side="left", padx=(0, 16))
         info = ttk.Frame(header)
         info.pack(side="left", fill="x", expand=True)
-        ttk.Label(info, text=record.get("title") or "Música", font=("Segoe UI", 16, "bold"), wraplength=410).pack(anchor="w")
+        ttk.Label(info, text=record.get("title") or tr("Música"), font=("Segoe UI", 16, "bold"), wraplength=410).pack(anchor="w")
         ttk.Label(info, text=", ".join(record.get("artists", [])), style="Muted.TLabel", wraplength=410).pack(anchor="w", pady=(5, 0))
-        ttk.Label(info, text=record.get("album") or "Álbum não informado", style="Muted.TLabel", wraplength=410).pack(anchor="w")
+        ttk.Label(info, text=record.get("album") or tr("Álbum não informado"), style="Muted.TLabel", wraplength=410).pack(anchor="w")
         self.preset = tk.StringVar(value="MP3 320")
         self.presets = {"MP3 320": ("mp3", "320 kbps"), "MP3 128": ("mp3", "128 kbps"), "FLAC": ("flac", None), "Personalizar": ("m4a", "256 kbps")}
         options = ttk.Frame(body, style="Card.TFrame", padding=12)
         options.grid(row=1, column=0, sticky="ew")
         for key, explanation in (("MP3 320", "Alta qualidade · maior compatibilidade"), ("MP3 128", "Arquivo menor · economiza espaço"), ("FLAC", "Monochrome · FLAC direto quando disponível"), ("Personalizar", "Escolher MP3 ou M4A e outro bitrate")):
-            ttk.Radiobutton(options, text=f"{key}   ·   {explanation}", variable=self.preset, value=key, command=self.update_format).pack(anchor="w", pady=6)
+            ttk.Radiobutton(options, text=f"{key}   ·   {tr(explanation)}", variable=self.preset, value=key, command=self.update_format).pack(anchor="w", pady=6)
         custom = ttk.Frame(body)
         custom.grid(row=2, column=0, sticky="ew", pady=(12, 0))
         self.format = tk.StringVar(value="M4A")
         self.quality = tk.StringVar(value="256 kbps")
-        self.format_box = ttk.Combobox(custom, textvariable=self.format, values=("MP3", "M4A"), state="disabled", width=10)
+        self.format_box = TranslatedCombobox(custom, textvariable=self.format, values=("MP3", "M4A"), state="disabled", width=10)
         self.format_box.pack(side="left", padx=(0, 10))
-        self.quality_box = ttk.Combobox(custom, textvariable=self.quality, values=M4A_QUALITIES, state="disabled", width=15)
+        self.quality_box = TranslatedCombobox(custom, textvariable=self.quality, values=M4A_QUALITIES, state="disabled", width=15)
         self.quality_box.pack(side="left")
         self.format_box.bind("<<ComboboxSelected>>", self.update_format)
         self.quality_box.bind("<<ComboboxSelected>>", self.update_estimate)
         self.estimate = tk.StringVar()
-        ttk.Label(body, textvariable=self.estimate, foreground="#79e2c4").grid(row=3, column=0, sticky="w", pady=(12, 8))
+        ttk.Label(body, textvariable=display_var(self.estimate), foreground="#79e2c4").grid(row=3, column=0, sticky="w", pady=(12, 8))
         self.feedback = tk.StringVar(value="Inclui capa e metadados disponíveis. MP3/M4A usam YouTube; FLAC usa Monochrome.")
-        ttk.Label(body, textvariable=self.feedback, style="Muted.TLabel", wraplength=550).grid(row=4, column=0, sticky="w")
+        ttk.Label(body, textvariable=display_var(self.feedback), style="Muted.TLabel", wraplength=550).grid(row=4, column=0, sticky="w")
         controls = ttk.Frame(body)
         controls.grid(row=6, column=0, sticky="ew", pady=(12, 0))
-        ttk.Button(controls, text="Voltar", command=self.destroy).pack(side="left")
-        ttk.Button(controls, text="Adicionar à fila", command=lambda: self.submit(False)).pack(side="right", padx=(8, 0))
-        ttk.Button(controls, text="Baixar agora", style="Accent.TButton", command=lambda: self.submit(True)).pack(side="right")
+        ttk.Button(controls, text=tr("Voltar"), command=self.destroy).pack(side="left")
+        ttk.Button(controls, text=tr("Adicionar à fila"), command=lambda: self.submit(False)).pack(side="right", padx=(8, 0))
+        ttk.Button(controls, text=tr("Baixar agora"), style="Accent.TButton", command=lambda: self.submit(True)).pack(side="right")
         self.update_format()
 
     def choice(self):

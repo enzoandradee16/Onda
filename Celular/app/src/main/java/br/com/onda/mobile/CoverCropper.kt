@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.*
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
@@ -91,13 +92,32 @@ internal fun saveCoverCrop(bitmap:Bitmap,zoom:Float,offset:Offset,destination:Fi
     Dialog(onDismissRequest={if(!saving)onCancel()},properties=DialogProperties(usePlatformDefaultWidth=false)) {
         Surface(shape=MaterialTheme.shapes.extraLarge,modifier=Modifier.fillMaxWidth().padding(16.dp)) {
             Column(Modifier.padding(16.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(10.dp)) {
-                Text("Ajustar capa",style=MaterialTheme.typography.titleLarge)
-                Text("Arraste a imagem para mover e ajuste o zoom.",style=MaterialTheme.typography.bodySmall)
+                UiText("Ajustar capa",style=MaterialTheme.typography.titleLarge)
+                UiText("Arraste a imagem para mover e ajuste o zoom.",style=MaterialTheme.typography.bodySmall)
                 val image=bitmap
                 if(image==null && error.isBlank())CircularProgressIndicator()
                 if(image!=null) {
                     val display=remember(image) {image.asImageBitmap()}
-                    Canvas(Modifier.fillMaxWidth().aspectRatio(1f).onSizeChanged {width=it.width}
+                    val cropLabel=translateUi("Área de recorte da capa",LocalUiLanguage.current)
+                    val moveLeft=translateUi("Mover capa para a esquerda",LocalUiLanguage.current)
+                    val moveRight=translateUi("Mover capa para a direita",LocalUiLanguage.current)
+                    val moveUp=translateUi("Mover capa para cima",LocalUiLanguage.current)
+                    val moveDown=translateUi("Mover capa para baixo",LocalUiLanguage.current)
+                    fun move(dx:Float,dy:Float):Boolean {
+                        val step=min(image.width,image.height)/zoom*.1f
+                        val adjusted=coverOffset(image,zoom,Offset(x+dx*step,y+dy*step))
+                        val moved=adjusted.x!=x || adjusted.y!=y
+                        x=adjusted.x;y=adjusted.y
+                        return moved
+                    }
+                    Canvas(Modifier.semantics {
+                        contentDescription=cropLabel
+                        if(!saving)customActions=listOf(
+                            CustomAccessibilityAction(moveLeft){move(-1f,0f)},
+                            CustomAccessibilityAction(moveRight){move(1f,0f)},
+                            CustomAccessibilityAction(moveUp){move(0f,-1f)},
+                            CustomAccessibilityAction(moveDown){move(0f,1f)})
+                    }.fillMaxWidth().aspectRatio(1f).onSizeChanged {width=it.width}
                         .pointerInput(image,saving) {
                             if(!saving)detectTransformGestures {_,pan,factor,_->
                                 val oldSide=min(image.width,image.height)/zoom
@@ -118,14 +138,14 @@ internal fun saveCoverCrop(bitmap:Bitmap,zoom:Float,offset:Offset,destination:Fi
                             }
                         }
                     }
-                    Text("Zoom",style=MaterialTheme.typography.labelMedium)
-                    Slider(value=zoom,onValueChange={zoom=it;val offset=coverOffset(image,zoom,Offset(x,y));x=offset.x;y=offset.y},valueRange=1f..4f,enabled=!saving)
+                    UiText("Zoom",style=MaterialTheme.typography.labelMedium)
+                    Slider(value=zoom,onValueChange={zoom=it;val offset=coverOffset(image,zoom,Offset(x,y));x=offset.x;y=offset.y},valueRange=1f..4f,enabled=!saving,modifier=Modifier.a11yLabel("Zoom da capa","${(zoom*100).toInt()}%"))
                 }
-                if(error.isNotBlank())Text(error,color=MaterialTheme.colorScheme.error)
+                if(error.isNotBlank())UiText(error,color=MaterialTheme.colorScheme.error)
                 if(saving)LinearProgressIndicator(Modifier.fillMaxWidth())
                 Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) {
-                    TextButton(onClick={zoom=1f;x=0f;y=0f},enabled=!saving){Text("Redefinir")}
-                    TextButton(onClick=onCancel,enabled=!saving){Text("Cancelar")}
+                    TextButton(onClick={zoom=1f;x=0f;y=0f},enabled=!saving){UiText("Redefinir")}
+                    TextButton(onClick=onCancel,enabled=!saving){UiText("Cancelar")}
                 }
                 Button(enabled=image!=null && !saving,onClick={
                     saving=true;error=""
@@ -136,7 +156,7 @@ internal fun saveCoverCrop(bitmap:Bitmap,zoom:Float,offset:Offset,destination:Fi
                             .onFailure {destination.delete();error=it.message ?: "Não foi possível salvar a capa."}
                         saving=false
                     }
-                },modifier=Modifier.fillMaxWidth()){Text("Aplicar capa")}
+                },modifier=Modifier.fillMaxWidth()){UiText("Aplicar capa")}
             }
         }
     }

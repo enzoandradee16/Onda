@@ -91,11 +91,14 @@ class SingleInstance:
 
 
 def already_open_message():
+    from i18n import tr
+    from preferences import PreferenceStore
+    language = PreferenceStore().load_language()
     user = ctypes.WinDLL("user32", use_last_error=True)
     user.MessageBoxW.argtypes = [wintypes.HWND, wintypes.LPCWSTR, wintypes.LPCWSTR, wintypes.UINT]
     user.MessageBoxW.restype = ctypes.c_int
-    user.MessageBoxW(None, "O Onda já está aberto.\nUse a janela existente; uma nova janela não será criada.",
-                     "Onda já está aberto", 0x40 | 0x10000)  # Information + foreground
+    user.MessageBoxW(None, tr("O Onda já está aberto.\nUse a janela existente; uma nova janela não será criada.", language),
+                     tr("Onda já está aberto", language), 0x40 | 0x10000)  # Information + foreground
 
 
 def run_single_instance(factory):
@@ -105,7 +108,8 @@ def run_single_instance(factory):
             already_open_message()
             guard.notify()
             return 0
-        app = factory()
-        guard.watch(app)
-        app.mainloop()
-        return 0
+        while True:
+            app = factory()
+            guard.watch(app)
+            app.mainloop()
+            if getattr(app,"restart_requested",False) is not True:return 0

@@ -1,4 +1,6 @@
 """Optional Spotify account connection; all Tk access stays on the UI thread."""
+from i18n import tr
+from i18n_tk import display_var
 import queue
 import threading
 import tkinter as tk
@@ -13,7 +15,7 @@ class SpotifyConnection(tk.Toplevel):
     def __init__(self, page):
         super().__init__(page.app)
         self.page, self.account = page, page.spotify_account
-        self.title("Conectar Spotify · Playlists")
+        self.title(tr("Conectar Spotify · Playlists"))
         self.geometry("660x590")
         self.minsize(560, 480)
         self.transient(page.app)
@@ -31,29 +33,29 @@ class SpotifyConnection(tk.Toplevel):
         scroll.grid(row=0, column=0, sticky="nsew")
         body = scroll.content
         body.columnconfigure(0, weight=1)
-        ttk.Label(body, text="Suas playlists completas", font=("Segoe UI", 18, "bold"), anchor="center").grid(row=0, column=0, sticky="ew", pady=(0, 14))
+        ttk.Label(body, text=tr("Suas playlists completas"), font=("Segoe UI", 18, "bold"), anchor="center").grid(row=0, column=0, sticky="ew", pady=(0, 14))
         explanation = ("1. Crie ou abra seu aplicativo no Spotify Developers.\n"
                        "2. Nas configurações do aplicativo, cadastre exatamente o endereço de retorno abaixo.\n"
                        "3. Cole o Client ID e clique em Conectar. A autorização será feita no navegador. Não é necessário Client Secret.")
-        ttk.Label(body, text=explanation, wraplength=580, justify="left").grid(row=1, column=0, sticky="ew", pady=8)
-        ttk.Button(body, text="Abrir Spotify Developers", command=lambda: webbrowser.open("https://developer.spotify.com/dashboard")).grid(row=2, column=0, sticky="w", pady=8)
-        ttk.Label(body, text="Endereço de retorno (Redirect URI)", style="Muted.TLabel").grid(row=3, column=0, sticky="w", pady=(10, 4))
+        ttk.Label(body, text=tr(explanation), wraplength=580, justify="left").grid(row=1, column=0, sticky="ew", pady=8)
+        ttk.Button(body, text=tr("Abrir Spotify Developers"), command=lambda: webbrowser.open("https://developer.spotify.com/dashboard")).grid(row=2, column=0, sticky="w", pady=8)
+        ttk.Label(body, text=tr("Endereço de retorno (Redirect URI)"), style="Muted.TLabel").grid(row=3, column=0, sticky="w", pady=(10, 4))
         redirect = tk.StringVar(value=REDIRECT_URI)
         ttk.Entry(body, textvariable=redirect, state="readonly").grid(row=4, column=0, sticky="ew")
         self.redirect = redirect
-        ttk.Label(body, text="Client ID", style="Muted.TLabel").grid(row=5, column=0, sticky="w", pady=(12, 4))
+        ttk.Label(body, text=tr("Client ID"), style="Muted.TLabel").grid(row=5, column=0, sticky="w", pady=(12, 4))
         self.entry = ttk.Entry(body, textvariable=self.client_id)
         self.entry.grid(row=6, column=0, sticky="ew")
-        ttk.Checkbutton(body, text="Lembrar conexão neste computador (protegida pelo Windows)", variable=self.remember).grid(row=7, column=0, sticky="w", pady=12)
-        ttk.Label(body, text="A API permite ler suas playlists e playlists em que você é colaborador. Em modo de desenvolvimento, o dono do app precisa de Premium e sua conta deve estar autorizada no dashboard. Importar CSV não exige conexão no Onda.", wraplength=580, style="Muted.TLabel").grid(row=8, column=0, sticky="ew", pady=8)
-        ttk.Label(body, textvariable=self.status, wraplength=580).grid(row=9, column=0, sticky="ew", pady=12)
+        ttk.Checkbutton(body, text=tr("Lembrar conexão neste computador (protegida pelo Windows)"), variable=self.remember).grid(row=7, column=0, sticky="w", pady=12)
+        ttk.Label(body, text=tr("A API permite ler suas playlists e playlists em que você é colaborador. Em modo de desenvolvimento, o dono do app precisa de Premium e sua conta deve estar autorizada no dashboard. Importar CSV não exige conexão no Onda."), wraplength=580, style="Muted.TLabel").grid(row=8, column=0, sticky="ew", pady=8)
+        ttk.Label(body, textvariable=display_var(self.status), wraplength=580).grid(row=9, column=0, sticky="ew", pady=12)
         footer = ttk.Frame(self, padding=12)
         footer.grid(row=1, column=0, sticky="ew")
-        self.connect_button = ttk.Button(footer, text="Conectar", command=self.connect, style="Accent.TButton")
+        self.connect_button = ttk.Button(footer, text=tr("Conectar"), command=self.connect, style="Accent.TButton")
         self.connect_button.pack(side="left")
-        self.disconnect_button = ttk.Button(footer, text="Desconectar", command=self.disconnect, state="normal" if self.account.connected else "disabled")
+        self.disconnect_button = ttk.Button(footer, text=tr("Desconectar"), command=self.disconnect, state="normal" if self.account.connected else "disabled")
         self.disconnect_button.pack(side="left", padx=8)
-        ttk.Button(footer, text="Fechar / cancelar", command=self.close).pack(side="right")
+        ttk.Button(footer, text=tr("Fechar / cancelar"), command=self.close).pack(side="right")
         self.poll_id = self.after(100, self.poll)
 
     def connect(self):
@@ -69,7 +71,7 @@ class SpotifyConnection(tk.Toplevel):
         self.status.set("Autorize no navegador. Você pode fechar esta janela para cancelar. Tempo máximo: 3 minutos.")
         def worker():
             try:
-                self.events.put((True, authorize(client_id, self.cancel)))
+                self.events.put((True, authorize(client_id, self.cancel, translate=tr, language=self.page.app.language.get())))
             except Exception as exc:
                 self.events.put((False, str(exc)))
         threading.Thread(target=worker, daemon=True).start()
@@ -86,7 +88,7 @@ class SpotifyConnection(tk.Toplevel):
                 try:
                     self.account.accept(*result, remember=self.keep)
                     self.status.set("Conta conectada. Volte a Playlists e clique em Carregar playlist. Conexão salva." if self.keep else "Conta conectada nesta sessão. Volte a Playlists e clique em Carregar playlist.")
-                    self.page.spotify_button.configure(text="Spotify conectado")
+                    self.page.spotify_button.configure(text=tr("Spotify conectado"))
                 except Exception as exc:
                     self.status.set(str(exc))
             else:
@@ -103,7 +105,7 @@ class SpotifyConnection(tk.Toplevel):
         except Exception as exc:
             self.status.set(str(exc))
             return
-        self.page.spotify_button.configure(text="Conectar Spotify")
+        self.page.spotify_button.configure(text=tr("Conectar Spotify"))
         self.status.set("Conexão removida deste computador. Você também pode revogar o acesso na sua conta Spotify.")
         self.disconnect_button.configure(state="disabled")
 

@@ -9,12 +9,14 @@ import kotlinx.coroutines.*
 
 fun downloadNotification(context:Context,text:String,percent:Int?):Notification {
     val manager=context.getSystemService(NotificationManager::class.java)
-    if(manager.getNotificationChannel("downloads")==null) manager.createNotificationChannel(NotificationChannel("downloads","Downloads do ONDA",NotificationManager.IMPORTANCE_LOW))
+    val channel=manager.getNotificationChannel("downloads") ?: NotificationChannel("downloads",translateUi("Downloads do ONDA"),NotificationManager.IMPORTANCE_LOW)
+    channel.name=translateUi("Downloads do ONDA")
+    manager.createNotificationChannel(channel)
     val open=PendingIntent.getActivity(context,0,Intent(context,MainActivity::class.java),PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
     val stop=PendingIntent.getService(context,1,Intent(context,DownloadService::class.java).setAction("stop"),PendingIntent.FLAG_IMMUTABLE)
     return NotificationCompat.Builder(context,"downloads").setSmallIcon(R.drawable.ic_onda_notification).setContentTitle("ONDA")
-        .setContentText(text.take(180)).setContentIntent(open).setOnlyAlertOnce(true).setOngoing(true)
-        .setProgress(100,percent ?: 0,percent==null).addAction(0,"Parar fila",stop).build()
+        .setContentText(translateUi(text).take(180)).setContentIntent(open).setOnlyAlertOnce(true).setOngoing(true)
+        .setProgress(100,percent ?: 0,percent==null).addAction(0,translateUi("Parar fila"),stop).build()
 }
 
 class DownloadService:Service() {

@@ -39,9 +39,9 @@ import kotlinx.coroutines.withContext
         key(audio.uri) {AudioFileEditor(audio,vm){item=null;selectedUri=null}}
     } else Column(Modifier.fillMaxSize().padding(horizontal=16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
         PageTitle("Edite os metadados da sua música.","Escolha um arquivo de áudio do aparelho, mesmo que não esteja no histórico.")
-        Button(onClick={picker.launch(arrayOf("audio/*","application/ogg"))},modifier=Modifier.fillMaxWidth()) {Text("Escolher arquivo de áudio")}
-        Text("MP3, M4A, FLAC, WAV, OGG e OPUS. Edite música, artistas, álbum, gênero, data, capa e letra.",style=MaterialTheme.typography.bodySmall)
-        Text("Salve uma cópia ou ative Sobrescrever arquivo original. Para substituir o original, a pasta precisa permitir a edição.",style=MaterialTheme.typography.bodySmall)
+        Button(onClick={picker.launch(arrayOf("audio/*","application/ogg"))},modifier=Modifier.fillMaxWidth()) {UiText("Escolher arquivo de áudio")}
+        UiText("MP3, M4A, FLAC, WAV, OGG e OPUS. Edite música, artistas, álbum, gênero, data, capa e letra.",style=MaterialTheme.typography.bodySmall)
+        UiText("Salve uma cópia ou ative Sobrescrever arquivo original. Para substituir o original, a pasta precisa permitir a edição.",style=MaterialTheme.typography.bodySmall)
     }
 }
 

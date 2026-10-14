@@ -1,10 +1,10 @@
 # Fila, biblioteca e ferramentas
 
-Os recursos abaixo estão disponíveis no Windows e no Android. As opções novas ficam desativadas por padrão, exceto a retomada de arquivos interrompidos. A fila já existente continua preservada.
+Os recursos abaixo estão disponíveis no Windows e no Android. Agendamento, retomada automática da fila e verificação de atualização ao abrir são opcionais; a retomada de arquivos interrompidos vem ativada. A fila já existente continua preservada.
 
 ## Fila e downloads
 
-- **Downloads simultâneos:** escolha de 1 a 4 nas configurações. As perguntas de versão, metadados e duplicados continuam sendo apresentadas uma por vez.
+- **Downloads simultâneos:** escolha de 1 a 15 no PC ou de 1 a 4 no Android. No PC, os valores mais altos aumentam o consumo de memória, CPU e rede; reduza se houver lentidão. As perguntas de versão, metadados e duplicados continuam sendo apresentadas uma por vez.
 - **Retomar arquivos interrompidos quando possível:** mantém os arquivos parciais de cada tarefa e solicita a continuação ao servidor. Depende do suporte da origem; URLs temporárias ou servidores sem retomada podem exigir novo download.
 - **Retomar fila ao abrir o ONDA:** inicia os pendentes ao abrir o app. Quando o agendamento está ativado, a janela de horários é respeitada.
 - **Mover acima / abaixo / Próximo:** muda a ordem dos itens pendentes. Os downloads em andamento continuam; a ordem é salva para a próxima abertura.
@@ -12,9 +12,19 @@ Os recursos abaixo estão disponíveis no Windows e no Android. As opções nova
 
 No PC, essas opções ficam em **Configurações → Geral**, e o checkbox de normalização também está em **Links e fila**. No Android, ficam em **Configurações → Downloads**. Itens já adicionados guardam suas opções de processamento; escolha a normalização antes de adicionar novos itens.
 
+## Exibição da fila e do histórico
+
+Em **Links e fila**, os controles discretos da própria aba alternam entre compacto e completo e ajustam o tamanho dos cards. O modo completo mostra capa, artista, álbum, duração e demais informações disponíveis. Imagens e dados são carregados em segundo plano; fontes sem esses dados mantêm as informações básicas do item.
+
+No **Histórico**, Limpar histórico, visualização e tamanho ficam lado a lado, centralizados abaixo da pesquisa. Os tamanhos da fila e do histórico são independentes. No PC, **Ctrl + roda do mouse** ajusta os cards da aba ativa. As opções de exibição também ficam em Aparência; ative Lembrar configurações para mantê-las ao reabrir.
+
+## Idioma e reinício
+
+A ordem é **Português (Brasil) | Español | English**, com português como padrão. No PC, **Reiniciar** aparece abaixo de Idioma apenas enquanto há uma mudança pendente. Voltar ao idioma atual remove a pendência. A fila é preservada no reinício; operações em andamento precisam terminar antes. No Android, idioma e aparência são aplicados imediatamente. O nome ONDA e os nomes originais de músicas, artistas, álbuns e arquivos não são traduzidos.
+
 ## Editar um áudio já baixado e importar letra
 
-No **Histórico**, selecione **Editar áudio / letra**. No Windows, o botão abre o editor do arquivo selecionado. No Android, ele aparece nos cartões de áudio compatíveis.
+No **Histórico**, use **Editar áudio / letra** na lista do Windows ou **Editar metadados** nos cards de áudio compatíveis. O arquivo é aberto na aba de edição das duas versões.
 
 O checkbox **Editar metadados** permite alterar título, artistas, álbum, gênero, data e capa. Desmarque para conservar esses dados. **Normalizar volume** é independente: pode ser usado sozinho. **Ouvir original** e **Ouvir normalizado** permitem comparar uma prévia de até 20 segundos antes de salvar.
 

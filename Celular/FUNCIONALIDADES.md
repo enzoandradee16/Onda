@@ -1,5 +1,7 @@
 # Funções e validação Android
 
+**Atualização 1.1.0:** idiomas PT/ES/EN, cards e controles da fila/Histórico e reinício pendente PC. Consulte a [validação 1.1.0](../docs/VALIDACAO-1.1.0.md). O levantamento abaixo é histórico e mantém o contexto da versão em que foi escrito.
+
 Versão: 1.0.0-alpha.1. Este documento distingue implementação de comprovação em aparelho real. A versão Windows permanece independente.
 
 | Área | Implementação Android | Validação atual |

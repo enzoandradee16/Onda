@@ -1,4 +1,5 @@
 """Bootstrap for the private, relocatable Windows runtime."""
+from i18n import tr
 import json
 import os
 from pathlib import Path
@@ -94,5 +95,5 @@ if __name__ == "__main__":
         log.parent.mkdir(parents=True, exist_ok=True)
         log.write_text(traceback.format_exc(), encoding="utf-8")
         import tkinter.messagebox
-        tkinter.messagebox.showerror("Onda", "Não foi possível iniciar o aplicativo.\nDetalhes: " + str(log))
+        tkinter.messagebox.showerror(tr("Onda"), tr("Não foi possível iniciar o aplicativo.\nDetalhes: " + str(log)))
         sys.exit(1)

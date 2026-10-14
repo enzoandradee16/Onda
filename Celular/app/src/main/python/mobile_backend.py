@@ -295,25 +295,23 @@ def perform(action, config):
         return {'settings':import_settings(json.loads(path.read_text(encoding='utf-8')),'android')}
     if action=='app_update':
         from advanced_options import release_update
-        return release_update('android',config.get('version','1.0.0-alpha.1'))
+        return release_update('android',config.get('version','1.1.0'))
     if action == 'describe':
         from metadata import is_streaming_link
-        from catalog_match import CatalogChoiceRequired
         if is_streaming_link(config['url']):
             value=client(config)
             try:
-                try:
-                    record=value.resolve(config['url'])
-                except CatalogChoiceRequired as choice:
-                    record=choice.anchor
-                return {'title':' - '.join(filter(None,[', '.join(record.get('artists') or []),record.get('title')]))}
+                from queue_titles import describe_streaming, record_name
+                record=describe_streaming(value, config['url'])
+                from queue_details import queue_info
+                return {'title':record_name(record) or config['url'], 'queue_info':queue_info(record)}
             finally:
                 value.close()
         import yt_dlp
         from engine import validate_url
         with yt_dlp.YoutubeDL({'quiet':True,'no_warnings':True,'extract_flat':True,'skip_download':True,'noplaylist':True,'socket_timeout':15,'retries':1}) as downloader:
             info=downloader.extract_info(validate_url(config['url']),download=False)
-        return {'title':' - '.join(filter(None,[info.get('artist') or info.get('uploader'),info.get('track') or info.get('title')]))}
+        return {'title':' - '.join(filter(None,[info.get('artist') or info.get('uploader'),info.get('track') or info.get('title')])), 'queue_info':{'artists':[info.get('artist') or info.get('uploader')] if info.get('artist') or info.get('uploader') else [],'album':info.get('album') or '', 'cover_url':info.get('thumbnail') or '', 'duration_ms':int((info.get('duration') or 0)*1000)}}
     if action == 'download':
         import engine
         from social_media import is_social, download_post
@@ -441,7 +439,7 @@ def perform(action, config):
             emit('open_browser', url=url)
             return True
         # Loopback + PKCE: authorization code is never logged or shared with another host.
-        client_id, tokens = authorize(config['spotify_client_id'], _local.state['cancel'], opener=opener, return_url='onda://spotify-return')
+        client_id, tokens = authorize(config['spotify_client_id'], _local.state['cancel'], opener=opener, return_url='onda://spotify-return', translate=lambda text: config.get('ui_messages', {}).get(text, text), language=config.get('language', 'pt-BR'))
         account().accept(client_id, tokens, remember=True)
         return {'connected': True}
     if action == 'spotify_disconnect':

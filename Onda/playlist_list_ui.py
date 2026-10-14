@@ -1,4 +1,5 @@
 """A separate, read-only view of the loaded playlist."""
+from i18n import tr
 import tkinter as tk
 from tkinter import ttk
 
@@ -21,7 +22,7 @@ class PlaylistListWindow(tk.Toplevel):
                                   show="headings", selectmode="browse")
         for key, label, width, minimum in (("number", "Nº", 50, 40), ("title", "MÚSICA", 350, 180),
                                             ("artist", "ARTISTA", 220, 140), ("duration", "DURAÇÃO", 85, 75)):
-            self.table.heading(key, text=label)
+            self.table.heading(key, text=tr(label))
             self.table.column(key, width=width, minwidth=minimum, stretch=key in ("title", "artist"),
                               anchor="center" if key in ("number", "duration") else "w")
         self.table.grid(row=0, column=0, sticky="nsew")
@@ -31,14 +32,16 @@ class PlaylistListWindow(tk.Toplevel):
         horizontal.grid(row=1, column=0, sticky="ew")
         self.table.configure(yscrollcommand=vertical.set, xscrollcommand=horizontal.set)
         self.bind("<Escape>", lambda _: self.destroy())
+        from list_context import bind_playlist_list
+        bind_playlist_list(self,page)
         self.refresh(page)
 
     def refresh(self, page):
-        self.title(f"Lista da playlist · {page.playlist_title} · {len(page.records)} itens")
+        self.title(tr(f"Lista da playlist · {page.playlist_title} · {len(page.records)} itens"))
         children = self.table.get_children()
         if children:
             self.table.delete(*children)
-        for number, row in enumerate(page.records.values(), 1):
+        for number, (key,row) in enumerate(page.records.items(), 1):
             duration = row.get("duration_ms")
-            self.table.insert("", "end", values=(number, row.get("title") or row["source_url"],
+            self.table.insert("", "end", iid=key, values=(number, row.get("title") or row["source_url"],
                               ", ".join(row.get("artists", [])), duration_label(duration / 1000 if duration else None)))

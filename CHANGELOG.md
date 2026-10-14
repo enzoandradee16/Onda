@@ -1,5 +1,24 @@
 # Histórico de versões
 
+## 1.1.0 — 2026-10-14
+
+Preparação local da atualização; publicação no GitHub separada.
+
+- **Atualizações Android:** download da nova versão dentro do ONDA, com progresso, cancelamento e continuidade em segundo plano. A instalação exige confirmação do Android; pacote, versão e assinatura são conferidos antes de abrir o instalador.
+- **Menus de contexto no PC:** botão direito, Shift+F10 ou tecla de menu nas listas de pesquisa, fila, histórico, álbuns/playlists, metadados e escolha de versões, incluindo cards. As opções acompanham a seleção e o estado dos controles da aba.
+- **Idiomas:** Português (Brasil), Español e English, nessa ordem, com português como padrão. PC e Android compartilham os catálogos de tradução; o nome ONDA e os nomes originais de músicas, artistas, álbuns e arquivos são preservados.
+- **Preferências:** lembrar configurações ativado por padrão; visualização e tamanho da fila e do histórico são preservados separadamente ao reabrir o app.
+- **Acessibilidade Android:** descrições, estados e ações para leitores de tela nos controles, seleções, ajustes e edição de capa, nos três idiomas.
+- **Traduções:** revisão dos textos internos e correção da pergunta de confirmação de atualização no PC em inglês e espanhol.
+- **Ícone Android:** o ícone da tela inicial e dos aplicativos recentes acompanha a cor de destaque e os modos claro, escuro, preto puro ou sistema, usando recursos vetoriais leves.
+- **Links e fila:** exibição compacta ou em cards completos, com capa, artista, álbum, duração e demais metadados disponíveis. Controles discretos de visualização e tamanho na própria aba, independentes do Histórico. No PC, Ctrl + roda do mouse ajusta os cards.
+- **Histórico:** controles de visualização e tamanho na própria aba, ao lado de Limpar histórico, centralizados horizontalmente abaixo da pesquisa.
+- **Reinício pendente no PC:** botão Reiniciar abaixo do idioma apenas enquanto a alteração aguarda aplicação. Reverter ao idioma atual remove a pendência; a fila é preservada. No Android, o idioma muda imediatamente.
+- **Identificação de links:** correção do artista e do nome da música ao adicionar links à fila, incluindo Spotify no Android. Metadados públicos são preservados mesmo quando uma consulta complementar falha; uma resposta atrasada não sobrescreve títulos escolhidos pelo usuário.
+- **Capas e informações:** carregamento em segundo plano, cache limitado e reaproveitamento dos dados da pesquisa, de álbuns e de playlists.
+- **Documentação:** READMEs em português, espanhol e inglês, com navegação entre idiomas e novas capturas Android sem barras do sistema.
+
+
 ## 1.0.0 — 2026-10-13
 
 Primeira versão oficial para Windows e Android.

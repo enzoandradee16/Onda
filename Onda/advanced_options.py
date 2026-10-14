@@ -23,7 +23,7 @@ def clean_advanced(options):
         elif key in ('schedule_start','schedule_stop') and valid_time(value):result[key]=value
     return result
 
-COMMON={'history_card_size','pure_black_separators','history_view','theme','accent','interface_font','notice_duration','mode','audio_quality','height','fps','auto_match','review_metadata','organization','playlist_limit',*DEFAULTS}
+COMMON={'queue_view','queue_card_size','language','history_card_size','pure_black_separators','history_view','theme','accent','interface_font','notice_duration','mode','audio_quality','height','fps','auto_match','review_metadata','organization','playlist_limit',*DEFAULTS}
 ALIASES={'theme_mode':'theme','theme_accent':'accent','mp3_quality':'audio_quality'}
 
 def export_settings(options,platform):
@@ -47,7 +47,7 @@ def import_settings(payload,platform):
     for key in ('auto_match','review_metadata','pure_black_separators'):
         if key in result and type(result[key]) is not bool:result.pop(key)
     from engine import MODES,HEIGHTS,FPS_OPTIONS
-    choices={'history_card_size':{'Pequeno','Médio','Grande'},'history_view':{'Compacto','Completa'},'mode':set(MODES.values()),'height':set(HEIGHTS.values()),'fps':set(FPS_OPTIONS.values()),
+    choices={'queue_view':{'Compacto','Completa'},'queue_card_size':{'Pequeno','Médio','Grande'},'language':{'pt-BR','es','en'},'history_card_size':{'Pequeno','Médio','Grande'},'history_view':{'Compacto','Completa'},'mode':set(MODES.values()),'height':set(HEIGHTS.values()),'fps':set(FPS_OPTIONS.values()),
              'theme':{'Claro','Escuro','Preto puro','Seguir o sistema'},
              'audio_quality':{'320 kbps','256 kbps','192 kbps','128 kbps','96 kbps','64 kbps','Melhor disponível'},
              'organization':{'Catálogo','Pasta de destino','Artista','Artista / Álbum'}}

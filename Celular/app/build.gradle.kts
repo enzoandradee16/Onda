@@ -39,8 +39,8 @@ val prepareNativeTools by tasks.registering(Sync::class) {
 val syncSharedEngine by tasks.registering(Sync::class) {
     from("../../Onda") {
         include("*.py")
-        exclude("test_*", "*_ui.py", "app.py", "ui.py", "desktop_entry.py", "ffmpeg_runtime.py",
-            "credentials.py", "preferences.py", "first_run.py", "single_instance.py", "window_*.py", "tab_order.py", "settings_scroll.py",
+        exclude("test_*", "*_ui.py", "queue_cards.py", "queue_artwork.py", "app.py", "ui.py", "desktop_entry.py", "ffmpeg_runtime.py",
+            "list_context.py", "i18n.py", "i18n_tk.py", "credentials.py", "preferences.py", "first_run.py", "single_instance.py", "window_*.py", "tab_order.py", "settings_scroll.py",
             "appearance.py", "interface_fonts.py", "library.py", "reset_settings.py",
             "flac_browser_ui.py", "catalog_picker.py", "media_picker.py", "version_picker.py", "parallel_queue.py", "lazy_ui.py")
     }
@@ -54,12 +54,13 @@ android {
         applicationId = "br.com.onda.mobile"
         minSdk = 26
         targetSdk = 35
-        versionCode = 16
-        versionName = "1.0.0"
+        versionCode = 18
+        versionName = "1.1.0"
         ndk { abiFilters += targetAbis }
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     buildFeatures { compose = true; buildConfig = true }
+    sourceSets["main"].assets.srcDir("../../Onda/locales")
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
     kotlinOptions { jvmTarget = "17" }
     sourceSets["main"].jniLibs.srcDir(layout.buildDirectory.dir("generated/nativeTools"))

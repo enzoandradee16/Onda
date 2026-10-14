@@ -37,7 +37,7 @@ class WelcomeUiTests(unittest.TestCase):
                 welcome.tk.eval(welcome.protocol("WM_DELETE_WINDOW"))
                 self.assertFalse(welcome.winfo_exists())
                 self.assertEqual({name: value.get() for name, value in app.preference_fields.items()}, before)
-                self.assertFalse(app.remember_settings.get())
+                self.assertTrue(app.remember_settings.get())
                 self.assertFalse(app.preference_store.path.exists())
                 app.withdraw()
                 app.deiconify()

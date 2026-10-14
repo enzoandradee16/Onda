@@ -22,12 +22,12 @@ def _cached_details(path, modified, size):
         result['note']='Metadados indisponíveis para este arquivo.'
     return result
 
-def detail_lines(record):
+def detail_lines(record, translate=lambda text: text):
     lines=[]
     for key,label in (('album','Álbum / single'),('release_date','Lançamento'),('genre','Gênero'),('track_number','Faixa'),('disc_number','Disco')):
-        if record.get(key):lines.append(f"{label}: {record[key]}")
+        if record.get(key):lines.append(f"{translate(label)}: {record[key]}")
     seconds=int(record.get('duration') or 0)
-    if seconds:lines.append(f'Duração: {seconds//60}:{seconds%60:02d}')
-    if record.get('size') is not None:lines.append(f"Tamanho: {record['size']/1048576:.1f} MB")
-    if record.get('note'):lines.append(record['note'])
+    if seconds:lines.append(f'{translate("Duração")}: {seconds//60}:{seconds%60:02d}')
+    if record.get('size') is not None:lines.append(f"{translate('Tamanho')}: {record['size']/1048576:.1f} MB")
+    if record.get('note'):lines.append(translate(record['note']))
     return ' · '.join(lines)

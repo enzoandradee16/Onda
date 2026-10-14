@@ -62,21 +62,21 @@ internal fun photoPermissions(sdk:Int):Array<String> = when {
         if(grants.values.any {it})openGallery()
         else error="O acesso às fotos não foi permitido. Autorize nas configurações do Android ou use Procurar nos arquivos para escolher somente uma imagem."
     }
-    if(show)AlertDialog(containerColor=ondaDialogContainerColor(),onDismissRequest={show=false},title={Text("Escolher imagem")},text={
+    if(show)AlertDialog(containerColor=ondaDialogContainerColor(),onDismissRequest={show=false},title={UiText("Escolher imagem")},text={
         Column(verticalArrangement=Arrangement.spacedBy(10.dp)) {
-            Text("Escolha de onde abrir a imagem.",style=MaterialTheme.typography.bodySmall)
+            UiText("Escolha de onde abrir a imagem.",style=MaterialTheme.typography.bodySmall)
             Button(onClick={
                 show=false;errorTitle="Escolher da galeria"
                 val required=photoPermissions(Build.VERSION.SDK_INT)
                 if(required.any {ContextCompat.checkSelfPermission(context,it)==PackageManager.PERMISSION_GRANTED})openGallery()
                 else permission.launch(required)
-            },modifier=Modifier.fillMaxWidth()){Text("Escolher da galeria")}
+            },modifier=Modifier.fillMaxWidth()){UiText("Escolher da galeria")}
             OutlinedButton(onClick={
                 show=false;errorTitle="Procurar nos arquivos"
                 runCatching {files.launch(mimeTypes)}.onFailure {error="Não foi possível abrir o seletor de arquivos."}
-            },modifier=Modifier.fillMaxWidth()){Text("Procurar nos arquivos")}
+            },modifier=Modifier.fillMaxWidth()){UiText("Procurar nos arquivos")}
         }
-    },confirmButton={},dismissButton={TextButton(onClick={show=false}){Text("Cancelar")}})
-    if(error.isNotBlank())AlertDialog(containerColor=ondaDialogContainerColor(),onDismissRequest={error=""},title={Text(errorTitle)},text={Text(error)},confirmButton={TextButton(onClick={error="";show=true}){Text("Voltar")}})
+    },confirmButton={},dismissButton={TextButton(onClick={show=false}){UiText("Cancelar")}})
+    if(error.isNotBlank())AlertDialog(containerColor=ondaDialogContainerColor(),onDismissRequest={error=""},title={UiText(errorTitle)},text={UiText(error)},confirmButton={TextButton(onClick={error="";show=true}){UiText("Voltar")}})
     return {show=true}
 }

@@ -54,14 +54,19 @@ object OndaStore {
             val text = context.getSharedPreferences("preferences",0).getString("settings",null)
             if (text != null) {val saved=JSONObject(text);saved.keys().forEach {put(it,saved.get(it))}}
         }
+        context.getSharedPreferences("preferences",0).getString("display",null)?.let { text ->
+            runCatching { JSONObject(text) }.getOrNull()?.let { saved ->
+                displayFields.forEach { key -> if(saved.has(key)) settings.value.put(key,saved.get(key)) }
+            }
+        }
         normalizeAppearance(settings.value)
         database.writableDatabase.execSQL("UPDATE queue SET state='Pendente' WHERE state IN ('Baixando','Aguardando escolha')")
         database.writableDatabase.execSQL("CREATE TABLE IF NOT EXISTS queue_order (id TEXT PRIMARY KEY, position INTEGER NOT NULL)")
         database.writableDatabase.execSQL("INSERT OR IGNORE INTO queue_order SELECT id,rowid FROM queue")
         refresh()
     }
-    fun defaults() = JSONObject().put("mode","mp3").put("audio_quality","320 kbps").put("height",1080).put("fps",JSONObject.NULL)
-        .put("pure_black_separators",false).put("history_card_size","Grande").put("history_view","Compacto").put("playlist_limit",2000).put("link_playlist",false).put("auto_match",false).put("confirm_version",false).put("review_metadata",false)
+    fun defaults() = JSONObject().put("language","pt-BR").put("mode","mp3").put("audio_quality","320 kbps").put("height",1080).put("fps",JSONObject.NULL)
+        .put("queue_view","Completa").put("queue_card_size","Grande").put("pure_black_separators",false).put("history_card_size","Grande").put("history_view","Compacto").put("playlist_limit",2000).put("link_playlist",false).put("auto_match",false).put("confirm_version",false).put("review_metadata",false)
         .put("duplicate_policy","ask").put("organization","Pasta de destino").put("interface_font",DEFAULT_INTERFACE_FONT).put("interface_font_size","100%").put("theme","Seguir o sistema").put("accent","Verde-Água")
         .put("concurrent_downloads","1").put("resume_downloads",true).put("resume_queue",false).put("normalize_volume",false)
         .put("schedule_enabled",false).put("schedule_start","22:00").put("schedule_stop","07:00").put("check_updates",false).put("notice_duration","Após 3 segundos")
@@ -70,6 +75,9 @@ object OndaStore {
         .put("tab_order",JSONArray(listOf("Pesquisar","Links e fila","Imagens","Playlists / Álbuns","Histórico","Efeitos","Metadados")))
         .put("output_uri", "").put("cookies_file", "").put("youtube_cookies_file", "").put("spotify_client_id", "")
     fun normalizeAppearance(value:JSONObject) {
+        if(value.optString("queue_view") !in listOf("Compacto","Completa"))value.put("queue_view","Completa")
+        if(value.optString("queue_card_size") !in listOf("Pequeno","Médio","Grande"))value.put("queue_card_size","Grande")
+        value.put("language",normalizedLanguage(value.optString("language","pt-BR")))
         value.put("interface_font",normalizeInterfaceFont(value.optString("interface_font",DEFAULT_INTERFACE_FONT)))
         val available=defaults().getJSONArray("tab_order").let {a->(0 until a.length()).map {a.getString(it)}}
         val saved=value.optJSONArray("tab_order")
@@ -79,13 +87,15 @@ object OndaStore {
         aliases[value.optString("accent")]?.let {value.put("accent",it)}
         if(value.optString("theme")=="Sistema") value.put("theme","Seguir o sistema")
     }
+    private val displayFields=listOf("queue_view","queue_card_size","history_view","history_card_size")
     @Synchronized fun saveSettings(value: JSONObject) {
         normalizeAppearance(value)
         val scheduleChanged=listOf("schedule_enabled","schedule_start","schedule_stop").any {settings.value.opt(it)!=value.opt(it)}
         settings.value = JSONObject(value.toString())
         if(scheduleChanged)DownloadSchedule.configure(context,value)
-        val persisted = if (value.optBoolean("remember",true)) value else defaults().put("remember",false)
-        context.getSharedPreferences("preferences",0).edit().putString("settings",persisted.toString()).apply()
+        val persisted = if (value.optBoolean("remember",true)) value else defaults().put("remember",false).put("language",value.optString("language","pt-BR"))
+        context.getSharedPreferences("preferences",0).edit().putString("settings",persisted.toString()).putString("display",JSONObject().apply { displayFields.forEach { key -> put(key,value.get(key)) } }.toString()).apply()
+        LauncherIcons.sync(context,value)
     }
     fun config(options: JSONObject = settings.value, includeSecrets: Boolean = true): JSONObject = JSONObject(options.toString()).apply {
         if(optString("mode")=="m4a" && optString("audio_quality") !in listOf("256 kbps","192 kbps","128 kbps","96 kbps")) put("audio_quality","256 kbps")
@@ -139,6 +149,23 @@ object OndaStore {
         if(title.isBlank() || items.value.firstOrNull {it.id==id}?.title==title) return
         database.writableDatabase.execSQL("UPDATE queue SET title=? WHERE id=?",arrayOf(title,id))
         items.value=items.value.map {if(it.id==id) it.copy(title=title) else it}
+    }
+    @Synchronized fun renamePendingLink(id:String,url:String,title:String,info:JSONObject?=null):Boolean {
+        val item=items.value.firstOrNull {it.id==id} ?: return false
+        if(item.state!="Pendente" || item.title!=url || item.config.optString("url")!=url || title.isBlank() || title==url)return false
+        val config=JSONObject(item.config.toString())
+        if(info!=null)config.put("queue_info",JSONObject(info.toString()))
+        database.writableDatabase.execSQL("UPDATE queue SET title=?,config=? WHERE id=?",arrayOf(title,config.toString(),id))
+        items.value=items.value.map {if(it.id==id)it.copy(title=title,config=config) else it}
+        return true
+    }
+    @Synchronized fun updateQueueInformation(id:String,url:String,info:JSONObject) {
+        val item=items.value.firstOrNull {it.id==id && it.config.optString("url")==url} ?: return
+        val merged=JSONObject(info.toString())
+        item.config.optJSONObject("queue_info")?.let {known->known.keys().forEach {key->if(!known.isNull(key) && known.optString(key).isNotBlank() && known.optString(key)!="[]")merged.put(key,known.get(key))}}
+        val config=JSONObject(item.config.toString()).put("queue_info",merged)
+        database.writableDatabase.execSQL("UPDATE queue SET config=? WHERE id=?",arrayOf(config.toString(),id))
+        items.value=items.value.map {if(it.id==id)it.copy(config=config) else it}
     }
     fun collectionOptions(): JSONObject {
         val text=context.getSharedPreferences("preferences",0).getString("collection_options",null)

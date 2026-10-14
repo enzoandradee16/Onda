@@ -1,12 +1,14 @@
 """Reviewable, selective preference resets; user data and accounts stay intact."""
+from i18n import tr
+from i18n_tk import display_var
 import tkinter as tk
 from tkinter import ttk, messagebox
 
 GROUPS = {
     'Aparência': {'history_card_size':'Tamanho dos cards do histórico', 'pure_black_separators':'Separações no Preto puro', 'history_view':'Exibição do histórico', 'theme_mode':'Modo claro, escuro ou sistema', 'theme_accent':'Cor de destaque', 'interface_font':'Fonte da interface', 'interface_font_size':'Alterar tamanho da fonte'},
-    'Geral': {'notice_duration':'Duração dos avisos','check_updates':'Verificar atualizações do ONDA', 'tab_order':'Ordem das abas', 'remember_settings':'Lembrar configurações'},
+    'Geral': {'language':'Idioma','notice_duration':'Duração dos avisos','check_updates':'Verificar atualizações do ONDA', 'tab_order':'Ordem das abas', 'remember_settings':'Lembrar configurações'},
     'Downloads': {'concurrent_downloads':'Downloads simultâneos','resume_downloads':'Retomar arquivos interrompidos','resume_queue':'Retomar fila ao abrir','normalize_volume':'Normalizar volume','schedule_enabled':'Agendar downloads','schedule_start':'Horário de início','schedule_stop':'Horário de parada','folder':'Pasta de destino', 'organization':'Organização por pastas', 'duplicates':'Tratamento de arquivos duplicados', 'review_metadata':'Revisão de metadados', 'auto_match':'Escolha automática da versão', 'playlist_limit':'Limite de itens de playlists'},
-    'Links e fila': {'mode':'Formato', 'height':'Resolução máxima', 'fps':'FPS máximo', 'mp3_quality':'Qualidade MP3', 'm4a_quality':'Qualidade M4A', 'playlist':'Baixar playlist de vídeo'},
+    'Links e fila': {'queue_view':'Exibição da fila','queue_card_size':'Tamanho dos cards da fila','mode':'Formato', 'height':'Resolução máxima', 'fps':'FPS máximo', 'mp3_quality':'Qualidade MP3', 'm4a_quality':'Qualidade M4A', 'playlist':'Baixar playlist de vídeo'},
     'Playlists': {'playlist_mode':'Formato da playlist', 'playlist_height':'Resolução da playlist', 'playlist_fps':'FPS da playlist', 'playlist_mp3_quality':'Qualidade MP3 da playlist', 'playlist_m4a_quality':'Qualidade M4A da playlist'},
     'Imagens': {'image_format':'Formato da imagem', 'image_size':'Tamanho máximo', 'image_width':'Largura personalizada', 'image_height':'Altura personalizada', 'image_keep_ratio':'Manter proporção'},
     'Áudio': {'effects_keep_pitch':'Manter tom nos efeitos', 'background_preview':'Continuar prévia em outras abas', 'effects_preview_duration':'Duração da prévia dos efeitos', 'search_preview_duration':'Duração da prévia nas pesquisas'},
@@ -38,7 +40,7 @@ def apply_defaults(app, names):
         if 'background_preview' in names:
             app.tab_changed()
     finally:
-        app.remember_settings.set(False if 'remember_settings' in names else remembering)
+        app.remember_settings.set(True if 'remember_settings' in names else remembering)
     if 'remember_settings' in names:
         app.toggle_remember_settings()
     elif remembering:
@@ -49,26 +51,26 @@ class ResetSettingsWindow(tk.Toplevel):
     def __init__(self, app, select_all=False):
         super().__init__(app)
         self.app=app
-        self.title('Onda • Restaurar configurações')
+        self.title(tr('Onda • Restaurar configurações'))
         self.geometry('620x660')
         self.minsize(560,520)
         self.transient(app.settings_window)
         body=ttk.Frame(self,padding=18)
         body.pack(fill='both',expand=True)
-        ttk.Label(body,text='Restaurar configurações',font=('Segoe UI',18,'bold')).pack(anchor='w')
-        ttk.Label(body,text='Marque as opções que devem voltar ao padrão. As demais ficam como estão.',wraplength=520,style='Muted.TLabel').pack(anchor='w',pady=(6,8))
-        ttk.Label(body,text='Contas conectadas, credenciais, fila, histórico e arquivos baixados são mantidos.',wraplength=520,style='Muted.TLabel').pack(anchor='w',pady=(0,12))
+        ttk.Label(body,text=tr('Restaurar configurações'),font=('Segoe UI',18,'bold')).pack(anchor='w')
+        ttk.Label(body,text=tr('Marque as opções que devem voltar ao padrão. As demais ficam como estão.'),wraplength=520,style='Muted.TLabel').pack(anchor='w',pady=(6,8))
+        ttk.Label(body,text=tr('Contas conectadas, credenciais, fila, histórico e arquivos baixados são mantidos.'),wraplength=520,style='Muted.TLabel').pack(anchor='w',pady=(0,12))
         tools=ttk.Frame(body)
         tools.pack(fill='x',pady=(0,8))
-        ttk.Button(tools,text='Selecionar todas',command=lambda:self.select(True)).pack(side='left')
-        ttk.Button(tools,text='Desmarcar todas',command=lambda:self.select(False)).pack(side='left',padx=8)
+        ttk.Button(tools,text=tr('Selecionar todas'),command=lambda:self.select(True)).pack(side='left')
+        ttk.Button(tools,text=tr('Desmarcar todas'),command=lambda:self.select(False)).pack(side='left',padx=8)
         bottom=ttk.Frame(body)
         bottom.pack(side='bottom',fill='x',pady=(12,0))
-        ttk.Button(bottom,text='Cancelar',command=self.destroy).pack(side='right')
-        self.apply_button=ttk.Button(bottom,text='Restaurar selecionadas',style='Accent.TButton',command=self.restore)
+        ttk.Button(bottom,text=tr('Cancelar'),command=self.destroy).pack(side='right')
+        self.apply_button=ttk.Button(bottom,text=tr('Restaurar selecionadas'),style='Accent.TButton',command=self.restore)
         self.apply_button.pack(side='right',padx=8)
         self.count=tk.StringVar()
-        ttk.Label(bottom,textvariable=self.count,style='Muted.TLabel').pack(side='left')
+        ttk.Label(bottom,textvariable=display_var(self.count),style='Muted.TLabel').pack(side='left')
         from settings_scroll import SettingsCategory
         from ui import BG
         scroller=SettingsCategory(body,BG)
@@ -76,13 +78,13 @@ class ResetSettingsWindow(tk.Toplevel):
         self.bind('<MouseWheel>',scroller.wheel)
         self.choices={}
         for group,fields in GROUPS.items():
-            ttk.Label(scroller.content,text=group,font=('Segoe UI',11,'bold')).pack(anchor='w',pady=(12,6))
+            ttk.Label(scroller.content,text=tr(group),font=('Segoe UI',11,'bold')).pack(anchor='w',pady=(12,6))
             for name,label in fields.items():
                 var=tk.BooleanVar(value=select_all)
                 self.choices[name]=var
-                ttk.Checkbutton(scroller.content,text=label,variable=var).pack(anchor='w',pady=3)
+                ttk.Checkbutton(scroller.content,text=tr(label),variable=var).pack(anchor='w',pady=3)
                 if name == 'remember_settings':
-                    ttk.Label(scroller.content,text='Restaurar esta opção desativa o salvamento e remove as preferências salvas.',style='Muted.TLabel',wraplength=450).pack(anchor='w',pady=(0,6))
+                    ttk.Label(scroller.content,text=tr('Restaurar esta opção ativa o salvamento automático.'),style='Muted.TLabel',wraplength=450).pack(anchor='w',pady=(0,6))
                 var.trace_add('write',self.refresh)
         self.refresh()
         self.bind('<Escape>',lambda _:self.destroy())
@@ -98,11 +100,11 @@ class ResetSettingsWindow(tk.Toplevel):
     def restore(self):
         names=[name for name,var in self.choices.items() if var.get()]
         if not names:return
-        if not messagebox.askyesno('Restaurar configurações',f'Restaurar {len(names)} configurações selecionadas ao padrão?',parent=self):return
+        if not messagebox.askyesno(tr('Restaurar configurações'),tr(f'Restaurar {len(names)} configurações selecionadas ao padrão?'),parent=self):return
         try:
             apply_defaults(self.app,names)
         except (ValueError,OSError) as exc:
-            messagebox.showerror('Restaurar configurações',str(exc),parent=self)
+            messagebox.showerror(tr('Restaurar configurações'),tr(str(exc)),parent=self)
             return
         self.app.preference_status.set('Configurações selecionadas restauradas ao padrão.' + (' Salvamento automático ativado.' if self.app.remember_settings.get() else ' Lembrar configurações está desativado.'))
         self.destroy()

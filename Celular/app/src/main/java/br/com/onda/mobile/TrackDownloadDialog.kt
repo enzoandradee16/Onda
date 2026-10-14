@@ -25,18 +25,18 @@ import java.util.Locale
         if(mode!="flac")options.put("audio_quality",bitrate)
         onSubmit(options,now)
     }
-    AlertDialog(containerColor=ondaDialogContainerColor(),onDismissRequest=onDismiss,title={Text("Escolha o formato")},text={
+    AlertDialog(containerColor=ondaDialogContainerColor(),onDismissRequest=onDismiss,title={UiText("Escolha o formato")},text={
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
-                AsyncImage(record.cleanString("cover_url"),"Capa do álbum",Modifier.size(64.dp))
+                AsyncImage(record.cleanString("cover_url"),translateUi("Capa do álbum",LocalUiLanguage.current),Modifier.size(64.dp))
                 Column(Modifier.weight(1f)) {
                     Text(record.cleanString("title"),style=MaterialTheme.typography.titleMedium)
                     Text(record.stringList("artists"),style=MaterialTheme.typography.bodySmall)
-                    Text(record.cleanString("album").ifBlank {"Álbum não informado"},style=MaterialTheme.typography.bodySmall)
+                    Text(record.cleanString("album").ifBlank {translateUi("Álbum não informado",LocalUiLanguage.current)},style=MaterialTheme.typography.bodySmall)
                 }
             }
             Select("Formato",preset,listOf("MP3 320","MP3 128","FLAC","Personalizar")){preset=it}
-            Text(when(preset) {
+            UiText(when(preset) {
                 "MP3 320"->"Alta qualidade · maior compatibilidade"
                 "MP3 128"->"Arquivo menor · economiza espaço"
                 "FLAC"->"Monochrome · FLAC direto quando disponível"
@@ -50,15 +50,15 @@ import java.util.Locale
                 Select("Qualidade de áudio",quality,qualities){quality=it}
             }
             val duration=record.optLong("duration_ms")
-            Text(if(mode!="flac" && duration>0) {
+            UiText(if(mode!="flac" && duration>0) {
                 val megabytes=duration*bitrate.substringBefore(' ').toDouble()/8/1024/1024
                 "Tamanho estimado: ≈ "+String.format(Locale.getDefault(),"%.1f MB",megabytes)
             } else "Tamanho variável · valor real mostrado ao concluir",style=MaterialTheme.typography.bodySmall)
-            Text("Inclui capa e metadados disponíveis. MP3/M4A usam YouTube; FLAC usa Monochrome.",style=MaterialTheme.typography.bodySmall)
+            UiText("Inclui capa e metadados disponíveis. MP3/M4A usam YouTube; FLAC usa Monochrome.",style=MaterialTheme.typography.bodySmall)
         }
     },confirmButton={Column(Modifier.fillMaxWidth(),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(4.dp)) {
-        Button(onClick={submit(true)},enabled=record.optString("source_url").isNotBlank(),modifier=Modifier.fillMaxWidth()){Text("Baixar agora")}
-        TextButton(onClick={submit(false)},enabled=record.optString("source_url").isNotBlank(),modifier=Modifier.fillMaxWidth()){Text("Adicionar à fila")}
-        TextButton(onClick=onDismiss,modifier=Modifier.fillMaxWidth()){Text("Voltar")}
+        Button(onClick={submit(true)},enabled=record.optString("source_url").isNotBlank(),modifier=Modifier.fillMaxWidth()){UiText("Baixar agora")}
+        TextButton(onClick={submit(false)},enabled=record.optString("source_url").isNotBlank(),modifier=Modifier.fillMaxWidth()){UiText("Adicionar à fila")}
+        TextButton(onClick=onDismiss,modifier=Modifier.fillMaxWidth()){UiText("Voltar")}
     }})
 }

@@ -1,4 +1,6 @@
 """Slowed + Reverb workspace: local audio, independent controls, preview/export."""
+from i18n import tr
+from i18n_tk import TranslatedCombobox, display_var
 import json
 import math
 from pathlib import Path
@@ -58,22 +60,22 @@ class EffectsPane(ttk.Frame):
         self.render_temp = None
         self.output_folder = None
         self.columnconfigure(0, weight=1)
-        ttk.Label(self, text="Slowed · Sped Up · Reverb", font=("Segoe UI", 23, "bold"), anchor="center").grid(row=0, column=0, sticky="ew")
-        ttk.Label(self, text="Desacelere ou acelere sua música. Adicione reverb se quiser.", style="Muted.TLabel", anchor="center").grid(row=1, column=0, sticky="ew", pady=(5, 12))
+        ttk.Label(self, text=tr("Slowed · Sped Up · Reverb"), font=("Segoe UI", 23, "bold"), anchor="center").grid(row=0, column=0, sticky="ew")
+        ttk.Label(self, text=tr("Desacelere ou acelere sua música. Adicione reverb se quiser."), style="Muted.TLabel", anchor="center").grid(row=1, column=0, sticky="ew", pady=(5, 12))
         file_row = ttk.Frame(self)
         file_row.grid(row=2, column=0, sticky="ew")
         ttk.Entry(file_row, textvariable=self.source).pack(side="left", fill="x", expand=True)
-        ttk.Button(file_row, text="Abrir áudio", command=self.choose).pack(side="left", padx=(8, 0))
+        ttk.Button(file_row, text=tr("Abrir áudio"), command=self.choose).pack(side="left", padx=(8, 0))
         card = ttk.Frame(self, style="Card.TFrame", padding=14)
         card.grid(row=3, column=0, sticky="ew", pady=10)
         card.columnconfigure(0, weight=1)
         self.speed_label = tk.StringVar()
         self.reverb_label = tk.StringVar()
-        ttk.Label(card, textvariable=self.speed_label, style="Card.TLabel", font=("Segoe UI", 12, "bold")).grid(row=0, column=0, sticky="w")
+        ttk.Label(card, textvariable=display_var(self.speed_label), style="Card.TLabel", font=("Segoe UI", 12, "bold")).grid(row=0, column=0, sticky="w")
         presets = ttk.Frame(card, style="Card.TFrame")
         presets.grid(row=0, column=1, sticky="e")
-        ttk.Label(presets, text="Preset", style="CardMuted.TLabel").pack(side="left", padx=(8, 8))
-        self.preset_box = ttk.Combobox(presets, textvariable=self.preset, values=(*PRESETS, "Personalizado"), state="readonly", width=17)
+        ttk.Label(presets, text=tr("Preset"), style="CardMuted.TLabel").pack(side="left", padx=(8, 8))
+        self.preset_box = TranslatedCombobox(presets, textvariable=self.preset, values=(*PRESETS, "Personalizado"), state="readonly", width=17)
         self.preset_box.pack(side="left")
         self.preset_box.bind("<<ComboboxSelected>>", self.apply_preset)
         self.speed_slider = ttk.Scale(card, from_=MIN_SPEED, to=MAX_SPEED, variable=self.speed, command=self.changed)
@@ -83,18 +85,18 @@ class EffectsPane(ttk.Frame):
         for column in range(3):
             speed_guide.columnconfigure(column, weight=1, uniform="speed")
         for column, text, anchor in ((0, "50% · Slowed", "w"), (1, "100% · original", "center"), (2, "150% · Sped Up", "e")):
-            ttk.Label(speed_guide, text=text, style="CardMuted.TLabel", anchor=anchor).grid(row=0, column=column, sticky="ew")
-        ttk.Label(card, textvariable=self.reverb_label, style="Card.TLabel", font=("Segoe UI", 12, "bold")).grid(row=3, column=0, sticky="w", pady=(16, 0))
+            ttk.Label(speed_guide, text=tr(text), style="CardMuted.TLabel", anchor=anchor).grid(row=0, column=column, sticky="ew")
+        ttk.Label(card, textvariable=display_var(self.reverb_label), style="Card.TLabel", font=("Segoe UI", 12, "bold")).grid(row=3, column=0, sticky="w", pady=(16, 0))
         self.reverb_slider = ttk.Scale(card, from_=0, to=100, variable=self.reverb, command=self.changed)
         self.reverb_slider.grid(row=4, column=0, columnspan=2, sticky="ew", pady=8)
-        ttk.Label(card, text="0% · sem reverb                                                   100% · mais ambiente", style="CardMuted.TLabel").grid(row=5, column=0, sticky="w")
-        self.keep_pitch_checkbox = ttk.Checkbutton(card, text='Manter tom (pitch) ao alterar a velocidade', variable=self.keep_pitch)
+        ttk.Label(card, text=tr("0% · sem reverb                                                   100% · mais ambiente"), style="CardMuted.TLabel").grid(row=5, column=0, sticky="w")
+        self.keep_pitch_checkbox = ttk.Checkbutton(card, text=tr('Manter tom (pitch) ao alterar a velocidade'), variable=self.keep_pitch)
         self.keep_pitch_checkbox.grid(row=6, column=0, columnspan=2, sticky='w', pady=(10, 0))
         timeline = ttk.Frame(self)
         timeline.grid(row=4, column=0, sticky="ew", pady=(0, 12))
         timeline.columnconfigure(0, weight=1)
-        ttk.Label(timeline, text="Posição na música", style="Muted.TLabel").grid(row=0, column=0, sticky="w")
-        ttk.Label(timeline, textvariable=self.time_label, style="Muted.TLabel").grid(row=0, column=1, sticky="e")
+        ttk.Label(timeline, text=tr("Posição na música"), style="Muted.TLabel").grid(row=0, column=0, sticky="w")
+        ttk.Label(timeline, textvariable=display_var(self.time_label), style="Muted.TLabel").grid(row=0, column=1, sticky="e")
         self.timeline = ttk.Scale(timeline, from_=0, to=1, variable=self.position, state="disabled")
         self.timeline.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(6, 0))
         self.timeline.bind("<ButtonPress-1>", self.seek_begin)
@@ -104,21 +106,21 @@ class EffectsPane(ttk.Frame):
             self.timeline.bind("<" + key + ">", lambda event, step=seconds: self.seek_key(step))
         preview = ttk.Frame(self)
         preview.grid(row=5, column=0, sticky="ew")
-        ttk.Button(preview, text="Ouvir original", command=lambda: self.preview(False)).pack(side="left", padx=4)
-        ttk.Button(preview, text="Ouvir com efeitos", style="Accent.TButton", command=self.preview).pack(side="left", padx=4)
-        ttk.Button(preview, text="Parar", command=self.stop_preview).pack(side="left", padx=4)
-        ttk.Label(self, text="Arraste a barra para escolher o trecho. A duração da prévia pode ser alterada em Configurações. Ajuste os efeitos enquanto ouve.", style="Muted.TLabel", wraplength=760).grid(row=6, column=0, sticky="w", pady=8)
+        ttk.Button(preview, text=tr("Ouvir original"), command=lambda: self.preview(False)).pack(side="left", padx=4)
+        ttk.Button(preview, text=tr("Ouvir com efeitos"), style="Accent.TButton", command=self.preview).pack(side="left", padx=4)
+        ttk.Button(preview, text=tr("Parar"), command=self.stop_preview).pack(side="left", padx=4)
+        ttk.Label(self, text=tr("Arraste a barra para escolher o trecho. A duração da prévia pode ser alterada em Configurações. Ajuste os efeitos enquanto ouve."), style="Muted.TLabel", wraplength=760).grid(row=6, column=0, sticky="w", pady=8)
         export = ttk.Frame(self)
         export.grid(row=7, column=0, sticky="ew", pady=8)
-        ttk.Label(export, text="Salvar como").pack(side="left")
-        ttk.Combobox(export, textvariable=self.mode, values=("MP3", "M4A", "FLAC", "WAV"), state="readonly", width=9).pack(side="left", padx=10)
-        self.export_button = ttk.Button(export, text="Exportar música inteira", command=self.export)
+        ttk.Label(export, text=tr("Salvar como")).pack(side="left")
+        TranslatedCombobox(export, textvariable=self.mode, values=("MP3", "M4A", "FLAC", "WAV"), state="readonly", width=9).pack(side="left", padx=10)
+        self.export_button = ttk.Button(export, text=tr("Exportar música inteira"), command=self.export)
         self.export_button.pack(side="left")
-        self.cancel_button = ttk.Button(export, text="Cancelar exportação", command=self.cancel, state="disabled")
+        self.cancel_button = ttk.Button(export, text=tr("Cancelar exportação"), command=self.cancel, state="disabled")
         self.cancel_button.pack(side="right")
         self.bar = ttk.Progressbar(self, maximum=100)
         self.bar.grid(row=8, column=0, sticky="ew", pady=8)
-        self.status_label = ttk.Label(self, textvariable=self.status, style="Muted.TLabel", wraplength=800)
+        self.status_label = ttk.Label(self, textvariable=display_var(self.status), style="Muted.TLabel", wraplength=800)
         self.status_label.grid(row=9, column=0, sticky="w")
         self.keep_pitch_trace = self.keep_pitch.trace_add("write", lambda *_: self.changed())
         self.source.trace_add("write", self.source_changed)
@@ -126,7 +128,7 @@ class EffectsPane(ttk.Frame):
         self.poll_id = self.after(100, self.poll)
 
     def choose(self):
-        path = filedialog.askopenfilename(parent=self.app, title="Áudio para Slowed, Sped Up e Reverb", filetypes=[("Áudio", "*.mp3 *.m4a *.flac *.wav *.ogg *.opus *.webm *.aac"), ("Todos", "*.*")])
+        path = filedialog.askopenfilename(parent=self.app, title=tr("Áudio para Slowed, Sped Up e Reverb"), filetypes=[(tr("Áudio"), "*.mp3 *.m4a *.flac *.wav *.ogg *.opus *.webm *.aac"), (tr("Todos os arquivos"), "*.*")])
         if path:
             self.use_file(path)
 
@@ -277,16 +279,16 @@ class EffectsPane(ttk.Frame):
         speed, reverb = round(self.speed.get()), round(self.reverb.get())
         effect = effect_name(speed, reverb)
         suffix = "." + self.mode.get().lower()
-        output = filedialog.asksaveasfilename(parent=self.app, title="Salvar versão com efeitos", initialdir=str(source.parent),
+        output = filedialog.asksaveasfilename(parent=self.app, title=tr("Salvar versão com efeitos"), initialdir=str(source.parent),
                    initialfile=source.stem + (" - " + effect if effect else "") + suffix, defaultextension=suffix,
                    filetypes=[(self.mode.get(), "*" + suffix)], confirmoverwrite=False)
         if not output:
             return
         if source.resolve() == Path(output).resolve():
-            messagebox.showerror("Exportar", "Escolha outro nome para preservar o original.", parent=self.app)
+            messagebox.showerror(tr("Exportar"), tr("Escolha outro nome para preservar o original."), parent=self.app)
             return
         replace = Path(output).exists()
-        if replace and not messagebox.askyesno("Exportar", "O arquivo já existe. Substituir esta cópia?", parent=self.app):
+        if replace and not messagebox.askyesno(tr("Exportar"), tr("O arquivo já existe. Substituir esta cópia?"), parent=self.app):
             return
         self.stop_preview()
         self.busy = True

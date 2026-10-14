@@ -1,4 +1,6 @@
 """Download media tools directly from their publisher; never bundle them in ONDA."""
+from i18n import tr
+from i18n_tk import display_var
 import hashlib
 import json
 import os
@@ -140,7 +142,7 @@ def download_with_window(parent=None):
     from tkinter import ttk
     from window_position import center_window
     window = tk.Toplevel(parent) if parent is not None else tk.Tk()
-    window.title('ONDA · Preparar áudio e vídeo')
+    window.title(tr('ONDA · Preparar áudio e vídeo'))
     window.geometry('560x255')
     window.resizable(False, False)
     try:
@@ -149,11 +151,11 @@ def download_with_window(parent=None):
         pass
     body = ttk.Frame(window, padding=24)
     body.pack(fill='both', expand=True)
-    ttk.Label(body, text='Preparando o ONDA', font=('Segoe UI', 17, 'bold')).pack(anchor='w')
-    ttk.Label(body, text='O FFmpeg é baixado uma vez para converter e reproduzir mídias.\n'
-              'Origem: gyan.dev · aproximadamente 109 MB', wraplength=505).pack(anchor='w', pady=(8, 12))
+    ttk.Label(body, text=tr('Preparando o ONDA'), font=('Segoe UI', 17, 'bold')).pack(anchor='w')
+    ttk.Label(body, text=tr('O FFmpeg é baixado uma vez para converter e reproduzir mídias.\n'
+              'Origem: gyan.dev · aproximadamente 109 MB'), wraplength=505).pack(anchor='w', pady=(8, 12))
     status = tk.StringVar(value='Conectando…')
-    ttk.Label(body, textvariable=status, wraplength=505).pack(anchor='w')
+    ttk.Label(body, textvariable=display_var(status), wraplength=505).pack(anchor='w')
     bar = ttk.Progressbar(body, maximum=100)
     bar.pack(fill='x', pady=12)
     actions = ttk.Frame(body)
@@ -186,8 +188,8 @@ def download_with_window(parent=None):
         status.set('Conectando…')
         bar['value'] = 0
         threading.Thread(target=worker, daemon=True).start()
-    retry = ttk.Button(actions, text='Tentar novamente', command=start)
-    ttk.Button(actions, text='Agora não', command=close).pack(side='right')
+    retry = ttk.Button(actions, text=tr('Tentar novamente'), command=start)
+    ttk.Button(actions, text=tr('Agora não'), command=close).pack(side='right')
     def poll():
         after_id[0] = None
         while not events.empty():

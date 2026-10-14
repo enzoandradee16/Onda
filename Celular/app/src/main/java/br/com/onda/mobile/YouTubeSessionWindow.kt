@@ -21,8 +21,8 @@ import java.io.File
     Dialog(onDismissRequest=close,properties=androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth=false)) {
         Surface(Modifier.fillMaxSize().padding(8.dp),shape=MaterialTheme.shapes.large) {
             Column(Modifier.padding(12.dp)) {
-                Text("Sessão do YouTube",style=MaterialTheme.typography.titleLarge)
-                Text(message,style=MaterialTheme.typography.bodySmall,modifier=Modifier.padding(vertical=8.dp))
+                UiText("Sessão do YouTube",style=MaterialTheme.typography.titleLarge)
+                UiText(message,style=MaterialTheme.typography.bodySmall,modifier=Modifier.padding(vertical=8.dp))
                 AndroidView(factory={context->WebView(context).apply {
                     settings.javaScriptEnabled=true;settings.domStorageEnabled=true
                     webViewClient=object:WebViewClient() {
@@ -35,7 +35,7 @@ import java.io.File
                     browser=this;loadUrl("https://m.youtube.com")
                 }},modifier=Modifier.weight(1f).fillMaxWidth())
                 Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) {
-                    TextButton(onClick=close){Text("Fechar")}
+                    TextButton(onClick=close){UiText("Fechar")}
                     Button(onClick={
                         val cookies=CookieManager.getInstance()
                         cookies.flush()
@@ -55,7 +55,7 @@ import java.io.File
                             OndaStore.log("Sessão do YouTube salva. Nenhum cookie foi incluído no log.")
                             close()
                         }
-                    }) {Text("Usar esta sessão")}
+                    }) {UiText("Usar esta sessão")}
                 }
             }
         }

@@ -1,0 +1,80 @@
+package br.com.onda.mobile
+
+import android.content.Context
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.Typography
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import org.json.JSONObject
+
+internal val LocalUiLanguage=staticCompositionLocalOf { "pt-BR" }
+internal val UI_LANGUAGES=listOf("pt-BR","es","en")
+internal fun normalizedLanguage(value:String)=value.takeIf {it in UI_LANGUAGES} ?: "pt-BR"
+
+private data class UiTemplate(val pattern:Regex,val placeholders:List<String>,val translation:String)
+
+private object UiCatalog {
+    private val compiled=mutableMapOf<String,List<UiTemplate>>()
+    private val loaded=mutableMapOf<String,Map<String,String>>()
+    @Synchronized fun templates(context:Context,language:String):List<UiTemplate> = compiled.getOrPut(language) {
+        buildList {
+            val placeholder=Regex("\\{([a-zA-Z_][a-zA-Z_0-9]*)\\}")
+            for((key,translation) in get(context,language)) {
+                val matches=placeholder.findAll(key).toList()
+                if(matches.isEmpty())continue
+                var position=0
+                val pattern=buildString {
+                    for(match in matches){append(Regex.escape(key.substring(position,match.range.first)));append("(.+?)");position=match.range.last+1}
+                    append(Regex.escape(key.substring(position)))
+                }
+                add(UiTemplate(Regex(pattern,RegexOption.DOT_MATCHES_ALL),matches.map {it.value},translation))
+            }
+        }.sortedByDescending {it.pattern.pattern.replace("(.+?)","").length}
+    }
+    @Synchronized fun get(context:Context,language:String):Map<String,String> = loaded.getOrPut(language) {
+        JSONObject(context.assets.open("$language.json").bufferedReader().use {it.readText()}).let {json->
+            json.keys().asSequence().associateWith {json.getString(it)}
+        }
+    }
+}
+
+internal fun translateUi(text:String,language:String=OndaStore.settings.value.optString("language","pt-BR"),context:Context=OndaStore.context):String {
+    val selected=normalizedLanguage(language)
+    if(selected=="pt-BR")return text
+    val catalog=UiCatalog.get(context,selected)
+    catalog[text]?.let {return it}
+    for(template in UiCatalog.templates(context,selected)) {
+        val match=template.pattern.matchEntire(text) ?: continue
+        var output=template.translation
+        template.placeholders.forEachIndexed {index,placeholder->
+            val value=match.groupValues[index+1]
+            val translated=if(placeholder in listOf("{state}","{status}","{message}","{reason}","{size}","{label}"))translateUi(value,selected,context) else value
+            output=output.replace(placeholder,translated)
+        }
+        return output
+    }
+    return text
+}
+
+@Composable internal fun LocalizedTheme(language:String,colorScheme:ColorScheme,typography:Typography,content:@Composable ()->Unit) {
+    CompositionLocalProvider(LocalUiLanguage provides normalizedLanguage(language)) {
+        MaterialTheme(colorScheme=colorScheme,typography=typography,content=content)
+    }
+}
+
+@Composable internal fun UiText(text:String,modifier:Modifier=Modifier,color:Color=Color.Unspecified,
+    fontWeight:FontWeight?=null,textAlign:TextAlign?=null,overflow:TextOverflow=TextOverflow.Clip,
+    softWrap:Boolean=true,maxLines:Int=Int.MAX_VALUE,style:TextStyle=androidx.compose.material3.LocalTextStyle.current) {
+    val language=LocalUiLanguage.current
+    val context=LocalContext.current
+    val translated=remember(text,language) {translateUi(text,language,context)}
+    androidx.compose.material3.Text(translated,modifier=modifier,color=color,fontWeight=fontWeight,
+        textAlign=textAlign,overflow=overflow,softWrap=softWrap,maxLines=maxLines,style=style)
+}

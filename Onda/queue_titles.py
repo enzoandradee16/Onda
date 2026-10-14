@@ -19,12 +19,48 @@ def supports_lookup(url):
     return is_streaming_link(url) or host in ('youtube.com', 'www.youtube.com', 'music.youtube.com', 'm.youtube.com', 'youtu.be')
 
 
-def resolve_name(url, credentials, cookies):
+def describe_streaming(client, url):
+    """Identify the original track without selecting a download from another catalog."""
+    from metadata import MetadataError, parse_link
+    from urllib.parse import urlsplit
+    if (urlsplit(url).hostname or '').lower() == 'spotify.link':
+        url = client.resolve_short_link(url)
+    # Deezer short links are resolved by fetch itself.
+    if (urlsplit(url).hostname or '').lower() in ('link.deezer.com', 'deezer.page.link'):
+        return client.fetch(url)
+    service, track_id, _, canonical = parse_link(url)
+    if service != 'spotify':
+        return client.fetch(url)
+    partial = None
+    failure = None
+    try:
+        partial = client.fetch(canonical)
+        if record_name(partial) and partial.get('artists'):
+            return partial
+    except MetadataError as error:
+        failure = error
+    try:
+        from spotify_public import parse_public_track
+        with client.request('https://open.spotify.com/embed/track/' + track_id) as response:
+            if response.is_redirect:
+                raise MetadataError('Spotify redirecionou a página pública.')
+            embedded=parse_public_track(response.text, track_id, canonical)
+            return {**(partial or {}), **{key:value for key,value in embedded.items() if value not in (None,'',[],{})}}
+    except MetadataError:
+        # A cover/title from oEmbed remains useful even when the embed page is unavailable.
+        if record_name(partial):
+            return partial
+        if failure is not None:
+            raise failure
+        raise
+
+
+def resolve_record(url, credentials, cookies):
     from metadata import MetadataClient, is_streaming_link
     if is_streaming_link(url):
         client = MetadataClient(*credentials)
         try:
-            return record_name(client.resolve(url))
+            return describe_streaming(client, url)
         finally:
             client.close()
     from yt_dlp import YoutubeDL
@@ -40,7 +76,11 @@ def resolve_name(url, credentials, cookies):
         options['cookiefile'] = cookies
     with YoutubeDL(options) as downloader:
         info = downloader.extract_info(url, download=False) or {}
-    return record_name({'title': info.get('title'), 'artists': [info['artist']] if info.get('artist') else []})
+    return {'title': info.get('track') or info.get('title'), 'artists': [info.get('artist') or info.get('uploader')] if info.get('artist') or info.get('uploader') else [], 'album': info.get('album'), 'cover_url': info.get('thumbnail'), 'duration_ms': int((info.get('duration') or 0)*1000), 'release_date': info.get('release_date')}
+
+
+def resolve_name(url, credentials, cookies):
+    return record_name(resolve_record(url, credentials, cookies))
 
 
 class TitleLookup:
@@ -68,9 +108,11 @@ class TitleLookup:
             except queue.Empty:
                 continue
             try:
-                name = resolve_name(url, credentials, cookies)
+                record = resolve_record(url, credentials, cookies)
+                name = record_name(record)
                 if name and not self.stopped.is_set():
-                    self.events.put((item, {'type': 'queue_title', 'url': url, 'title': name}))
+                    from queue_details import queue_info
+                    self.events.put((item, {'type': 'queue_title', 'url': url, 'title': name, 'queue_info': queue_info(record)}))
             except Exception:
                 # The normal download still works if this optional lookup fails.
                 pass

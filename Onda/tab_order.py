@@ -1,4 +1,5 @@
 """Stable tab identities and drag ordering without changing active content."""
+from i18n import tr
 import tkinter as tk
 
 DEFAULT_ORDER = ('catalog', 'downloads', 'images', 'playlists', 'history', 'effects', 'metadata')
@@ -25,10 +26,10 @@ class TabReorder:
         notebook.bind('<Escape>', self.cancel, add='+')
         notebook.bind('<Button-3>', self.context, add='+')
         self.menu=tk.Menu(notebook, tearoff=False)
-        self.menu.add_command(label='Mover para a esquerda', command=lambda:self.move(-1))
-        self.menu.add_command(label='Mover para a direita', command=lambda:self.move(1))
+        self.menu.add_command(label=tr('Mover para a esquerda'), command=lambda:self.move(-1))
+        self.menu.add_command(label=tr('Mover para a direita'), command=lambda:self.move(1))
         self.menu.add_separator()
-        self.menu.add_command(label='Restaurar ordem das abas', command=self.reset)
+        self.menu.add_command(label=tr('Restaurar ordem das abas'), command=self.reset)
 
     def order(self):
         keys={str(page):key for key,page in self.pages.items()}

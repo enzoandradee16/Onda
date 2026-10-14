@@ -1,6 +1,6 @@
 # ONDA — uso e desenvolvimento
 
-O [README principal](../README.md) apresenta o aplicativo e os pacotes para Windows.
+O [README principal](../README.md) apresenta o aplicativo e os pacotes 1.1.0 para Windows e Android.
 
 ## Executar o código-fonte
 
@@ -22,13 +22,13 @@ py -3 -m venv .venv
 
 **Pesquisar músicas:** escolha a plataforma, procure artista/título, confira metadados e a versão de áudio encontrada. Spotify requer conexão para alguns recursos; links podem usar dados públicos e correspondências de outras plataformas.
 
-**Links e fila:** cole links, selecione formato, qualidade e, para vídeo, resolução/FPS. Use Baixar agora para os itens atuais ou Adicionar à fila. É possível selecionar/remover itens, limpar a fila e tentar novamente. Downloads concluídos aparecem no histórico.
+**Links e fila:** cole links, selecione formato, qualidade e, para vídeo, resolução/FPS. Use Baixar agora para os itens atuais ou Adicionar à fila. É possível selecionar/remover itens, limpar a fila e tentar novamente. Downloads concluídos aparecem no histórico. O seletor na própria aba alterna entre lista compacta e cards completos, com capas e metadados disponíveis. Ajuste o tamanho pelo controle discreto; no PC, Ctrl + roda do mouse também altera os cards.
 
 **Imagens:** escolha formato e tamanho máximo. Manter proporção evita distorção e ampliação. Links de publicações são analisados para identificar as mídias disponíveis.
 
-**Álbuns e playlists:** carregue links, TXT/M3U ou CSV do Exportify; pesquise na lista e selecione os itens. Os controles de qualidade são próprios desta aba. Conferir correspondências procura versões no YouTube antes de baixar. O modo automático usa a maior similaridade encontrada, sem garantir a mesma edição. O limite de itens é configurável, mas depende do que a plataforma disponibiliza. A conexão Spotify permite paginação autenticada; a leitura pública pode ser parcial.
+**Álbuns e playlists:** carregue links, TXT/M3U ou CSV do Exportify; pesquise na lista e selecione os itens. Os controles de qualidade são próprios desta aba. Conferir correspondências procura versões no YouTube antes de baixar. A seleção automática considera compatibilidade de título, artista, versão e duração; uma correspondência insuficiente pode impedir o download e exigir escolha manual. Não garante a mesma edição. O limite de itens é configurável, mas depende do que a plataforma disponibiliza. A conexão Spotify permite paginação autenticada; a leitura pública pode ser parcial.
 
-**Histórico:** consulte downloads anteriores e abra arquivos/pastas. As opções de duplicados e organização ficam em Configurações.
+**Histórico:** consulte downloads anteriores, abra arquivos/pastas e envie o áudio para o editor ou para os efeitos. Abaixo da pesquisa ficam Limpar histórico, visualização compacta/completa e tamanho dos cards, centralizados na mesma linha. O tamanho é independente da fila; no PC, Ctrl + roda do mouse também o ajusta. As opções de duplicados e organização ficam em Configurações.
 
 **Efeitos:** abra uma música local, ajuste velocidade (50–150%) e reverb de forma independente ou use presets. Manter tom evita que a mudança de velocidade altere o pitch. Gere/ouça a prévia e navegue pela barra de reprodução. O título e o nome exportados indicam apenas os efeitos usados; as demais tags são preservadas quando suportadas pelo formato.
 
@@ -36,7 +36,9 @@ py -3 -m venv .venv
 
 Configurações são separadas por categorias, incluindo Aparência, Downloads, Áudio, Contas e Ferramentas. Lembrar configurações permite restaurar preferências ao abrir. Há restauração seletiva ou completa, duração das prévias e reprodução de efeitos ao trocar de aba. A janela inicial é opcional e aparece uma única vez por perfil.
 
-Dados em `%LOCALAPPDATA%\Onda` (portátil e instalado): `settings.json`, `library.sqlite3`, `spotify.dpapi`, `spotify-account.dpapi` e `welcome-seen.json`. Não compartilhe esses arquivos. A conexão Spotify usa retorno local `http://127.0.0.1:8765/callback`; configure esse endereço quando o app solicitar suas credenciais de desenvolvedor.
+Em **Configurações → Geral → Idioma**, escolha Português (Brasil), Español ou English, nessa ordem. Português é o padrão. No PC, o botão Reiniciar aparece abaixo do idioma somente enquanto a alteração está pendente; ao reiniciar, a fila é preservada. No Android, a mudança é imediata. O nome ONDA e os dados de músicas/arquivos permanecem originais. O idioma, a visualização e o tamanho dos cards da fila e do histórico são salvos mesmo sem Lembrar configurações.
+
+Dados em `%LOCALAPPDATA%\Onda` (portátil e instalado): `settings.json`, `language.json`, `library.sqlite3`, `spotify.dpapi`, `spotify-account.dpapi` e `welcome-seen.json`. Não compartilhe esses arquivos. A conexão Spotify usa retorno local `http://127.0.0.1:8765/callback`; configure esse endereço quando o app solicitar suas credenciais de desenvolvedor.
 
 ## Testes
 
@@ -44,10 +46,14 @@ Na raiz do repositório, com dependências instaladas:
 
 ```powershell
 $env:ONDA_UI_TESTS = '1'
-.\Onda\.venv\Scripts\python.exe -m unittest discover -s Onda -q
+$env:PYTHONPATH = (Resolve-Path .\Onda).Path
+Get-ChildItem .\Onda\test_*.py | ForEach-Object {
+    & .\Onda\.venv\Scripts\python.exe -m unittest $_.BaseName -q
+    if ($LASTEXITCODE -ne 0) { throw "Falha em $($_.Name)" }
+}
 ```
 
-Testes de interface precisam de uma sessão gráfica do Windows. Não representam teste real de download em todas as plataformas.
+Os módulos são executados em processos separados para isolar as raízes Tk e as threads. Testes de interface precisam de uma sessão gráfica do Windows. Não representam teste real de download em todas as plataformas.
 
 ## Construir executáveis
 

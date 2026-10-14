@@ -1,37 +1,38 @@
-# ONDA 1.0.0
+# ONDA 1.1.0
 
-Primeira versão oficial para Windows 10/11 x64 e Android 8 ou superior, ARM64.
+Atualização para Windows 10/11 x64 e Android 8 ou superior (ARM64).
 
-## Novidades desde a última pré-release
+## Novidades desde a versão 1.0.0
 
-- Histórico completo em cards ou compacto, com capas e informações da música, seleção individual e ajuste discreto do tamanho dos cards. No PC, Ctrl + roda do mouse também ajusta o tamanho.
-- Preto puro com opção de bordas e separações. No Android, popups e barra de navegação acompanham o tema.
-- Ícone interno acompanha a cor de destaque; no PC, os ícones das janelas também acompanham a cor.
-- PC: rolagem da página inteira, edição de metadados na própria aba e abertura direta pelo histórico, ajustes de capa e destaque de álbum/artista.
-- PC: até 15 downloads simultâneos, com aviso de maior consumo; Backspace também remove itens selecionados nas listas que oferecem remoção.
-- Android: correções na importação de imagens locais e permissões, seleção automática de versões e abertura de metadados pelo histórico.
-- Android: opção de escolher manualmente a versão quando a seleção automática não encontra uma correspondência suficientemente compatível.
-- Correções de acesso às publicações Kwai, consultando páginas desktop e mobile e evitando baixar vídeos recomendados no lugar do solicitado.
-- Vídeos: correção da escolha de resolução/FPS no Kwai e demais plataformas; consideração do lado menor em vídeos verticais, preferência por qualidades nativas compatíveis e redução quando a fonte excede os limites escolhidos.
-- Avisos com duração padrão de três segundos em novas instalações e melhor distribuição dos botões da pesquisa Android.
-- Cache limitado de capas/metadados, menos releituras no histórico, substituição de arquivos Android com cópia de segurança e limpeza de código sem uso.
-
-Mantém pesquisa de músicas, FLAC direto do Monochrome quando disponível, downloads de áudio/vídeo/imagens, álbuns e playlists, edição de metadados/capas/letras, normalização, Slowed/Sped Up/Reverb e personalização.
+- **Atualizações Android:** download da nova versão dentro do ONDA, com progresso, cancelamento e continuidade em segundo plano. A instalação exige confirmação do Android; pacote, versão e assinatura são conferidos antes de abrir o instalador.
+- **Menus de contexto no PC:** botão direito, Shift+F10 ou tecla de menu nas listas de pesquisa, fila, histórico, álbuns/playlists, metadados e escolha de versões, incluindo cards. As opções acompanham a seleção e o estado dos controles da aba.
+- **Idiomas:** Português (Brasil), Español e English, nessa ordem, com português como padrão. PC e Android compartilham os catálogos de tradução; o nome ONDA e os nomes originais de músicas, artistas, álbuns e arquivos são preservados.
+- **Preferências:** lembrar configurações ativado por padrão; visualização e tamanho da fila e do histórico são preservados separadamente ao reabrir o app.
+- **Acessibilidade Android:** descrições, estados e ações para leitores de tela nos controles, seleções, ajustes e edição de capa, nos três idiomas.
+- **Traduções:** revisão dos textos internos e correção da pergunta de confirmação de atualização no PC em inglês e espanhol.
+- **Ícone Android:** o ícone da tela inicial e dos aplicativos recentes acompanha a cor de destaque e os modos claro, escuro, preto puro ou sistema, usando recursos vetoriais leves.
+- **Links e fila:** exibição compacta ou em cards completos, com capa, artista, álbum, duração e demais metadados disponíveis. Controles discretos de visualização e tamanho na própria aba, independentes do Histórico. No PC, Ctrl + roda do mouse ajusta os cards.
+- **Histórico:** controles de visualização e tamanho na própria aba, ao lado de Limpar histórico, centralizados horizontalmente abaixo da pesquisa.
+- **Reinício pendente no PC:** botão Reiniciar abaixo do idioma apenas enquanto a alteração aguarda aplicação. Reverter ao idioma atual remove a pendência; a fila é preservada. No Android, o idioma muda imediatamente.
+- **Identificação de links:** correção do artista e do nome da música ao adicionar links à fila, incluindo Spotify no Android. Metadados públicos são preservados mesmo quando uma consulta complementar falha; uma resposta atrasada não sobrescreve títulos escolhidos pelo usuário.
+- **Capas e informações:** carregamento em segundo plano, cache limitado e reaproveitamento dos dados da pesquisa, de álbuns e de playlists.
+- **Documentação:** READMEs em português, espanhol e inglês, com navegação entre idiomas e novas capturas Android sem barras do sistema.
 
 ## Qual arquivo baixar?
 
-- `Onda-1.0.0-Setup-Windows-x64.exe`: instalação por usuário, com atalhos e desinstalador.
-- `Onda-1.0.0-Portable-Windows-x64.zip`: extraia tudo e abra Onda.exe; Python e Node incluídos. FFmpeg preparado no primeiro uso com internet.
-- `ONDA-Android-1.0.0-arm64-v8a.apk`: Android ARM64, assinado com a mesma chave de produção; versionCode 16.
-- `Onda-1.0.0-Fontes.zip`: código-fonte e scripts de construção.
-- `Onda-1.0.0-Fontes-nativos-Android.zip`: fontes e receitas das ferramentas nativas Android.
-- `Onda-1.0.0-Fontes-de-terceiros.zip`: fontes e avisos das dependências Python.
-- `SHA256SUMS.txt` e `MANIFEST.json`: integridade e informações dos pacotes.
+- `Onda-1.1.0-Setup-Windows-x64.exe`: instalador por usuário, com atalhos e desinstalador.
+- `Onda-1.1.0-Portable-Windows-x64.zip`: extraia tudo e abra `Onda.exe`; mantenha as pastas `Onda` e `_runtime` ao lado do executável. Python e Node incluídos; FFmpeg preparado com internet no primeiro uso.
+- `ONDA-Android-1.1.0-arm64-v8a.apk`: Android ARM64, assinado com a mesma chave de produção; versionCode 18.
+- `Onda-1.1.0-Fontes.zip`: código-fonte e scripts de construção correspondentes.
+- `Onda-1.1.0-Fontes-nativos-Android.zip`: fontes e receitas das ferramentas nativas Android.
+- `Onda-1.1.0-Fontes-de-terceiros.zip`: fontes e avisos das dependências Python redistribuídas.
 
-## Validação e distribuição
+Anexe também `SHA256SUMS.txt`, `MANIFEST.json`, `SOURCE_MANIFEST.json`, `VALIDACAO.md` e os avisos de terceiros.
 
-Revisão final com 346 testes PC aprovados, cinco testes unitários Android e 59 casos instrumentados distintos aprovados na rodada principal. As correções finais tiveram testes adicionais de metadados, seleção de versões, popups e barra de navegação. O usuário confirmou funcionamento dos fluxos no celular e das últimas correções antes da preparação oficial. Consulte `VALIDACAO.md` para limites e resultados específicos.
+## Atualização e limites
 
-Os executáveis Windows não possuem assinatura Authenticode. O APK Android usa a chave de produção ONDA. Atualize por cima da versão anterior assinada com essa mesma chave para preservar os dados.
+A identidade Windows e a chave Android foram preservadas para atualização sobre a versão anterior. O APK usa um versionCode maior; os dados existentes são preservados pela atualização normal. A release 1.0.0 permanece intacta.
 
-O acesso às plataformas e a disponibilidade de FLAC dependem de terceiros e podem exigir autenticação. MP3/M4A de músicas de catálogo usam uma versão correspondente no YouTube. Use conteúdo que você tenha autorização para baixar.
+Os executáveis Windows não possuem assinatura Authenticode. O APK é assinado com a chave de produção ONDA. Consulte `VALIDACAO.md` para resultados, verificações e limites da rodada de preparação.
+
+O acesso às plataformas e a disponibilidade de metadados, capas e FLAC dependem de terceiros e podem exigir autenticação. A atualização não altera as regras de escolha de versões para download. Use conteúdo que você tenha autorização para baixar.

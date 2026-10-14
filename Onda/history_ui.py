@@ -1,3 +1,5 @@
+from i18n import tr
+from i18n_tk import TranslatedCombobox, display_var
 import os
 import queue
 import threading
@@ -25,22 +27,27 @@ class HistoryPane(ttk.Frame):
         self._size_trace = app.history_card_size.trace_add("write", lambda *_: self.refresh())
         self._search_after = None
         self.columnconfigure(0, weight=1)
-        self.rowconfigure(2, weight=1)
-        ttk.Label(self, text="Sua biblioteca de downloads.", font=("Segoe UI", 21, "bold"), anchor="center").grid(row=0, column=0, sticky="ew")
+        self.rowconfigure(3, weight=1)
+        ttk.Label(self, text=tr("Sua biblioteca de downloads."), font=("Segoe UI", 21, "bold"), anchor="center").grid(row=0, column=0, sticky="ew")
         search = ttk.Frame(self)
         search.grid(row=1, column=0, sticky="ew", pady=18)
         ttk.Entry(search, textvariable=self.query).pack(side="left", fill="x", expand=True)
-        ttk.Button(search, text="Pesquisar", command=self.refresh).pack(side="left", padx=8)
-        ttk.Button(search, text="Limpar histórico", command=self.clear).pack(side="right")
+        ttk.Button(search, text=tr("Pesquisar"), command=self.refresh).pack(side="left", padx=8)
         self.query.trace_add("write", lambda *_: self.schedule_search())
-        self.size_controls=ttk.Frame(search)
-        ttk.Label(self.size_controls,text="Cards",style="Muted.TLabel").pack(side="left",padx=(8,4))
-        ttk.Combobox(self.size_controls,textvariable=app.history_card_size,values=("Pequeno","Médio","Grande"),state="readonly",width=8).pack(side="left",padx=(0,8))
+        toolbar=ttk.Frame(self)
+        toolbar.grid(row=2,column=0,pady=(0,12))
+        ttk.Button(toolbar,text=tr("Limpar histórico"),style="Quiet.TButton",command=self.clear).pack(side="left",padx=4)
+        TranslatedCombobox(toolbar,textvariable=app.history_view,values=("Compacto","Completa"),state="readonly",width=10).pack(side="left",padx=4)
+        self.size_controls=ttk.Frame(toolbar)
+        ttk.Label(self.size_controls,text=tr("Cards"),style="Muted.TLabel").pack(side="left",padx=(8,4))
+        TranslatedCombobox(self.size_controls,textvariable=app.history_card_size,values=("Pequeno","Médio","Grande"),state="readonly",width=8).pack(side="left",padx=(0,8))
         panel = self.panel = ttk.Frame(self)
-        panel.grid(row=2, column=0, sticky="nsew")
+        panel.grid(row=3, column=0, sticky="nsew")
         self.table = ttk.Treeview(panel, columns=("name", "mode", "date"), show="headings", selectmode="browse")
+        from list_context import bind_history
+        bind_history(self)
         for key, label, width in (("name", "ARQUIVO", 480), ("mode", "FORMATO", 100), ("date", "DATA", 200)):
-            self.table.heading(key, text=label)
+            self.table.heading(key, text=tr(label))
             self.table.column(key, width=width, minwidth=80, stretch=key == "name")
         self.table.pack(side="left", fill="both", expand=True)
         scroll = ttk.Scrollbar(panel, command=self.table.yview)
@@ -48,13 +55,13 @@ class HistoryPane(ttk.Frame):
         self.table.configure(yscrollcommand=scroll.set)
         self.table.bind("<Double-1>", lambda _: self.open())
         controls = ttk.Frame(self)
-        controls.grid(row=3, column=0, sticky="ew", pady=16)
-        ttk.Button(controls, text="Abrir arquivo", command=self.open).pack(side="left")
-        ttk.Button(controls, text="Abrir pasta", command=lambda: self.open(True)).pack(side="left", padx=8)
-        ttk.Button(controls, text="Usar nos efeitos", style="Accent.TButton", command=self.effects).pack(side="right")
-        ttk.Button(controls,text="Editar áudio / letra",command=self.edit_audio).pack(side="left",padx=4)
+        controls.grid(row=4, column=0, sticky="ew", pady=16)
+        ttk.Button(controls, text=tr("Abrir arquivo"), command=self.open).pack(side="left")
+        ttk.Button(controls, text=tr("Abrir pasta"), command=lambda: self.open(True)).pack(side="left", padx=8)
+        ttk.Button(controls, text=tr("Usar nos efeitos"), style="Accent.TButton", command=self.effects).pack(side="right")
+        ttk.Button(controls,text=tr("Editar áudio / letra"),command=self.edit_audio).pack(side="left",padx=4)
         self.status = tk.StringVar()
-        ttk.Label(self, textvariable=self.status, style="Muted.TLabel").grid(row=4, column=0, sticky="w")
+        ttk.Label(self, textvariable=display_var(self.status), style="Muted.TLabel").grid(row=5, column=0, sticky="w")
         self.cards = ttk.Frame(self)
         self.cards.columnconfigure(0,weight=1)
         self.refresh()
@@ -104,7 +111,7 @@ class HistoryPane(ttk.Frame):
         if view == "Completa":
             self.size_controls.pack(side="right")
             self.panel.grid_remove()
-            self.cards.grid(row=2,column=0,sticky="nsew")
+            self.cards.grid(row=3,column=0,sticky="nsew")
             self.render_cards()
         else:
             self.size_controls.pack_forget()
@@ -126,24 +133,25 @@ class HistoryPane(ttk.Frame):
         for index,(key,row) in enumerate(rows):
             card=ttk.Frame(self.cards,style="Card.TFrame",padding=padding)
             card.grid(row=index,column=0,sticky="ew",pady=(0,10));card.columnconfigure(1,weight=1)
-            cover=ttk.Label(card,text="♫",style="Card.TLabel",width=12,anchor="center")
+            cover=ttk.Label(card,text=tr("♫"),style="Card.TLabel",width=12,anchor="center")
             cover.grid(row=0,column=0,rowspan=4,padx=(0,14))
             title=ttk.Label(card,text=row['name'],style="Card.TLabel",font=("Segoe UI",title_size,"bold"),wraplength=600)
             title.grid(row=0,column=1,sticky="w")
-            artist=ttk.Label(card,text="Carregando informações…",style="Card.TLabel",font=("Segoe UI",artist_size))
+            artist=ttk.Label(card,text=tr("Carregando informações…"),style="Card.TLabel",font=("Segoe UI",artist_size))
             artist.grid(row=1,column=1,sticky="w",pady=4)
             details=ttk.Label(card,style="CardMuted.TLabel",wraplength=600)
             details.grid(row=2,column=1,sticky="w")
-            ttk.Label(card,text=f"{row['mode']} · Baixado em {row['date'][:19].replace('T',' ')}",style="CardMuted.TLabel").grid(row=3,column=1,sticky="w",pady=(6,0))
+            ttk.Label(card,text=tr(f"{row['mode']} · Baixado em {row['date'][:19].replace('T',' ')}"),style="CardMuted.TLabel").grid(row=3,column=1,sticky="w",pady=(6,0))
             actions=ttk.Frame(card,style="Card.TFrame");actions.grid(row=4,column=0,columnspan=2,sticky="ew",pady=(10,0))
             for label,action in (("Abrir arquivo",self.open),("Abrir pasta",lambda:self.open(True)),("Editar metadados",self.edit_audio),("Usar nos efeitos",self.effects)):
-                ttk.Button(actions,text=label,command=lambda key=key,action=action:self.card_action(key,action)).pack(side="left",padx=(0,6))
-            ttk.Radiobutton(actions,text="Selecionar música",variable=self._selected_card,value=key,command=lambda key=key:self.select_card(key)).pack(side="right")
+                ttk.Button(actions,text=tr(label),command=lambda key=key,action=action:self.card_action(key,action)).pack(side="left",padx=(0,6))
+            ttk.Radiobutton(actions,text=tr("Selecionar música"),variable=self._selected_card,value=key,command=lambda key=key:self.select_card(key)).pack(side="right")
             for widget in (card,cover,title,artist,details):
                 widget.bind("<Button-1>",lambda _,key=key:self.select_card(key))
+            self.table._list_context.card(card,key)
             self._cards[key]=(cover,title,artist,details)
         if len(rows)<len(self.rows):
-            ttk.Button(self.cards,text="Mostrar mais",command=self.more_cards).grid(row=len(rows),column=0,pady=10)
+            ttk.Button(self.cards,text=tr("Mostrar mais"),command=self.more_cards).grid(row=len(rows),column=0,pady=10)
         self.app.theme_manager.walk(self.cards)
         self.highlight_cards()
         def worker():
@@ -197,8 +205,8 @@ class HistoryPane(ttk.Frame):
             if generation!=self._generation or key not in self._cards:continue
             cover,title,artist,details=self._cards[key]
             if data.get('title'):title.configure(text=data['title'])
-            artist.configure(text='; '.join(data.get('artists') or []) or 'Artista não informado')
-            details.configure(text=detail_lines(data))
+            artist.configure(text='; '.join(data.get('artists') or []) or tr('Artista não informado'))
+            details.configure(text=detail_lines(data, translate=tr))
             if data.get('cover'):
                 import base64,io
                 from PIL import Image,ImageTk
@@ -206,7 +214,7 @@ class HistoryPane(ttk.Frame):
                 with Image.open(io.BytesIO(base64.b64decode(data['cover']))) as image:
                     image.thumbnail((side,side))
                     cover._history_image=ImageTk.PhotoImage(image.copy(),master=cover)
-                cover.configure(image=cover._history_image,text="",width=0)
+                cover.configure(image=cover._history_image,text=tr(""),width=0)
         if not self._closed:self._poll_id=self.after(100,self.poll_cards)
 
     def current(self):
@@ -247,6 +255,6 @@ class HistoryPane(ttk.Frame):
             except Exception as error:self.status.set(str(error))
 
     def clear(self):
-        if messagebox.askyesno("Histórico", "Remover os registros do histórico? Os arquivos serão preservados.", parent=self.app):
+        if messagebox.askyesno(tr("Histórico"), tr("Remover os registros do histórico? Os arquivos serão preservados."), parent=self.app):
             self.app.library.clear_history()
             self.refresh()

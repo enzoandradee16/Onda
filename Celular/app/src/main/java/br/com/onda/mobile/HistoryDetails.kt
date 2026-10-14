@@ -75,15 +75,19 @@ internal fun cachedHistoryDetails(context:Context,item:HistoryItem,revision:Long
     }
     Row(Modifier.fillMaxWidth().padding(bottom=if(small) 6.dp else 12.dp).testTag("history-complete-${item.id}"),horizontalArrangement=Arrangement.spacedBy(if(small) 8.dp else 12.dp)) {
         val cover=details?.cover
-        if(cover!=null) Image(cover.asImageBitmap(),"Capa do álbum",Modifier.size(side),contentScale=ContentScale.Fit)
+        if(cover!=null) Image(cover.asImageBitmap(),translateUi("Capa do álbum",LocalUiLanguage.current),Modifier.size(side),contentScale=ContentScale.Fit)
         else Surface(Modifier.size(side),color=MaterialTheme.colorScheme.surfaceVariant) {
-            Box(contentAlignment=androidx.compose.ui.Alignment.Center) {Text("♫",style=MaterialTheme.typography.headlineLarge)}
+            Box(contentAlignment=androidx.compose.ui.Alignment.Center) {UiText("♫",style=MaterialTheme.typography.headlineLarge)}
         }
         Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(4.dp)) {
             Text(details?.title?.ifBlank {item.title} ?: item.title,style=if(small) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold)
-            Text(details?.artist?.ifBlank {"Artista não informado"} ?: "Carregando informações…",style=if(small) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyLarge)
-            if(small) details?.lines?.takeIf {it.isNotEmpty()}?.let {Text(it.joinToString(" · "),style=MaterialTheme.typography.bodySmall)}
-            else details?.lines?.forEach {Text(it,style=MaterialTheme.typography.bodySmall)}
+            Text(details?.artist?.takeIf {it.isNotBlank()} ?: translateUi(if(details==null) "Carregando informações…" else "Artista não informado",LocalUiLanguage.current),style=if(small) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyLarge)
+            val translatedLines=details?.lines?.map {line->
+                val split=line.indexOf(": ")
+                if(split>=0) translateUi(line.substring(0,split),LocalUiLanguage.current)+line.substring(split) else translateUi(line,LocalUiLanguage.current)
+            }
+            if(small) translatedLines?.takeIf {it.isNotEmpty()}?.let {UiText(it.joinToString(" · "),style=MaterialTheme.typography.bodySmall)}
+            else translatedLines?.forEach {UiText(it,style=MaterialTheme.typography.bodySmall)}
         }
     }
 }
