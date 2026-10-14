@@ -28,6 +28,7 @@ class LauncherIconTest {
                 for(accent in accents.keys) {
                     val settings=JSONObject(before.toString()).put("theme",theme).put("accent",accent)
                     LauncherIcons.sync(context,settings)
+                    LauncherIcons.applyPending(context)
                     assertEquals("$theme / $accent",listOf(LauncherIcons.aliasFor(context,settings)),LauncherIcons.enabledAliases(context))
                     assertNotEquals(PackageManager.COMPONENT_ENABLED_STATE_DISABLED,context.packageManager.getComponentEnabledSetting(ComponentName(context,MainActivity::class.java)))
                     assertEquals("ONDA",context.packageManager.getActivityInfo(LauncherIcons.aliasFor(context,settings),0).loadLabel(context.packageManager).toString())
@@ -35,7 +36,7 @@ class LauncherIconTest {
             }
             val invalid=JSONObject().put("theme","invalid").put("accent","invalid")
             assertTrue(LauncherIcons.aliasFor(context,invalid).className.endsWith("LauncherSystemAqua"))
-        } finally {LauncherIcons.sync(context,before)}
+        } finally {LauncherIcons.sync(context,before);LauncherIcons.applyPending(context)}
     }
 
     @Test fun actualDrawableColorsMatchAccentAndAppearanceIncludingSystemNight() {
@@ -73,7 +74,7 @@ class LauncherIconTest {
                         val value=JSONObject(before.toString()).put("theme",theme).put("accent","Rosa")
                         OndaStore.saveSettings(value)
                         LauncherIcons.updateTaskIcon(activity,value,theme!="Claro")
-                        val description=activity.getSystemService(android.app.ActivityManager::class.java).appTasks.first().taskInfo.taskDescription ?: error("Missing task description")
+                        val description=activity.getSystemService(android.app.ActivityManager::class.java).appTasks.first {it.taskInfo.taskId==activity.taskId}.taskInfo.taskDescription ?: error("Missing task description")
                         assertEquals("ONDA",description.label)
                         val expected=when(theme){"Claro"->lightColorScheme().surface.toArgb();"Preto puro"->android.graphics.Color.BLACK;else->0xFF161E29.toInt()}
                         assertEquals(expected,description.primaryColor)
@@ -82,7 +83,7 @@ class LauncherIconTest {
                     }
                 }
             }
-        } finally {OndaStore.saveSettings(before)}
+        } finally {OndaStore.saveSettings(before);LauncherIcons.applyPending(context)}
     }
 
     @Suppress("DEPRECATION")
@@ -91,14 +92,46 @@ class LauncherIconTest {
         try {
             val changed=JSONObject(before.toString()).put("theme","Preto puro").put("accent","Rosa")
             OndaStore.saveSettings(changed)
+            LauncherIcons.applyPending(context)
             assertEquals(listOf(LauncherIcons.aliasFor(context,changed)),LauncherIcons.enabledAliases(context))
             val desired=LauncherIcons.aliasFor(context,changed)
             LauncherIcons.sync(context,changed)
+            LauncherIcons.applyPending(context)
             assertEquals(listOf(desired),LauncherIcons.enabledAliases(context))
             val share=Intent(Intent.ACTION_SEND).setType("text/plain").setPackage(context.packageName)
             assertTrue(context.packageManager.queryIntentActivities(share,0).any {it.activityInfo.name==MainActivity::class.java.name})
             val callback=Intent(Intent.ACTION_VIEW,android.net.Uri.parse("onda://spotify-return")).addCategory(Intent.CATEGORY_BROWSABLE).setPackage(context.packageName)
             assertTrue(context.packageManager.queryIntentActivities(callback,0).any {it.activityInfo.name==MainActivity::class.java.name})
-        } finally {OndaStore.saveSettings(before)}
+        } finally {OndaStore.saveSettings(before);LauncherIcons.applyPending(context)}
     }
+    @Test fun themeAndAccentChangesKeepTheLaunchingAliasEnabledWhileVisible() {
+        val before=JSONObject(OndaStore.settings.value.toString())
+        try {
+            LauncherIcons.sync(context,before);LauncherIcons.applyPending(context)
+            val launching=LauncherIcons.aliasFor(context,before)
+            val intent=Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+                .setComponent(launching).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+            androidx.test.core.app.ActivityScenario.launch<MainActivity>(intent).use {scenario->
+                for((theme,accent) in listOf("Claro" to "Azul","Escuro" to "Rosa","Preto puro" to "Dourado","Seguir o sistema" to "Verde-Água")) {
+                    scenario.onActivity {activity->
+                        val enabled=LauncherIcons.enabledAliases(context)
+                        OndaStore.saveSettings(JSONObject(before.toString()).put("theme",theme).put("accent",accent))
+                        LauncherIcons.applyPending(context)
+                        assertEquals("No launcher mutation while visible",enabled,LauncherIcons.enabledAliases(context))
+                        assertTrue(LauncherIcons.enabledAliases(context).contains(launching))
+                        assertFalse(activity.isFinishing)
+                    }
+                    android.os.SystemClock.sleep(600)
+                    scenario.onActivity {assertFalse(it.isFinishing);assertFalse(it.isDestroyed)}
+                }
+                scenario.moveToState(androidx.lifecycle.Lifecycle.State.STARTED)
+                scenario.moveToState(androidx.lifecycle.Lifecycle.State.RESUMED)
+                android.os.SystemClock.sleep(600)
+                scenario.onActivity {assertTrue(LauncherIcons.enabledAliases(context).contains(launching));assertFalse(it.isFinishing)}
+            }
+            android.os.SystemClock.sleep(700)
+            assertEquals(listOf(LauncherIcons.aliasFor(context,OndaStore.settings.value)),LauncherIcons.enabledAliases(context))
+        } finally {OndaStore.saveSettings(before);LauncherIcons.applyPending(context)}
+    }
+
 }

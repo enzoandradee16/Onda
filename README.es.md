@@ -8,7 +8,7 @@ ONDA nació como un proyecto personal, creado inicialmente para mí y mis amigos
 
 El proyecto sigue en desarrollo. Las sugerencias, contribuciones e informes de errores son bienvenidos.
 
-**Versión 1.1.0 para Windows 10 o superior (x64) y Android 8 o superior (ARM64).**
+**Versión 1.1.1 para Windows 10 o superior (x64) y Android 8 o superior (ARM64).**
 
 ![ONDA en Windows: descargas en curso — tema oscuro](docs/images/pc/es/downloads-escuro.png)
 
@@ -29,7 +29,7 @@ Los ejecutables de Windows no tienen firma digital. Windows puede mostrar un avi
 
 ## Idioma
 
-La versión 1.1.0 incluye **Português (Brasil)**, **Español** y **English**, en ese orden, en **Configuración → General → Idioma**. Los paquetes 1.1.0 están preparados localmente; publicarlos en GitHub es un paso aparte. Portugués sigue siendo el idioma predeterminado. El nombre **ONDA** se conserva en todos los idiomas. Ambas interfaces usan el mismo catálogo de traducción. En Android, el cambio es inmediato; en Windows, reinicia la aplicación. La elección se conserva aunque “Recordar configuración” esté desactivado. Los nombres de canciones, artistas, álbumes y archivos permanecen originales.
+La versión 1.1.1 incluye **Português (Brasil)**, **Español** y **English**, en ese orden, en **Configuración → General → Idioma**. Los paquetes 1.1.1 están preparados localmente; publicarlos en GitHub es un paso aparte. Portugués sigue siendo el idioma predeterminado. El nombre **ONDA** se conserva en todos los idiomas. Ambas interfaces usan el mismo catálogo de traducción. En Android, el cambio es inmediato; en Windows, reinicia la aplicación. La elección se conserva aunque “Recordar configuración” esté desactivado. Los nombres de canciones, artistas, álbumes y archivos permanecen originales.
 
 En Android, el icono de la pantalla de inicio y de aplicaciones recientes sigue el color de acento y los modos claro, oscuro, negro puro o del sistema. Algunos launchers pueden tardar en actualizar el icono o requerir volver a crear un acceso directo antiguo.
 

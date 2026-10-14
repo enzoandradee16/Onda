@@ -1,6 +1,10 @@
 package br.com.onda.mobile
 
 import android.app.Activity
+import android.app.Application
+import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.app.ActivityManager
 import android.content.ComponentName
 import android.content.Context
@@ -33,7 +37,39 @@ internal object LauncherIcons {
         "Lilás" to "Lilac",
         "Coral" to "Coral",
         "Cinza" to "Gray")
-    private var activeName:String?=null
+    private var pending:ComponentName?=null
+    private var startedActivities=0
+    private var registered=false
+    private val handler=Handler(Looper.getMainLooper())
+    private var backgroundChange:Runnable?=null
+
+    fun initialize(application:Application) {
+        if(registered)return
+        registered=true
+        application.registerActivityLifecycleCallbacks(object:Application.ActivityLifecycleCallbacks {
+            override fun onActivityStarted(activity:Activity) {
+                synchronized(this@LauncherIcons) {
+                    startedActivities++
+                    backgroundChange?.let {handler.removeCallbacks(it)}
+                    backgroundChange=null
+                }
+            }
+            override fun onActivityStopped(activity:Activity) {
+                synchronized(this@LauncherIcons) {
+                    startedActivities=(startedActivities-1).coerceAtLeast(0)
+                    if(startedActivities==0 && !activity.isChangingConfigurations) {
+                        backgroundChange?.let {handler.removeCallbacks(it)}
+                        backgroundChange=Runnable {applyPending(application)}.also {handler.postDelayed(it,400)}
+                    }
+                }
+            }
+            override fun onActivityCreated(activity:Activity,state:Bundle?) {}
+            override fun onActivityResumed(activity:Activity) {}
+            override fun onActivityPaused(activity:Activity) {}
+            override fun onActivitySaveInstanceState(activity:Activity,state:Bundle) {}
+            override fun onActivityDestroyed(activity:Activity) {}
+        })
+    }
     private val taskIcons=WeakHashMap<Activity,String>()
 
     internal fun aliasFor(context:Context,settings:JSONObject):ComponentName {
@@ -48,8 +84,15 @@ internal object LauncherIcons {
     ).map {ComponentName(it.activityInfo.packageName,it.activityInfo.name)}
 
     @Synchronized fun sync(context:Context,settings:JSONObject) {
-        val desired=aliasFor(context,settings)
-        if(activeName==desired.className)return
+        // Disabling the alias which launched a visible task can finish that task,
+        // even with DONT_KILL_APP on some launchers. Keep all component changes
+        // out of the foreground; internal and recent-app icons update immediately.
+        pending=aliasFor(context,settings)
+    }
+
+    @Synchronized internal fun applyPending(context:Context) {
+        if(startedActivities>0)return
+        val desired=pending ?: return
         try {
             val pm=context.packageManager
             val enabled=enabledAliases(context)
@@ -68,7 +111,7 @@ internal object LauncherIcons {
                     }
                 }
             }
-            activeName=desired.className
+            pending=null
         } catch(error:RuntimeException) {
             android.util.Log.w("ONDA","Could not update launcher icon",error)
         }

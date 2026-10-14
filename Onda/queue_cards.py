@@ -100,7 +100,7 @@ class QueueCards(ttk.Frame):
 
     def select(self,key,selected):
         (self.app.tree.selection_add if selected else self.app.tree.selection_remove)(key)
-        self.focus_set();self.app.refresh_queue();self.refresh()
+        self.focus_set();self.app.refresh_queue()
 
     def remove_selected(self):
         self.app.remove();return 'break'

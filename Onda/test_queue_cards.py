@@ -12,6 +12,15 @@ class QueueCardsTests(unittest.TestCase):
         self.app.destroy();self.env.stop();self.folder.cleanup()
         from i18n import set_language
         set_language('pt-BR')
+    def test_card_selection_refreshes_visible_rows_once(self):
+        key=self.app.add(lines=['https://example.com/song'])[0]
+        self.app.queue_view.set('Completa')
+        cards=self.app.queue_cards
+        with patch.object(cards,'refresh',wraps=cards.refresh) as refresh:
+            cards.select(key,True)
+            self.assertEqual(refresh.call_count,1)
+        self.assertIn(key,self.app.tree.selection())
+
     def test_cards_resize_select_update_and_keep_compact_model(self):
         app=self.app
         keys=app.add(lines=['https://youtu.be/abcdefghijk','https://youtu.be/lmnopqrstuv'])

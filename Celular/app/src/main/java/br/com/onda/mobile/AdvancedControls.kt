@@ -1,6 +1,5 @@
 package br.com.onda.mobile
 
-import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -11,6 +10,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.json.JSONObject
 import java.io.File
@@ -70,13 +72,13 @@ import java.io.File
     val updater=remember {InAppUpdate(OndaStore.context)}
     var download by remember {mutableStateOf(UpdateDownload())}
     val language=LocalUiLanguage.current
-    LaunchedEffect(updater) {
-        while(true) {
-            download=runCatching {updater.state()}.getOrDefault(UpdateDownload(android.app.DownloadManager.STATUS_FAILED))
-            kotlinx.coroutines.delay(700)
+    val lifecycleOwner=LocalLifecycleOwner.current
+    LaunchedEffect(updater,lifecycleOwner,download.status) {
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            pollUpdateDownload(updater::state,{download=it})
         }
     }
-    val downloading=download.status in listOf(android.app.DownloadManager.STATUS_PENDING,android.app.DownloadManager.STATUS_RUNNING,android.app.DownloadManager.STATUS_PAUSED)
+    val downloading=download.inProgress
     if(downloading) {
         UiText("Baixando atualização do ONDA")
         if(download.total>0) {

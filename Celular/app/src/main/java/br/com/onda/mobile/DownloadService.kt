@@ -9,9 +9,13 @@ import kotlinx.coroutines.*
 
 fun downloadNotification(context:Context,text:String,percent:Int?):Notification {
     val manager=context.getSystemService(NotificationManager::class.java)
-    val channel=manager.getNotificationChannel("downloads") ?: NotificationChannel("downloads",translateUi("Downloads do ONDA"),NotificationManager.IMPORTANCE_LOW)
-    channel.name=translateUi("Downloads do ONDA")
-    manager.createNotificationChannel(channel)
+    val channelName=translateUi("Downloads do ONDA")
+    val existingChannel=manager.getNotificationChannel("downloads")
+    if(existingChannel==null || existingChannel.name.toString()!=channelName) {
+        val channel=existingChannel ?: NotificationChannel("downloads",channelName,NotificationManager.IMPORTANCE_LOW)
+        channel.name=channelName
+        manager.createNotificationChannel(channel)
+    }
     val open=PendingIntent.getActivity(context,0,Intent(context,MainActivity::class.java),PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
     val stop=PendingIntent.getService(context,1,Intent(context,DownloadService::class.java).setAction("stop"),PendingIntent.FLAG_IMMUTABLE)
     return NotificationCompat.Builder(context,"downloads").setSmallIcon(R.drawable.ic_onda_notification).setContentTitle("ONDA")

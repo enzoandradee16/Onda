@@ -13,3 +13,8 @@ Testes instrumentados conferem as 64 combinações de tema/destaque, pixels das 
 Implementação: LauncherIcons.kt, recursos launcher_wave_*, ic_onda_launcher_* e launcher_colors.xml. Ao alterar a paleta em MainActivity.kt, mantenha os recursos equivalentes e execute LauncherIconTest.
 
 Referência de plataforma: [activity-alias — Android Developers](https://developer.android.com/guide/topics/manifest/activity-alias-element).
+
+
+## Troca sem fechar a tela
+
+O tema e os ícones internos/recentes mudam imediatamente. O ícone da tela inicial é atualizado quando o ONDA fica em segundo plano. As mudanças de componentes do launcher não são aplicadas enquanto há uma Activity visível, evitando desativar o atalho pelo qual a tela atual foi aberta. Mudanças rápidas de tema/cor são agrupadas; apenas a última escolha é aplicada. Voltar ao app cancela a aplicação pendente até a próxima saída para segundo plano.

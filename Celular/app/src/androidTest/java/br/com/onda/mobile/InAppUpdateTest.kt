@@ -64,4 +64,26 @@ class InAppUpdateTest {
         } finally {updater.cancel()}
     }
 
+    @Test fun pollingStopsAfterCompletionAndSkipsWaitingForTerminalStates() = kotlinx.coroutines.runBlocking {
+        for(status in listOf(0,android.app.DownloadManager.STATUS_SUCCESSFUL,android.app.DownloadManager.STATUS_FAILED)) {
+            var reads=0
+            pollUpdateDownload({reads++;UpdateDownload(status)},{assertEquals(status,it.status)},{error("Terminal state must not keep polling")})
+            assertEquals(1,reads)
+        }
+        val states=java.util.ArrayDeque(listOf(UpdateDownload(android.app.DownloadManager.STATUS_PENDING),UpdateDownload(android.app.DownloadManager.STATUS_RUNNING),UpdateDownload(android.app.DownloadManager.STATUS_SUCCESSFUL)))
+        var published=0;var waits=0
+        pollUpdateDownload({states.removeFirst()},{published++},{waits++})
+        assertEquals(3,published);assertEquals(2,waits)
+    }
+    @Test fun pollingRetainsCancellationAndStopsAfterReadFailure() = kotlinx.coroutines.runBlocking {
+        var published:UpdateDownload?=null
+        pollUpdateDownload({throw IllegalStateException("Download service unavailable")},{published=it},{error("No retry loop on failure")})
+        assertEquals(android.app.DownloadManager.STATUS_FAILED,published!!.status)
+        var cancelled=false
+        try {
+            pollUpdateDownload({UpdateDownload(android.app.DownloadManager.STATUS_RUNNING)},{},{throw kotlinx.coroutines.CancellationException("Activity stopped")})
+        } catch(_:kotlinx.coroutines.CancellationException) {cancelled=true}
+        assertTrue(cancelled)
+    }
+
 }

@@ -12,6 +12,25 @@ import java.io.File
 
 internal data class UpdateDownload(val status:Int=0,val bytes:Long=0,val total:Long=0)
 
+internal val UpdateDownload.inProgress:Boolean get()=when(status) {
+    DownloadManager.STATUS_PENDING,DownloadManager.STATUS_RUNNING,DownloadManager.STATUS_PAUSED->true
+    else->false
+}
+
+internal suspend fun pollUpdateDownload(read:()->UpdateDownload,publish:(UpdateDownload)->Unit,pause:suspend ()->Unit={kotlinx.coroutines.delay(700)}) {
+    while(true) {
+        val state=kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            try {read()} catch(error:Exception) {
+                if(error is kotlinx.coroutines.CancellationException)throw error
+                UpdateDownload(DownloadManager.STATUS_FAILED)
+            }
+        }
+        publish(state)
+        if(!state.inProgress)return
+        pause()
+    }
+}
+
 internal class InAppUpdate(private val context:Context) {
     private val manager=context.getSystemService(DownloadManager::class.java)
     private val prefs=context.getSharedPreferences("app-update",Context.MODE_PRIVATE)

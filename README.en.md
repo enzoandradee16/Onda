@@ -8,7 +8,7 @@ ONDA started as a personal project, initially made for me and my friends. I deci
 
 The project is still in development. Suggestions, contributions and bug reports are welcome.
 
-**Version 1.1.0 for Windows 10 or later (x64) and Android 8 or later (ARM64).**
+**Version 1.1.1 for Windows 10 or later (x64) and Android 8 or later (ARM64).**
 
 ![ONDA on Windows: downloads in progress — pure black theme](docs/images/pc/en/downloads-preto-puro.png)
 
@@ -29,7 +29,7 @@ The Windows executables are not digitally signed. Windows may show a reputation 
 
 ## Language
 
-Version 1.1.0 includes **Português (Brasil)**, **Español** and **English**, in that order, under **Settings → General → Language**. The 1.1.0 packages are prepared locally; publishing them on GitHub is a separate step. Portuguese remains the default language. The name **ONDA** stays the same in every language. Both interfaces use the same translation catalog. The change takes effect immediately on Android; on Windows, restart the app. Your choice is saved even when “Remember settings” is disabled. Song, artist, album and file names remain unchanged.
+Version 1.1.1 includes **Português (Brasil)**, **Español** and **English**, in that order, under **Settings → General → Language**. The 1.1.1 packages are prepared locally; publishing them on GitHub is a separate step. Portuguese remains the default language. The name **ONDA** stays the same in every language. Both interfaces use the same translation catalog. The change takes effect immediately on Android; on Windows, restart the app. Your choice is saved even when “Remember settings” is disabled. Song, artist, album and file names remain unchanged.
 
 On Android, the home-screen and recent-apps icons follow the accent color and light, dark, pure black or system appearance. Some launchers may take time to refresh the icon or require recreating an older shortcut.
 

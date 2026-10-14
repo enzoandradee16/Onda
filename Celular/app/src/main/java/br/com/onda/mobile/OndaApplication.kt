@@ -22,6 +22,7 @@ class OndaApplication : Application(), coil.ImageLoaderFactory {
 
     override fun onCreate() {
         super.onCreate()
+        LauncherIcons.initialize(this)
         SecureVault.initialize(this)
         OndaStore.initialize(this)
         LauncherIcons.sync(this,OndaStore.settings.value)

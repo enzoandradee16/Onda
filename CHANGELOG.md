@@ -1,5 +1,11 @@
 # Histórico de versões
 
+## 1.1.1 — 2026-10-14
+
+- **Correção de tema Android:** a troca do ícone da tela inicial é concluída em segundo plano, preservando a tela aberta ao alterar tema ou cor de destaque.
+
+- **Otimização:** menos consultas de atualização e de prévia Android em segundo plano; canal de notificações reconfigurado apenas quando necessário; removidas atualizações e imports redundantes no PC.
+
 ## 1.1.0 — 2026-10-14
 
 Preparação local da atualização; publicação no GitHub separada.

@@ -27,7 +27,6 @@ def executable(name, folder=""):
 
 
 def media_args():
-    import os
     return {"creationflags": subprocess.CREATE_NO_WINDOW} if os.name == "nt" else {}
 
 

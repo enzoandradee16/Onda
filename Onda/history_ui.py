@@ -107,7 +107,6 @@ class HistoryPane(ttk.Frame):
             self.table.insert("", "end", iid=key, values=(row["name"], row["mode"], row["date"][:19].replace("T", " ")))
         if selected and selected[0] in self.rows:
             self.table.selection_set(selected[0])
-        self.status.set(f"{len(self.rows)} registros · até 1000 resultados por pesquisa.")
         if view == "Completa":
             self.size_controls.pack(side="right")
             self.panel.grid_remove()
