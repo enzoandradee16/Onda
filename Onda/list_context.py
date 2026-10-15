@@ -123,7 +123,7 @@ def bind_history(page):
         row=page.rows.get(keys[0],{}) if keys else {}
         available=bool(row.get("path")) and Path(row["path"]).is_file()
         return [action("Abrir arquivo",page.open,available),action("Abrir pasta",lambda:page.open(True),available),
-                action("Editar áudio / letra",page.edit_audio,available),action("Usar nos efeitos",page.effects,available),None,
+                action("Editar áudio / letra",page.edit_audio,available),action("Editar metadados em lote",page.edit_batch,bool(keys)),action("Usar nos efeitos",page.effects,available),None,
                 action("Copiar caminho",lambda:copy_text(page.table,row.get("path","")),bool(row)),action("Limpar histórico",page.clear,bool(page.rows)),*display_actions(page.app.history_view,page.app.history_card_size)]
     def changed():
         keys=page.table.selection()

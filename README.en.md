@@ -10,13 +10,21 @@ ONDA started as a personal project, initially made for me and my friends. I deci
 
 The project is still in development. Suggestions, contributions and bug reports are welcome.
 
-**Version 1.1.1 for Windows 10 or later (x64) and Android 8 or later (ARM64).**
+**Version 1.1.2 for Windows 10 or later (x64) and Android 8 or later (ARM64).**
 
 ![ONDA on Windows: downloads in progress — pure black theme](docs/images/pc/en/downloads-preto-puro.png)
 
 On Android, updates can download within ONDA, with progress and background continuation. When finished, tap Install update; the first time, allow installation from ONDA in Android settings. The system asks for confirmation and your data is preserved.
 
 On PC, right-click lists or cards to open the actions available in that tab. Shift+F10 and the menu key also open these options; an existing multiple selection is preserved when clicking one of its selected items.
+
+## Library and organization
+
+- Detects repeated links in the queue with the same format and options, and in history with the same format. Recognizes short links, locale paths and sharing parameters from Spotify, YouTube and Deezer; asks before adding again. Detection can be disabled in Settings → Downloads. Different playlists, formats and conversions remain independent.
+- Batch edits metadata from multiple local files or a multiple selection in History. Select the fields to change and optionally apply a common cover. Unchecked fields are preserved. Copies are created by default; replacing originals requires confirmation. Each file is saved separately and failures are reported at the end.
+- Offers folders by album, artist/year/album, genre/artist/album and format/artist/album, alongside the existing options. File names can include track number, artist, track title and disc number. Settings shows a preview. Playlist folders are preserved and missing track numbers are omitted.
+
+On Android, source identification in history is recorded for new downloads; older entries without a source link are not identified solely by their file names. Detection does not compare audio or treat similar titles as proof of duplication.
 
 ## Download and launch
 
@@ -31,7 +39,7 @@ The Windows executables are not digitally signed. Windows may show a reputation 
 
 ## Language
 
-Version 1.1.1 includes **Português (Brasil)**, **Español** and **English**, in that order, under **Settings → General → Language**. The 1.1.1 packages are prepared locally; publishing them on GitHub is a separate step. Portuguese remains the default language. The name **ONDA** stays the same in every language. Both interfaces use the same translation catalog. The change takes effect immediately on Android; on Windows, restart the app. Your choice is saved even when “Remember settings” is disabled. Song, artist, album and file names remain unchanged.
+Version 1.1.2 includes **Português (Brasil)**, **Español** and **English**, in that order, under **Settings → General → Language**. The 1.1.2 packages are prepared locally; publishing them on GitHub is a separate step. Portuguese remains the default language. The name **ONDA** stays the same in every language. Both interfaces use the same translation catalog. The change takes effect immediately on Android; on Windows, restart the app. Your choice is saved even when “Remember settings” is disabled. Song, artist, album and file names remain unchanged.
 
 On Android, the home-screen and recent-apps icons follow the accent color and light, dark, pure black or system appearance. Some launchers may take time to refresh the icon or require recreating an older shortcut.
 

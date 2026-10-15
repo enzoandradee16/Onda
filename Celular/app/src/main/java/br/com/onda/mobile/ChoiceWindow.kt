@@ -40,7 +40,7 @@ import org.json.JSONObject
     }
     val candidates=event.optJSONArray("candidates")?.objects() ?: emptyList()
     val cancel={OndaStore.answer(JSONObject().put("cancel",true))}
-    AlertDialog(containerColor=ondaDialogContainerColor(),onDismissRequest=cancel,title={UiText(when(kind) {"choose_flac"->"FLAC pelo navegador";"choose_version"->"Qual versão você prefere?";"choose_catalog"->"Confirme os metadados";"choose_media"->"O que você quer baixar?";"choose_duplicate"->"Arquivo já existe";else->"Sua música, do seu jeito."})},text={
+    AlertDialog(containerColor=ondaDialogContainerColor(),onDismissRequest=cancel,title={UiText(when(kind) {"choose_flac"->"FLAC pelo navegador";"choose_version"->"Qual versão você prefere?";"choose_catalog"->"Confirme os metadados";"choose_media"->"O que você quer baixar?";"choose_queue_duplicate"->"Duplicatas detectadas";"choose_duplicate"->"Arquivo já existe";else->"Sua música, do seu jeito."})},text={
         Column(Modifier.fillMaxWidth().heightIn(max=500.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(8.dp)) {
             when(kind) {
                 "choose_flac"->{
@@ -68,6 +68,10 @@ import org.json.JSONObject
                     }
                     OutlinedTextField(cover,{cover=it},label={UiText("Capa · imagem inteira, sem cortes")},singleLine=true)
                     TextButton(onClick={pickCover()}){UiText("Escolher JPEG/PNG")}
+                }
+                "choose_queue_duplicate"->{
+                    Text(event.optString("path"))
+                    UiText("Este item já está na fila ou no histórico neste formato. Adicionar novamente?")
                 }
                 "choose_duplicate"->{UiText(event.optString("path").substringAfterLast('/'));listOf("keep" to "Manter ambos","replace" to "Substituir","skip" to "Pular").forEach {(value,label)->Toggle(label,value in selected){selected=setOf(value)}}}
                 else->{
@@ -103,7 +107,7 @@ import org.json.JSONObject
             }
             if(kind=="choose_version") PlayerControls(vm)
         }
-    },confirmButton={TextButton(enabled=kind in setOf("choose_flac","review_metadata") || selected.isNotEmpty(),onClick={
+    },confirmButton={TextButton(enabled=kind in setOf("choose_flac","review_metadata","choose_queue_duplicate") || selected.isNotEmpty(),onClick={
         if(kind=="choose_flac") {
             pickFlac.launch(arrayOf("audio/flac","audio/x-flac","application/octet-stream"))
             return@TextButton
@@ -112,10 +116,11 @@ import org.json.JSONObject
             "review_metadata"->{val changes=JSONObject().put("title",title).put("artists",JSONArray(artist.split(';').map {it.trim()}.filter {it.isNotBlank()})).put("album",album).put("cover_url",cover)
                 .put("release_date",date).put("genre",genre).put("track_number",track.toIntOrNull() ?: JSONObject.NULL).put("disc_number",disc.toIntOrNull() ?: JSONObject.NULL)
                 if(coverPath.isNotBlank()) changes.put("cover_path",coverPath);JSONObject().put("changes",changes)}
+            "choose_queue_duplicate"->JSONObject().put("add",true)
             "choose_duplicate"->JSONObject().put("choice",selected.first())
             "choose_media"->JSONObject().put("selected_ids",JSONArray(selected.toList())).put("media_modes",JSONObject(mediaModes.filterKeys {it in selected}))
             else->JSONObject().put("selected_id",selected.first())
         }
         OndaStore.answer(reply)
-    }){UiText(when(kind){"choose_flac"->"Selecionar FLAC baixado";"choose_version"->"Baixar esta versão";"choose_catalog"->"Usar estes metadados";"review_metadata"->"Confirmar e baixar";else->"Confirmar"})}},dismissButton={TextButton(onClick=cancel){UiText(if(kind=="review_metadata") "Cancelar download" else "Cancelar")}})
+    }){UiText(when(kind){"choose_queue_duplicate"->"Adicionar novamente";"choose_flac"->"Selecionar FLAC baixado";"choose_version"->"Baixar esta versão";"choose_catalog"->"Usar estes metadados";"review_metadata"->"Confirmar e baixar";else->"Confirmar"})}},dismissButton={TextButton(onClick=cancel){UiText(if(kind=="review_metadata") "Cancelar download" else "Cancelar")}})
 }

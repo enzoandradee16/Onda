@@ -539,25 +539,34 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
     val complete = settings.optString("history_view","Compacto") == "Completa"
     val cardSize=settings.optString("history_card_size","Grande")
 
-    var selectedHistory by rememberSaveable {mutableStateOf<Long?>(null)}
+    var selectedHistory by remember {mutableStateOf(setOf<Long>())}
+    var batchHistory by remember {mutableStateOf<List<String>?>(null)}
+    batchHistory?.let {sources->BatchMetadataEditor(vm,sources){batchHistory=null}}
+    val audioModes=setOf("mp3","m4a","flac","wav","ogg","opus")
     var filter by rememberSaveable {mutableStateOf("")}
     val visible=remember(history,filter) {history.filter {it.title.contains(filter,true)}}
     LazyColumn(Modifier.fillMaxSize().padding(horizontal=16.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
         item {PageTitle("Sua biblioteca de downloads.","Encontre, abra e compartilhe o que já baixou.")}
         item {OutlinedTextField(filter,{filter=it},label={UiText("Pesquisar no histórico")},modifier=Modifier.fillMaxWidth(),singleLine=true)}
         item {HistoryDisplayControls(settings)}
+        item {Row(Modifier.horizontalScroll(rememberScrollState())) {
+            TextButton(onClick={selectedHistory=visible.filter {it.mode.lowercase() in audioModes}.map {it.id}.toSet()}){UiText("Selecionar áudios visíveis")}
+            TextButton(onClick={selectedHistory=emptySet()}){UiText("Limpar seleção")}
+            TextButton(onClick={batchHistory=history.filter {it.id in selectedHistory && it.mode.lowercase() in audioModes}.map {it.uri}.distinct()},enabled=selectedHistory.isNotEmpty()){UiText("Editar metadados em lote")}
+        }}
         items(visible,key={it.id}) {item->ElevatedCard(Modifier.fillMaxWidth().testTag("history-card-${item.id}").then(
-            if(complete) Modifier.selectable(selected=selectedHistory==item.id,role=Role.RadioButton,onClick={selectedHistory=item.id})
-                .border(2.dp,if(selectedHistory==item.id) MaterialTheme.colorScheme.primary else Color.Transparent,MaterialTheme.shapes.medium)
+            if(complete) Modifier.toggleable(value=item.id in selectedHistory,role=Role.Checkbox,onValueChange={checked->selectedHistory=if(checked) selectedHistory+item.id else selectedHistory-item.id})
+                .border(2.dp,if(item.id in selectedHistory) MaterialTheme.colorScheme.primary else Color.Transparent,MaterialTheme.shapes.medium)
             else Modifier)) {Column(Modifier.padding(if(complete && cardSize=="Pequeno") 6.dp else if(complete && cardSize=="Médio") 9.dp else 12.dp)) {
             if(complete) {
                 Row(verticalAlignment=Alignment.CenterVertically) {
-                    RadioButton(selected=selectedHistory==item.id,onClick={selectedHistory=item.id})
-                    UiText(if(selectedHistory==item.id) "Música selecionada" else "Selecionar música")
+                    Checkbox(checked=item.id in selectedHistory,onCheckedChange={checked->selectedHistory=if(checked) selectedHistory+item.id else selectedHistory-item.id},modifier=Modifier.a11yLabel("Selecionar música"))
+                    UiText(if(item.id in selectedHistory) "Música selecionada" else "Selecionar música")
                 }
                 CompleteHistoryInformation(item,cardSize)
             }
             Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+                if(!complete && item.mode.lowercase() in audioModes)Checkbox(checked=item.id in selectedHistory,onCheckedChange={checked->selectedHistory=if(checked) selectedHistory+item.id else selectedHistory-item.id},modifier=Modifier.a11yLabel("Selecionar música"))
                 Text(item.title,Modifier.weight(1f),fontWeight=FontWeight.Bold)
                 TextButton(onClick={OndaStore.removeHistory(item.id)},modifier=Modifier.testTag("remove-history-${item.id}")){UiText("Remover")}
             }

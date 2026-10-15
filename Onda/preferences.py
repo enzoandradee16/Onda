@@ -123,6 +123,9 @@ class PreferenceStore:
         from file_output import ORGANIZATIONS, DUPLICATES
         if data.get("organization") in ORGANIZATIONS:
             result["organization"] = data["organization"]
+        from output_rules import FILENAME_TEMPLATES
+        if data.get("filename_template") in FILENAME_TEMPLATES:
+            result["filename_template"] = data["filename_template"]
         if data.get("duplicates") in DUPLICATES:
             result["duplicates"] = data["duplicates"]
         if type(data.get("review_metadata")) is bool:

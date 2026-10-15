@@ -25,7 +25,7 @@ def settings_tools(app,parent):
     ttk.Label(parent,text=tr('Downloads simultâneos (1 a 15)')).pack(anchor='w',pady=(8,3))
     TranslatedCombobox(parent,textvariable=app.concurrent_downloads,values=tuple(str(n) for n in range(1,16)),state='readonly',width=8).pack(anchor='w')
     ttk.Label(parent,text=tr('Aviso: muitos downloads simultâneos, especialmente de 10 a 15, podem pesar o app e aumentar o uso de memória, processador e internet. Reduza se notar lentidão.'),wraplength=460,style='Muted.TLabel').pack(anchor='w',pady=(6,8))
-    for key,label in (('resume_downloads','Retomar arquivos interrompidos quando possível'),('resume_queue','Retomar fila ao abrir o ONDA'),('normalize_volume','Normalizar volume dos próximos downloads'),('schedule_enabled','Agendar downloads'),('check_updates','Verificar atualizações do ONDA ao abrir')):
+    for key,label in (('detect_duplicates','Detectar duplicatas na fila e no histórico'),('resume_downloads','Retomar arquivos interrompidos quando possível'),('resume_queue','Retomar fila ao abrir o ONDA'),('normalize_volume','Normalizar volume dos próximos downloads'),('schedule_enabled','Agendar downloads'),('check_updates','Verificar atualizações do ONDA ao abrir')):
         ttk.Checkbutton(parent,text=tr(label),variable=getattr(app,key)).pack(anchor='w',pady=5)
     hours=ttk.Frame(parent);hours.pack(fill='x',pady=6)
     for key,label in (('schedule_start','Começar · HH:MM'),('schedule_stop','Parar · HH:MM')):
@@ -58,7 +58,7 @@ def transfer(app,importing):
 def check_update(app,manual=False):
     from advanced_options import release_update
     def worker():
-        try:result=release_update('windows','1.1.1')
+        try:result=release_update('windows','1.1.2')
         except Exception:result={'available':False,'message':'Não foi possível verificar atualizações. Confira sua conexão.'}
         app.events.put((None,{'type':'app_update','result':result,'manual':manual}))
     threading.Thread(target=worker,daemon=True).start()

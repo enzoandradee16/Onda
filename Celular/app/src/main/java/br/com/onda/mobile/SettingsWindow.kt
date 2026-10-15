@@ -24,7 +24,7 @@ import org.json.JSONObject
 val categories=linkedMapOf(
     "Geral" to listOf("language","remember","check_updates","notice_duration"),
     "Aparência" to listOf("queue_view","queue_card_size","history_card_size","pure_black_separators","history_view","theme","accent","tab_order","interface_font","interface_font_size"),
-    "Downloads" to listOf("concurrent_downloads","resume_downloads","resume_queue","normalize_volume","schedule_enabled","schedule_start","schedule_stop","mode","audio_quality","height","fps","playlist_limit","organization","duplicate_policy","output_uri","auto_match","confirm_version","review_metadata"),
+    "Downloads" to listOf("detect_duplicates","filename_template","concurrent_downloads","resume_downloads","resume_queue","normalize_volume","schedule_enabled","schedule_start","schedule_stop","mode","audio_quality","height","fps","playlist_limit","organization","duplicate_policy","output_uri","auto_match","confirm_version","review_metadata"),
     "Imagens" to listOf("image_format","image_width","image_height","keep_ratio"),
     "Áudio" to listOf("search_preview","effects_preview","keep_preview"),
     "Contas" to listOf("spotify_client_id","cookies_file","youtube_cookies_file"))
@@ -112,9 +112,8 @@ val categories=linkedMapOf(
                         TextButton(onClick={put("output_uri","")}){UiText("Usar pasta padrão")}
                         SettingsDivider()
                         OutlinedTextField(settings.optInt("playlist_limit").toString(),{put("playlist_limit",(it.toIntOrNull() ?: 2000).coerceIn(1,5000))},label={UiText("Máximo de itens por playlist")},modifier=Modifier.fillMaxWidth(),singleLine=true)
-                        val structures=linkedMapOf("Pasta de destino" to "Pasta de destino","Artista" to "Artista","Artista / Álbum" to "Artista / Álbum")
                         SettingsDivider()
-                        Select("Organizar músicas em",structures.entries.firstOrNull {it.value==settings.optString("organization")}?.key ?: "Pasta de destino",structures.keys.toList()){put("organization",structures.getValue(it))}
+                        OrganizationOptions(settings,::put)
                         val duplicates=linkedMapOf("Perguntar" to "ask","Manter ambos" to "keep","Substituir" to "replace","Pular" to "skip")
                         SettingsDivider()
                         Select("Quando o arquivo já existir",duplicates.entries.firstOrNull {it.value==settings.optString("duplicate_policy")}?.key ?: "Perguntar",duplicates.keys.toList()){put("duplicate_policy",duplicates.getValue(it))}

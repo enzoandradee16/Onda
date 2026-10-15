@@ -22,6 +22,8 @@ import java.io.File
     SettingsDivider()
     Select("Downloads simultâneos (1 a 4)",settings.optString("concurrent_downloads","1"),listOf("1","2","3","4")){put("concurrent_downloads",it)}
     SettingsDivider()
+    Toggle("Detectar duplicatas na fila e no histórico",settings.optBoolean("detect_duplicates",true)){put("detect_duplicates",it)}
+    SettingsDivider()
     Toggle("Retomar arquivos interrompidos quando possível",settings.optBoolean("resume_downloads",true)){put("resume_downloads",it)}
     SettingsDivider()
     Toggle("Retomar fila ao abrir o ONDA",settings.optBoolean("resume_queue")){put("resume_queue",it)}

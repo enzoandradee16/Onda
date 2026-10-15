@@ -16,6 +16,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 @Composable fun MetadataPage(vm:OndaViewModel,requestedUri:String?=null,onRequestConsumed:()->Unit={}) {
+    var batchSources by rememberSaveable {mutableStateOf(arrayListOf<String>())}
+    var batchOpen by rememberSaveable {mutableStateOf(false)}
+    if(batchOpen)BatchMetadataEditor(vm,batchSources){batchOpen=false}
     var selectedUri by rememberSaveable {mutableStateOf<String?>(null)}
     var item by remember {mutableStateOf<HistoryItem?>(null)}
     LaunchedEffect(requestedUri) {if(requestedUri!=null){selectedUri=requestedUri;item=null;onRequestConsumed()}}
@@ -40,6 +43,7 @@ import kotlinx.coroutines.withContext
     } else Column(Modifier.fillMaxSize().padding(horizontal=16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
         PageTitle("Edite os metadados da sua música.","Escolha um arquivo de áudio do aparelho, mesmo que não esteja no histórico.")
         Button(onClick={picker.launch(arrayOf("audio/*","application/ogg"))},modifier=Modifier.fillMaxWidth()) {UiText("Escolher arquivo de áudio")}
+        OutlinedButton(onClick={batchSources=arrayListOf();batchOpen=true},modifier=Modifier.fillMaxWidth()){UiText("Editar metadados em lote")}
         UiText("MP3, M4A, FLAC, WAV, OGG e OPUS. Edite música, artistas, álbum, gênero, data, capa e letra.",style=MaterialTheme.typography.bodySmall)
         UiText("Salve uma cópia ou ative Sobrescrever arquivo original. Para substituir o original, a pasta precisa permitir a edição.",style=MaterialTheme.typography.bodySmall)
     }

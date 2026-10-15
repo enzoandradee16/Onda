@@ -43,7 +43,7 @@ class HistoryPane(ttk.Frame):
         TranslatedCombobox(self.size_controls,textvariable=app.history_card_size,values=("Pequeno","Médio","Grande"),state="readonly",width=8).pack(side="left",padx=(0,8))
         panel = self.panel = ttk.Frame(self)
         panel.grid(row=3, column=0, sticky="nsew")
-        self.table = ttk.Treeview(panel, columns=("name", "mode", "date"), show="headings", selectmode="browse")
+        self.table = ttk.Treeview(panel, columns=("name", "mode", "date"), show="headings", selectmode="extended")
         from list_context import bind_history
         bind_history(self)
         for key, label, width in (("name", "ARQUIVO", 480), ("mode", "FORMATO", 100), ("date", "DATA", 200)):
@@ -60,6 +60,7 @@ class HistoryPane(ttk.Frame):
         ttk.Button(controls, text=tr("Abrir pasta"), command=lambda: self.open(True)).pack(side="left", padx=8)
         ttk.Button(controls, text=tr("Usar nos efeitos"), style="Accent.TButton", command=self.effects).pack(side="right")
         ttk.Button(controls,text=tr("Editar áudio / letra"),command=self.edit_audio).pack(side="left",padx=4)
+        ttk.Button(controls,text=tr("Editar metadados em lote"),command=self.edit_batch).pack(side="left",padx=4)
         self.status = tk.StringVar()
         ttk.Label(self, textvariable=display_var(self.status), style="Muted.TLabel").grid(row=5, column=0, sticky="w")
         self.cards = ttk.Frame(self)
@@ -105,8 +106,8 @@ class HistoryPane(ttk.Frame):
         self.table.delete(*self.table.get_children())
         for key, row in self.rows.items():
             self.table.insert("", "end", iid=key, values=(row["name"], row["mode"], row["date"][:19].replace("T", " ")))
-        if selected and selected[0] in self.rows:
-            self.table.selection_set(selected[0])
+        if selected:
+            self.table.selection_set([key for key in selected if key in self.rows])
         if view == "Completa":
             self.size_controls.pack(side="right")
             self.panel.grid_remove()
@@ -124,6 +125,7 @@ class HistoryPane(ttk.Frame):
         generation = self._generation
         for widget in self.cards.winfo_children():widget.destroy()
         self._cards = {}
+        self._card_checks = {}
         selected=self.table.selection()
         self._selected_card.set(selected[0] if selected else "")
         size=self.app.history_card_size.get()
@@ -144,7 +146,9 @@ class HistoryPane(ttk.Frame):
             actions=ttk.Frame(card,style="Card.TFrame");actions.grid(row=4,column=0,columnspan=2,sticky="ew",pady=(10,0))
             for label,action in (("Abrir arquivo",self.open),("Abrir pasta",lambda:self.open(True)),("Editar metadados",self.edit_audio),("Usar nos efeitos",self.effects)):
                 ttk.Button(actions,text=tr(label),command=lambda key=key,action=action:self.card_action(key,action)).pack(side="left",padx=(0,6))
-            ttk.Radiobutton(actions,text=tr("Selecionar música"),variable=self._selected_card,value=key,command=lambda key=key:self.select_card(key)).pack(side="right")
+            checked=tk.BooleanVar(value=key in selected)
+            self._card_checks[key]=checked
+            ttk.Checkbutton(actions,text=tr("Selecionar música"),variable=checked,command=lambda key=key:self.toggle_card(key)).pack(side="right")
             for widget in (card,cover,title,artist,details):
                 widget.bind("<Button-1>",lambda _,key=key:self.select_card(key))
             self.table._list_context.card(card,key)
@@ -181,9 +185,20 @@ class HistoryPane(ttk.Frame):
         self._selected_card.set(key)
         self.highlight_cards()
 
+    def toggle_card(self,key):
+        if key in self.table.selection():self.table.selection_remove(key)
+        else:self.table.selection_add(key)
+        self.highlight_cards()
+
+    def edit_batch(self):
+        from audio_library import AUDIO_TYPES
+        paths=[self.rows[key]['path'] for key in self.table.selection() if key in self.rows and Path(self.rows[key]['path']).is_file() and Path(self.rows[key]['path']).suffix.lower() in AUDIO_TYPES]
+        self.app.metadata_page.open_batch(paths)
+
     def highlight_cards(self):
         for key,widgets in self._cards.items():
-            selected=key==self._selected_card.get()
+            selected=key in self.table.selection()
+            if key in getattr(self,'_card_checks',{}):self._card_checks[key].set(selected)
             card=widgets[0].master
             card.configure(style="HistorySelected.TFrame" if selected else "Card.TFrame")
             for child in card.winfo_children():

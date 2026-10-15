@@ -10,13 +10,21 @@ O ONDA nasceu como um projeto pessoal, feito inicialmente para meu uso e de amig
 
 O projeto continua em desenvolvimento. Sugestões, contribuições e relatos de problemas são bem-vindos.
 
-**Versão 1.1.1 para Windows 10 ou superior (x64) e Android 8 ou superior (ARM64).**
+**Versão 1.1.2 para Windows 10 ou superior (x64) e Android 8 ou superior (ARM64).**
 
 ![ONDA no Windows: downloads em andamento — tema escuro](docs/images/pc/downloads-escuro.png)
 
 No Android, novas versões podem ser baixadas dentro do ONDA, com progresso e continuidade em segundo plano. Ao terminar, toque em Instalar atualização; na primeira vez, permita a instalação pelo ONDA nas configurações do Android. O sistema pede confirmação e os dados são preservados.
 
 No PC, clique com o botão direito nas listas ou cards para abrir as ações disponíveis naquela aba. Shift+F10 e a tecla de menu também abrem essas opções; uma seleção múltipla é preservada ao clicar em um dos itens selecionados.
+
+## Biblioteca e organização
+
+- Detecta links repetidos na fila, no mesmo formato e com as mesmas opções, e no histórico, no mesmo formato. Reconhece links curtos, idiomas e parâmetros de compartilhamento de Spotify, YouTube e Deezer; pede confirmação antes de adicionar novamente. A detecção pode ser desativada em Configurações → Downloads. Playlists diferentes e formatos ou conversões diferentes continuam independentes.
+- Edita metadados em lote a partir de vários arquivos locais ou da seleção múltipla no Histórico. Marque os campos que deseja alterar e, se quiser, aplique uma capa comum. Campos desmarcados são preservados. Por padrão, cria cópias; substituir os originais exige confirmação. Cada arquivo é salvo separadamente e falhas são informadas ao final.
+- Oferece pastas por álbum, artista/ano/álbum, gênero/artista/álbum e formato/artista/álbum, além das opções anteriores. Os nomes podem incluir faixa, artista, música e disco. Configurações mostra uma prévia. Pastas de playlists são preservadas e números de faixa ausentes são omitidos.
+
+No Android, a identificação por origem no histórico é registrada nos novos downloads; registros antigos sem link de origem não são identificados apenas pelo nome do arquivo. A detecção não compara o áudio nem considera títulos parecidos como prova de duplicação.
 
 ## Baixar e abrir
 
@@ -31,7 +39,7 @@ Os executáveis Windows não têm assinatura digital. O Windows pode mostrar um 
 
 ## Idioma
 
-A versão 1.1.1 inclui **Português (Brasil)**, **Español** e **English**, nessa ordem, em **Configurações → Geral → Idioma**. Os pacotes 1.1.1 estão preparados localmente; a publicação no GitHub é uma etapa separada. Português continua como idioma padrão. O nome **ONDA** permanece em todos os idiomas. As duas interfaces usam o mesmo catálogo de tradução. No Android, a alteração é imediata; no Windows, reinicie o aplicativo. A escolha é preservada mesmo com “Lembrar configurações” desativado. Nomes de músicas, artistas, álbuns e arquivos permanecem originais.
+A versão 1.1.2 inclui **Português (Brasil)**, **Español** e **English**, nessa ordem, em **Configurações → Geral → Idioma**. Os pacotes 1.1.2 estão preparados localmente; a publicação no GitHub é uma etapa separada. Português continua como idioma padrão. O nome **ONDA** permanece em todos os idiomas. As duas interfaces usam o mesmo catálogo de tradução. No Android, a alteração é imediata; no Windows, reinicie o aplicativo. A escolha é preservada mesmo com “Lembrar configurações” desativado. Nomes de músicas, artistas, álbuns e arquivos permanecem originais.
 
 No Android, o ícone da tela inicial e dos aplicativos recentes acompanha a cor de destaque e os modos claro, escuro, preto puro ou sistema. Alguns launchers podem demorar a atualizar o ícone ou exigir recriar um atalho antigo.
 

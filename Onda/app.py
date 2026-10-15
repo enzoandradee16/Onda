@@ -97,6 +97,7 @@ class App(UiMixin, tk.Tk):
         self.effects_preview_duration = tk.StringVar(value="25 segundos")
         self.search_preview_duration = tk.StringVar(value="30 segundos")
         self.organization = tk.StringVar(value="Catálogo")
+        self.filename_template = tk.StringVar(value="Original")
         self.duplicates = tk.StringVar(value="Perguntar")
         self.update_status = tk.StringVar(value="Atualize quando as plataformas mudarem ou apresentarem falhas.")
         self.updating = False
@@ -115,7 +116,7 @@ class App(UiMixin, tk.Tk):
         from advanced_options import DEFAULTS
         for key,value in DEFAULTS.items():
             setattr(self,key,tk.BooleanVar(value=value) if type(value) is bool else tk.StringVar(value=value))
-        self.preference_fields = {name: getattr(self, name) for name in ("language", "queue_card_size", "queue_view", "history_card_size", "pure_black_separators", "history_view", "theme_mode", "theme_accent", "interface_font", "interface_font_size", "notice_duration", "effects_keep_pitch", "image_format", "image_size", "image_width", "image_height", "image_keep_ratio", "tab_order", "playlist_mode", "playlist_height", "playlist_fps", "playlist_mp3_quality", "playlist_m4a_quality", "mode", "height", "fps", "catalog_provider", "folder", "ffmpeg", "playlist", "playlist_limit", "mp3_quality", "m4a_quality", "review_metadata", "auto_match", "background_preview", "effects_preview_duration", "search_preview_duration", "organization", "duplicates")}
+        self.preference_fields = {name: getattr(self, name) for name in ("language", "queue_card_size", "queue_view", "history_card_size", "pure_black_separators", "history_view", "theme_mode", "theme_accent", "interface_font", "interface_font_size", "notice_duration", "effects_keep_pitch", "image_format", "image_size", "image_width", "image_height", "image_keep_ratio", "tab_order", "playlist_mode", "playlist_height", "playlist_fps", "playlist_mp3_quality", "playlist_m4a_quality", "mode", "height", "fps", "catalog_provider", "folder", "ffmpeg", "playlist", "playlist_limit", "mp3_quality", "m4a_quality", "review_metadata", "auto_match", "background_preview", "effects_preview_duration", "search_preview_duration", "organization", "filename_template", "duplicates")}
         self.preference_fields.update({key:getattr(self,key) for key in DEFAULTS})
         self.preference_defaults = {name: variable.get() for name, variable in self.preference_fields.items()}
         self.preference_defaults["language"] = "pt-BR"
@@ -305,7 +306,9 @@ class App(UiMixin, tk.Tk):
                     "playlist": self.playlist.get(), "playlist_limit": int(self.playlist_limit.get()),
                     "state": "Na fila", "review_metadata": self.review_metadata.get(),
                     "normalize_volume": self.normalize_volume.get(), "resume_downloads": self.resume_downloads.get(),
+                    "filename_template": self.filename_template.get(), "detect_duplicates": self.detect_duplicates.get(),
                     "organization": self.organization.get(), "duplicate_policy": DUPLICATES[self.duplicates.get()]}
+        duplicate_decision = None
         for index, line in enumerate(lines):
             item_overrides = restored_jobs[index] if restored_jobs is not None else overrides
             streaming = is_streaming_link(line)
@@ -334,8 +337,20 @@ class App(UiMixin, tk.Tk):
             job["audio_quality"] = item_overrides.get("audio_quality") or (item_overrides.get("mp3_quality", self.mp3_quality.get()) if job["mode"] == "mp3" else (item_overrides.get("m4a_quality", self.m4a_quality.get()) if job["mode"] == "m4a" else None))
             job["fps"] = item_overrides.get("fps", FPS_OPTIONS[self.fps.get()]) if job["mode"] in ("video", "mp4") else None
             key = (url, job["mode"], job["folder"], job["height"], job["playlist"], job["audio_quality"], job["fps"], job.get("selected_catalog_url"), job.get("playlist_title"), job.get("playlist_limit", 1000) if job["playlist"] else None, json.dumps(job.get("image_options"), sort_keys=True))
-            if key in existing:
-                if reuse_existing and existing[key] is not None:
+            if restored_jobs is None and self.detect_duplicates.get():
+                from duplicate_links import duplicate_job
+                repeated = next((item for item, previous in self.jobs.items() if previous.get("state") in ("Na fila", "Em andamento", "Concluído") and duplicate_job(previous, job)), None)
+                history_match = self.library.find_duplicate(job.get("selected_catalog_url") or url, job["mode"]) if not job.get("playlist") and not job.get("playlist_title") else None
+                if repeated is not None or history_match:
+                    if reuse_existing and repeated is not None and self.jobs[repeated]["state"] in ("Na fila", "Em andamento"):
+                        added.append(repeated)
+                        continue
+                    if duplicate_decision is None:
+                        duplicate_decision = messagebox.askyesno(tr("Duplicatas detectadas"), tr("Há itens que já estão na fila ou no histórico neste formato. Adicionar novamente os itens repetidos desta seleção?"), parent=self)
+                    if not duplicate_decision:
+                        continue
+            if key in existing and reuse_existing:
+                if existing[key] is not None:
                     added.append(existing[key])
                 continue
             if job["state"] in ("Na fila", "Em andamento"):

@@ -271,6 +271,9 @@ def render_preview(config):
 
 
 def perform(action, config):
+    if action == 'audio_batch_edit':
+        from batch_metadata import edit_batch
+        return edit_batch(dict(config, _android_batch=True), emit)
     if action in ('audio_read','audio_edit','normalize_preview'):
         from audio_library import read_audio,edit_copy,normalize_audio
         if action=='audio_read':

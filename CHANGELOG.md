@@ -1,5 +1,11 @@
 # Histórico de versões
 
+## 1.1.2 — 2026-10-15
+
+- Detecção de links duplicados na fila e no histórico, com confirmação e normalização de links de compartilhamento.
+- Edição seletiva de metadados e capa em lote no Windows e Android, com seleção múltipla no histórico e cópias por padrão.
+- Novos modelos de pastas e nomes de arquivos, com prévia e preservação das pastas de playlists.
+
 ## 1.1.1 — 2026-10-14
 
 - **Correção de tema Android:** a troca do ícone da tela inicial é concluída em segundo plano, preservando a tela aberta ao alterar tema ou cor de destaque.

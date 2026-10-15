@@ -4,7 +4,9 @@ import re
 from pathlib import Path
 import shutil
 
-ORGANIZATIONS = ("Catálogo", "Pasta de destino", "Artista", "Artista / Álbum")
+from output_rules import EXTRA_ORGANIZATIONS
+
+ORGANIZATIONS = ("Catálogo", "Pasta de destino", "Artista", "Artista / Álbum") + EXTRA_ORGANIZATIONS
 DUPLICATES = {"Perguntar": "ask", "Manter ambos": "keep", "Substituir": "replace", "Ignorar": "skip"}
 
 
@@ -26,28 +28,34 @@ def destination(config, record=None, info=None):
             title = "Playlist"
     if title:
         return root / component(title)
-    if not record:
+    if not record and not info:
         return root
+    record = record or {}
     organization = config.get("organization", "Catálogo")
     if organization not in ORGANIZATIONS:
         raise ValueError("Organização de pastas inválida.")
+    from output_rules import folder_parts
+    parts = folder_parts(organization, config.get("mode"), record, info)
+    if parts is not None:
+        return root.joinpath(*parts)
     artist = (record.get("artists") or ["Artista desconhecido"])[0]
     if organization == "Artista / Álbum":
         return root / component(artist) / component(record.get("album"))
     if organization == "Artista":
         return root / component(artist)
     if organization == "Catálogo":
-        if record["platform"] not in ("Spotify", "Deezer", "Apple / iTunes"):
+        if record.get("platform") not in ("Spotify", "Deezer", "Apple / iTunes"):
             return root
         provider = {"Spotify": "spotify", "Deezer": "deezer"}.get(record["platform"], "apple")
         return root / component(provider + "-" + record["id"])
     return root
 
 
-def publish(source, folder, policy="keep", choose=None):
+def publish(source, folder, policy="keep", choose=None, *, config=None, record=None, info=None):
     source, folder = Path(source), Path(folder)
     folder.mkdir(parents=True, exist_ok=True)
-    target = folder / source.name
+    from output_rules import output_filename
+    target = folder / (output_filename(source, config, record, info) if config is not None else source.name)
     if target.exists():
         if not target.is_file():
             raise ValueError("Já existe uma pasta com o nome do arquivo de saída.")

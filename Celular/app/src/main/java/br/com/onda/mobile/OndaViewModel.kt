@@ -29,6 +29,7 @@ private fun operationNoticeTitle(action:String)=when(action) {
     "app_update"->"Verificar atualização do ONDA"
     "update"->"Atualizar ferramentas"
     "self_test"->"Verificar ferramentas"
+    "audio_batch_edit"->"Editar metadados em lote"
     "audio_read","audio_edit"->"Editar metadados"
     "normalize_preview"->"Ouvir normalizado"
     "image_preview"->"Ver prévia"
@@ -144,6 +145,11 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
                         "choose_flac","choose_version","choose_catalog","choose_duplicate","choose_media","review_metadata"->OndaStore.ask(id,event)
                         "open_browser"->openSpotifyAuthorization(getApplication(),event.getString("url"))
                         "file"->if(!event.optBoolean("skipped")) OndaStore.publish(event.getString("path"),OndaStore.publicationConfig(payload,event).put("_identity",id),event.optString("mode", "MP3"))
+                        "batch_original"->{
+                            val edited=java.io.File(event.getString("path"))
+                            val original=JSONObject(payload.toString()).put("source",event.getString("source")).put("original_uri",event.getString("original_uri"))
+                            try {OndaStore.overwriteAudio(edited,original)} finally {edited.delete()}
+                        }
                         "done"->if(event.has("path")) OndaStore.publish(event.getString("path"),payload,event.getString("path").substringAfterLast('.'))
                         "progress"->status.value="Processando: ${event.optInt("percent")}%"
                         "error"->status.value=event.optString("message")
@@ -162,7 +168,14 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
                     finished(result)
                 }
             } catch(error: Exception) { report(error.message ?: "Erro na operação") }
-            finally { busy.value=false; OndaStore.dismissQuestions(id); queryId.value="" }
+            finally {
+                if(action=="audio_batch_edit")payload.optJSONArray("sources")?.objects()?.forEach {entry->
+                    val file=java.io.File(entry.optString("source"))
+                    val imports=java.io.File(getApplication<Application>().filesDir,"imports").canonicalFile
+                    if(file.canonicalFile.parentFile==imports && file.name.startsWith("batch-audio-"))file.delete()
+                }
+                busy.value=false; OndaStore.dismissQuestions(id); queryId.value=""
+            }
         }
     }
     fun openHistoryFolder(uri: String) {
@@ -206,7 +219,7 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 repeat(2) {attempt->
                     val current=OndaStore.items.value.firstOrNull {it.id==id}
-                    if(current==null || current.state!="Pendente" || current.title!=url)return@launch
+                    if(current==null || current.state !in setOf("Pendente","Duplicata") || current.title!=url)return@launch
                     val result=MobileEngine.call(getApplication(),"title-$id","describe",OndaStore.config().put("url",url),EventCallback {})
                     if(!result.has("error")) {
                         OndaStore.renamePendingLink(id,url,result.optString("title"),result.optJSONObject("queue_info"))

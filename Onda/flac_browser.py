@@ -75,7 +75,7 @@ def import_flac(config, record, ask_file, emit, ask_duplicate, *, source=None, m
         match = match or {"source_url": url, "title": source.name, "selection": "user", "provider": "FLAC Downloader",
                  "note": "FLAC selecionado pelo usuário após download no serviço externo. O codec não comprova a origem ou a masterização sem perdas."}
         sidecar = apply_tags(str(target), record, match, cover)
-        final, skipped = publish(target, folder, config.get("duplicate_policy", "keep"), ask_duplicate)
+        final, skipped = publish(target, folder, config.get("duplicate_policy", "keep"), ask_duplicate, config=config, record=record)
         if not skipped:
             os.replace(sidecar, final + ".metadata.json")
         emit("file", path=final, size=Path(final).stat().st_size, skipped=skipped, mode="FLAC")

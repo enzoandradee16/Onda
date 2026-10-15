@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 import sqlite3
 
-JOB_FIELDS = {"work_id", "normalize_volume", "resume_downloads", "url", "mode", "height", "fps", "audio_quality", "folder", "playlist", "playlist_limit", "state", "streaming",
+JOB_FIELDS = {"filename_template", "detect_duplicates", "work_id", "normalize_volume", "resume_downloads", "url", "mode", "height", "fps", "audio_quality", "folder", "playlist", "playlist_limit", "state", "streaming",
               "selected_catalog_url", "review_metadata", "organization", "duplicate_policy", "confirm_version", "playlist_title", "image_options", "catalog_record", "display_name", "queue_info"}
 
 
@@ -66,6 +66,15 @@ class LibraryStore:
             else:
                 cursor = db.execute("SELECT * FROM history ORDER BY id DESC LIMIT 1000")
             return [dict(row) for row in cursor]
+
+    def find_duplicate(self, source, mode):
+        from duplicate_links import source_key
+        key = source_key(source)
+        if not key:
+            return None
+        with self.connect() as db:
+            rows = db.execute("SELECT path,source FROM history WHERE lower(mode)=lower(?) ORDER BY id DESC", (mode,)).fetchall()
+        return next((path for path, old in rows if source_key(old) == key and Path(path).is_file()), None)
 
     def clear_history(self):
         with self.connect() as db:

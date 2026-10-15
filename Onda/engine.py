@@ -385,7 +385,7 @@ def run_worker(config: dict) -> int:
                         sidecar = apply_tags(path, record, match, cover)
                         emit("log", message="Metadados e origem registrados: " + sidecar)
                     target_folder = destination(destination_config, record, info=info)
-                    final, skipped = publish(path, target_folder, config.get("duplicate_policy", "keep"), ask_duplicate)
+                    final, skipped = publish(path, target_folder, config.get("duplicate_policy", "keep"), ask_duplicate, config=destination_config, record=record, info=info)
                     if sidecar:
                         if skipped:
                             Path(sidecar).unlink(missing_ok=True)

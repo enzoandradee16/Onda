@@ -408,6 +408,17 @@ class UiMixin:
         from file_output import ORGANIZATIONS, DUPLICATES
         ttk.Label(downloads, text=tr("Organizar músicas em"), style="Muted.TLabel").pack(anchor="w")
         TranslatedCombobox(downloads, textvariable=self.organization, values=ORGANIZATIONS, state="readonly").pack(fill="x", pady=(6, 8))
+        from output_rules import FILENAME_TEMPLATES, preview_path
+        ttk.Label(downloads, text=tr("Nome dos arquivos"), style="Muted.TLabel").pack(anchor="w")
+        TranslatedCombobox(downloads, textvariable=self.filename_template, values=FILENAME_TEMPLATES, state="readonly").pack(fill="x", pady=(6, 8))
+        preview = tk.StringVar()
+        preview_label = ttk.Label(downloads, textvariable=preview, style="Muted.TLabel", wraplength=480)
+        preview_label.pack(anchor="w", pady=(0, 8))
+        def update_output_preview(*_):
+            preview.set(tr("Prévia de organização") + ": " + tr(preview_path({"organization": self.organization.get(), "filename_template": self.filename_template.get(), "mode": "mp3"}, translate=tr)))
+        preview_traces = [(variable, variable.trace_add("write", update_output_preview)) for variable in (self.organization, self.filename_template)]
+        preview_label.bind("<Destroy>", lambda event: [variable.trace_remove("write", identity) for variable, identity in preview_traces] if event.widget is preview_label else None)
+        update_output_preview()
         ttk.Label(downloads, text=tr("Quando o arquivo já existir"), style="Muted.TLabel").pack(anchor="w")
         TranslatedCombobox(downloads, textvariable=self.duplicates, values=list(DUPLICATES), state="readonly").pack(fill="x", pady=(6, 8))
         ttk.Label(downloads, text=tr("Links de catálogo em FLAC baixam diretamente do Monochrome, quando disponíveis. Outros links são convertidos; isso não melhora fontes com perdas."),

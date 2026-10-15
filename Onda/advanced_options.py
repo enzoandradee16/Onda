@@ -2,7 +2,7 @@
 from datetime import datetime
 import re
 
-DEFAULTS={'concurrent_downloads':'1','resume_downloads':True,'resume_queue':False,'normalize_volume':False,
+DEFAULTS={'concurrent_downloads':'1','detect_duplicates':True,'resume_downloads':True,'resume_queue':False,'normalize_volume':False,
           'schedule_enabled':False,'schedule_start':'22:00','schedule_stop':'07:00','check_updates':False}
 
 def valid_time(value):return isinstance(value,str) and re.fullmatch(r'(?:[01]\d|2[0-3]):[0-5]\d',value) is not None
@@ -23,7 +23,7 @@ def clean_advanced(options):
         elif key in ('schedule_start','schedule_stop') and valid_time(value):result[key]=value
     return result
 
-COMMON={'queue_view','queue_card_size','language','history_card_size','pure_black_separators','history_view','theme','accent','interface_font','notice_duration','mode','audio_quality','height','fps','auto_match','review_metadata','organization','playlist_limit',*DEFAULTS}
+COMMON={'queue_view','queue_card_size','language','history_card_size','pure_black_separators','history_view','theme','accent','interface_font','notice_duration','mode','audio_quality','height','fps','auto_match','review_metadata','organization','filename_template','playlist_limit',*DEFAULTS}
 ALIASES={'theme_mode':'theme','theme_accent':'accent','mp3_quality':'audio_quality'}
 
 def export_settings(options,platform):
@@ -51,6 +51,10 @@ def import_settings(payload,platform):
              'theme':{'Claro','Escuro','Preto puro','Seguir o sistema'},
              'audio_quality':{'320 kbps','256 kbps','192 kbps','128 kbps','96 kbps','64 kbps','Melhor disponível'},
              'organization':{'Catálogo','Pasta de destino','Artista','Artista / Álbum'}}
+    from file_output import ORGANIZATIONS
+    from output_rules import FILENAME_TEMPLATES
+    choices['organization'] = set(ORGANIZATIONS)
+    choices['filename_template'] = set(FILENAME_TEMPLATES)
     for key,allowed in choices.items():
         if key in result and (type(result[key]) is bool or result[key] not in allowed):result.pop(key)
     from status_notice import NOTICE_DURATIONS

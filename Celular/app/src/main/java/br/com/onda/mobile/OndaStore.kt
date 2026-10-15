@@ -42,10 +42,18 @@ object OndaStore {
     val selectAll = kotlinx.coroutines.flow.MutableSharedFlow<Unit>(extraBufferCapacity=1)
     private val questions = java.util.ArrayDeque<Question>()
     private var batchDepth=0
+    private val batchItems=mutableListOf<DownloadItem>()
+    private val batchQuestions=mutableListOf<()->Unit>()
     @Synchronized fun <T> enqueueBatch(action: ()->T):T {
+        val outer=batchDepth==0
+        if(outer){batchItems.clear();batchQuestions.clear()}
+        var committed=false
         database.writableDatabase.beginTransaction();batchDepth++
-        try {val result=action();database.writableDatabase.setTransactionSuccessful();return result}
-        finally {batchDepth--;database.writableDatabase.endTransaction();if(batchDepth==0) refreshQueue()}
+        try {val result=action();database.writableDatabase.setTransactionSuccessful();committed=true;return result}
+        finally {
+            batchDepth--;database.writableDatabase.endTransaction()
+            if(outer){val prompts=batchQuestions.toList();batchItems.clear();batchQuestions.clear();refreshQueue();if(committed)prompts.forEach {it()}}
+        }
     }
     fun initialize(value: Context) {
         context = value.applicationContext
@@ -63,11 +71,14 @@ object OndaStore {
         database.writableDatabase.execSQL("UPDATE queue SET state='Pendente' WHERE state IN ('Baixando','Aguardando escolha')")
         database.writableDatabase.execSQL("CREATE TABLE IF NOT EXISTS queue_order (id TEXT PRIMARY KEY, position INTEGER NOT NULL)")
         database.writableDatabase.execSQL("INSERT OR IGNORE INTO queue_order SELECT id,rowid FROM queue")
+        database.writableDatabase.execSQL("CREATE TABLE IF NOT EXISTS history_sources (history_id INTEGER PRIMARY KEY, source TEXT NOT NULL, mode TEXT NOT NULL)")
+        database.writableDatabase.execSQL("CREATE INDEX IF NOT EXISTS history_source_index ON history_sources(source,mode)")
+        database.writableDatabase.execSQL("UPDATE queue SET state='Erro' WHERE state='Duplicata'")
         refresh()
     }
     fun defaults() = JSONObject().put("language","pt-BR").put("mode","mp3").put("audio_quality","320 kbps").put("height",1080).put("fps",JSONObject.NULL)
         .put("queue_view","Completa").put("queue_card_size","Grande").put("pure_black_separators",false).put("history_card_size","Grande").put("history_view","Compacto").put("playlist_limit",2000).put("link_playlist",false).put("auto_match",false).put("confirm_version",false).put("review_metadata",false)
-        .put("duplicate_policy","ask").put("organization","Pasta de destino").put("interface_font",DEFAULT_INTERFACE_FONT).put("interface_font_size","100%").put("theme","Seguir o sistema").put("accent","Verde-Água")
+        .put("detect_duplicates",true).put("filename_template","Original").put("duplicate_policy","ask").put("organization","Pasta de destino").put("interface_font",DEFAULT_INTERFACE_FONT).put("interface_font_size","100%").put("theme","Seguir o sistema").put("accent","Verde-Água")
         .put("concurrent_downloads","1").put("resume_downloads",true).put("resume_queue",false).put("normalize_volume",false)
         .put("schedule_enabled",false).put("schedule_start","22:00").put("schedule_stop","07:00").put("check_updates",false).put("notice_duration","Após 3 segundos")
         .put("search_preview",25).put("effects_preview",25).put("keep_preview",false).put("remember",true)
@@ -132,12 +143,32 @@ object OndaStore {
         val id = UUID.randomUUID().toString()
         val config = config(options,includeSecrets=false).put("url",url)
         extra?.keys()?.forEach { config.put(it,extra.get(it)) }
+        val duplicate=config.optBoolean("detect_duplicates",true) && config.optString("_operation").isBlank() && (
+            (items.value.asSequence()+batchItems.asSequence()).any {it.state!="Erro" && duplicateJob(it.config,config)} || (!config.optBoolean("playlist") && config.optString("playlist_title").isBlank() && database.readableDatabase.rawQuery("SELECT 1 FROM history_sources WHERE source=? AND lower(mode)=lower(?) LIMIT 1",arrayOf(jobSource(config),config.optString("mode"))).use {it.moveToFirst()}))
+        val state=if(duplicate) "Duplicata" else "Pendente"
         // Secrets are injected at execution and never stored in the queue database.
         config.remove("spotify_client_secret")
-        database.writableDatabase.execSQL("INSERT INTO queue VALUES(?,?,?,?)",arrayOf(id,title,config.toString(),"Pendente"))
+        database.writableDatabase.execSQL("INSERT INTO queue VALUES(?,?,?,?)",arrayOf(id,title,config.toString(),state))
         database.writableDatabase.execSQL("INSERT INTO queue_order VALUES(?,(SELECT COALESCE(MAX(position),0)+1 FROM queue_order))",arrayOf(id))
-        if(batchDepth==0) items.value=items.value+DownloadItem(id,title,config)
+        val added=DownloadItem(id,title,config,state)
+        if(batchDepth==0)items.value=items.value+added else batchItems.add(added)
+        val prompt:()->Unit = {ask("duplicate-$id",JSONObject().put("type","choose_queue_duplicate").put("path",title)) {answer->
+            synchronized(this) {
+                val start=duplicateStarts.remove(id)
+                if(items.value.none {it.id==id})return@synchronized
+                if(!answer.optBoolean("cancel") && answer.optBoolean("add")) {
+                    update(id,"Pendente")
+                    if(start)DownloadService.start(context,id)
+                } else remove(setOf(id))
+            }
+        }}
+        if(duplicate){if(batchDepth>0)batchQuestions.add(prompt) else prompt()}
         return id
+    }
+    private val duplicateStarts=mutableSetOf<String>()
+    @Synchronized fun deferDuplicateStart(id:String):Boolean {
+        if(items.value.any {it.id==id && it.state=="Duplicata"}) {duplicateStarts.add(id);return true}
+        return false
     }
     @Synchronized fun update(id: String, state: String, progress: Float? = null, message: String? = null) {
         val previous = items.value.firstOrNull { it.id == id } ?: return
@@ -152,7 +183,7 @@ object OndaStore {
     }
     @Synchronized fun renamePendingLink(id:String,url:String,title:String,info:JSONObject?=null):Boolean {
         val item=items.value.firstOrNull {it.id==id} ?: return false
-        if(item.state!="Pendente" || item.title!=url || item.config.optString("url")!=url || title.isBlank() || title==url)return false
+        if(item.state !in setOf("Pendente","Duplicata") || item.title!=url || item.config.optString("url")!=url || title.isBlank() || title==url)return false
         val config=JSONObject(item.config.toString())
         if(info!=null)config.put("queue_info",JSONObject(info.toString()))
         database.writableDatabase.execSQL("UPDATE queue SET title=?,config=? WHERE id=?",arrayOf(title,config.toString(),id))
@@ -206,7 +237,7 @@ object OndaStore {
         val target=if(direction==0)0 else (index+direction).coerceIn(0,order.lastIndex)
         val item=order.removeAt(index);order.add(target,item)
         val db=database.writableDatabase;db.beginTransaction()
-        try {order.forEachIndexed {position,entry->db.execSQL("INSERT OR REPLACE INTO queue_order VALUES(?,?)",arrayOf(entry.id,position))};db.setTransactionSuccessful()}
+        try {order.forEachIndexed {position,entry->db.execSQL("INSERT OR REPLACE INTO queue_order VALUES(?,?)",arrayOf<Any>(entry.id,position))};db.setTransactionSuccessful()}
         finally {db.endTransaction()}
         items.value=order
     }
@@ -308,7 +339,12 @@ object OndaStore {
     fun publish(path: String, config: JSONObject, mode: String): Uri {
         val file = File(path)
         val uri = destination(file,config)
-        database.writableDatabase.execSQL("INSERT INTO history(title,uri,mode,size) VALUES(?,?,?,?)",arrayOf(file.name,uri.toString(),mode,file.length()))
+        val historyId=database.writableDatabase.insertOrThrow("history",null,ContentValues().apply {
+            put("title",file.name);put("uri",uri.toString());put("mode",mode);put("size",file.length())
+        })
+        if(config.optString("url").isNotBlank() && config.optString("_operation").isBlank()) {
+            database.writableDatabase.execSQL("INSERT INTO history_sources(history_id,source,mode) VALUES(?,?,?)",arrayOf<Any>(historyId,jobSource(config),mode))
+        }
         synchronized(this) {refreshHistory()}
         // MediaStore/SAF now owns the exported copy. Keep custom inputs and the
         // Android 8/9 FileProvider source, which still backs the published URI.
@@ -322,7 +358,7 @@ object OndaStore {
         val uri=Uri.parse(config.getString("original_uri"))
         replaceAudioOriginal(context,uri,File(config.getString("source")),edited)
         invalidateHistoryDetails()
-        database.writableDatabase.execSQL("UPDATE history SET size=? WHERE uri=?",arrayOf(edited.length(),uri.toString()))
+        database.writableDatabase.execSQL("UPDATE history SET size=? WHERE uri=?",arrayOf<Any>(edited.length(),uri.toString()))
         synchronized(this) {refreshHistory()}
     }
     fun open(uri: String, mode: String = "") {
@@ -334,8 +370,8 @@ object OndaStore {
         val intent = Intent(Intent.ACTION_SEND).setType(mimeFor(title)).putExtra(Intent.EXTRA_STREAM,Uri.parse(uri)).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         context.startActivity(Intent.createChooser(intent,"Compartilhar").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
-    @Synchronized fun removeHistory(id: Long) { database.writableDatabase.delete("history","id=?",arrayOf(id.toString())); refreshHistory() }
-    @Synchronized fun clearHistory() { database.writableDatabase.execSQL("DELETE FROM history"); refreshHistory() }
+    @Synchronized fun removeHistory(id: Long) { database.writableDatabase.delete("history_sources","history_id=?",arrayOf(id.toString())); database.writableDatabase.delete("history","id=?",arrayOf(id.toString())); refreshHistory() }
+    @Synchronized fun clearHistory() { database.writableDatabase.execSQL("DELETE FROM history_sources"); database.writableDatabase.execSQL("DELETE FROM history"); refreshHistory() }
     fun mimeFor(name: String): String = when(name.substringAfterLast('.').lowercase()) {
         "mp3"->"audio/mpeg"; "m4a"->"audio/mp4"; "flac"->"audio/flac"; "wav"->"audio/wav"
         "mp4"->"video/mp4"; "mkv"->"video/x-matroska"; "webm"->"video/webm"
