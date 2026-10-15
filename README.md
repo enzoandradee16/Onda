@@ -2,6 +2,8 @@
 
 **Português (Brasil)** | [Español](README.es.md) | [English](README.en.md)
 
+[Site oficial](https://enzoandradee16.github.io/Onda/)
+
 Aplicativo gratuito, de código aberto e **sem anúncios** para Windows e Android. Reúne ferramentas para baixar, organizar e editar músicas, vídeos e imagens, com interface em português e suporte ao espanhol e ao inglês.
 
 O ONDA nasceu como um projeto pessoal, feito inicialmente para meu uso e de amigos. Resolvi disponibilizá-lo para quem também achar útil ter essas ferramentas no mesmo lugar, sem anúncios e com opções para personalizar a experiência.
