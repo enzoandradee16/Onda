@@ -41,6 +41,12 @@ Recursos selecionados para futuras versões, organizados em uma sequência suger
 - [ ] **Modo de alto contraste — PC e Android:** melhorar contraste, bordas, seleção e foco; não depender apenas da cor para comunicar estados.
 - [x] **Limpeza de cache pelo aplicativo — PC e Android:** mostrar o espaço ocupado e permitir uma limpeza seletiva, preservando downloads, trabalhos ativos e parciais necessários para retomada.
 
+- [ ] **Configurações de desempenho — PC:** criar uma nova aba "Desempenho" nas configurações para escolher quanto processamento o ONDA pode usar e ajustar o consumo de CPU e RAM conforme a quantidade de downloads e os recursos disponíveis. Prever controles de paralelismo, threads de conversão e uso de memória, permitindo priorizar menor consumo ou maior desempenho; avaliar limites tecnicamente viáveis, sem prometer reservar RAM ou garantir um percentual exato de CPU.
+
+- [ ] **Identificação do processo no Windows — PC:** ajustar o empacotamento para o aplicativo aparecer com nome e ícone do ONDA no Gerenciador de Tarefas, em vez de ser identificado como Python. Validar o agrupamento da janela, o iniciador e os processos auxiliares nas versões instalada e portátil, preservando o runtime incluído e a compatibilidade das atualizações.
+
+- [ ] **Ícone consistente nas janelas — PC:** investigar e corrigir a aparição temporária do ícone padrão do Tkinter no Gerenciador de Tarefas e na barra de tarefas. Aplicar o ícone do ONDA antes da exibição das janelas e conferir diálogos, janelas auxiliares, recriação de janelas e mudanças de tema, nas versões instalada e portátil.
+
 ## Critérios para implementar
 
 - Manter as interfaces simples; usar menus de contexto e opções avançadas quando fizer sentido.
