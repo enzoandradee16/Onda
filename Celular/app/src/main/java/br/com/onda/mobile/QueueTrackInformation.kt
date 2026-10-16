@@ -19,7 +19,7 @@ import coil.compose.AsyncImage
         val cover=info?.cleanString("cover_url").orEmpty()
         if(cover.isNotBlank()) AsyncImage(model=cover,contentDescription=translateUi("Capa do álbum"),modifier=Modifier.size(side).testTag("queue-cover-${item.id}"),contentScale=androidx.compose.ui.layout.ContentScale.Fit)
         else Box(Modifier.size(side)) {Text("♫",style=MaterialTheme.typography.headlineMedium)}
-        Column(Modifier.weight(1f)) {
+        Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.text)) {
             Text(item.title,maxLines=if(small)2 else 3,overflow=TextOverflow.Ellipsis,fontWeight=FontWeight.Bold,style=if(small)MaterialTheme.typography.bodyMedium else MaterialTheme.typography.titleSmall)
             val artists=info?.optJSONArray("artists")
             val artist=if(artists==null)"" else (0 until artists.length()).map {artists.optString(it)}.filter {it.isNotBlank()}.joinToString(", ")

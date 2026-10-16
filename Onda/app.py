@@ -64,6 +64,7 @@ class App(UiMixin, tk.Tk):
         from interface_fonts import DEFAULT_FONT
         self.interface_font = tk.StringVar(value=DEFAULT_FONT)
         self.interface_font_size = tk.StringVar(value="100%")
+        self.interface_spacing = tk.StringVar(value="Padrão")
         self.notice_duration = tk.StringVar(value="Após 3 segundos")
         self.mode = tk.StringVar(value=next(iter(MODES)))
         self.height = tk.StringVar(value="1080p")
@@ -122,7 +123,7 @@ class App(UiMixin, tk.Tk):
         from advanced_options import DEFAULTS
         for key,value in DEFAULTS.items():
             setattr(self,key,tk.BooleanVar(value=value) if type(value) is bool else tk.StringVar(value=value))
-        self.preference_fields = {name: getattr(self, name) for name in ("language", "queue_card_size", "queue_view", "history_card_size", "pure_black_separators", "history_view", "theme_mode", "theme_accent", "interface_font", "interface_font_size", "notice_duration", "effects_keep_pitch", "image_format", "image_size", "image_width", "image_height", "image_keep_ratio", "tab_order", "playlist_mode", "playlist_height", "playlist_fps", "playlist_mp3_quality", "playlist_m4a_quality", "mode", "height", "fps", "catalog_provider", "folder", "ffmpeg", "playlist", "playlist_limit", "mp3_quality", "m4a_quality", "review_metadata", "auto_match", "background_preview", "effects_preview_duration", "search_preview_duration", "organization", "filename_template", "duplicates")}
+        self.preference_fields = {name: getattr(self, name) for name in ("language", "queue_card_size", "queue_view", "history_card_size", "pure_black_separators", "history_view", "theme_mode", "theme_accent", "interface_font", "interface_font_size", "interface_spacing", "notice_duration", "effects_keep_pitch", "image_format", "image_size", "image_width", "image_height", "image_keep_ratio", "tab_order", "playlist_mode", "playlist_height", "playlist_fps", "playlist_mp3_quality", "playlist_m4a_quality", "mode", "height", "fps", "catalog_provider", "folder", "ffmpeg", "playlist", "playlist_limit", "mp3_quality", "m4a_quality", "review_metadata", "auto_match", "background_preview", "effects_preview_duration", "search_preview_duration", "organization", "filename_template", "duplicates")}
         self.preference_fields.update({key:getattr(self,key) for key in DEFAULTS})
         self.preference_defaults = {name: variable.get() for name, variable in self.preference_fields.items()}
         self.preference_defaults["language"] = "pt-BR"

@@ -86,14 +86,15 @@ object OndaStore {
     }
     fun defaults() = JSONObject().put("language","pt-BR").put("mode","mp3").put("audio_quality","320 kbps").put("height",1080).put("fps",JSONObject.NULL)
         .put("queue_actions_at_top",true).put("queue_view","Completa").put("queue_card_size","Grande").put("pure_black_separators",false).put("history_card_size","Grande").put("history_view","Compacto").put("playlist_limit",2000).put("link_playlist",false).put("auto_metadata",false).put("auto_match",false).put("confirm_version",false).put("review_metadata",false)
-        .put("detect_duplicates",true).put("filename_template","Original").put("duplicate_policy","ask").put("organization","Pasta de destino").put("interface_font",DEFAULT_INTERFACE_FONT).put("interface_font_size","100%").put("theme","Seguir o sistema").put("accent","Verde-Água")
+        .put("detect_duplicates",true).put("filename_template","Original").put("duplicate_policy","ask").put("organization","Pasta de destino").put("interface_font",DEFAULT_INTERFACE_FONT).put("interface_font_size","100%").put("interface_spacing","Padrão").put("theme","Seguir o sistema").put("accent","Verde-Água")
         .put("concurrent_downloads","1").put("resume_downloads",true).put("resume_queue",false).put("normalize_volume",false)
-        .put("schedule_enabled",false).put("schedule_start","22:00").put("schedule_stop","07:00").put("check_updates",false).put("notice_duration","Após 3 segundos")
+        .put("schedule_enabled",false).put("schedule_start","22:00").put("schedule_stop","07:00").put("check_updates",false).put("notice_duration","Após 3 segundos").put("notice_animation",true)
         .put("search_preview",25).put("effects_preview",25).put("keep_preview",false).put("remember",true)
         .put("image_format","Original").put("image_width",0).put("image_height",0).put("keep_ratio",true)
         .put("tab_order",JSONArray(listOf("Pesquisar","Links e fila","Fila","Imagens","Playlists / Álbuns","Histórico","Efeitos","Metadados")))
         .put("output_uri", "").put("cookies_file", "").put("youtube_cookies_file", "").put("spotify_client_id", "")
     fun normalizeAppearance(value:JSONObject) {
+        value.put("interface_spacing",normalizedSpacing(value.optString("interface_spacing","Padrão")))
         if(value.optString("queue_view") !in listOf("Compacto","Completa"))value.put("queue_view","Completa")
         if(value.optString("queue_card_size") !in listOf("Pequeno","Médio","Grande"))value.put("queue_card_size","Grande")
         value.put("language",normalizedLanguage(value.optString("language","pt-BR")))

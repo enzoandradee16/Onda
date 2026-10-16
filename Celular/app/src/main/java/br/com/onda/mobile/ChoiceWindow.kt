@@ -44,7 +44,7 @@ import org.json.JSONObject
     val candidates=event.optJSONArray("candidates")?.objects() ?: emptyList()
     val cancel={OndaStore.answer(JSONObject().put("cancel",true))}
     AlertDialog(containerColor=ondaDialogContainerColor(),onDismissRequest=cancel,title={UiText(when(kind) {"choose_flac"->"FLAC pelo navegador";"choose_version"->"Qual versão você prefere?";"choose_catalog"->"Confirme os metadados";"choose_media"->"O que você quer baixar?";"choose_queue_duplicate"->"Duplicatas detectadas";"choose_duplicate"->"Arquivo já existe";else->"Sua música, do seu jeito."})},text={
-        Column(Modifier.fillMaxWidth().heightIn(max=500.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.fillMaxWidth().heightIn(max=500.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
             when(kind) {
                 "choose_flac"->{
                     Text(record.stringList("artists") + " — " + record.optString("title"))

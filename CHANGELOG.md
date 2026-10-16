@@ -1,6 +1,13 @@
 # Histórico de versões
 
-## Em desenvolvimento
+## 1.1.3 — 2026-10-15
+
+- Interface PC/Android: espaçamento Compacto/Padrão/Confortável com aplicação imediata e preferência persistida; exportação/importação inclui a nova opção.
+- Android: avisos entram descendo e saem subindo, com opção para desligar e links para configurações/sessão quando há orientação. Checkbox e texto têm mais respiro; ações da fila distribuídas em duas linhas.
+- PC: seletores de visualização/tamanho mais largos, atalhos Ctrl+A e Ctrl+setas, além dos demais atalhos da janela de ajuda.
+- Recuperação HTTP 403: formatos recusados excluídos da nova tentativa, preferência por HLS do mesmo vídeo e até três tentativas limitadas para áudio.
+- Fila separada de Links nas duas interfaces; downloads imediatos abrem a fila e iniciam o processamento. Verificações de identidade e edição preservadas, sem consultas extras quando o primeiro resultado já é compatível.
+
 
 - Busca adicional de aliases no MusicBrainz após falha da busca normal, com confirmação por gravação e identidade do artista, cache local com expiração, rejeição de homônimos e limite de consultas compartilhado entre downloads.
 

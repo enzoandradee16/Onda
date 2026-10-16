@@ -26,10 +26,10 @@ import java.util.Locale
         onSubmit(options,now)
     }
     AlertDialog(containerColor=ondaDialogContainerColor(),onDismissRequest=onDismiss,title={UiText("Escolha o formato")},text={
-        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(10.dp)) {
-            Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
+            Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(LayoutSpacing.section)) {
                 AsyncImage(record.cleanString("cover_url"),translateUi("Capa do álbum",LocalUiLanguage.current),Modifier.size(64.dp))
-                Column(Modifier.weight(1f)) {
+                Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.text)) {
                     Text(record.cleanString("title"),style=MaterialTheme.typography.titleMedium)
                     Text(record.stringList("artists"),style=MaterialTheme.typography.bodySmall)
                     Text(record.cleanString("album").ifBlank {translateUi("Álbum não informado",LocalUiLanguage.current)},style=MaterialTheme.typography.bodySmall)
@@ -56,7 +56,7 @@ import java.util.Locale
             } else "Tamanho variável · valor real mostrado ao concluir",style=MaterialTheme.typography.bodySmall)
             UiText("Inclui capa e metadados disponíveis. MP3/M4A usam YouTube; FLAC usa Monochrome.",style=MaterialTheme.typography.bodySmall)
         }
-    },confirmButton={Column(Modifier.fillMaxWidth(),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(4.dp)) {
+    },confirmButton={Column(Modifier.fillMaxWidth(),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(LayoutSpacing.details)) {
         Button(onClick={submit(true)},enabled=record.optString("source_url").isNotBlank(),modifier=Modifier.fillMaxWidth()){UiText("Baixar agora")}
         TextButton(onClick={submit(false)},enabled=record.optString("source_url").isNotBlank(),modifier=Modifier.fillMaxWidth()){UiText("Adicionar à fila")}
         TextButton(onClick=onDismiss,modifier=Modifier.fillMaxWidth()){UiText("Voltar")}

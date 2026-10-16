@@ -24,6 +24,9 @@ class UiMixin:
         family = font_family(self, self.interface_font.get())
         colors = palette(self.theme_mode.get(), self.theme_accent.get(), self.pure_black_separators.get())
         BG, SURFACE, INPUT, TEXT, MUTED, ACCENT, LINE = (colors[key] for key in ('bg','surface','input','text','muted','accent','line'))
+        from interface_spacing import spacing_scale
+        density = spacing_scale(self.interface_spacing.get())
+        pad = lambda value: max(1, round(value * density))
         style = ttk.Style(self)
         style.theme_use("clam")
         style.configure(".", background=BG, foreground=TEXT, font=(family, round(10 * scale)),
@@ -34,36 +37,36 @@ class UiMixin:
         style.configure("HistorySelected.TLabel", background=colors["selected"], foreground=TEXT)
         style.configure("HistorySelectedMuted.TLabel", background=colors["selected"], foreground=MUTED)
         style.configure("TNotebook", background=BG, borderwidth=0)
-        style.configure("TNotebook.Tab", background=SURFACE, foreground=MUTED, padding=(8, 9))
+        style.configure("TNotebook.Tab", background=SURFACE, foreground=MUTED, padding=(pad(8), max(8,pad(9))))
         style.map("TNotebook.Tab", background=[("selected", INPUT)], foreground=[("selected", ACCENT)])
         style.configure("TLabel", background=BG)
         style.configure("Muted.TLabel", foreground=MUTED)
         style.configure("Card.TLabel", background=SURFACE)
         style.configure("CardMuted.TLabel", background=SURFACE, foreground=MUTED)
-        style.configure("TButton", background=INPUT, foreground=TEXT, padding=(14, 9), borderwidth=0,
+        style.configure("TButton", background=INPUT, foreground=TEXT, padding=(pad(14), max(8,pad(9))), borderwidth=0,
                         focusthickness=0, relief="flat")
         style.map("TButton", background=[("active", colors["hover"]), ("disabled", SURFACE)],
                   foreground=[("disabled", colors["disabled"])])
-        style.configure("Quiet.TButton", background=BG, foreground=MUTED, padding=(10, 7))
+        style.configure("Quiet.TButton", background=BG, foreground=MUTED, padding=(pad(10), max(6,pad(7))))
         style.map("Quiet.TButton", background=[("active", SURFACE), ("disabled", BG)],
                   foreground=[("active", TEXT), ("disabled", colors["disabled"])])
         style.configure("Accent.TButton", background=ACCENT, foreground=colors["accent_text"], font=(family, round(10 * scale), "bold"))
         style.map("Accent.TButton", background=[("active", colors["accent_hover"]), ("disabled", colors["line"])],
                   foreground=[("disabled", colors["muted"]), ("!disabled", colors["accent_text"])])
         style.configure("TEntry", fieldbackground=INPUT, foreground=TEXT, insertcolor=TEXT,
-                        padding=8, borderwidth=0)
+                        padding=max(6,pad(8)), borderwidth=0)
         style.configure("TCombobox", fieldbackground=INPUT, background=INPUT, arrowcolor=MUTED,
-                        foreground=TEXT, padding=(10, 7), borderwidth=0)
+                        foreground=TEXT, padding=(pad(10), max(6,pad(7))), borderwidth=0)
         style.map("TCombobox", fieldbackground=[("readonly", INPUT)],
                   foreground=[("readonly", TEXT), ("disabled", MUTED)],
                   background=[("active", LINE), ("readonly", INPUT)])
         style.configure("TCheckbutton", background=BG, foreground=MUTED)
         style.map("TCheckbutton", background=[("active", BG)])
         style.configure("Treeview", background=SURFACE, fieldbackground=SURFACE, foreground=TEXT,
-                        rowheight=round(44 * scale), borderwidth=0, relief="flat")
+                        rowheight=max(round(36 * scale),round(44 * scale * density)), borderwidth=0, relief="flat")
         style.layout("Treeview", [("Treeview.treearea", {"sticky": "nswe"})])
         style.configure("Treeview.Heading", background=SURFACE, foreground=MUTED,
-                        font=(family, round(9 * scale)), padding=(12, 12), borderwidth=0, relief="flat")
+                        font=(family, round(9 * scale)), padding=(pad(12), pad(12)), borderwidth=0, relief="flat")
         style.map("Treeview.Heading", background=[("active", SURFACE)])
         style.map("Treeview", background=[("selected", colors["selected"])], foreground=[("selected", TEXT)])
         style.configure("Horizontal.TProgressbar", background=ACCENT, troughcolor=LINE,
@@ -190,6 +193,8 @@ class UiMixin:
         queue_header.grid(row=3, column=0, sticky="ew", pady=(14, 10))
         queue_head = ttk.Frame(queue_header)
         queue_head.pack(fill="x")
+        queue_selectors=ttk.Frame(queue_header)
+        queue_selectors.pack(fill="x",pady=(6,0))
         ttk.Label(queue_head, text=tr("Seus downloads"), font=("Segoe UI", 12, "bold")).pack(side="left")
         self.queue_count = tk.StringVar(value="Concluídos: 0/0 · Restantes: 0")
         summary = ttk.Frame(queue_head)
@@ -205,9 +210,9 @@ class UiMixin:
         self.remove_button.pack(side="right", padx=4)
         self.clear_queue_button = ttk.Button(queue_head, text=tr("Limpar fila"), style="Quiet.TButton", command=self.clear_queue, state="disabled")
         self.clear_queue_button.pack(side="right", padx=4)
-        TranslatedCombobox(queue_head,textvariable=self.queue_view,values=("Compacto","Completa"),state="readonly",width=10).pack(side="left",padx=4)
-        self.queue_size_controls=ttk.Frame(queue_head)
-        TranslatedCombobox(self.queue_size_controls,textvariable=self.queue_card_size,values=("Pequeno","Médio","Grande"),state="readonly",width=8).pack(side="left")
+        TranslatedCombobox(queue_selectors,textvariable=self.queue_view,values=("Compacto","Completa"),state="readonly",width=14).pack(side="left",padx=4)
+        self.queue_size_controls=ttk.Frame(queue_selectors)
+        TranslatedCombobox(self.queue_size_controls,textvariable=self.queue_card_size,values=("Pequeno","Médio","Grande"),state="readonly",width=14).pack(side="left")
         table = ttk.Frame(main, style="Card.TFrame")
         table.grid(row=4, column=0, sticky="nsew")
         self.tree = ttk.Treeview(table, columns=("name", "format", "size", "status"), show="headings", height=5, selectmode="extended")
@@ -376,6 +381,9 @@ class UiMixin:
         ttk.Label(appearance, text=tr('Cor de destaque'), style='Muted.TLabel').pack(anchor='w')
         self.theme_accent_combo = TranslatedCombobox(appearance, textvariable=self.theme_accent, values=tuple(ACCENTS), state='readonly', width=28)
         self.theme_accent_combo.pack(anchor='w', fill='x', pady=(6, 16))
+        from interface_spacing import SPACING_MODES
+        ttk.Label(appearance,text=tr("Espaçamento da interface"),style="Muted.TLabel").pack(anchor="w")
+        TranslatedCombobox(appearance,textvariable=self.interface_spacing,values=SPACING_MODES,state="readonly",width=28).pack(anchor="w",fill="x",pady=(6,12))
         from interface_fonts import font_choices, FONT_PREVIEW, FONT_SIZES
         ttk.Label(appearance, text=tr("Alterar tamanho da fonte")).pack(anchor="w", pady=(12, 4))
         TranslatedCombobox(appearance, textvariable=self.interface_font_size, values=FONT_SIZES, state="readonly", width=12).pack(anchor="w")

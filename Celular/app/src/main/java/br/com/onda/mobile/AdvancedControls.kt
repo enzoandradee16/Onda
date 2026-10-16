@@ -32,7 +32,7 @@ import java.io.File
     SettingsDivider()
     Toggle("Agendar downloads",settings.optBoolean("schedule_enabled")){put("schedule_enabled",it)}
     SettingsDivider()
-    Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+    Row(horizontalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
         OutlinedTextField(settings.optString("schedule_start","22:00"),{put("schedule_start",it)},label={UiText("Começar · HH:MM")},singleLine=true,modifier=Modifier.weight(1f))
         OutlinedTextField(settings.optString("schedule_stop","07:00"),{put("schedule_stop",it)},label={UiText("Parar · HH:MM")},singleLine=true,modifier=Modifier.weight(1f))
     }
@@ -126,13 +126,13 @@ import java.io.File
     if(cropCandidate.isNotBlank())CoverCropper(cropCandidate,
         onCancel={cropCandidate=""},
         onApply={cropped->if(cover.isNotBlank())File(cover).delete();cover=cropped;File(cropCandidate).delete();cropCandidate=""})
-    Column(Modifier.fillMaxSize().padding(horizontal=16.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(10.dp)) {
-        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(12.dp),verticalAlignment=androidx.compose.ui.Alignment.CenterVertically) {
+    Column(Modifier.fillMaxSize().padding(horizontal=LayoutSpacing.inset).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
+        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(LayoutSpacing.section),verticalAlignment=androidx.compose.ui.Alignment.CenterVertically) {
             Text(item.title,modifier=Modifier.weight(1f),maxLines=2,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)
             Button(enabled=!busy,onClick={finish()},contentPadding=PaddingValues(horizontal=16.dp)){UiText("Escolher outro arquivo",maxLines=1,softWrap=false)}
         }
             OutlinedCard(Modifier.fillMaxWidth()) {
-                Column(Modifier.fillMaxWidth().padding(16.dp),horizontalAlignment=androidx.compose.ui.Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(8.dp)) {
+                Column(Modifier.fillMaxWidth().padding(LayoutSpacing.inset),horizontalAlignment=androidx.compose.ui.Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
                     UiText("Capa do álbum",style=MaterialTheme.typography.titleMedium)
             val originalBitmap=remember(originalCover) {runCatching {val bytes=android.util.Base64.decode(originalCover,android.util.Base64.DEFAULT);android.graphics.BitmapFactory.decodeByteArray(bytes,0,bytes.size)}.getOrNull()}
             if(cover.isNotBlank() || originalBitmap!=null) coil.compose.AsyncImage(model=if(cover.isNotBlank())File(cover) else originalBitmap,contentDescription=translateUi("Capa do álbum",LocalUiLanguage.current),modifier=Modifier.size(208.dp))
@@ -160,6 +160,6 @@ import java.io.File
             UiText(if(overwrite) "O arquivo original será substituído, mantendo o nome e a pasta." else "O arquivo original será preservado. Uma cópia será salva na pasta de destino.",style=MaterialTheme.typography.bodySmall)
             if(busy)LinearProgressIndicator(Modifier.fillMaxWidth())
         Button(enabled=loaded && !busy,onClick={vm.operation("audio_edit",config(),dialog=false){if(overwrite)finish();vm.status.value=if(overwrite) "Arquivo original atualizado." else "Cópia editada salva na pasta de destino."}},modifier=Modifier.fillMaxWidth()){UiText(if(overwrite) "Salvar no original" else "Salvar cópia editada")}
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(LayoutSpacing.section))
     }
 }

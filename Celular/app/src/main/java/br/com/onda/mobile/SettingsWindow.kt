@@ -22,8 +22,8 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 val categories=linkedMapOf(
-    "Geral" to listOf("language","remember","check_updates","notice_duration"),
-    "Aparência" to listOf("queue_actions_at_top","queue_view","queue_card_size","history_card_size","pure_black_separators","history_view","theme","accent","tab_order","interface_font","interface_font_size"),
+    "Geral" to listOf("language","remember","check_updates","notice_duration","notice_animation"),
+    "Aparência" to listOf("queue_actions_at_top","queue_view","queue_card_size","history_card_size","pure_black_separators","history_view","theme","accent","tab_order","interface_font","interface_font_size","interface_spacing"),
     "Downloads" to listOf("detect_duplicates","filename_template","concurrent_downloads","resume_downloads","resume_queue","normalize_volume","schedule_enabled","schedule_start","schedule_stop","mode","audio_quality","height","fps","playlist_limit","organization","duplicate_policy","output_uri","auto_metadata","auto_match","confirm_version","review_metadata"),
     "Imagens" to listOf("image_format","image_width","image_height","keep_ratio"),
     "Áudio" to listOf("search_preview","effects_preview","keep_preview"),
@@ -55,13 +55,13 @@ val categories=linkedMapOf(
     }
 
     Dialog(onDismissRequest=close) {
-        Surface(modifier=Modifier.clip(RoundedCornerShape(28.dp)),shape=RoundedCornerShape(28.dp)) {Column(Modifier.fillMaxWidth().fillMaxHeight(.94f).padding(16.dp)) {
+        Surface(modifier=Modifier.clip(RoundedCornerShape(28.dp)),shape=RoundedCornerShape(28.dp)) {Column(Modifier.fillMaxWidth().fillMaxHeight(.94f).padding(LayoutSpacing.inset),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.text)) {
             UiText("Do seu jeito.",style=MaterialTheme.typography.headlineSmall)
             UiText("Escolha uma categoria para ajustar o Onda.",style=MaterialTheme.typography.bodySmall)
             if(busy) {LinearProgressIndicator(Modifier.fillMaxWidth());UiText(status,style=MaterialTheme.typography.bodySmall,maxLines=2);TextButton(onClick={vm.cancel()}){UiText("Cancelar")}}
             ScrollableTabRow(selectedTabIndex=pager.currentPage,edgePadding=0.dp) { names.forEachIndexed {index,name->Tab(selected=pager.currentPage==index,onClick={scope.launch {pager.scrollToPage(index)}},text={UiText(name,maxLines=1)})} }
             HorizontalPager(state=pager,modifier=Modifier.weight(1f).testTag("settings-pages"),verticalAlignment=androidx.compose.ui.Alignment.Top) { page->
-            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(top=10.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
+            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(top=LayoutSpacing.controls),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
                 when(names[page]) {
                     "Geral"->{
                         UiText("Preferências",style=MaterialTheme.typography.titleMedium)
@@ -70,6 +70,7 @@ val categories=linkedMapOf(
                         Toggle("Lembrar configurações",settings.optBoolean("remember",true)){put("remember",it)}
                         UiText("Ative para recuperar suas opções ao abrir o aplicativo novamente.",style=MaterialTheme.typography.bodySmall)
                         SettingsDivider()
+                        Toggle("Animar avisos",settings.optBoolean("notice_animation",true)){put("notice_animation",it)}
                         Select("Duração dos avisos",settings.optString("notice_duration","Após 3 segundos"),noticeDurations.keys.toList()){put("notice_duration",it)}
                         UiText("Avisos de operações em andamento permanecem até terminar. O botão × permite fechar manualmente.",style=MaterialTheme.typography.bodySmall)
                         PreferenceTransfer(vm)
@@ -86,6 +87,8 @@ val categories=linkedMapOf(
                         Toggle("Mostrar bordas e separações no Preto puro",settings.optBoolean("pure_black_separators",false)){put("pure_black_separators",it)}
                         SettingsDivider()
                         Select("Cor de destaque",settings.optString("accent"),accents.keys.toList()){put("accent",it)}
+                        SettingsDivider()
+                        Select("Espaçamento da interface",settings.optString("interface_spacing","Padrão"),spacingModes){put("interface_spacing",it)}
                         SettingsDivider()
                         Select("Alterar tamanho da fonte",settings.optString("interface_font_size","100%"),interfaceFontSizes){put("interface_font_size",it)}
                         SettingsDivider()

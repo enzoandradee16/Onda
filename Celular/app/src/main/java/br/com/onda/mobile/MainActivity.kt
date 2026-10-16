@@ -163,7 +163,7 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
     LaunchedEffect(effectsSource) {if(effectsSource.isNotBlank()) tab="Efeitos"}
     LaunchedEffect(tab) { if(!settings.optBoolean("keep_preview")) vm.stopPreview() }
     val typography=remember(settings.optString("interface_font"),settings.optString("interface_font_size")) {interfaceTypography(settings.optString("interface_font",DEFAULT_INTERFACE_FONT),settings.optString("interface_font_size","100%"))}
-    LocalizedTheme(language=settings.optString("language","pt-BR"),colorScheme=scheme,typography=typography) {
+    LocalizedTheme(language=settings.optString("language","pt-BR"),colorScheme=scheme,typography=typography,spacing=settings.optString("interface_spacing","Padrão")) {
         ModalNavigationDrawer(drawerState=drawer,drawerContent={ModalDrawerSheet(Modifier.width(300.dp)) {
             Row(Modifier.fillMaxWidth().padding(20.dp),horizontalArrangement=Arrangement.Center,verticalAlignment=Alignment.CenterVertically) {OndaLogo(Modifier.size(36.dp).clip(RoundedCornerShape(25)));UiText("ONDA",style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.Bold,modifier=Modifier.padding(start=8.dp))}
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
@@ -175,21 +175,17 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
                 NavigationDrawerItem(label={UiText("Sessão do YouTube")},selected=false,onClick={navigateFromDrawer {youtubeSession=true}})
                 NavigationDrawerItem(label={UiText("Licenças e fontes")},selected=false,onClick={navigateFromDrawer {showLicenses=true}})
                 NavigationDrawerItem(label={UiText("Falhas da fila")},selected=false,onClick={navigateFromDrawer {OndaStore.failureSummary.value=OndaStore.items.value.filter {it.state=="Erro"}.map {it.id}.takeIf {it.isNotEmpty()}}})
-                UiText("Seus downloads",style=MaterialTheme.typography.labelLarge,modifier=Modifier.padding(16.dp))
+                UiText("Seus downloads",style=MaterialTheme.typography.labelLarge,modifier=Modifier.padding(LayoutSpacing.inset))
                 val queue by OndaStore.items.collectAsStateWithLifecycle()
-                UiText("${queue.count {it.state=="Pendente"}} pendentes · ${queue.count {it.state=="Concluído"}} concluídos",modifier=Modifier.padding(horizontal=16.dp),style=MaterialTheme.typography.bodySmall)
-                if(statusVisible) UiText(status,modifier=Modifier.padding(16.dp),style=MaterialTheme.typography.bodySmall)
+                UiText("${queue.count {it.state=="Pendente"}} pendentes · ${queue.count {it.state=="Concluído"}} concluídos",modifier=Modifier.padding(horizontal=LayoutSpacing.inset),style=MaterialTheme.typography.bodySmall)
+                if(statusVisible) UiText(status,modifier=Modifier.padding(LayoutSpacing.inset),style=MaterialTheme.typography.bodySmall)
             }
-            UiText("ONDA Android ${BuildConfig.VERSION_NAME}",Modifier.padding(16.dp),style=MaterialTheme.typography.labelSmall)
+            UiText("ONDA Android ${BuildConfig.VERSION_NAME}",Modifier.padding(LayoutSpacing.inset),style=MaterialTheme.typography.labelSmall)
         }}) {
         Scaffold(topBar={ TopAppBar(navigationIcon={IconButton(onClick={scope.launch {drawer.open()}},modifier=Modifier.testTag("open-menu")){AccessibleSymbol("☰","Abrir menu de navegação",style=MaterialTheme.typography.titleLarge)}},title={Row(verticalAlignment=Alignment.CenterVertically) {OndaLogo(Modifier.size(28.dp).clip(RoundedCornerShape(25)),"Ícone ONDA");Column(Modifier.padding(start=8.dp)){UiText("ONDA",color=MaterialTheme.colorScheme.primary,fontWeight=FontWeight.Bold,style=MaterialTheme.typography.titleMedium);UiText(tabLabel(tab),style=MaterialTheme.typography.labelSmall)}}}) }) { padding ->
             Column(Modifier.fillMaxSize().padding(padding)) {
                 if(busy) LinearProgressIndicator(Modifier.fillMaxWidth())
-                if(statusVisible) Row(Modifier.fillMaxWidth().padding(horizontal=16.dp),verticalAlignment=Alignment.CenterVertically) {
-                    UiText(status,Modifier.weight(1f).testTag("app-status").semantics {if(!busy)liveRegion=LiveRegionMode.Polite},style=MaterialTheme.typography.bodySmall,maxLines=2)
-                    if(busy) TextButton(onClick={vm.cancel()}) {UiText("Cancelar")}
-                    else TextButton(onClick={statusVisible=false}) {AccessibleSymbol("×","Fechar aviso")}
-                }
+                TopStatusNotice(status,statusVisible,busy,settings.optBoolean("notice_animation",true),onCancel={vm.cancel()},onDismiss={statusVisible=false},onOpenSettings={category->if(category=="Sessão do YouTube")youtubeSession=true else {settingsCategory=category;showSettings=true}})
                 Box(Modifier.weight(1f)) {
                     pages.SaveableStateProvider(tab) {when(tab) {
                         "Pesquisar"->SearchPage(vm,onConnectSpotify={settingsCategory="Contas";showSettings=true})
@@ -217,7 +213,16 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
             text={UiText("Ajuste o básico para começar. Você pode fechar esta janela e configurar tudo depois.")},
             confirmButton={TextButton(onClick={preferences.edit().putBoolean("welcome_seen",true).apply();welcome=false;settingsCategory="Aparência";showSettings=true}){UiText("Configurações")}},
             dismissButton={TextButton(onClick={preferences.edit().putBoolean("welcome_seen",true).apply();welcome=false}){UiText("Agora não")}})
-        notice?.let {current->AlertDialog(containerColor=ondaDialogContainerColor(),onDismissRequest=vm::dismissNotice,title={UiText(current.title)},text={Column(Modifier.heightIn(max=320.dp).verticalScroll(rememberScrollState())){UiText(current.message)}},confirmButton={TextButton(onClick=vm::dismissNotice){UiText("OK")}})}
+        notice?.let {current->
+            val destination=noticeDestination(current.message)
+            AlertDialog(containerColor=ondaDialogContainerColor(),onDismissRequest=vm::dismissNotice,title={UiText(current.title)},
+                text={Column(Modifier.heightIn(max=320.dp).verticalScroll(rememberScrollState())){UiText(current.message)}},
+                confirmButton={TextButton(onClick=vm::dismissNotice){UiText("OK")}},
+                dismissButton={if(destination!=null)TextButton(onClick={
+                    vm.dismissNotice()
+                    if(destination=="Sessão do YouTube")youtubeSession=true else {settingsCategory=destination;showSettings=true}
+                }){UiText(if(destination=="Sessão do YouTube")"Sessão do YouTube" else "Configurações")}})
+        }
     }
 }
 fun tabLabel(tab: String)=when(tab) {"Links e fila"->"Links";"Metadados"->"Editar metadados";"Pesquisar"->"Pesquisar músicas";"Efeitos"->"Slowed / Sped Up";"Playlists / Álbuns"->"Álbuns e playlists";else->tab}
@@ -225,13 +230,13 @@ fun tabLabel(tab: String)=when(tab) {"Links e fila"->"Links";"Metadados"->"Edita
 @Composable fun PageTitle(title: String, description: String) {
     Column(Modifier.fillMaxWidth().padding(vertical=8.dp),horizontalAlignment=Alignment.CenterHorizontally) {
         UiText(title,modifier=Modifier.semantics {heading()},style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.Bold,textAlign=TextAlign.Center)
-        UiText(description,style=MaterialTheme.typography.bodySmall,textAlign=TextAlign.Center,modifier=Modifier.padding(top=6.dp))
+        UiText(description,style=MaterialTheme.typography.bodySmall,textAlign=TextAlign.Center,modifier=Modifier.padding(top=LayoutSpacing.details))
     }
 }
 @Composable fun Select(label: String, value: String, choices: List<String>, modifier: Modifier=Modifier, changed: (String)->Unit) {
     var open by remember { mutableStateOf(false) }
     val displayValue=if(value=="pt-BR") "Português (Brasil)" else if(value=="es") "Español" else if(value=="en") "English" else translateUi(value,LocalUiLanguage.current)
-    Column(modifier) {
+    Column(modifier,verticalArrangement=Arrangement.spacedBy(LayoutSpacing.text)) {
         if(label.isNotBlank()) UiText(label,style=MaterialTheme.typography.labelMedium)
         Box { OutlinedButton(onClick={open=true},modifier=Modifier.fillMaxWidth().heightIn(min=48.dp).a11yLabel(if(label.isBlank()) displayValue else translateUi(label,LocalUiLanguage.current)+": "+displayValue,if(open) "Expandido" else "Recolhido"),shape=RoundedCornerShape(10.dp),contentPadding=PaddingValues(horizontal=12.dp,vertical=6.dp)) {UiText(if(value=="pt-BR")"Português (Brasil)" else if(value=="es")"Español" else if(value=="en")"English" else value,Modifier.weight(1f),maxLines=1,style=MaterialTheme.typography.bodyMedium);UiText("▾",Modifier.padding(start=6.dp).clearAndSetSemantics {})}
             DropdownMenu(expanded=open,onDismissRequest={open=false}) { choices.forEach { choice-> DropdownMenuItem(text={UiText(if(choice=="pt-BR")"Português (Brasil)" else if(choice=="es")"Español" else if(choice=="en")"English" else choice)},onClick={changed(choice);open=false}) } }
@@ -240,7 +245,7 @@ fun tabLabel(tab: String)=when(tab) {"Links e fila"->"Links";"Metadados"->"Edita
 }
 @Composable fun Toggle(text: String, checked: Boolean, changed: (Boolean)->Unit) {
     Row(Modifier.fillMaxWidth().heightIn(min=48.dp).toggleable(value=checked,role=Role.Checkbox,onValueChange=changed).a11yState(if(checked) "Selecionado" else "Não selecionado"),verticalAlignment=Alignment.CenterVertically) {
-        Checkbox(checked=checked,onCheckedChange=null); UiText(text,Modifier.weight(1f),style=MaterialTheme.typography.bodyMedium)
+        Checkbox(checked=checked,onCheckedChange=null,modifier=Modifier.padding(end=LayoutSpacing.checkboxLabel)); UiText(text,Modifier.weight(1f),style=MaterialTheme.typography.bodyMedium)
     }
 }
 val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · MP4" to "mp4",
@@ -250,7 +255,7 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
 @Composable fun FormatOptions(config: JSONObject, changed: (JSONObject)->Unit, separated:Boolean=false) {
     fun put(key: String, value: Any) {changed(JSONObject(config.toString()).put(key,value))}
     val mode=config.optString("mode","mp3")
-    Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+    Row(horizontalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
         Select("Formato",modes.entries.firstOrNull {it.value==mode}?.key ?: "Áudio · MP3 (320 kbps)",modes.keys.toList(),Modifier.weight(1f)) {put("mode",modes.getValue(it))}
         if(mode in listOf("mp3","m4a")) {
             val qualities=if(mode=="mp3") listOf("320 kbps","256 kbps","192 kbps","128 kbps","96 kbps") else listOf("256 kbps","192 kbps","128 kbps","96 kbps")
@@ -258,7 +263,7 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
         }
     }
     if(separated && mode in listOf("mp4","video","social")) SettingsDivider()
-    if(mode in listOf("mp4","video","social")) Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+    if(mode in listOf("mp4","video","social")) Row(horizontalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
         val heights=listOf("Melhor disponível","2160p / 4K","1440p","1080p","720p","480p")
         Select("Resolução máxima",if(config.isNull("height")) "Melhor disponível" else if(config.optInt("height")==2160) "2160p / 4K" else "${config.optInt("height",1080)}p",heights,Modifier.weight(1f)) {put("height",it.substringBefore(" / ").removeSuffix("p").toIntOrNull() ?: JSONObject.NULL)}
         Select("FPS máximo",if(config.isNull("fps")) "Original" else "${config.optInt("fps")} fps",listOf("Original","24 fps","30 fps","60 fps","120 fps"),Modifier.weight(1f)) {put("fps",it.substringBefore(' ').toIntOrNull() ?: JSONObject.NULL)}
@@ -302,14 +307,14 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
         }
     },confirmButton={TextButton(onClick={comparison=emptyList()}){UiText("Voltar")}})
     if(showSearchFilters) AlertDialog(onDismissRequest={showSearchFilters=false},title={UiText("Filtros da busca")},text={
-        Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(6.dp)) {
+        Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
             OutlinedTextField(searchArtist,{searchArtist=it},label={UiText("Artista")},singleLine=true)
             OutlinedTextField(searchAlbum,{searchAlbum=it},label={UiText("Álbum")},singleLine=true)
             OutlinedTextField(searchVersion,{searchVersion=it},label={UiText("Versão")},singleLine=true)
             OutlinedTextField(searchYear,{searchYear=it},label={UiText("Ano ou intervalo")},singleLine=true)
             OutlinedTextField(searchDuration,{searchDuration=it},label={UiText("Duração ou intervalo")},singleLine=true)
             Text("ano:2020-2022 · duracao:3:00-4:00")
-            Row(verticalAlignment=Alignment.CenterVertically) {Checkbox(exactSearch,{exactSearch=it});UiText("Exatamente este título")}
+            Row(verticalAlignment=Alignment.CenterVertically) {Checkbox(exactSearch,{exactSearch=it},modifier=Modifier.padding(end=LayoutSpacing.checkboxLabel));UiText("Exatamente este título")}
         }
     },confirmButton={TextButton(onClick={
         val base=query.replace(Regex("(?<!\\S)(?:artista|album|versao|ano|duracao|exata):(\"[^\"]*\"|\\S+)"),"").trim()
@@ -327,7 +332,7 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
             } catch(error:Exception) {vm.showNotice(if(now) "Baixar agora" else "Adicionar à fila",error.message ?: "Não foi possível adicionar a música.")}
         })
     }}
-    LazyColumn(Modifier.fillMaxSize().padding(horizontal=16.dp),verticalArrangement=Arrangement.spacedBy(6.dp)) {
+    LazyColumn(Modifier.fillMaxSize().padding(horizontal=LayoutSpacing.inset),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
         item {PageTitle("Encontre sua próxima música.","Pesquise artista ou música, ou cole um link de faixa.")}
         item {OutlinedTextField(query,{query=it},label={UiText("Música, artista ou link")},singleLine=true,
             keyboardOptions=KeyboardOptions(imeAction=ImeAction.Search),keyboardActions=KeyboardActions(onSearch={submitSearch()}),
@@ -339,7 +344,7 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
             })}
         item {Column {
             UiText("Catálogo",style=MaterialTheme.typography.labelMedium)
-            Row(horizontalArrangement=Arrangement.spacedBy(8.dp),verticalAlignment=Alignment.CenterVertically) {
+            Row(horizontalArrangement=Arrangement.spacedBy(LayoutSpacing.controls),verticalAlignment=Alignment.CenterVertically) {
                 Select("",provider,listOf("Todos","Deezer","Apple / iTunes","Spotify"),Modifier.weight(1f)){provider=it}
                 Button(onClick={submitSearch()},enabled=query.isNotBlank() && !busy) {UiText("Pesquisar")}
             }
@@ -350,13 +355,13 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
             }
         }}
         if(provider=="Spotify") item {
-            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp),verticalAlignment=Alignment.CenterVertically) {
+            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(LayoutSpacing.controls),verticalAlignment=Alignment.CenterVertically) {
                 OutlinedButton(onClick=onConnectSpotify,modifier=Modifier.testTag("search-connect-spotify")) {UiText("Conectar Spotify")}
                 UiText("Client ID em Configurações → Contas.",Modifier.weight(1f),style=MaterialTheme.typography.bodySmall)
             }
         }
         if(searchQueue.isNotEmpty()) item {
-            ElevatedCard(Modifier.fillMaxWidth().testTag("search-queue")) {Column(Modifier.padding(10.dp),verticalArrangement=Arrangement.spacedBy(4.dp)) {
+            ElevatedCard(Modifier.fillMaxWidth().testTag("search-queue")) {Column(Modifier.padding(10.dp),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.details)) {
                 UiText("Fila da pesquisa · ${searchQueue.count {it.state=="Concluído"}} de ${searchQueue.size} concluídas",style=MaterialTheme.typography.titleSmall)
                 LazyColumn(Modifier.fillMaxWidth().heightIn(max=180.dp)) {items(searchQueue,key={it.id}) {item->Column(Modifier.padding(vertical=6.dp)) {
                     Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
@@ -381,7 +386,7 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
         if(comparison.size==1)item {UiText("Selecione outro resultado para comparar.")}
         items(results,contentType={"search_track"}) {record-> TrackCard(record,vm,onDownload={downloadTrack=record.toString()},onCompare={comparison=(comparison+record).takeLast(2)}) }
         item {UiText("Catálogo e capa: plataforma selecionada  •  Áudio: YouTube / FLAC: Monochrome",style=MaterialTheme.typography.bodySmall)}
-        item {Spacer(Modifier.height(12.dp))}
+        item {Spacer(Modifier.height(LayoutSpacing.controls))}
     }
 }
 @Composable fun TrackCard(record: JSONObject, vm: OndaViewModel, onDownload:()->Unit, onCompare:(()->Unit)?=null) {
@@ -418,12 +423,12 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
         vm.enqueueLinks(urls,now)
         link=""
     }
-    NavigableList(Modifier.fillMaxSize().padding(horizontal=16.dp),navigationId="links") {
+    NavigableList(Modifier.fillMaxSize().padding(horizontal=LayoutSpacing.inset),navigationId="links") {
         item {PageTitle("Do link para sua biblioteca.","Músicas, vídeos e fotos, organizados do seu jeito.")}
         item {OutlinedTextField(link,{link=it},label={UiText("LINKS")},placeholder={UiText("YouTube, Instagram, TikTok, Kwai… um link por linha")},minLines=2,modifier=Modifier.fillMaxWidth().testTag("links-input"),singleLine=false)}
         item {FormatOptions(settings,OndaStore::saveSettings)}
         item {Toggle("Baixar playlist de vídeo",settings.optBoolean("link_playlist")){OndaStore.saveSettings(JSONObject(settings.toString()).put("link_playlist",it))}}
-        item {Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+        item {Row(horizontalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
             OutlinedButton(onClick={add(false)},enabled=link.isNotBlank() && !adding,modifier=Modifier.testTag("links-add")){UiText("Adicionar à fila")}
             Button(onClick={add(true)},enabled=link.isNotBlank() && !adding,modifier=Modifier.testTag("links-download")){UiText("Baixar agora")}
         }}
@@ -438,7 +443,7 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
     val complete=settings.optString("queue_view","Completa")=="Completa"
     val cardSize=settings.optString("queue_card_size","Grande")
     val small=cardSize=="Pequeno"
-    val cardPadding=if(!complete)4.dp else if(small)6.dp else if(cardSize=="Médio")10.dp else 14.dp
+    val cardPadding=if(!complete)4.dp else if(small)6.dp else if(cardSize=="Médio")10.dp else LayoutSpacing.section
     val queue by OndaStore.items.collectAsStateWithLifecycle()
     val completed=remember(queue) {queue.count {it.state=="Concluído"}}
     val running by OndaStore.running.collectAsStateWithLifecycle()
@@ -455,13 +460,18 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
     var clear by remember {mutableStateOf(false)}
     LaunchedEffect(queue) {OndaStore.selectAll.collect {selected=queue.filterNot {it.config.optBoolean("_immediate")}.map {it.id}.toSet()}}
     val queueActions:@Composable ()->Unit = {
-        Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-            Button(onClick={DownloadService.start(OndaStore.context)},enabled=queue.any {it.state=="Pendente"}){UiText("Baixar fila")}
-            OutlinedButton(onClick={DownloadService.stop(OndaStore.context)},enabled=running){UiText("Parar")}
-            TextButton(onClick={showLogs=!showLogs}){UiText("Ver detalhes")}
+        Column(Modifier.fillMaxWidth(),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
+            Button(onClick={DownloadService.start(OndaStore.context)},enabled=queue.any {it.state=="Pendente"},
+                modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)){UiText("Baixar fila")}
+            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(LayoutSpacing.section),verticalAlignment=Alignment.CenterVertically) {
+                OutlinedButton(onClick={DownloadService.stop(OndaStore.context)},enabled=running,
+                    modifier=Modifier.weight(1f).heightIn(min=48.dp)){UiText("Parar")}
+                TextButton(onClick={showLogs=!showLogs},
+                    modifier=Modifier.weight(1f).heightIn(min=48.dp)){UiText("Ver detalhes")}
+            }
         }
     }
-    NavigableList(Modifier.fillMaxSize().padding(horizontal=16.dp),navigationId="queue") {
+    NavigableList(Modifier.fillMaxSize().padding(horizontal=LayoutSpacing.inset),navigationId="queue") {
         item {PageTitle("Fila de downloads","Acompanhe, organize e gerencie seus downloads.")}
         item {Row(Modifier.horizontalScroll(rememberScrollState())) {
             TextButton(onClick={selected=queue.filterNot {it.config.optBoolean("_immediate")}.map {it.id}.toSet()}) {UiText("Selecionar tudo")}
@@ -479,9 +489,9 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
             val immediate=item.config.optBoolean("_immediate")
             val cardModifier=Modifier.fillMaxWidth().let {base->if(immediate) base else base.toggleable(value=item.id in selected,role=Role.Checkbox,onValueChange={checked->selected=if(checked) selected+item.id else selected-item.id})}
             ElevatedCard(cardModifier.a11yState(if(immediate) item.state else if(item.id in selected) "Selecionado" else "Não selecionado").testTag("queue-card-${item.id}")) {
-            Column(Modifier.padding(cardPadding)) {
+            Column(Modifier.padding(cardPadding),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.text)) {
                 Row(verticalAlignment=Alignment.CenterVertically) {
-                    if(!immediate) Checkbox(item.id in selected,null)
+                    if(!immediate) Checkbox(item.id in selected,null,modifier=Modifier.padding(end=LayoutSpacing.checkboxLabel))
                     if(complete)QueueTrackInformation(item,cardSize,Modifier.weight(1f))
                     else Text(item.title,Modifier.weight(1f),maxLines=1,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis,style=MaterialTheme.typography.bodyMedium)
                 }
@@ -516,7 +526,7 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
     fun imageConfig()=OndaStore.config(JSONObject(settings.toString()).put("mode","photos")).put("url",link).apply {
         if(source.isNotBlank()) put("source",source).put("name",File(source).name.replaceFirst(Regex("^image-[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}-"),""))
     }
-    Column(Modifier.verticalScroll(rememberScrollState()).padding(16.dp),verticalArrangement=Arrangement.spacedBy(6.dp)) {
+    Column(Modifier.verticalScroll(rememberScrollState()).padding(LayoutSpacing.inset),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
         PageTitle("Imagens do seu jeito.","Baixe, converta e ajuste o tamanho sem cortar a imagem.")
         OutlinedTextField(link,{link=it;source=""},label={UiText("Link da imagem ou publicação")},modifier=Modifier.fillMaxWidth(),singleLine=true)
         TextButton(onClick={local()}){UiText(if(source.isBlank()) "Escolher imagem" else File(source).name)}
@@ -533,7 +543,7 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
     Select("Formato",config.optString("image_format","Original"),listOf("Original","JPG","PNG","WebP","SVG")){put("image_format",it)}
     if(separated)SettingsDivider()
     UiText("Largura × altura (px)",style=MaterialTheme.typography.labelMedium)
-    Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+    Row(horizontalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
         OutlinedTextField(config.optInt("image_width").takeIf {it>0}?.toString() ?: "",{put("image_width",it.toIntOrNull()?.coerceIn(0,16384) ?: 0)},label={UiText("Largura")},modifier=Modifier.weight(1f),singleLine=true)
         OutlinedTextField(config.optInt("image_height").takeIf {it>0}?.toString() ?: "",{put("image_height",it.toIntOrNull()?.coerceIn(0,16384) ?: 0)},label={UiText("Altura")},modifier=Modifier.weight(1f),singleLine=true)
     }
@@ -578,7 +588,7 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
             TextButton(onClick={enqueue(false)},enabled=chosen().isNotEmpty() && !adding){UiText("Adicionar à fila")}
         }
     }
-    NavigableList(Modifier.fillMaxSize().padding(horizontal=16.dp),navigationId="collection") {
+    NavigableList(Modifier.fillMaxSize().padding(horizontal=LayoutSpacing.inset),navigationId="collection") {
         item {PageTitle("Seus álbuns e playlists na biblioteca.","Busque por música ou artista. As ações usam somente os itens visíveis selecionados. Formato e qualidade são próprios desta aba.")}
         item {OutlinedTextField(url,{url=it},label={UiText("Link da playlist ou álbum")},modifier=Modifier.fillMaxWidth(),singleLine=true)}
         item {Row(Modifier.horizontalScroll(rememberScrollState())) {
@@ -589,10 +599,10 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
         item {FormatOptions(options,changed={options=it})}
         if(collection.optString("title").isNotBlank()) item {
             Card(Modifier.fillMaxWidth().testTag("collection-card"),colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.background)) {
-                Row(Modifier.fillMaxWidth().padding(vertical=12.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+                Row(Modifier.fillMaxWidth().padding(vertical=LayoutSpacing.controls),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(LayoutSpacing.section)) {
                     if(collection.cleanString("cover_url").isNotBlank()) AsyncImage(model=collection.cleanString("cover_url"),contentDescription=translateUi("Capa de ${collection.optString("title")}",LocalUiLanguage.current),contentScale=androidx.compose.ui.layout.ContentScale.Crop,modifier=Modifier.size(88.dp).clip(RoundedCornerShape(10.dp)))
                     else Surface(Modifier.size(88.dp),shape=RoundedCornerShape(10.dp),color=MaterialTheme.colorScheme.surfaceVariant) {Box(contentAlignment=Alignment.Center){UiText("♫",style=MaterialTheme.typography.headlineLarge)}}
-                    Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(4.dp)) {
+                    Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.details)) {
                         Text(collection.optString("title"),fontWeight=FontWeight.Bold,style=MaterialTheme.typography.titleMedium)
                         if(collection.cleanString("subtitle").isNotBlank()) Text(collection.cleanString("subtitle"),style=MaterialTheme.typography.bodySmall)
                         UiText("${if(collection.optString("kind")=="album") "Álbum" else "Playlist"} · ${tracks.size} músicas",style=MaterialTheme.typography.bodySmall)
@@ -610,13 +620,13 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
         if(actionsAtTop)item {collectionActions()}
         if(adding)item {LinearProgressIndicator(Modifier.fillMaxWidth())}
         items(visible,contentType={"collection_track"}) {record->Row(Modifier.fillMaxWidth().heightIn(min=48.dp).toggleable(value=record.optString("source_url") in selected,role=Role.Checkbox,onValueChange={checked->val id=record.optString("source_url");selected=if(checked) selected+id else selected-id}).a11yState(if(record.optString("source_url") in selected) "Selecionado" else "Não selecionado"),verticalAlignment=Alignment.CenterVertically) {
-            Checkbox(record.optString("source_url") in selected,null)
+            Checkbox(record.optString("source_url") in selected,null,modifier=Modifier.padding(end=LayoutSpacing.checkboxLabel))
             Column(Modifier.weight(1f)) {Text(record.optString("title"));Text(record.stringList("artists"),style=MaterialTheme.typography.bodySmall);record.optJSONObject("youtube_match")?.let {Text(it.optString("title"),color=MaterialTheme.colorScheme.primary,style=MaterialTheme.typography.bodySmall)}}
         }}
         if(!actionsAtTop)item {collectionActions()}
         item {Row {for(format in listOf("txt","m3u")) TextButton(onClick={vm.operation("export_list",JSONObject().put("tracks",JSONArray(tracks)).put("format",format)){exported=it.getString("text");export.launch("${collection.optString("title","Playlist")}.$format")}}){UiText("Exportar ${format.uppercase()}")}}}
     }
-    if(listOnly) Dialog(onDismissRequest={listOnly=false}) {Surface(shape=RoundedCornerShape(20.dp)) {Column(Modifier.fillMaxWidth().fillMaxHeight(.85f).padding(16.dp)) {
+    if(listOnly) Dialog(onDismissRequest={listOnly=false}) {Surface(shape=RoundedCornerShape(20.dp)) {Column(Modifier.fillMaxWidth().fillMaxHeight(.85f).padding(LayoutSpacing.inset)) {
         UiText(collection.optString("title","Músicas"),style=MaterialTheme.typography.titleLarge)
         NavigableList(Modifier.weight(1f),navigationId="collection-dialog") {items(visible){UiText("${it.stringList("artists")} - ${it.optString("title")}",Modifier.padding(vertical=8.dp))}}
         TextButton(onClick={listOnly=false}){UiText("Fechar")}
@@ -636,7 +646,7 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
     val audioModes=setOf("mp3","m4a","flac","wav","ogg","opus")
     var filter by rememberSaveable {mutableStateOf("")}
     val visible=remember(history,filter) {history.filter {it.title.contains(filter,true)}}
-    LazyColumn(Modifier.fillMaxSize().padding(horizontal=16.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
+    LazyColumn(Modifier.fillMaxSize().padding(horizontal=LayoutSpacing.inset),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
         item {PageTitle("Sua biblioteca de downloads.","Encontre, abra e compartilhe o que já baixou.")}
         item {OutlinedTextField(filter,{filter=it},label={UiText("Pesquisar no histórico")},modifier=Modifier.fillMaxWidth(),singleLine=true)}
         item {HistoryDisplayControls(settings)}
@@ -648,16 +658,16 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
         items(visible,key={it.id}) {item->ElevatedCard(Modifier.fillMaxWidth().testTag("history-card-${item.id}").then(
             if(complete) Modifier.toggleable(value=item.id in selectedHistory,role=Role.Checkbox,onValueChange={checked->selectedHistory=if(checked) selectedHistory+item.id else selectedHistory-item.id})
                 .border(2.dp,if(item.id in selectedHistory) MaterialTheme.colorScheme.primary else Color.Transparent,MaterialTheme.shapes.medium)
-            else Modifier)) {Column(Modifier.padding(if(complete && cardSize=="Pequeno") 6.dp else if(complete && cardSize=="Médio") 9.dp else 12.dp)) {
+            else Modifier)) {Column(Modifier.padding(if(complete && cardSize=="Pequeno") 6.dp else if(complete && cardSize=="Médio") 9.dp else 12.dp),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.text)) {
             if(complete) {
                 Row(verticalAlignment=Alignment.CenterVertically) {
-                    Checkbox(checked=item.id in selectedHistory,onCheckedChange={checked->selectedHistory=if(checked) selectedHistory+item.id else selectedHistory-item.id},modifier=Modifier.a11yLabel("Selecionar música"))
+                    Checkbox(checked=item.id in selectedHistory,onCheckedChange={checked->selectedHistory=if(checked) selectedHistory+item.id else selectedHistory-item.id},modifier=Modifier.padding(end=LayoutSpacing.checkboxLabel).a11yLabel("Selecionar música"))
                     UiText(if(item.id in selectedHistory) "Música selecionada" else "Selecionar música")
                 }
                 CompleteHistoryInformation(item,cardSize)
             }
             Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
-                if(!complete && item.mode.lowercase() in audioModes)Checkbox(checked=item.id in selectedHistory,onCheckedChange={checked->selectedHistory=if(checked) selectedHistory+item.id else selectedHistory-item.id},modifier=Modifier.a11yLabel("Selecionar música"))
+                if(!complete && item.mode.lowercase() in audioModes)Checkbox(checked=item.id in selectedHistory,onCheckedChange={checked->selectedHistory=if(checked) selectedHistory+item.id else selectedHistory-item.id},modifier=Modifier.padding(end=LayoutSpacing.checkboxLabel).a11yLabel("Selecionar música"))
                 Text(item.title,Modifier.weight(1f),fontWeight=FontWeight.Bold)
                 TextButton(onClick={OndaStore.removeHistory(item.id)},modifier=Modifier.testTag("remove-history-${item.id}")){UiText("Remover")}
             }
@@ -718,7 +728,7 @@ fun mediaClock(seconds:Long):String {val value=seconds.coerceAtLeast(0);return "
         }
     }}
     fun effectName(): String {val name=if(speed<100) "Slowed" else if(speed>100) "Sped Up" else "";return if(reverb>0) if(name.isNotEmpty()) "$name + Reverb" else "Reverb" else name}
-    Column(Modifier.verticalScroll(rememberScrollState()).padding(16.dp),verticalArrangement=Arrangement.spacedBy(6.dp)) {
+    Column(Modifier.verticalScroll(rememberScrollState()).padding(LayoutSpacing.inset),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
         PageTitle("Slowed · Sped Up · Reverb","Desacelere ou acelere sua música. Adicione reverb se quiser.")
         OutlinedButton(onClick={choose.launch(arrayOf("audio/*"))},modifier=Modifier.fillMaxWidth()){UiText(if(source.isBlank()) "Abrir áudio" else importedAudioName(source),maxLines=2)}
         val presets=remember {linkedMapOf("Original" to (100f to 0f),"Slowed leve" to (90f to 0f),"Slowed intenso" to (75f to 0f),"Sped Up leve" to (115f to 0f),"Sped Up intenso" to (130f to 0f),"Sped Up + Reverb" to (120f to 25f),"Só Reverb" to (100f to 30f),"Clássico" to (85f to 25f),"Atmosférico" to (75f to 50f))}
@@ -731,7 +741,7 @@ fun mediaClock(seconds:Long):String {val value=seconds.coerceAtLeast(0);return "
         Toggle("Manter tom (pitch) ao alterar a velocidade",pitch){pitch=it}
         UiText("Posição na música · ${mediaClock(start.toLong())} / ${mediaClock(duration.toLong())}")
         Slider(start.coerceIn(0f,duration.coerceAtLeast(1f)),{start=it},valueRange=0f..duration.coerceAtLeast(1f),modifier=Modifier.a11yLabel("Posição inicial da prévia","${mediaClock(start.toLong())} de ${mediaClock(duration.toLong())}"))
-        Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+        Row(horizontalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
         TextButton(onClick={vm.stopPreview();vm.preview(source,OndaStore.settings.value.optInt("effects_preview",25),start.toInt())},enabled=source.isNotBlank()){UiText("Ouvir original")}
         Button(onClick={vm.previewEffects(source,speed.toInt(),reverb.toInt(),pitch,start.toInt())},enabled=source.isNotBlank()){UiText("Ouvir com efeitos")}
         }

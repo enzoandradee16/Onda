@@ -51,7 +51,7 @@ import org.json.JSONObject
     }
     Dialog(onDismissRequest=onClose) {
         Surface(shape=MaterialTheme.shapes.large,color=ondaDialogContainerColor()) {
-            Column(Modifier.fillMaxWidth().heightIn(max=650.dp).padding(16.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
+            Column(Modifier.fillMaxWidth().heightIn(max=650.dp).padding(LayoutSpacing.inset),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
                 UiText("Falhas da fila",style=MaterialTheme.typography.titleLarge)
                 if(selected==null) {
                     UiText("${snapshot.size} downloads falharam")

@@ -63,8 +63,8 @@ internal fun translateUi(text:String,language:String=OndaStore.settings.value.op
     return text
 }
 
-@Composable internal fun LocalizedTheme(language:String,colorScheme:ColorScheme,typography:Typography,content:@Composable ()->Unit) {
-    CompositionLocalProvider(LocalUiLanguage provides normalizedLanguage(language)) {
+@Composable internal fun LocalizedTheme(language:String,colorScheme:ColorScheme,typography:Typography,spacing:String="Padrão",content:@Composable ()->Unit) {
+    CompositionLocalProvider(LocalUiLanguage provides normalizedLanguage(language),LocalLayoutSpacing provides spacingValues(spacing)) {
         MaterialTheme(colorScheme=colorScheme,typography=typography,content=content)
     }
 }

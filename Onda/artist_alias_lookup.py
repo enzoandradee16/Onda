@@ -76,7 +76,7 @@ class AliasCache:
 def get_json(path,params,cache):
     cache.request_slot()
     with requests.get('https://musicbrainz.org/ws/2/'+path,params=dict(params,fmt='json'),
-                      headers={'User-Agent':'ONDA/1.1.2 (https://github.com/enzoandradee16/Onda)','Accept':'application/json'},
+                      headers={'User-Agent':'ONDA/1.1.3 (https://github.com/enzoandradee16/Onda)','Accept':'application/json'},
                       timeout=(4,8),allow_redirects=False,stream=True) as response:
         if response.status_code in (429,503):
             retry=response.headers.get('Retry-After','60')

@@ -80,10 +80,11 @@ class ThemeManager:
         self.colors = None
         self.font_name = None
         self.font_scale = None
+        self.spacing = None
         self.closed = False
         self.generation = 0
         self.after_id = None
-        self.traces = [(var, var.trace_add('write', self.changed)) for var in (app.theme_mode, app.theme_accent, app.interface_font, app.interface_font_size, app.pure_black_separators)]
+        self.traces = [(var, var.trace_add('write', self.changed)) for var in (app.theme_mode, app.theme_accent, app.interface_font, app.interface_font_size, app.interface_spacing, app.pure_black_separators)]
         self.map_binding = app.bind_all('<Map>', self.mapped, add='+')
         self.apply()
         self.after_id = app.after(1500, self.check_system)
@@ -95,11 +96,13 @@ class ThemeManager:
         colors = palette(self.app.theme_mode.get(), self.app.theme_accent.get(), self.app.pure_black_separators.get())
         font_name = self.app.interface_font.get()
         scale = font_scale(self.app.interface_font_size.get())
-        if colors == self.colors and font_name == self.font_name and scale == self.font_scale:
+        spacing = self.app.interface_spacing.get()
+        if colors == self.colors and font_name == self.font_name and scale == self.font_scale and spacing == self.spacing:
             return
         self.colors = colors
         self.font_name = font_name
         self.font_scale = scale
+        self.spacing = spacing
         self.resolved_font = font_family(self.app, font_name)
         self.generation += 1
         self.app._style()
@@ -132,6 +135,8 @@ class ThemeManager:
         if not c or getattr(widget, '_onda_theme_generation', None) == self.generation:
             return
         try:
+            from interface_spacing import apply_spacing, spacing_scale
+            apply_spacing(widget, spacing_scale(self.spacing))
             self.apply_widget_font(widget)
             roles = getattr(widget, '_onda_color_roles', None)
             if roles is None:

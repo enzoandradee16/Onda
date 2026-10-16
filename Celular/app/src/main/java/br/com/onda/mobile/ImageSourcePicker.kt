@@ -63,7 +63,7 @@ internal fun photoPermissions(sdk:Int):Array<String> = when {
         else error="O acesso às fotos não foi permitido. Autorize nas configurações do Android ou use Procurar nos arquivos para escolher somente uma imagem."
     }
     if(show)AlertDialog(containerColor=ondaDialogContainerColor(),onDismissRequest={show=false},title={UiText("Escolher imagem")},text={
-        Column(verticalArrangement=Arrangement.spacedBy(10.dp)) {
+        Column(verticalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
             UiText("Escolha de onde abrir a imagem.",style=MaterialTheme.typography.bodySmall)
             Button(onClick={
                 show=false;errorTitle="Escolher da galeria"

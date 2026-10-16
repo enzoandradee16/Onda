@@ -40,7 +40,7 @@ import kotlinx.coroutines.withContext
     val audio=item
     if(audio!=null) {
         key(audio.uri) {AudioFileEditor(audio,vm){item=null;selectedUri=null}}
-    } else Column(Modifier.fillMaxSize().padding(horizontal=16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+    } else Column(Modifier.fillMaxSize().padding(horizontal=LayoutSpacing.inset),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.section)) {
         PageTitle("Edite os metadados da sua música.","Escolha um arquivo de áudio do aparelho, mesmo que não esteja no histórico.")
         Button(onClick={picker.launch(arrayOf("audio/*","application/ogg"))},modifier=Modifier.fillMaxWidth()) {UiText("Escolher arquivo de áudio")}
         OutlinedButton(onClick={batchSources=arrayListOf();batchOpen=true},modifier=Modifier.fillMaxWidth()){UiText("Editar metadados em lote")}

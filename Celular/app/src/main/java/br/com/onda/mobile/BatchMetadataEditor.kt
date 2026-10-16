@@ -76,15 +76,15 @@ import java.io.File
     if(confirm)AlertDialog(onDismissRequest={confirm=false},title={UiText("Editar metadados em lote")},text={UiText("Os arquivos originais selecionados serão substituídos. Continuar?")},confirmButton={TextButton(onClick={confirm=false;apply()}){UiText("Continuar")}},dismissButton={TextButton(onClick={confirm=false}){UiText("Cancelar")}})
     Dialog(onDismissRequest={if(!locked)close()}) {
         Surface(shape=MaterialTheme.shapes.large) {
-            Column(Modifier.fillMaxWidth().fillMaxHeight(.9f).padding(16.dp)) {
+            Column(Modifier.fillMaxWidth().fillMaxHeight(.9f).padding(LayoutSpacing.inset)) {
                 UiText("Editar metadados em lote",style=MaterialTheme.typography.titleLarge)
-                Column(Modifier.weight(1f).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(8.dp)) {
+                Column(Modifier.weight(1f).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
                     UiText("${sources.size} arquivos selecionados")
                     OutlinedButton(onClick={picker.launch(arrayOf("audio/*","application/ogg"))},enabled=!locked){UiText("Escolher vários arquivos de áudio")}
                     UiText("Marque somente os campos que deseja alterar. Campos desmarcados serão preservados.",style=MaterialTheme.typography.bodySmall)
                     for((key,label) in listOf("artists" to "Artistas (separados por ;)","album" to "Álbum","genre" to "Gênero","release_date" to "Data","track_number" to "Faixa","disc_number" to "Disco")) {
                         Row(verticalAlignment=Alignment.CenterVertically) {
-                            Checkbox(checked=key in selected,onCheckedChange={checked->selected=ArrayList(if(checked)selected+key else selected-key)},enabled=!locked,modifier=Modifier.a11yLabel(label))
+                            Checkbox(checked=key in selected,onCheckedChange={checked->selected=ArrayList(if(checked)selected+key else selected-key)},enabled=!locked,modifier=Modifier.padding(end=LayoutSpacing.checkboxLabel).a11yLabel(label))
                             OutlinedTextField(fields[key].orEmpty(),{fields=fields+(key to it)},label={UiText(label)},enabled=key in selected && !locked,singleLine=true,modifier=Modifier.weight(1f).testTag("batch-field-$key"))
                         }
                     }
@@ -93,7 +93,7 @@ import java.io.File
                         coil.compose.AsyncImage(model=File(cover),contentDescription=translateUi("Capa do álbum",LocalUiLanguage.current),modifier=Modifier.size(120.dp))
                         TextButton(onClick={File(cover).delete();cover=""},enabled=!locked){UiText("Remover capa selecionada")}
                     }
-                    Row(verticalAlignment=Alignment.CenterVertically) {Checkbox(overwrite,{overwrite=it},enabled=!locked,modifier=Modifier.a11yLabel("Sobrescrever arquivo original"));UiText("Sobrescrever arquivo original")}
+                    Row(verticalAlignment=Alignment.CenterVertically) {Checkbox(overwrite,{overwrite=it},enabled=!locked,modifier=Modifier.padding(end=LayoutSpacing.checkboxLabel).a11yLabel("Sobrescrever arquivo original"));UiText("Sobrescrever arquivo original")}
                     UiText(if(overwrite)"Os arquivos originais selecionados serão substituídos." else "O arquivo original será preservado. Uma cópia será salva na pasta de destino.",style=MaterialTheme.typography.bodySmall)
                     if(locked)LinearProgressIndicator(Modifier.fillMaxWidth())
                     if(summary.isNotBlank())UiText(summary)

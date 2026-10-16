@@ -66,6 +66,9 @@ class PreferenceStore:
         result = clean_advanced(data)
         if data.get("language") in ("pt-BR", "es", "en"):
             result["language"] = data["language"]
+        from interface_spacing import SPACING_MODES
+        if data.get("interface_spacing") in SPACING_MODES:
+            result["interface_spacing"] = data["interface_spacing"]
         from appearance import THEME_MODES, ACCENTS
         for name, choices in (('theme_mode', THEME_MODES), ('theme_accent', ACCENTS)):
             value = data.get(name)

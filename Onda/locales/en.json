@@ -1428,5 +1428,11 @@
   "Ctrl+roda do mouse": "Ctrl+mouse wheel",
   "Rolar a página atual para cima / baixo": "Scroll the current page up / down",
   "Selecionar todos os itens da lista atual": "Select all items in the current list",
-  "HTTP 403 persistiu. Aguardando antes da última tentativa de áudio…": "HTTP 403 persisted. Waiting before the final audio attempt…"
+  "HTTP 403 persistiu. Aguardando antes da última tentativa de áudio…": "HTTP 403 persisted. Waiting before the final audio attempt…",
+  "Espaçamento da interface": "Interface spacing",
+  "Padrão": "Default",
+  "Confortável": "Comfortable",
+  "Animar avisos": "Animate notices",
+  "Abrir configurações de {category}": "Open {category} settings",
+  "Abrir sessão do YouTube": "Open YouTube session"
 }

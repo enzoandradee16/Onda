@@ -11,7 +11,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 
 /** Virtualized content plus constant-size navigation, including TalkBack actions. */
-@Composable internal fun NavigableList(modifier:Modifier=Modifier,navigationId:String,verticalArrangement:Arrangement.Vertical=Arrangement.spacedBy(8.dp),content:LazyListScope.()->Unit) {
+@Composable internal fun NavigableList(modifier:Modifier=Modifier,navigationId:String,verticalArrangement:Arrangement.Vertical=Arrangement.spacedBy(LayoutSpacing.controls),content:LazyListScope.()->Unit) {
     val state=rememberLazyListState()
     val scope=rememberCoroutineScope()
     val count by remember {derivedStateOf {state.layoutInfo.totalItemsCount}}

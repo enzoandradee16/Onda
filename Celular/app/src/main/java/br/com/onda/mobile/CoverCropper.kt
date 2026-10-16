@@ -90,8 +90,8 @@ internal fun saveCoverCrop(bitmap:Bitmap,zoom:Float,offset:Offset,destination:Fi
         runCatching {withContext(Dispatchers.IO) {loadCoverBitmap(path)}}.onSuccess {bitmap=it}.onFailure {error=it.message ?: "Não foi possível abrir a capa."}
     }
     Dialog(onDismissRequest={if(!saving)onCancel()},properties=DialogProperties(usePlatformDefaultWidth=false)) {
-        Surface(shape=MaterialTheme.shapes.extraLarge,modifier=Modifier.fillMaxWidth().padding(16.dp)) {
-            Column(Modifier.padding(16.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(10.dp)) {
+        Surface(shape=MaterialTheme.shapes.extraLarge,modifier=Modifier.fillMaxWidth().padding(LayoutSpacing.inset)) {
+            Column(Modifier.padding(LayoutSpacing.inset).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
                 UiText("Ajustar capa",style=MaterialTheme.typography.titleLarge)
                 UiText("Arraste a imagem para mover e ajuste o zoom.",style=MaterialTheme.typography.bodySmall)
                 val image=bitmap
