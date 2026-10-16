@@ -39,6 +39,10 @@ def apply_tags(filename, record, match, cover=None):
                   "selection": match.get("selection", "automatic"),
                   "youtube_title": match.get("title"), "match_score": match.get("match_score"),
                   "note": match.get("note") or "Áudio obtido do YouTube; a correspondência é heurística, não comprova a mesma masterização do catálogo."}
+    if match.get("artist_alias"):
+        provenance["artist_alias"] = match["artist_alias"]
+    if match.get("title_alias"):
+        provenance["title_alias"] = match["title_alias"]
     if match.get("provider"):
         provenance["provider"] = match["provider"]
         provenance.pop("youtube_title", None)

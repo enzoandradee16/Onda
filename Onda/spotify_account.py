@@ -7,6 +7,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 import re
 import secrets
 import time
+import threading
 from urllib.parse import parse_qs, urlencode, urlsplit
 import webbrowser
 
@@ -137,6 +138,7 @@ def authorize(client_id, cancel, *, opener=webbrowser.open, port=8765, timeout=1
 class SpotifyAccount:
     def __init__(self, path):
         self.store = CredentialStore(path)
+        self._token_lock=threading.RLock()
         self.client_id = self.refresh_token = self.access_token = ""
         self.expires_at = 0
         self.remember = False
@@ -154,6 +156,10 @@ class SpotifyAccount:
         return bool(self.client_id and (self.refresh_token or self.access_token))
 
     def accept(self, client_id, tokens, remember=False):
+        with self._token_lock:
+            return self._accept(client_id,tokens,remember)
+
+    def _accept(self, client_id, tokens, remember=False):
         if not tokens.get("refresh_token"):
             raise MetadataError("O Spotify não retornou uma conexão renovável. Autorize novamente.")
         if remember:
@@ -167,12 +173,20 @@ class SpotifyAccount:
         self.warning = ""
 
     def disconnect(self):
+        with self._token_lock:
+            return self._disconnect()
+
+    def _disconnect(self):
         self.store.forget()
         self.client_id = self.refresh_token = self.access_token = ""
         self.expires_at = 0
         self.remember = False
 
     def token(self, force=False):
+        with self._token_lock:
+            return self._token(force)
+
+    def _token(self, force=False):
         if not self.connected:
             raise MetadataError("Conecte sua conta Spotify primeiro.")
         if force or time.monotonic() >= self.expires_at:
@@ -228,9 +242,8 @@ class SpotifyAccount:
                 if not isinstance(track, dict) or track.get("type") != "track" or track.get("is_local") or (isinstance(row, dict) and row.get("is_local")) or not re.fullmatch(r"[A-Za-z0-9]{22}", str(track.get("id", ""))):
                     skipped += 1
                     continue
-                records.append({"title": track.get("name") or "Faixa Spotify",
-                                "artists": [a["name"] for a in track.get("artists", []) if a.get("name")],
-                                "duration_ms": track.get("duration_ms"), "source_url": "https://open.spotify.com/track/" + track["id"]})
+                from metadata import spotify_record
+                records.append(spotify_record(track,track['id'],"https://open.spotify.com/track/"+track['id']))
             offset += len(page)
             if not page or not data.get("next"):
                 break

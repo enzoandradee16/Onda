@@ -37,7 +37,7 @@ class QueueCardsTests(unittest.TestCase):
         self.assertEqual(app.history_card_size.get(),old_history)
         app.tree.set(keys[0],'name','Artist - Song');cards.refresh()
         self.assertEqual(cards.rows[keys[0]][2].cget('text'),'Artist - Song')
-        app.pages.select(app.download_page)
+        app.pages.select(app.queue_page)
         app.event_generate('<Control-MouseWheel>',delta=120)
         self.assertEqual(app.queue_card_size.get(),'Médio')
         self.assertEqual(app.history_card_size.get(),old_history)

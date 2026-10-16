@@ -11,7 +11,7 @@ from unittest.mock import Mock, patch
 
 from instagram_media import product_items
 from media_selection import validate_selection
-from photo_music import direct_audio, instagram_audio, render_photo_video
+from photo_music import direct_audio, render_photo_video
 from social_media import download_selected, kwai_images, session_for
 from tiktok_media import post_items
 

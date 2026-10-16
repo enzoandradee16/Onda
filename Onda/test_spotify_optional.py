@@ -52,12 +52,13 @@ class OptionalSpotifyTests(unittest.TestCase):
             with self.assertRaises(MetadataError):
                 parse_public_track(html, TRACK_ID, SPOTIFY)
 
-    def test_no_credentials_resolves_to_deezer_without_mixing_fields(self):
+    def test_no_credentials_preserves_spotify_and_fills_only_missing_fields(self):
         self.anchor["cover_url"] = "https://example.test/spotify.jpg"
         result = self.client.resolve(SPOTIFY)
-        self.assertEqual(result["platform"], "Deezer")
+        self.assertEqual(result["platform"], "Spotify")
         self.assertEqual(result["requested_source_url"], SPOTIFY)
-        self.assertEqual(result["cover_url"], self.candidate["cover_url"])
+        self.assertEqual(result["cover_url"], "https://example.test/spotify.jpg")
+        self.assertEqual(result["metadata_sources"]["isrc"]["platform"],"Deezer")
         self.assertEqual(result["isrc"], self.candidate["isrc"])
         self.assertEqual(result["catalog_match"]["selection"], "automatic")
         self.assertNotIn("never-copy-this-session", json.dumps(result))
@@ -65,13 +66,44 @@ class OptionalSpotifyTests(unittest.TestCase):
     def test_multiple_releases_require_selection(self):
         other = catalog(track_id="456", album="Coletânea")
         self.client.search = Mock(return_value=[self.candidate, other])
-        with self.assertRaises(CatalogChoiceRequired) as caught:
-            self.client.resolve(SPOTIFY)
-        self.assertEqual(len(caught.exception.candidates), 2)
+        result=self.client.resolve(SPOTIFY)
+        self.assertEqual(result['platform'],'Spotify')
+        self.assertIsNone(result['album'])
         self.client.fetch = Mock(side_effect=lambda url: self.anchor if url == SPOTIFY else other)
-        result = self.client.resolve(SPOTIFY, choose=lambda anchor, candidates: candidates[1])
+        result = self.client.resolve(SPOTIFY, selected_catalog_url=other["source_url"])
         self.assertEqual(result["album"], "Coletânea")
         self.assertEqual(result["catalog_match"]["selection"], "user")
+
+    def test_metadata_auto_option_selects_best_compatible_catalog(self):
+        worse={**catalog(track_id="456"),"duration_ms":181000}
+        self.client.search=Mock(return_value=[worse,self.candidate])
+        chooser=Mock(side_effect=AssertionError("Automatic metadata must not open a choice"))
+        result=self.client.resolve(SPOTIFY,choose=chooser,automatic=True)
+        self.assertEqual(result['metadata_supplements'][0]['source_url'],self.candidate['source_url'])
+        chooser.assert_not_called()
+
+    def test_metadata_auto_option_resolves_tie_deterministically(self):
+        self.client.search=Mock(return_value=[self.candidate,catalog(track_id="456")])
+        self.assertEqual(self.client.resolve(SPOTIFY,automatic=True)['metadata_supplements'][0]['source_url'],self.candidate['source_url'])
+
+    def test_metadata_auto_option_does_not_accept_incompatible_version(self):
+        self.client.search=Mock(return_value=[{**self.candidate,"title":"Canção Azul Remix"}])
+        self.assertNotIn("metadata_supplements",self.client.resolve(SPOTIFY,automatic=True))
+
+    def test_explicit_metadata_choice_still_wins_over_automatic(self):
+        other=catalog(track_id="456",album="Chosen album")
+        self.client.fetch=Mock(side_effect=lambda url:self.anchor if url==SPOTIFY else other)
+        result=self.client.resolve(SPOTIFY,selected_catalog_url=other["source_url"],automatic=True)
+        self.assertEqual(result["metadata_supplements"][0]["source_url"],other["source_url"])
+        self.assertEqual(result["catalog_match"]["selection"],"user")
+        self.client.search.assert_not_called()
+
+    def test_auto_metadata_boolean_survives_preferences_and_transfer(self):
+        from preferences import PreferenceStore
+        from advanced_options import export_settings,import_settings
+        self.assertTrue(PreferenceStore.clean({"auto_metadata":True})["auto_metadata"])
+        for invalid in ("true",1,None):self.assertNotIn("auto_metadata",PreferenceStore.clean({"auto_metadata":invalid}))
+        self.assertTrue(import_settings(export_settings({"auto_metadata":True},"android"),"windows")["auto_metadata"])
 
     def test_title_only_never_selects_automatically(self):
         self.client.request.side_effect = MetadataError("Public page unavailable")
@@ -88,19 +120,20 @@ class OptionalSpotifyTests(unittest.TestCase):
         self.client.search.side_effect = [[wrong_artist, remix, wrong_duration], [apple]]
         self.client.fetch = Mock(side_effect=lambda url: self.anchor if url == SPOTIFY else apple)
         result = self.client.resolve(SPOTIFY)
-        self.assertEqual(result["platform"], "Apple / iTunes")
+        self.assertEqual(result["platform"], "Spotify")
+        self.assertEqual(result["metadata_supplements"][0]["platform"],"Apple / iTunes")
         self.assertEqual(self.client.search.call_args.args[1], "Apple / iTunes")
 
     def test_deezer_outage_uses_apple(self):
         self.client.search.side_effect = [MetadataError("HTTP 503"), [self.candidate]]
-        self.assertEqual(self.client.resolve(SPOTIFY)["id"], "123")
+        self.assertEqual(self.client.resolve(SPOTIFY)["metadata_supplements"][0]["source_url"],self.candidate["source_url"])
 
     def test_existing_api_success_keeps_spotify(self):
         self.anchor.update(artists=["Artista Exemplo"], duration_ms=180000)
         result = self.client.resolve(SPOTIFY)
         self.assertEqual(result["platform"], "Spotify")
         self.client.request.assert_not_called()
-        self.client.search.assert_not_called()
+        self.assertEqual(result['artists'],self.anchor['artists'])
 
     def test_invalid_or_partial_credentials_do_not_block_public_resolution(self):
         for secret in ("", "invalid-secret"):
@@ -111,7 +144,7 @@ class OptionalSpotifyTests(unittest.TestCase):
                 return self.candidate
             self.client.fetch = Mock(side_effect=fetch)
             result = self.client.resolve(SPOTIFY)
-            self.assertEqual(result["platform"], "Deezer")
+            self.assertEqual(result["platform"], "Spotify")
             self.assertNotIn("invalid-secret", json.dumps(result))
 
     def test_forged_choice_and_changed_track_details_are_rejected(self):
@@ -140,8 +173,8 @@ class OptionalSpotifyTests(unittest.TestCase):
 
     def test_no_match_reports_actionable_error_without_requiring_api(self):
         self.client.search.return_value = []
-        with self.assertRaisesRegex(MetadataError, "Pesquise pelo nome"):
-            self.client.resolve(SPOTIFY)
+        result=self.client.resolve(SPOTIFY)
+        self.assertEqual(result['platform'],'Spotify');self.assertEqual(result['artists'],['Artista Exemplo'])
 
     def test_worker_catalog_reply_is_limited_to_offered_candidates(self):
         from engine import ask_catalog

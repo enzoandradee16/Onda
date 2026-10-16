@@ -1,5 +1,4 @@
 """Locale persistence, canonical choices and translated desktop rendering."""
-import json
 import os
 from pathlib import Path
 import tempfile

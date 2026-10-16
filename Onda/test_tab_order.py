@@ -9,7 +9,7 @@ from preferences import PreferenceStore
 
 class TabPreferenceTests(unittest.TestCase):
     def test_normalize_old_or_invalid_order_preserves_all_tabs(self):
-        self.assertEqual(normalize_order(['effects','catalog','effects','missing',{}]),['effects','catalog','downloads','images','playlists','history','metadata'])
+        self.assertEqual(normalize_order(['effects','catalog','effects','missing',{}]),['effects','catalog','downloads','queue','images','playlists','history','metadata'])
         self.assertEqual(normalize_order('effects'),list(DEFAULT_ORDER))
         self.assertEqual(normalize_order(['downloads','catalog','playlists','history','effects'])[-2:],['images','metadata'])
         self.assertNotIn('tab_order',PreferenceStore.clean({'tab_order':'invalid'}))
@@ -92,7 +92,7 @@ class TabDragTests(unittest.TestCase):
         self.assertEqual(app.tab_reorder.order(),before)
         app.tab_reorder.context_tab=str(app.images_page)
         app.tab_reorder.move(-1)
-        self.assertEqual(app.tab_reorder.order()[1],'images')
+        self.assertEqual(app.tab_reorder.order().index('images'),list(DEFAULT_ORDER).index('images')-1)
         app.tab_reorder.reset()
         self.assertEqual(app.tab_reorder.order(),list(DEFAULT_ORDER))
         self.assertEqual(notebook.select(),str(app.images_page))
@@ -104,6 +104,6 @@ class TabDragTests(unittest.TestCase):
         self.assertEqual(app.tab_order.get(),tuple(app.tab_reorder.order()))
         app.folder.set(self.temp.name)
         items=app.add(lines=['https://example.com/a','https://example.com/b'])
-        app.pages.select(app.download_page)
+        app.pages.select(app.queue_page)
         app.select_all_items()
         self.assertEqual(set(app.tree.selection()),set(items))

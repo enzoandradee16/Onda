@@ -11,6 +11,7 @@ MAX_FILE_SIZE = 1024 * 1024 * 1024
 
 def rank_matches(record, tracks):
     from matching import score_candidate
+    from record_identity import normalized_isrc
     ranked = []
     seen = set()
     for row in tracks:
@@ -31,8 +32,11 @@ def rank_matches(record, tracks):
         score = score_candidate(record, candidate)
         if score is None or score < .84:
             continue
-        exact = bool(record.get("isrc") and str(record["isrc"]).upper() == str(row.get("isrc") or "").upper())
-        candidate.update(match_score=min(1, score + (.05 if exact else 0)), exact_isrc=exact)
+        left,right=normalized_isrc(record.get('isrc')),normalized_isrc(row.get('isrc'))
+        if left and right and left!=right:continue
+        exact = bool(left and left==right)
+        candidate.update(match_score=min(1, score + (.05 if exact else 0)), exact_isrc=exact,
+                         match_reasons=['Mesmo ISRC; título, artista, versão e duração compatíveis'] if exact else ['Título, artista, versão e duração compatíveis'])
         # Multiple album entries can point at the same recording.
         key = str(row.get("recordingId") or row.get("isrc") or identity)
         if key in seen:
@@ -43,15 +47,22 @@ def rank_matches(record, tracks):
 
 
 def choose_match(record, candidates, choose, config):
+    from search_choices import ChoiceStore
+    store=ChoiceStore()
+    remembered=store.get(record)
+    candidates=[row for row in candidates if remembered.get(row['id']) is not False]
     if not candidates:
         raise ValueError("Nenhum FLAC compatível encontrado no Monochrome. Confira título, artista e versão, ou escolha MP3/M4A para usar o YouTube.")
     automatic = bool(config.get("auto_match"))
+    previous=next((row for row in candidates if remembered.get(row['id']) is True),None)
+    if previous is not None:return dict(previous,selection='remembered')
     ambiguous = len(candidates) > 1 and candidates[0]["exact_isrc"] == candidates[1]["exact_isrc"] and candidates[0]["match_score"] - candidates[1]["match_score"] < .025
     if not automatic and (ambiguous or config.get("confirm_version")):
         chosen = choose(dict(record, _audio_provider="Monochrome"), candidates)
         # The UI may return only its public fields. Use the validated source object.
         for candidate in candidates:
             if candidate["id"] == chosen.get("id"):
+                if chosen.get('remember_choice'):store.set(record,candidate['id'],True)
                 return dict(candidate, selection="user")
         raise ValueError("Nenhuma versão FLAC válida foi selecionada.")
     return dict(candidates[0], selection="automatic")

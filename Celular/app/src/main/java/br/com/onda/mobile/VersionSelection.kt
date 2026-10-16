@@ -6,6 +6,7 @@ import org.json.JSONObject
 fun applyVersionSelection(config: JSONObject, settings: JSONObject): JSONObject = config.apply {
     val manual = config.optBoolean("_manual_version", false)
     val automatic = !manual && settings.optBoolean("auto_match", false)
+    put("auto_metadata",settings.optBoolean("auto_metadata",false))
     put("auto_match", automatic)
     put("confirm_version", manual || (!automatic && settings.optBoolean("confirm_version", false)))
 }

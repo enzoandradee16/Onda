@@ -39,21 +39,18 @@ import java.io.File
                     Button(onClick={
                         val cookies=CookieManager.getInstance()
                         cookies.flush()
-                        val entries=linkedMapOf<String,String>()
-                        for(host in listOf("https://www.youtube.com","https://m.youtube.com")) {
-                            cookies.getCookie(host).orEmpty().split(';').forEach {pair->
-                                val parts=pair.trim().split('=',limit=2)
-                                if(parts.size==2 && parts[0].isNotBlank() && parts.none {it.contains('\n') || it.contains('\t')}) entries[parts[0]]=parts[1]
-                            }
-                        }
-                        if(entries.isEmpty()) message="A sessão ainda não está disponível. Aguarde o YouTube carregar ou importe cookies.txt em Configurações."
+                        val entries=youtubeCookieEntries(listOf("https://www.youtube.com","https://m.youtube.com").map {cookies.getCookie(it).orEmpty()})
+                        if(!hasYouTubeLogin(entries)) message="Esta sessão ainda não contém um login do YouTube. Entre na sua conta e aguarde o YouTube carregar antes de usar a sessão. Se o Google bloquear o navegador integrado, importe cookies.txt em Configurações."
                         else {
-                            val file=File(OndaStore.context.filesDir,"youtube-session.txt")
-                            val expiry=System.currentTimeMillis()/1000+86400
-                            file.writeText("# Netscape HTTP Cookie File\n"+entries.entries.joinToString("\n") {".youtube.com\tTRUE\t/\tTRUE\t$expiry\t${it.key}\t${it.value}"}+"\n")
-                            OndaStore.saveSettings(JSONObject(OndaStore.settings.value.toString()).put("youtube_cookies_file",file.absolutePath))
+                            try {
+                                val file=File(OndaStore.context.filesDir,"youtube-session.txt")
+                                val atomic=android.util.AtomicFile(file);val stream=atomic.startWrite()
+                                try {stream.write(youtubeCookieFile(entries).toByteArray(Charsets.UTF_8));atomic.finishWrite(stream)}
+                                catch(error:Exception) {atomic.failWrite(stream);throw error}
+                                OndaStore.saveSettings(JSONObject(OndaStore.settings.value.toString()).put("youtube_cookies_file",file.absolutePath).put("youtube_user_agent",browser?.settings?.userAgentString.orEmpty()))
                             OndaStore.log("Sessão do YouTube salva. Nenhum cookie foi incluído no log.")
-                            close()
+                                close()
+                            } catch(_:Exception) {message="Não foi possível salvar a sessão. Tente novamente."}
                         }
                     }) {UiText("Usar esta sessão")}
                 }

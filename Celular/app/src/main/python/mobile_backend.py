@@ -22,9 +22,27 @@ class Cancelled(ValueError):
     pass
 
 
+def session_options(params, config):
+    params=dict(params or {})
+    cookies=config.get('cookies_file')
+    from social_media import is_social
+    if not is_social(config.get('url','')):
+        cookies=config.get('youtube_cookies_file') or cookies
+        if config.get('youtube_cookies_file') and config.get('youtube_user_agent'):
+            params['http_headers']=dict(params.get('http_headers') or {}, **{'User-Agent':config['youtube_user_agent']})
+    if cookies:
+        params['cookiefile']=cookies
+    else:
+        params.pop('cookiefile',None)
+    return params
+
+
 def readable_error(message):
     message=str(message)
     if 'sign in to confirm' in message.lower() or "confirm you’re not a bot" in message.lower():
+        config=(getattr(_local,'state',None) or {}).get('config',{})
+        if config.get('youtube_cookies_file') or config.get('cookies_file'):
+            return 'O YouTube não aceitou a sessão atual nesta conexão. A sessão pode ter expirado ou a verificação pode continuar pendente. Atualize a sessão ou use Importar cookies do YouTube em Configurações. A liberação depende do YouTube.'
         return 'O YouTube exigiu uma verificação nesta conexão. Abra Menu → Sessão do YouTube, conclua a verificação e toque em Usar esta sessão. Também é possível importar cookies.txt em Configurações → Contas e redes. A liberação depende do YouTube.'
     return message
 
@@ -56,10 +74,16 @@ def ask(kind, **values):
 
 
 def ask_version(record, candidates, **_):
-    selected = ask('choose_version', record=record, candidates=candidates).get('selected_id')
+    reply = ask('choose_version', record=record, candidates=candidates)
+    selected = reply.get('selected_id')
+    from search_choices import ChoiceStore
+    store=ChoiceStore()
+    if reply.get('clear_choices'):store.clear(record)
+    for rejected in reply.get('rejected_ids',[]):
+        if any(item['id']==rejected for item in candidates):store.set(record,rejected,False)
     for item in candidates:
         if item['id'] == selected:
-            return dict(item, selection='user')
+            return dict(item, selection='user',remember_choice=reply.get('remember_choice') is True)
     raise ValueError('Escolha uma versão válida.')
 
 
@@ -118,6 +142,7 @@ def configure(root, native, libs):
         return
     _root, _native = Path(root), Path(native)
     _root.mkdir(parents=True, exist_ok=True)
+    os.environ["ONDA_ALIAS_CACHE_ROOT"]=str(_root)
     # Extracted shared libraries are data; executable entry points remain in nativeLibraryDir.
     os.environ['LD_LIBRARY_PATH'] = str(libs) + ':' + str(_native) + ':' + os.environ.get('LD_LIBRARY_PATH', '')
     update = _root / 'tools/yt-dlp.zip'
@@ -167,12 +192,7 @@ def configure(root, native, libs):
         params = dict(params or {})
         state=getattr(_local,'state',None)
         config=(state or {}).get('config',{})
-        cookies=config.get('cookies_file')
-        from social_media import is_social
-        if not is_social(config.get('url','')):
-            cookies=config.get('youtube_cookies_file') or cookies
-        if cookies:
-            params['cookiefile']=cookies
+        params=session_options(params,config)
         params['js_runtimes'] = {'quickjs': {'path': str(_native / 'libqjs.so')}}
         params['cachedir'] = str(_root / 'extractor-cache')
         original(self, params, *args, **kwargs)
@@ -240,12 +260,25 @@ def cancel(identity):
 
 def client(config):
     from metadata import MetadataClient
-    return MetadataClient(config.get('spotify_client_id', ''), config.get('spotify_client_secret', ''))
+    value=MetadataClient(config.get('spotify_client_id', ''), config.get('spotify_client_secret', ''))
+    state=getattr(_local,'state',None)
+    if state:value.cancelled=state['cancel'].is_set
+    if _root is not None:
+        connected=account()
+        if connected.connected:value.spotify_get=connected.get
+    return value
 
+
+_spotify_account=None
+_spotify_account_root=None
 
 def account():
+    global _spotify_account,_spotify_account_root
     from spotify_account import SpotifyAccount
-    return SpotifyAccount(str(_root / 'spotify-account'))
+    with _lock:
+        if _spotify_account is None or _spotify_account_root!=_root:
+            _spotify_account=SpotifyAccount(str(_root / 'spotify-account'));_spotify_account_root=_root
+        return _spotify_account
 
 
 def render_preview(config):
@@ -321,13 +354,18 @@ def perform(action, config):
         if is_social(config['url']) and config.get('mode') in ('mp3','m4a','flac','original'):
             if download_post(config, emit, ask_duplicate, choose=ask_media):
                 return {'code':0}
+        from spotify_metadata import prepare_spotify_config
+        config=prepare_spotify_config(config,account())
         return {'code': engine.run_worker(config)}
     if action == 'search':
         from metadata import is_streaming_link
         value = client(config)
         try:
-            records = [value.resolve(config['query'], choose=ask_catalog)] if is_streaming_link(config['query']) else value.search(config['query'], config.get('provider', 'Deezer'), account=account())
-            return {'tracks': records}
+            from music_search import search_music
+            state=getattr(_local,'state',None)
+            return search_music(value,config['query'],config.get('provider','Deezer'),account=account() if _root is not None else None,
+                choose=ask_catalog,automatic=bool(config.get('auto_metadata')),refresh=bool(config.get('refresh_search')),
+                cancelled=state['cancel'].is_set if state else lambda:False)
         finally:
             value.close()
     if action == 'collection':
@@ -356,7 +394,7 @@ def perform(action, config):
         try:
             for record in config['tracks']:
                 if is_streaming_link(record['source_url']):
-                    complete=value.resolve(record['source_url'],choose=ask_catalog)
+                    complete=value.resolve(record['source_url'],choose=ask_catalog, **({'automatic':True} if config.get('auto_metadata') else {}))
                     if config.get('mode') == 'flac':
                         from lossless_source import search_matches, choose_match
                         match=choose_match(complete,search_matches(complete),ask_version,config)

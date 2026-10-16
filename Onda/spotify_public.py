@@ -35,6 +35,9 @@ def parse_public_track(html, track_id, canonical):
         duration = entity.get("duration")
         record.update(title=entity["title"], artists=[a["name"] for a in entity.get("artists", []) if isinstance(a, dict) and a.get("name")],
                       duration_ms=duration if isinstance(duration, (int, float)) and duration > 0 else None)
+        images=(entity.get("visualIdentity") or {}).get("image") or []
+        images=[image for image in images if isinstance(image,dict) and isinstance(image.get("url"),str) and image["url"].startswith("https://")]
+        if images:record["cover_url"]=max(images,key=lambda image:image.get("maxHeight") or 0)["url"]
         if not record["artists"]:
             raise ValueError()
         return record

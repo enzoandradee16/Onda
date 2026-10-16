@@ -67,7 +67,7 @@ class ClearQueueTests(unittest.TestCase):
     def test_alt_a_selects_queue_and_only_visible_playlist_rows(self):
         app = self.app
         app.deiconify()
-        app.pages.select(app.download_page)
+        app.pages.select(app.queue_page)
         app.update()
         app.tree.focus_force()
         app.tree.event_generate("<Alt-a>")

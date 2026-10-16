@@ -118,7 +118,7 @@ class PreferenceStore:
             result["height"] = data["height"]
         if data.get("fps") in FPS_OPTIONS:
             result["fps"] = data["fps"]
-        if data.get("catalog_provider") in ("Deezer", "Apple / iTunes", "Spotify"):
+        if data.get("catalog_provider") in ("Todos", "Deezer", "Apple / iTunes", "Spotify"):
             result["catalog_provider"] = data["catalog_provider"]
         from file_output import ORGANIZATIONS, DUPLICATES
         if data.get("organization") in ORGANIZATIONS:

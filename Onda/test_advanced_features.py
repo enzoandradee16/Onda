@@ -84,7 +84,6 @@ class AudioLibraryTests(unittest.TestCase):
         from PIL import Image
         import io
         from audio_tools import executable
-        from mutagen.id3 import ID3,TIT2,TPE1,TALB,APIC,USLT
         from mutagen import File
         from tagging import apply_tags
         with tempfile.TemporaryDirectory() as folder:
@@ -161,7 +160,7 @@ class AdvancedDesktopTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder,patch.dict(os.environ,{'LOCALAPPDATA':folder}):
             app=App(show_welcome=False);app.withdraw();app.folder.set(folder);app.concurrent_downloads.set('2')
             try:
-                with patch.object(app,'supervise') as supervise,patch('app.binaries',return_value=True):
+                with patch.object(app,'supervise'),patch('app.binaries',return_value=True):
                     app.add(['https://example.com/one.mp3','https://example.com/two.mp3','https://example.com/three.mp3'])
                     ids=list(app.tree.get_children());app.start()
                     self.assertEqual(len(app.parallel.workers),2)
@@ -170,7 +169,7 @@ class AdvancedDesktopTests(unittest.TestCase):
                     app.parallel.finish(ids[0],{'success':True,'cancelled':False})
                     self.assertEqual(len(app.parallel.workers),2);self.assertIn(ids[2],app.parallel.workers)
                     app.parallel.stop();app.parallel.workers.clear();app.active=None;app.set_state(ids[2],"Na fila")
-                from advanced_ui import move_queue,AudioEditor
+                from advanced_ui import move_queue
                 app.tree.selection_set(ids[2]);move_queue(app,0)
                 self.assertEqual(app.library.load_queue()[0]['url'],'https://example.com/three.mp3')
             finally:app.destroy()

@@ -12,7 +12,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.ui.semantics.*
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardActions
@@ -109,6 +108,8 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
     SideEffect {activityWindow?.let {applyNavigationBarTheme(it,scheme.background,dark)}}
     val homeTab=tabs.optString(0,"Pesquisar")
     var tab by rememberSaveable { mutableStateOf(homeTab) }
+    val queueRequested by vm.queueNavigation.collectAsStateWithLifecycle()
+    LaunchedEffect(queueRequested) {if(queueRequested) {tab="Fila";vm.queueNavigation.value=false}}
     var metadataUri by rememberSaveable {mutableStateOf<String?>(null)}
     var showSettings by rememberSaveable { mutableStateOf(false) }
     var settingsCategory by rememberSaveable { mutableStateOf("Aparência") }
@@ -173,6 +174,7 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
                 NavigationDrawerItem(label={UiText("Configurações")},selected=false,onClick={navigateFromDrawer {settingsCategory="Aparência";showSettings=true}})
                 NavigationDrawerItem(label={UiText("Sessão do YouTube")},selected=false,onClick={navigateFromDrawer {youtubeSession=true}})
                 NavigationDrawerItem(label={UiText("Licenças e fontes")},selected=false,onClick={navigateFromDrawer {showLicenses=true}})
+                NavigationDrawerItem(label={UiText("Falhas da fila")},selected=false,onClick={navigateFromDrawer {OndaStore.failureSummary.value=OndaStore.items.value.filter {it.state=="Erro"}.map {it.id}.takeIf {it.isNotEmpty()}}})
                 UiText("Seus downloads",style=MaterialTheme.typography.labelLarge,modifier=Modifier.padding(16.dp))
                 val queue by OndaStore.items.collectAsStateWithLifecycle()
                 UiText("${queue.count {it.state=="Pendente"}} pendentes · ${queue.count {it.state=="Concluído"}} concluídos",modifier=Modifier.padding(horizontal=16.dp),style=MaterialTheme.typography.bodySmall)
@@ -192,6 +194,7 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
                     pages.SaveableStateProvider(tab) {when(tab) {
                         "Pesquisar"->SearchPage(vm,onConnectSpotify={settingsCategory="Contas";showSettings=true})
                         "Links e fila"->LinksPage(vm)
+                        "Fila"->QueuePage(vm)
                         "Imagens"->ImagesPage(vm)
                         "Playlists / Álbuns"->CollectionsPage(vm)
                         "Histórico"->HistoryPage(vm,onEditMetadata={metadataUri=it.uri;tab="Metadados"})
@@ -201,6 +204,10 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
                 }
             }
         }
+        }
+        val failureIds by OndaStore.failureSummary.collectAsStateWithLifecycle()
+        if(question==null && notice==null && !showSettings && !youtubeSession && !showLicenses && !welcome) {
+            failureIds?.let {FailureSummaryWindow(it,vm){OndaStore.failureSummary.value=null}}
         }
         question?.let { ChoiceWindow(it,vm) }
         if(showSettings) SettingsWindow(vm,initialCategory=settingsCategory) {showSettings=false}
@@ -213,7 +220,7 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
         notice?.let {current->AlertDialog(containerColor=ondaDialogContainerColor(),onDismissRequest=vm::dismissNotice,title={UiText(current.title)},text={Column(Modifier.heightIn(max=320.dp).verticalScroll(rememberScrollState())){UiText(current.message)}},confirmButton={TextButton(onClick=vm::dismissNotice){UiText("OK")}})}
     }
 }
-fun tabLabel(tab: String)=when(tab) {"Metadados"->"Editar metadados";"Pesquisar"->"Pesquisar músicas";"Efeitos"->"Slowed / Sped Up";"Playlists / Álbuns"->"Álbuns e playlists";else->tab}
+fun tabLabel(tab: String)=when(tab) {"Links e fila"->"Links";"Metadados"->"Editar metadados";"Pesquisar"->"Pesquisar músicas";"Efeitos"->"Slowed / Sped Up";"Playlists / Álbuns"->"Álbuns e playlists";else->tab}
 
 @Composable fun PageTitle(title: String, description: String) {
     Column(Modifier.fillMaxWidth().padding(vertical=8.dp),horizontalAlignment=Alignment.CenterHorizontally) {
@@ -268,6 +275,14 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
     val results by vm.searchResults.collectAsStateWithLifecycle()
     var query by rememberSaveable { mutableStateOf("") }
     var provider by rememberSaveable { mutableStateOf("Deezer") }
+    var showSearchFilters by rememberSaveable { mutableStateOf(false) }
+    var searchArtist by rememberSaveable { mutableStateOf("") }
+    var searchAlbum by rememberSaveable { mutableStateOf("") }
+    var searchVersion by rememberSaveable { mutableStateOf("") }
+    var searchYear by rememberSaveable { mutableStateOf("") }
+    var searchDuration by rememberSaveable { mutableStateOf("") }
+    var exactSearch by rememberSaveable { mutableStateOf(false) }
+    var comparison by remember { mutableStateOf(listOf<JSONObject>()) }
     var downloadTrack by rememberSaveable {mutableStateOf<String?>(null)}
     val busy by vm.busy.collectAsStateWithLifecycle()
     val keyboard=LocalSoftwareKeyboardController.current
@@ -275,6 +290,33 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
         val text=query.lineSequence().joinToString(" ").trim()
         if(text.isNotBlank() && !vm.busy.value) {keyboard?.hide();vm.search(text,provider)}
     }
+    if(comparison.size==2) AlertDialog(onDismissRequest={comparison=emptyList()},title={UiText("Comparar resultados")},text={
+        Column(Modifier.verticalScroll(rememberScrollState())) {
+            comparison.forEach {row->
+                Text(row.cleanString("title"),fontWeight=FontWeight.Bold)
+                Text(row.stringList("artists"))
+                Text(row.cleanString("album"))
+                Text(listOf(row.cleanString("release_date"),mediaClock(row.optLong("duration_ms")/1000),row.cleanString("isrc"),row.cleanString("platform")).filter {it.isNotBlank()}.joinToString(" · "))
+                HorizontalDivider(Modifier.padding(vertical=12.dp))
+            }
+        }
+    },confirmButton={TextButton(onClick={comparison=emptyList()}){UiText("Voltar")}})
+    if(showSearchFilters) AlertDialog(onDismissRequest={showSearchFilters=false},title={UiText("Filtros da busca")},text={
+        Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(6.dp)) {
+            OutlinedTextField(searchArtist,{searchArtist=it},label={UiText("Artista")},singleLine=true)
+            OutlinedTextField(searchAlbum,{searchAlbum=it},label={UiText("Álbum")},singleLine=true)
+            OutlinedTextField(searchVersion,{searchVersion=it},label={UiText("Versão")},singleLine=true)
+            OutlinedTextField(searchYear,{searchYear=it},label={UiText("Ano ou intervalo")},singleLine=true)
+            OutlinedTextField(searchDuration,{searchDuration=it},label={UiText("Duração ou intervalo")},singleLine=true)
+            Text("ano:2020-2022 · duracao:3:00-4:00")
+            Row(verticalAlignment=Alignment.CenterVertically) {Checkbox(exactSearch,{exactSearch=it});UiText("Exatamente este título")}
+        }
+    },confirmButton={TextButton(onClick={
+        val base=query.replace(Regex("(?<!\\S)(?:artista|album|versao|ano|duracao|exata):(\"[^\"]*\"|\\S+)"),"").trim()
+        val fields=listOf("artista" to searchArtist,"album" to searchAlbum,"versao" to searchVersion,"ano" to searchYear,"duracao" to searchDuration)
+        query=(listOf(base)+fields.filter {it.second.isNotBlank()}.map {it.first+":\""+it.second.replace("\"","").trim()+"\""}+(if(exactSearch)listOf("exata:sim") else emptyList())).filter {it.isNotBlank()}.joinToString(" ")
+        showSearchFilters=false;submitSearch()
+    }){UiText("Pesquisar")}},dismissButton={TextButton(onClick={showSearchFilters=false}){UiText("Voltar")}})
     downloadTrack?.let {raw->key(raw) {
         val track=remember(raw) {JSONObject(raw)}
         TrackDownloadDialog(track,settings,onDismiss={downloadTrack=null},onSubmit={options,now->
@@ -298,8 +340,13 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
         item {Column {
             UiText("Catálogo",style=MaterialTheme.typography.labelMedium)
             Row(horizontalArrangement=Arrangement.spacedBy(8.dp),verticalAlignment=Alignment.CenterVertically) {
-                Select("",provider,listOf("Deezer","Apple / iTunes","Spotify"),Modifier.weight(1f)){provider=it}
+                Select("",provider,listOf("Todos","Deezer","Apple / iTunes","Spotify"),Modifier.weight(1f)){provider=it}
                 Button(onClick={submitSearch()},enabled=query.isNotBlank() && !busy) {UiText("Pesquisar")}
+            }
+            Row {
+                TextButton(onClick={showSearchFilters=true},enabled=!busy){UiText("Filtros")}
+                TextButton(onClick={vm.search(query,provider,true)},enabled=query.isNotBlank() && !busy){UiText("Atualizar busca")}
+                if(busy)TextButton(onClick={vm.cancel()}){UiText("Cancelar")}
             }
         }}
         if(provider=="Spotify") item {
@@ -331,12 +378,13 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
             }}
         }
         if(results.isEmpty()) item {UiText("Sua biblioteca começa com uma busca",fontWeight=FontWeight.Bold);UiText("Encontre a música e escolha a versão que você quer.",style=MaterialTheme.typography.bodySmall)}
-        items(results,contentType={"search_track"}) {record-> TrackCard(record,vm,onDownload={downloadTrack=record.toString()}) }
+        if(comparison.size==1)item {UiText("Selecione outro resultado para comparar.")}
+        items(results,contentType={"search_track"}) {record-> TrackCard(record,vm,onDownload={downloadTrack=record.toString()},onCompare={comparison=(comparison+record).takeLast(2)}) }
         item {UiText("Catálogo e capa: plataforma selecionada  •  Áudio: YouTube / FLAC: Monochrome",style=MaterialTheme.typography.bodySmall)}
         item {Spacer(Modifier.height(12.dp))}
     }
 }
-@Composable fun TrackCard(record: JSONObject, vm: OndaViewModel, onDownload:()->Unit) {
+@Composable fun TrackCard(record: JSONObject, vm: OndaViewModel, onDownload:()->Unit, onCompare:(()->Unit)?=null) {
     val playing by vm.previewActive.collectAsStateWithLifecycle()
     val playingUrl by vm.previewUrl.collectAsStateWithLifecycle()
     val url=record.cleanString("preview_url")
@@ -351,10 +399,40 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
             TextButton(contentPadding=PaddingValues(horizontal=4.dp,vertical=8.dp),onClick={vm.queueTrack(record,origin="search")}) {UiText("Adicionar à fila")}
             Button(contentPadding=PaddingValues(horizontal=10.dp,vertical=8.dp),onClick=onDownload) {UiText("Baixar agora")}
         }
+        Text(listOf(record.cleanString("platform"),record.cleanString("release_date")).filter {it.isNotBlank()}.joinToString(" · "),style=MaterialTheme.typography.bodySmall)
+        Row {
+            TextButton(onClick={val url=record.cleanString("source_url");if(url.startsWith("https://")) OndaStore.context.startActivity(Intent(Intent.ACTION_VIEW,android.net.Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))}){UiText("Ver no catálogo")}
+            if(onCompare!=null)TextButton(onClick=onCompare){UiText("Comparar resultados")}
+        }
     }}
 }
 
 @Composable fun LinksPage(vm: OndaViewModel) {
+    val settings by OndaStore.settings.collectAsStateWithLifecycle()
+    val adding by vm.addingToQueue.collectAsStateWithLifecycle()
+    val shared by OndaStore.sharedLink.collectAsStateWithLifecycle()
+    var link by rememberSaveable {mutableStateOf("")}
+    LaunchedEffect(shared) {if(shared.isNotBlank()) {link=shared;OndaStore.sharedLink.value=""}}
+    fun add(now:Boolean) {
+        val urls=link.lines().map {it.trim()}.filter {it.isNotBlank()}
+        vm.enqueueLinks(urls,now)
+        link=""
+    }
+    NavigableList(Modifier.fillMaxSize().padding(horizontal=16.dp),navigationId="links") {
+        item {PageTitle("Do link para sua biblioteca.","Músicas, vídeos e fotos, organizados do seu jeito.")}
+        item {OutlinedTextField(link,{link=it},label={UiText("LINKS")},placeholder={UiText("YouTube, Instagram, TikTok, Kwai… um link por linha")},minLines=2,modifier=Modifier.fillMaxWidth().testTag("links-input"),singleLine=false)}
+        item {FormatOptions(settings,OndaStore::saveSettings)}
+        item {Toggle("Baixar playlist de vídeo",settings.optBoolean("link_playlist")){OndaStore.saveSettings(JSONObject(settings.toString()).put("link_playlist",it))}}
+        item {Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick={add(false)},enabled=link.isNotBlank() && !adding,modifier=Modifier.testTag("links-add")){UiText("Adicionar à fila")}
+            Button(onClick={add(true)},enabled=link.isNotBlank() && !adding,modifier=Modifier.testTag("links-download")){UiText("Baixar agora")}
+        }}
+        if(adding)item {LinearProgressIndicator(Modifier.fillMaxWidth())}
+        item {TextButton(onClick={vm.queueNavigation.value=true},modifier=Modifier.testTag("view-queue")){UiText("Ver fila")}}
+    }
+}
+
+@Composable fun QueuePage(vm: OndaViewModel) {
     val active by OndaStore.active.collectAsStateWithLifecycle()
     val settings by OndaStore.settings.collectAsStateWithLifecycle()
     val complete=settings.optString("queue_view","Completa")=="Completa"
@@ -362,33 +440,39 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
     val small=cardSize=="Pequeno"
     val cardPadding=if(!complete)4.dp else if(small)6.dp else if(cardSize=="Médio")10.dp else 14.dp
     val queue by OndaStore.items.collectAsStateWithLifecycle()
+    val completed=remember(queue) {queue.count {it.state=="Concluído"}}
     val running by OndaStore.running.collectAsStateWithLifecycle()
-    val shared by OndaStore.sharedLink.collectAsStateWithLifecycle()
+    var clockTick by remember {mutableLongStateOf(0L)}
+    val clockOwner=LocalLifecycleOwner.current
+    LaunchedEffect(clockOwner) {clockOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {while(true) {clockTick++;delay(1000)}}}
+    val queueTimes=remember(queue,running,clockTick) {OndaStore.queueTiming.snapshot(queue.size-completed,queue.isNotEmpty())}
+    val remainingTime=queueTimes.remaining?.let {if(it==0L) "00:00" else "≈ "+queueDuration(it)} ?: if(running)translateUi("Calculando…",LocalUiLanguage.current) else "—"
+    val adding by vm.addingToQueue.collectAsStateWithLifecycle()
+    val actionsAtTop=settings.optBoolean("queue_actions_at_top",true)
     val logs by OndaStore.messages.collectAsStateWithLifecycle()
-    var link by rememberSaveable {mutableStateOf("")}
     var selected by remember {mutableStateOf(setOf<String>())}
     var showLogs by remember {mutableStateOf(false)}
     var clear by remember {mutableStateOf(false)}
     LaunchedEffect(queue) {OndaStore.selectAll.collect {selected=queue.filterNot {it.config.optBoolean("_immediate")}.map {it.id}.toSet()}}
-    LaunchedEffect(shared) {if(shared.isNotBlank()) {link=shared;OndaStore.sharedLink.value=""}}
-    fun add(now: Boolean) {
-        val urls=link.lines().map {it.trim()}.filter {it.isNotBlank()}
-        val ids=urls.map {vm.enqueueLink(it,immediate=now)}
-        link=""
-        if(now && ids.isNotEmpty()) DownloadService.batch(OndaStore.context,ids)
+    val queueActions:@Composable ()->Unit = {
+        Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+            Button(onClick={DownloadService.start(OndaStore.context)},enabled=queue.any {it.state=="Pendente"}){UiText("Baixar fila")}
+            OutlinedButton(onClick={DownloadService.stop(OndaStore.context)},enabled=running){UiText("Parar")}
+            TextButton(onClick={showLogs=!showLogs}){UiText("Ver detalhes")}
+        }
     }
-    LazyColumn(Modifier.fillMaxSize().padding(horizontal=16.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
-        item {PageTitle("Do link para sua biblioteca.","Músicas, vídeos e fotos, organizados do seu jeito.")}
-        item {OutlinedTextField(link,{link=it},label={UiText("LINKS")},placeholder={UiText("YouTube, Instagram, TikTok, Kwai… um link por linha")},minLines=2,modifier=Modifier.fillMaxWidth().testTag("links-input"),singleLine=false)}
-        item {FormatOptions(settings,OndaStore::saveSettings)}
-        item {Toggle("Baixar playlist de vídeo",settings.optBoolean("link_playlist")){OndaStore.saveSettings(JSONObject(settings.toString()).put("link_playlist",it))}}
-        item {Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {OutlinedButton(onClick={add(false)},enabled=link.isNotBlank()) {UiText("Adicionar à fila")};Button(onClick={add(true)},enabled=link.isNotBlank()) {UiText("Baixar agora")}}}
+    NavigableList(Modifier.fillMaxSize().padding(horizontal=16.dp),navigationId="queue") {
+        item {PageTitle("Fila de downloads","Acompanhe, organize e gerencie seus downloads.")}
         item {Row(Modifier.horizontalScroll(rememberScrollState())) {
             TextButton(onClick={selected=queue.filterNot {it.config.optBoolean("_immediate")}.map {it.id}.toSet()}) {UiText("Selecionar tudo")}
             TextButton(onClick={OndaStore.remove(selected);selected=emptySet()}) {UiText("Remover selecionados")}
             TextButton(onClick={clear=true}) {UiText("Limpar fila")}
             TextButton(onClick={OndaStore.retry(selected)}) {UiText("Tentar novamente")}
         }}
+        item {UiText("Concluídos: $completed/${queue.size} · Restantes: ${queue.size-completed}",style=MaterialTheme.typography.labelMedium,modifier=Modifier.testTag("queue-count"))}
+        item {UiText("Tempo decorrido: ${queueDuration(queueTimes.elapsed)} · Tempo restante: $remainingTime",style=MaterialTheme.typography.labelSmall,modifier=Modifier.testTag("queue-time"))}
+        if(actionsAtTop)item {queueActions()}
+        if(adding)item {LinearProgressIndicator(Modifier.fillMaxWidth())}
         item {QueueDisplayControls(settings)}
         items(queue,key={it.id}) {item->
             LaunchedEffect(item.id,complete) {if(complete && item.config.optJSONObject("queue_info")?.cleanString("cover_url").isNullOrBlank())vm.loadQueueInformation(item)}
@@ -416,11 +500,7 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
                 if(item.message.isNotBlank() && (complete || item.state=="Erro")) UiText(item.message,style=MaterialTheme.typography.bodySmall,maxLines=if(small)1 else 3)
             }
         }}
-        item {Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-            Button(onClick={DownloadService.start(OndaStore.context)},enabled=queue.any {it.state=="Pendente"}){UiText("Baixar fila")}
-            OutlinedButton(onClick={DownloadService.stop(OndaStore.context)},enabled=running){UiText("Parar")}
-            TextButton(onClick={showLogs=!showLogs}){UiText("Ver detalhes")}
-        }}
+        if(!actionsAtTop)item {queueActions()}
         if(showLogs) item {UiText(logs.takeLast(35).joinToString("\n"),style=MaterialTheme.typography.bodySmall)}
     }
     if(clear) AlertDialog(containerColor=ondaDialogContainerColor(),onDismissRequest={clear=false},title={UiText("Limpar fila?")},text={UiText("Remove todos os itens, exceto o download em andamento. Seus arquivos são preservados.")},confirmButton={TextButton(onClick={OndaStore.remove(queue.map {it.id}.toSet());clear=false}){UiText("Limpar")}},dismissButton={TextButton(onClick={clear=false}){UiText("Cancelar")}})
@@ -463,6 +543,9 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
 
 @Composable fun CollectionsPage(vm: OndaViewModel) {
     val collection by vm.collection.collectAsStateWithLifecycle()
+    val settings by OndaStore.settings.collectAsStateWithLifecycle()
+    val adding by vm.addingToQueue.collectAsStateWithLifecycle()
+    val actionsAtTop=settings.optBoolean("queue_actions_at_top",true)
     var url by rememberSaveable {mutableStateOf("")}
     var filter by rememberSaveable {mutableStateOf("")}
     var selected by remember {mutableStateOf(setOf<String>())}
@@ -489,7 +572,13 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
         val rows=chosen()
         vm.queueCollection(rows,options,collection.optString("folder_title",collection.optString("title","Playlist")),now)
     }
-    LazyColumn(Modifier.fillMaxSize().padding(horizontal=16.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
+    val collectionActions:@Composable ()->Unit = {
+        Row(Modifier.horizontalScroll(rememberScrollState())) {
+            Button(onClick={enqueue(true)},enabled=chosen().isNotEmpty() && !adding){UiText("Baixar agora")}
+            TextButton(onClick={enqueue(false)},enabled=chosen().isNotEmpty() && !adding){UiText("Adicionar à fila")}
+        }
+    }
+    NavigableList(Modifier.fillMaxSize().padding(horizontal=16.dp),navigationId="collection") {
         item {PageTitle("Seus álbuns e playlists na biblioteca.","Busque por música ou artista. As ações usam somente os itens visíveis selecionados. Formato e qualidade são próprios desta aba.")}
         item {OutlinedTextField(url,{url=it},label={UiText("Link da playlist ou álbum")},modifier=Modifier.fillMaxWidth(),singleLine=true)}
         item {Row(Modifier.horizontalScroll(rememberScrollState())) {
@@ -518,16 +607,18 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
             TextButton(onClick={selected=emptySet()}){UiText("Limpar seleção")}
             TextButton(onClick={vm.operation("matches",OndaStore.config(options).put("tracks",JSONArray(chosen()))){vm.collection.value=JSONObject(collection.toString()).put("tracks",JSONArray(mergeTrackMatches(tracks,it.getJSONArray("tracks").objects())))}}){UiText("Conferir correspondências")}
         }}
+        if(actionsAtTop)item {collectionActions()}
+        if(adding)item {LinearProgressIndicator(Modifier.fillMaxWidth())}
         items(visible,contentType={"collection_track"}) {record->Row(Modifier.fillMaxWidth().heightIn(min=48.dp).toggleable(value=record.optString("source_url") in selected,role=Role.Checkbox,onValueChange={checked->val id=record.optString("source_url");selected=if(checked) selected+id else selected-id}).a11yState(if(record.optString("source_url") in selected) "Selecionado" else "Não selecionado"),verticalAlignment=Alignment.CenterVertically) {
             Checkbox(record.optString("source_url") in selected,null)
             Column(Modifier.weight(1f)) {Text(record.optString("title"));Text(record.stringList("artists"),style=MaterialTheme.typography.bodySmall);record.optJSONObject("youtube_match")?.let {Text(it.optString("title"),color=MaterialTheme.colorScheme.primary,style=MaterialTheme.typography.bodySmall)}}
         }}
-        item {Row(Modifier.horizontalScroll(rememberScrollState())) {Button(onClick={enqueue(true)},enabled=chosen().isNotEmpty()){UiText("Baixar agora")};TextButton(onClick={enqueue(false)},enabled=chosen().isNotEmpty()){UiText("Adicionar à fila")}}}
+        if(!actionsAtTop)item {collectionActions()}
         item {Row {for(format in listOf("txt","m3u")) TextButton(onClick={vm.operation("export_list",JSONObject().put("tracks",JSONArray(tracks)).put("format",format)){exported=it.getString("text");export.launch("${collection.optString("title","Playlist")}.$format")}}){UiText("Exportar ${format.uppercase()}")}}}
     }
     if(listOnly) Dialog(onDismissRequest={listOnly=false}) {Surface(shape=RoundedCornerShape(20.dp)) {Column(Modifier.fillMaxWidth().fillMaxHeight(.85f).padding(16.dp)) {
         UiText(collection.optString("title","Músicas"),style=MaterialTheme.typography.titleLarge)
-        LazyColumn(Modifier.weight(1f)) {items(visible){UiText("${it.stringList("artists")} - ${it.optString("title")}",Modifier.padding(vertical=8.dp))}}
+        NavigableList(Modifier.weight(1f),navigationId="collection-dialog") {items(visible){UiText("${it.stringList("artists")} - ${it.optString("title")}",Modifier.padding(vertical=8.dp))}}
         TextButton(onClick={listOnly=false}){UiText("Fechar")}
     }}}
 }
@@ -656,7 +747,7 @@ fun mediaClock(seconds:Long):String {val value=seconds.coerceAtLeast(0);return "
             config.put("_operation","effects")
             val id=OndaStore.enqueue(source,output.name,extra=config)
             DownloadService.start(OndaStore.context,id)
-            vm.status.value="Exportação adicionada à fila. Acompanhe em Links e fila."
+            vm.status.value="Exportação adicionada à fila. Acompanhe na aba Fila."
         },enabled=source.isNotBlank()){UiText("Exportar música inteira")}
     }
 }

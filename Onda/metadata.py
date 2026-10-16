@@ -6,10 +6,20 @@ import time
 from urllib.parse import parse_qs, urlsplit
 
 import requests
+from edition_evidence import finite_positive
 
 
 class MetadataError(ValueError):
     pass
+
+
+def _names(values):
+    return list(dict.fromkeys(row['name'].strip() for row in values if isinstance(row,dict)
+                             and isinstance(row.get('name'),str) and row['name'].strip())) if isinstance(values,list) else []
+
+
+def _rows(values):
+    return values if isinstance(values,list) else []
 
 
 def is_streaming_link(value):
@@ -68,21 +78,19 @@ def base_record(platform, track_id, source_url, method):
     return dict(platform=platform, id=track_id, source_url=source_url, method=method,
                 title=None, artists=[], album=None, album_artists=[], release_date=None,
                 duration_ms=None, track_number=None, disc_number=None, genre=None,
-                isrc=None, explicit=None, cover_url=None, preview_url=None, notes=[])
+                isrc=None, explicit=None, cover_url=None, preview_url=None, spotify_artist_ids=[], notes=[])
 
 
 def deezer_record(data, track_id, url):
-    if str(data.get("id")) != track_id or not data.get("title"):
+    if str(data.get("id")) != track_id or not isinstance(data.get("title"),str) or not data['title'].strip():
         raise MetadataError("Deezer retornou uma faixa diferente ou uma resposta incompleta.")
     record = base_record("Deezer", track_id, url, "Deezer API pública")
-    album = data.get("album") or {}
-    artists = [a["name"] for a in data.get("contributors", []) if a.get("name")]
-    if not artists and (data.get("artist") or {}).get("name"):
-        artists = [data["artist"]["name"]]
+    album = data.get("album") if isinstance(data.get('album'),dict) else {}
+    artists = _names(data.get('contributors')) or _names([data.get('artist')])
     duration = data.get("duration")
-    record.update(title=data["title"], artists=artists, album=album.get("title"),
+    record.update(title=data["title"], title_version=data.get('title_version'), artists=artists, album=album.get("title"),
                   release_date=data.get("release_date"),
-                  duration_ms=duration * 1000 if isinstance(duration, (int, float)) else None,
+                  duration_ms=duration * 1000 if finite_positive(duration) else None,
                   track_number=data.get("track_position"), disc_number=data.get("disk_number"),
                   isrc=data.get("isrc"), explicit=data.get("explicit_lyrics"),
                   cover_url=album.get("cover_xl") or album.get("cover_medium"), preview_url=data.get("preview"))
@@ -90,13 +98,14 @@ def deezer_record(data, track_id, url):
 
 
 def spotify_record(data, track_id, url):
-    if data.get("id") != track_id or not data.get("name"):
+    if data.get("id") != track_id or not isinstance(data.get("name"),str) or not data['name'].strip():
         raise MetadataError("Spotify retornou uma faixa diferente ou uma resposta incompleta.")
     record = base_record("Spotify", track_id, url, "Spotify Web API")
-    album = data.get("album") or {}
-    images = album.get("images") or []
-    record.update(title=data["name"], artists=[a["name"] for a in data.get("artists", []) if a.get("name")],
-                  album=album.get("name"), album_artists=[a["name"] for a in album.get("artists", []) if a.get("name")],
+    album = data.get("album") if isinstance(data.get('album'),dict) else {}
+    images = [row for row in _rows(album.get('images')) if isinstance(row,dict)]
+    record["spotify_artist_ids"]=[artist["id"] for artist in _rows(data.get("artists")) if isinstance(artist,dict) and re.fullmatch(r"[A-Za-z0-9]{22}",str(artist.get("id","")))]
+    record.update(title=data["name"], artists=_names(data.get('artists')),
+                  album=album.get("name"), album_artists=_names(album.get('artists')),
                   release_date=album.get("release_date"), duration_ms=data.get("duration_ms"),
                   track_number=data.get("track_number"), disc_number=data.get("disc_number"),
                   explicit=data.get("explicit"), isrc=(data.get("external_ids") or {}).get("isrc"),
@@ -105,8 +114,8 @@ def spotify_record(data, track_id, url):
 
 
 def apple_record(data, track_id, url):
-    song = next((row for row in data.get("results", [])
-                 if str(row.get("trackId")) == track_id and row.get("kind") == "song"), None)
+    song = next((row for row in _rows(data.get("results"))
+                 if isinstance(row,dict) and str(row.get("trackId")) == track_id and row.get("kind") == "song" and isinstance(row.get('trackName'),str)), None)
     if not song:
         raise MetadataError("Música não encontrada no catálogo público iTunes desta região. "
                             "Nem todo item do Apple Music está disponível nessa API.")
@@ -138,16 +147,48 @@ class MetadataClient:
         self.client_id, self.client_secret = client_id.strip(), client_secret.strip()
         self.token = None
         self.expires = 0
+        self.spotify_get = None
+        self.cancelled = lambda: False
+        self.deadline = None
 
     def close(self):
         self.session.close()
         self.client_secret = self.token = None
 
     def request(self, url, *, method="GET", **kwargs):
-        try:
-            response = self.session.request(method, url, timeout=(5, 15), allow_redirects=False, **kwargs)
-        except requests.RequestException:
-            raise MetadataError("Falha de conexão. Verifique internet, proxy e tente novamente.") from None
+        def check():
+            if self.cancelled():
+                from music_search import SearchCancelled
+                raise SearchCancelled('Pesquisa cancelada.')
+            if self.deadline is not None and time.monotonic() >= self.deadline:
+                from music_search import SearchCancelled
+                raise SearchCancelled('Tempo de pesquisa esgotado.')
+        for attempt in range(3 if method == 'GET' else 1):
+            check()
+            remaining = max(.1,self.deadline-time.monotonic()) if self.deadline is not None else 20
+            try:
+                response = self.session.request(method, url, timeout=(min(5,remaining), min(15,remaining)), allow_redirects=False, **kwargs)
+            except requests.RequestException:
+                if attempt == 2 or method != 'GET':
+                    raise MetadataError("Falha de conexão. Verifique internet, proxy e tente novamente.") from None
+                response = None
+            check()
+            if response is not None and (response.status_code not in (429,500,502,503,504) or attempt == 2 or method != 'GET'):
+                break
+            delay = .25 * 2**attempt
+            if response is not None:
+                if response.status_code == 429:
+                    try:
+                        delay = float(response.headers.get('Retry-After','1'))
+                    except (ValueError,TypeError):
+                        break
+                    if not 0 <= delay <= 2:
+                        break
+                response.close()
+            until = time.monotonic()+delay
+            while time.monotonic()<until:
+                check()
+                time.sleep(min(.05,max(0,until-time.monotonic())))
         if response.status_code == 429:
             delay = response.headers.get("Retry-After", "alguns")
             response.close()
@@ -215,6 +256,10 @@ class MetadataClient:
         if service == "apple":
             result = self.get_json("https://itunes.apple.com/lookup", params={"id": track_id, "country": country})
             return apple_record(result, track_id, canonical)
+        if self.spotify_get is not None:
+            try:
+                return spotify_record(self.spotify_get("tracks/"+track_id),track_id,canonical)
+            except MetadataError:pass
         if bool(self.client_id) != bool(self.client_secret):
             raise MetadataError("Preencha Client ID e Client Secret juntos, ou deixe ambos vazios para a consulta pública.")
         if self.client_id:
@@ -247,7 +292,7 @@ class MetadataClient:
                 url = urljoin(url, location)
         raise MetadataError("Não foi possível resolver o link curto. Copie deezer.com/track/ID.")
 
-    def resolve(self, url, choose=None, selected_catalog_url=None):
+    def resolve(self, url, choose=None, selected_catalog_url=None, automatic=False):
         """Resolve downloads; fetch() remains a direct, uncombined provider lookup."""
         if (urlsplit(url.strip()).hostname or "").lower() == "spotify.link":
             url = self.resolve_short_link(url.strip())
@@ -260,7 +305,7 @@ class MetadataClient:
         try:
             anchor = self.fetch(canonical)
             if anchor.get("artists") and not selected_catalog_url:
-                return anchor
+                return self.complete_spotify(anchor,choose,selected_catalog_url,automatic)
         except MetadataError:
             warning = "A consulta direta Spotify não ficou disponível; foi usada a identificação pública."
         try:
@@ -270,7 +315,7 @@ class MetadataClient:
                     raise MetadataError("Spotify redirecionou a página pública.")
                 public_anchor = parse_public_track(response.text, track_id, canonical)
             if not anchor or not anchor.get("artists"):
-                anchor = public_anchor
+                anchor = {**public_anchor,**{key:value for key,value in (anchor or {}).items() if value not in (None,"",[],{}) and key not in ("method","notes")}}
         except MetadataError:
             if not anchor or not anchor.get("title"):
                 result = self.get_json("https://open.spotify.com/oembed", params={"url": canonical})
@@ -280,38 +325,79 @@ class MetadataClient:
                 anchor["title"] = result["title"]
         if warning:
             anchor["notes"].append(warning)
+        return self.complete_spotify(anchor,choose,selected_catalog_url,automatic)
+
+    def complete_spotify(self,anchor,choose=None,selected_catalog_url=None,automatic=False):
+        from spotify_metadata import spotify_track,original_metadata,FIELDS,missing
+        if anchor.get("platform")!="Spotify" or not spotify_track(anchor.get("source_url")):
+            return anchor
         if selected_catalog_url:
             return self.confirm_catalog(anchor, {"source_url": selected_catalog_url}, selection="user")
         from catalog_match import rank_catalog, automatic_catalog, CatalogChoiceRequired
+        missing_fields=[key for key in FIELDS if key!="preview_url" and missing(anchor.get(key))]
+        if not missing_fields or missing_fields==["genre"]:return original_metadata(anchor)
+        from record_identity import normalized_isrc
+        isrc=normalized_isrc(anchor.get("isrc"))
+        if isrc and missing_fields!=["genre"]:
+            try:
+                data=self.get_json("https://api.deezer.com/track/isrc:"+isrc)
+                if str(data.get("id","")).isdigit() and data.get("title"):
+                    candidate=deezer_record(data,str(data["id"]),"https://www.deezer.com/track/"+str(data["id"]))
+                    if rank_catalog(anchor,[candidate]) and any(not missing(candidate.get(key)) for key in missing_fields):return self.confirm_catalog(anchor,candidate,"automatic",record=candidate)
+            except MetadataError:pass
         query = " ".join(filter(None, [(anchor.get("artists") or [""])[0], anchor["title"]]))[:300]
-        for provider in ("Deezer", "Apple / iTunes"):
+        alias_fallback_used=False
+        providers=("Apple / iTunes",) if missing_fields==["genre"] else ("Deezer", "Apple / iTunes")
+        for provider in providers:
             try:
                 candidates = rank_catalog(anchor, self.search(query, provider))
             except MetadataError:
                 continue
+            if not candidates and not alias_fallback_used:
+                from catalog_aliases import alternate_records
+                candidates=rank_catalog(anchor,alternate_records(anchor,self))
+                alias_fallback_used=True
+            candidates=[row for row in candidates if any(not missing(row.get(key)) for key in missing_fields)]
             if not candidates:
                 continue
-            selected = automatic_catalog(anchor, candidates)
+            from search_evidence import album_core
+            if anchor.get("album"):
+                candidates=[row for row in candidates if row.get('same_isrc') or album_core(row.get('album'))==album_core(anchor['album'])]
+                if not candidates:continue
+            selected = automatic_catalog(anchor, candidates,prefer_best=automatic)
             selection = "automatic"
             if selected is None:
+                if anchor.get("artists") and anchor.get("duration_ms"):
+                    return original_metadata(anchor)
+                if automatic:
+                    raise MetadataError("Não encontrei metadados suficientemente compatíveis para seleção automática. Pesquise a faixa na lista de falhas.")
                 if choose is None:
                     raise CatalogChoiceRequired(anchor, candidates[:12])
                 selected = choose(anchor, candidates[:12])
                 if not any(row["source_url"] == selected.get("source_url") for row in candidates[:12]):
                     raise MetadataError("A faixa escolhida não pertence aos resultados do catálogo.")
                 selection = "user"
-            return self.confirm_catalog(anchor, selected, selection)
+            try:return self.confirm_catalog(anchor, selected, selection)
+            except MetadataError:
+                if not anchor.get("artists"):raise
+        if anchor.get("artists"):
+            return original_metadata(anchor)
         raise MetadataError("Não encontrei uma faixa compatível no Deezer ou Apple. Pesquise pelo nome ou use o link direto da faixa nesses catálogos.")
 
-    def confirm_catalog(self, anchor, candidate, selection="user"):
+    def confirm_catalog(self, anchor, candidate, selection="user",record=None):
         from catalog_match import rank_catalog
         service, _, _, canonical = parse_link(candidate["source_url"])
         if service not in ("deezer", "apple"):
             raise MetadataError("Escolha metadados do Deezer ou Apple.")
-        record = self.fetch(canonical)
+        record = self.fetch(canonical) if record is None else record
         ranked = rank_catalog(anchor, [record])
         if not ranked:
             raise MetadataError("Os detalhes da faixa escolhida não correspondem mais ao link Spotify.")
+        from spotify_metadata import spotify_track,supplement_metadata
+        if anchor.get("platform")=="Spotify" and spotify_track(anchor.get("source_url")):
+            result=supplement_metadata(anchor,record,{"selection":selection,"score":ranked[0]["catalog_score"],"same_isrc":ranked[0]["same_isrc"]})
+            result["notes"].append("Metadados do Spotify preservados; outros catálogos completam somente os campos ausentes.")
+            return result
         record["requested_source_url"] = anchor["source_url"]
         record["catalog_match"] = {"selection": selection, "score": ranked[0]["catalog_score"],
             "same_isrc": ranked[0]["same_isrc"], "spotify_identity": {k: anchor.get(k) for k in ("id", "title", "artists", "duration_ms", "isrc")}}
@@ -321,8 +407,13 @@ class MetadataClient:
 
     def search(self, query, provider="Deezer", country="br", limit=25, *, account=None):
         query = query.strip()
-        if not 2 <= len(query) <= 300:
-            raise MetadataError("Digite entre 2 e 300 caracteres para pesquisar.")
+        if not 1 <= len(query) <= 300:
+            raise MetadataError("Digite entre 1 e 300 caracteres para pesquisar.")
+        if type(limit) is not int or not 1 <= limit <= 50:
+            raise MetadataError('Use um limite de busca entre 1 e 50 músicas.')
+        if not isinstance(country,str) or not re.fullmatch(r'[a-zA-Z]{2}',country):
+            raise MetadataError('Região de catálogo inválida.')
+        country=country.lower()
         if provider == 'Spotify':
             from spotify_search import search_tracks
             if account is not None and account.connected:
@@ -334,18 +425,26 @@ class MetadataClient:
                                      headers={'Authorization': 'Bearer ' + self.spotify_token()})
             return search_tracks(query, get, country, limit)
         if provider == "Deezer":
-            response = self.get_json("https://api.deezer.com/search", params={"q": query, "limit": limit})
-            if response.get("error"):
-                raise MetadataError("Deezer não conseguiu realizar a pesquisa. Tente novamente.")
-            rows = response.get("data")
-            if not isinstance(rows, list):
-                raise MetadataError("Resposta de busca Deezer inválida.")
-            records = []
-            for row in rows[:limit]:
-                if not isinstance(row, dict) or not str(row.get("id", "")).isdigit() or not row.get("title"):
-                    continue
-                track_id = str(row["id"])
-                records.append(deezer_record(row, track_id, "https://www.deezer.com/track/" + track_id))
+            records,seen,offset = [],set(),0
+            for page in range(3):
+                params={"q":query,"limit":limit-len(records)}
+                if offset:params['index']=offset
+                response = self.get_json("https://api.deezer.com/search", params=params)
+                if response.get("error"):
+                    raise MetadataError("Deezer não conseguiu realizar a pesquisa. Tente novamente.")
+                rows = response.get("data")
+                if not isinstance(rows, list):
+                    raise MetadataError("Resposta de busca Deezer inválida.")
+                previous=len(records)
+                for row in rows[:limit-len(records)]:
+                    if not isinstance(row, dict) or not str(row.get("id", "")).isdigit() or not row.get("title"):
+                        continue
+                    track_id = str(row["id"])
+                    if track_id in seen:continue
+                    seen.add(track_id)
+                    records.append(deezer_record(row, track_id, "https://www.deezer.com/track/" + track_id))
+                offset+=len(rows)
+                if len(records)>=limit or not rows or not response.get('next') or len(records)==previous:break
             return records
         if provider != "Apple / iTunes":
             raise MetadataError("Catálogo de pesquisa inválido.")

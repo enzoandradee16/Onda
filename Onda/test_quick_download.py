@@ -47,6 +47,7 @@ class QuickDownloadTests(unittest.TestCase):
         self.input("https://example.com/now")
         with patch("app.binaries", return_value=True), patch("app.threading.Thread") as worker:
             app.download_now_button.invoke()
+            self.assertEqual(app.pages.select(),str(app.queue_page))
             direct = app.active
             self.assertNotEqual(direct, waiting)
             self.assertEqual(app.jobs[direct]["url"], "https://example.com/now")
@@ -63,6 +64,37 @@ class QuickDownloadTests(unittest.TestCase):
             self.assertEqual(app.jobs[waiting]["state"], "Na fila")
             app.start()
             self.assertEqual(app.active, waiting)
+
+    def test_queue_and_link_form_live_in_separate_tabs(self):
+        app=self.app
+        self.assertEqual(len(app.pages.tabs()),8)
+        self.assertTrue(str(app.urls).startswith(str(app.download_page)))
+        self.assertTrue(str(app.tree).startswith(str(app.queue_page)))
+        app.pages.select(app.download_page)
+        self.input("https://example.com/pending")
+        app.add()
+        self.assertEqual(app.pages.select(),str(app.download_page))
+        app.show_queue()
+        self.assertEqual(app.pages.select(),str(app.queue_page))
+
+    def test_playlist_now_starts_only_selected_items_and_opens_queue(self):
+        app=self.app;page=app.playlist_page
+        page.ensure_ready();page.playlist_title="Example album"
+        page.records={'chosen':dict(source_url='https://www.deezer.com/track/123',title='Chosen song',artists=['Artist'],duration_ms=200000)}
+        app.pages.select(page)
+        with patch.object(page,'selected_keys',return_value=['chosen']),patch.object(app,'start') as start:
+            page.add(start=True)
+        self.assertEqual(app.pages.select(),str(app.queue_page))
+        self.assertEqual(start.call_args.kwargs['only_items'],list(app.jobs))
+
+    def test_playlist_add_only_stays_in_playlist_tab(self):
+        app=self.app;page=app.playlist_page
+        page.ensure_ready();page.playlist_title="Example album"
+        page.records={'chosen':dict(source_url='https://www.deezer.com/track/123',title='Chosen song',artists=['Artist'],duration_ms=200000)}
+        app.pages.select(page)
+        with patch.object(page,'selected_keys',return_value=['chosen']),patch.object(app,'start') as start:
+            page.add(start=False)
+        self.assertEqual(app.pages.select(),str(page));start.assert_not_called()
 
     def test_reuses_matching_pending_item_without_duplicate(self):
         app = self.app

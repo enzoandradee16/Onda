@@ -37,4 +37,12 @@ def cached_record(value, url):
     record=base_record('Spotify',identity,canonical,'Spotify Web API')
     for key in record.keys():
         if key in value:record[key]=value[key]
+    # Provenance contains only provider names, public links and field names.
+    from spotify_metadata import FIELDS
+    sources=value.get('metadata_sources')
+    if isinstance(sources,dict):
+        record['metadata_sources']={key:{k:row[k] for k in ('platform','source_url') if isinstance(row.get(k),str)} for key,row in sources.items() if key in FIELDS and isinstance(row,dict)}
+    supplements=value.get('metadata_supplements')
+    if isinstance(supplements,list):
+        record['metadata_supplements']=[{'platform':row.get('platform'),'source_url':row.get('source_url'),'fields':[key for key in row.get('fields',[]) if key in FIELDS]} for row in supplements if isinstance(row,dict) and isinstance(row.get('fields'),list)]
     return record

@@ -1,4 +1,4 @@
-import ast, json, re, unittest
+import ast, re, unittest
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock
@@ -72,7 +72,7 @@ class CatalogCompletenessTests(unittest.TestCase):
             events=queue.Queue()
             filename="ONDA-Configurações-1.1.1.exe"
             events.put((None,{"type":"app_update","result":{"available":True,"message":"Nova versão disponível: "+filename,"url":"https://example.com/update"}}))
-            fake=SimpleNamespace(events=events,after=MagicMock(),poll_events=MagicMock())
+            fake=SimpleNamespace(events=events,after=MagicMock(),poll_events=MagicMock(),refresh_queue_timing=MagicMock())
             with patch("app.messagebox.askyesno",return_value=False) as ask:
                 App.poll_events(fake)
             message=ask.call_args.args[1]

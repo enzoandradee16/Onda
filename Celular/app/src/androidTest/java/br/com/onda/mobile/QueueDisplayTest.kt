@@ -45,7 +45,7 @@ class QueueDisplayTest {
         val vm=OndaViewModel(androidx.test.core.app.ApplicationProvider.getApplicationContext())
         try {
             OndaStore.saveSettings(JSONObject(original.toString()).put("language","pt-BR").put("queue_view","Completa").put("queue_card_size","Grande").put("history_card_size","Médio"))
-            compose.setContent {MaterialTheme {LinksPage(vm)}}
+            compose.setContent {MaterialTheme {QueuePage(vm)}}
             compose.onNodeWithTag("queue-card-$id").performScrollTo()
             val large=compose.onNodeWithTag("queue-card-$id").fetchSemanticsNode().boundsInRoot.height
             compose.onNodeWithText("Test Album",substring=true).assertExists()

@@ -30,7 +30,9 @@ class DownloadService:Service() {
     override fun onBind(intent:Intent?):IBinder?=null
     override fun onStartCommand(intent:Intent?,flags:Int,startId:Int):Int {
         if(intent?.action=="stop") {DownloadRuntime.stop();if(worker?.isActive!=true)stopSelf();return START_NOT_STICKY}
-        DownloadRuntime.requests.submit(intent?.getStringExtra("only"),intent?.getStringArrayListExtra("batch")?.toSet())
+        val batch=try {intent?.getStringExtra("batch_token")?.let {DownloadBatchFiles.consume(this,it)} ?: intent?.getStringArrayListExtra("batch")?.toSet()}
+        catch(_:Exception) {OndaStore.log("Não foi possível recuperar a seleção. Selecione os itens e tente novamente.");stopSelf(startId);return START_NOT_STICKY}
+        DownloadRuntime.requests.submit(intent?.getStringExtra("only"),batch)
         if(worker?.isActive==true)return START_NOT_STICKY
         launchWorker()
         return START_NOT_STICKY
@@ -60,7 +62,7 @@ class DownloadService:Service() {
     override fun onDestroy() {if(worker!=null)DownloadRuntime.stop();if(lock?.isHeld==true)lock?.release();scope.cancel();super.onDestroy()}
     companion object {
         fun start(context:Context,only:String?=null) {if(only!=null && OndaStore.deferDuplicateStart(only))return;context.startForegroundService(Intent(context,DownloadService::class.java).putExtra("only",only))}
-        fun batch(context:Context,ids:List<String>) {val ready=ids.filterNot {OndaStore.deferDuplicateStart(it)};if(ready.isEmpty())return;context.startForegroundService(Intent(context,DownloadService::class.java).putStringArrayListExtra("batch",ArrayList(ready)))}
+        fun batch(context:Context,ids:List<String>) {val ready=ids.filterNot {OndaStore.deferDuplicateStart(it)};if(ready.isEmpty())return;val request=DownloadBatchFiles.intent(context,ready);try {context.startForegroundService(request)} catch(error:Exception) {DownloadBatchFiles.discard(context,request);throw error}}
         fun stop(context:Context) {DownloadRuntime.stop();if(OndaStore.running.value)context.startService(Intent(context,DownloadService::class.java).setAction("stop"))}
     }
 }

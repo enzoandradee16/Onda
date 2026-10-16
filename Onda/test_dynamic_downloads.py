@@ -24,6 +24,7 @@ class App:
         self.jobs={key:{'state':'Na fila'} for key in ('first','second','unrequested')}
         self.tree=Tree(self)
         self.ffmpeg=self.social_cookies=self.spotify_client_id=self.spotify_client_secret=Value('')
+        self.auto_metadata=Value(False)
         self.auto_match=self.resume_downloads=Value(False)
         self.cancelled=Event();self.start_button=self.cancel_button=Button()
         self.closing=False;self.running=False;self.messages=[]
@@ -36,6 +37,14 @@ class App:
     def persist_queue(self):pass
 
 class DynamicDownloadsTests(unittest.TestCase):
+    def test_workers_receive_live_automatic_metadata_preference(self):
+        app=App(1);app.auto_metadata.set(True)
+        scheduler=ParallelQueue(app)
+        with patch('parallel_queue.threading.Thread') as thread:
+            scheduler.start(('first',))
+        self.assertTrue(thread.call_args.kwargs['args'][1]['auto_metadata'])
+        self.assertTrue(thread.call_args.kwargs['args'][1]['_cleanup_work'])
+
     def test_high_concurrency_is_saved_and_bounded_to_fifteen(self):
         from advanced_options import clean_advanced
         for limit in (10,15):

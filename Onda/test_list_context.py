@@ -3,7 +3,6 @@ from types import SimpleNamespace
 from pathlib import Path
 from unittest.mock import patch
 import tkinter as tk
-from tkinter import ttk
 
 @unittest.skipUnless(os.environ.get("ONDA_UI_TESTS"),"Tk integration")
 class ListContextTests(unittest.TestCase):

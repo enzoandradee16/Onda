@@ -20,6 +20,9 @@ import org.json.JSONObject
             setOf(event.getJSONArray("candidates").getJSONObject(0).get("id").toString()) else setOf<String>()
     )}
     var mediaModes by remember(question) {mutableStateOf(mapOf<String,String>())}
+    var rememberChoice by remember(question) {mutableStateOf(false)}
+    var clearChoices by remember(question) {mutableStateOf(false)}
+    var rejectedIds by remember(question) {mutableStateOf(setOf<String>())}
     val record=event.optJSONObject("record") ?: JSONObject()
     var title by remember(question) {mutableStateOf(record.cleanString("title"))}
     var artist by remember(question) {mutableStateOf(record.optJSONArray("artists")?.let {a->(0 until a.length()).joinToString("; "){a.optString(it)}} ?: "")}
@@ -83,7 +86,11 @@ import org.json.JSONObject
                             Column(Modifier.padding(10.dp)) {
                                 Toggle(candidate.optString("title",candidate.optString("label","Mídia $id")),id in selected){selected=if(kind=="choose_media") if(it) selected+id else selected-id else setOf(id)}
                                 Text(candidate.optString("channel",candidate.optString("uploader",candidate.stringList("artists"))),style=MaterialTheme.typography.bodySmall)
-                                if(candidate.has("match_score")) UiText("Similaridade: ${(candidate.optDouble("match_score")*100).toInt()}%",style=MaterialTheme.typography.bodySmall)
+                                if(candidate.optBoolean("manual_review")) UiText("Conferir",style=MaterialTheme.typography.bodySmall)
+                                else if(candidate.has("match_score")) UiText("Similaridade: ${(candidate.optDouble("match_score")*100).toInt()}%",style=MaterialTheme.typography.bodySmall)
+                                val seconds=if(candidate.optLong("duration_ms")>0) candidate.optLong("duration_ms")/1000 else candidate.optDouble("duration",0.0).toLong()
+                                Text(listOf(candidate.cleanString("album"),candidate.cleanString("release_date"),candidate.cleanString("platform"),if(seconds>0)mediaClock(seconds) else "").filter {it.isNotBlank()}.joinToString(" · "),style=MaterialTheme.typography.bodySmall)
+                                candidate.optJSONArray("match_reasons")?.let {reasons->Text((0 until reasons.length()).joinToString("; "){translateUi(reasons.optString(it))},style=MaterialTheme.typography.bodySmall)}
                                 val thumbnail=candidate.optString("thumbnail",candidate.optString("preview_url"))
                                 if(thumbnail.startsWith("https://")) AsyncImage(thumbnail,translateUi("Prévia da mídia",LocalUiLanguage.current),Modifier.height(110.dp))
                                 if(kind=="choose_media" && video) {
@@ -105,7 +112,13 @@ import org.json.JSONObject
                     }
                 }
             }
-            if(kind=="choose_version") PlayerControls(vm)
+            if(kind=="choose_version") {
+                PlayerControls(vm)
+                Toggle("Lembrar esta escolha após verificar novamente",rememberChoice){rememberChoice=it}
+                TextButton(onClick={rejectedIds=rejectedIds+selected;selected=emptySet()}){UiText("Versão errada")}
+                TextButton(onClick={clearChoices=true;rejectedIds=emptySet()}){UiText("Desfazer escolhas e rejeições salvas")}
+                if(rejectedIds.isNotEmpty()) UiText("Versões marcadas como erradas: ${rejectedIds.size}",style=MaterialTheme.typography.bodySmall)
+            }
         }
     },confirmButton={TextButton(enabled=kind in setOf("choose_flac","review_metadata","choose_queue_duplicate") || selected.isNotEmpty(),onClick={
         if(kind=="choose_flac") {
@@ -119,7 +132,7 @@ import org.json.JSONObject
             "choose_queue_duplicate"->JSONObject().put("add",true)
             "choose_duplicate"->JSONObject().put("choice",selected.first())
             "choose_media"->JSONObject().put("selected_ids",JSONArray(selected.toList())).put("media_modes",JSONObject(mediaModes.filterKeys {it in selected}))
-            else->JSONObject().put("selected_id",selected.first())
+            else->JSONObject().put("selected_id",selected.first()).put("remember_choice",rememberChoice).put("clear_choices",clearChoices).put("rejected_ids",JSONArray((rejectedIds-selected).toList()))
         }
         OndaStore.answer(reply)
     }){UiText(when(kind){"choose_queue_duplicate"->"Adicionar novamente";"choose_flac"->"Selecionar FLAC baixado";"choose_version"->"Baixar esta versão";"choose_catalog"->"Usar estes metadados";"review_metadata"->"Confirmar e baixar";else->"Confirmar"})}},dismissButton={TextButton(onClick=cancel){UiText(if(kind=="review_metadata") "Cancelar download" else "Cancelar")}})

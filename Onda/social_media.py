@@ -367,7 +367,7 @@ def save_video(session, metadata, config, emit, ask_duplicate, index):
     return saved[0]
 
 
-def download_post(config, emit, ask_duplicate, choose=None):
+def _download_post(config, emit, ask_duplicate, choose=None):
     """Return False when a mixed post should use the standard video engine."""
     from gallery_dl import config as gallery_config, extractor
     from gallery_dl.extractor.common import Message
@@ -478,3 +478,15 @@ def access_error(exc):
         return ("A plataforma recusou o acesso ou exige autenticação. Confira o link e, se você tiver acesso no navegador, "
                 "tente cookies.txt da própria sessão em Configurações → Redes sociais. Detalhes: " + detail)
     return "Falha ao processar a publicação. Detalhes: " + detail
+
+
+def download_post(config, emit, ask_duplicate, choose=None):
+    result=_download_post(config,emit,ask_duplicate,choose)
+    # Wait until the entire post succeeds: a later video may need an older .part.
+    if result and config.get('_cleanup_work'):
+        from file_output import cleanup_completed_work
+        folder=Path(config['folder']).expanduser().resolve()
+        identity=hashlib.sha256(json.dumps({key:config.get(key) for key in ('url','mode','audio_quality','height','fps','work_id','_identity')},sort_keys=True).encode()).hexdigest()[:20]
+        if not cleanup_completed_work(folder/'.onda-work'/identity,folder):
+            emit('log',message='O download foi concluído, mas alguns arquivos temporários não puderam ser removidos.')
+    return result

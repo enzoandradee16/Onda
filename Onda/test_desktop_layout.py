@@ -55,7 +55,6 @@ class DesktopLayoutTests(unittest.TestCase):
                                  canvas.winfo_rooty() + canvas.winfo_height())
     def test_album_cover_uses_load_generation_not_render_generation(self):
         import threading
-        from catalog_ui import cover_png
         app = self.app
         app.pages.select(app.playlist_page)
         app.update()

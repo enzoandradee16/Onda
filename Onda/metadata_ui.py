@@ -114,6 +114,8 @@ class MetadataWindow(tk.Toplevel):
 
     def worker(self, links, client_id, secret):
         client = MetadataClient(client_id, secret)
+        account=getattr(self.master,"spotify_account",None)
+        if account is not None and account.connected:client.spotify_get=account.get
         try:
             for index, link in enumerate(links, 1):
                 if self.stop.is_set():

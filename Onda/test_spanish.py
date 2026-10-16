@@ -1,11 +1,9 @@
 """Spanish catalog parity, persistence, canonical options and secondary windows."""
 import collections
-import json
 import os
 from pathlib import Path
 import re
 import tempfile
-import tkinter as tk
 import unittest
 from types import SimpleNamespace
 from unittest.mock import patch

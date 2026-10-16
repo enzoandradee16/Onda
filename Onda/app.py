@@ -52,6 +52,9 @@ class App(UiMixin, tk.Tk):
         self.active = None
         self.immediate_item = None
         self.running = False
+        from queue_timing import QueueTiming
+        self.queue_timing = QueueTiming()
+        self._queue_clock_refresh = 0.0
         self.closing = False
         self.process = None
         self.process_lock = threading.Lock()
@@ -103,6 +106,9 @@ class App(UiMixin, tk.Tk):
         self.updating = False
         self.choice_window = None
         self.preference_store = PreferenceStore()
+        from spotify_account import SpotifyAccount
+        self.spotify_account=SpotifyAccount(self.preference_store.path.with_name("spotify-account.dpapi"))
+        self.title_lookup.spotify_account=self.spotify_account
         self._preference_after = None
         preference_warning = ""
         preferences = None
@@ -166,8 +172,11 @@ class App(UiMixin, tk.Tk):
         if self.check_updates.get():self.after(3000,lambda:check_update(self))
         self.bind("<Alt-a>", self.select_all_items)
         self.bind("<Alt-A>", self.select_all_items)
+        from keyboard_shortcuts import KeyboardShortcuts
+        self.shortcuts=KeyboardShortcuts(self)
         for variable in self.preference_fields.values():
             variable.trace_add("write", self.schedule_preferences)
+        self.concurrent_downloads.trace_add("write", self.downloads_limit_changed)
         if preference_warning:
             self.write_log(preference_warning)
             self.preference_status.set("Não foi possível restaurar. Marque para salvar novamente.")
@@ -223,6 +232,10 @@ class App(UiMixin, tk.Tk):
 
     def mode_changed(self, _=None):
         self.update_quality_selector()
+
+    def downloads_limit_changed(self, *_):
+        if self.running:
+            self.after_idle(self.parallel.fill)
 
     def schedule_preferences(self, *_):
         if self._preference_after is not None:
@@ -377,6 +390,12 @@ class App(UiMixin, tk.Tk):
             messagebox.showwarning(tr("Links não adicionados"), tr("Alguns links não são aceitos. Use Ver detalhes para consultar o motivo."))
         return added
 
+    def show_shortcuts(self):
+        self.shortcuts.show_help()
+
+    def show_queue(self):
+        self.pages.select(self.queue_page)
+
     def download_now(self):
         if self.updating:
             self.status.set("Aguarde a atualização das ferramentas terminar.")
@@ -390,16 +409,17 @@ class App(UiMixin, tk.Tk):
             self.urls.delete("1.0", "end")
             self.refresh_placeholder()
             self.start(only_item=added[0])
+            self.show_queue()
 
     def queue_catalog(self, record, mode, quality=None, start=False):
         from queue_titles import record_name
         from queue_details import queue_info
         overrides = {"mode": mode, "audio_quality": quality, "display_name": record_name(record), "queue_info": queue_info(record)}
-        if record.get('platform') == 'Spotify' and record.get('method') == 'Spotify Web API':
+        if record.get('platform') == 'Spotify':
             from spotify_search import cached_record
             overrides['catalog_record'] = cached_record(record, record['source_url'])
 
-        if record.get("requested_source_url"):
+        if record.get("requested_source_url") and record.get("platform")!="Spotify":
             overrides["selected_catalog_url"] = record["source_url"]
         added = self.add(lines=[record.get("requested_source_url") or record["source_url"]], overrides=overrides)
         if not added:
@@ -410,9 +430,9 @@ class App(UiMixin, tk.Tk):
             size, _ = estimate_size({"duration": (record.get("duration_ms") or 0) / 1000}, self.jobs[item])
             if size is not None:
                 self.tree.set(item, "size", "≈ " + readable_bytes(size))
-        self.pages.select(self.download_page)
         if start:
             self.start(only_items=added)
+            self.show_queue()
         return True
 
     def open_metadata(self, links=()):
@@ -452,6 +472,9 @@ class App(UiMixin, tk.Tk):
         self.credential_status.set("Credenciais removidas deste computador e dos campos da sessão.")
 
     def set_state(self, item, state):
+        self.queue_timing.set_running(self.running or bool(self.parallel.workers))
+        if self.jobs[item].get("state") != "Concluído" and state == "Concluído":
+            self.queue_timing.record_completion()
         self.jobs[item]["state"] = state
         self.tree.set(item, "status", tr(state))
         self.tree.item(item, tags=(state,))
@@ -508,7 +531,7 @@ class App(UiMixin, tk.Tk):
         self.status.set("Obtendo informações…")
         self.detail.set("Aguardando o servidor. O cancelamento continua disponível.")
         self.set_progress(None)
-        config = {**self.jobs[pending], "auto_match": self.auto_match.get(), "ffmpeg": self.ffmpeg.get().strip(),
+        config = {**self.jobs[pending], "_cleanup_work": True, "auto_metadata": self.auto_metadata.get(), "auto_match": self.auto_match.get(), "ffmpeg": self.ffmpeg.get().strip(),
                   "resume_downloads": self.resume_downloads.get(),
                   "cookies_file": self.social_cookies.get().strip(),
                   "spotify_client_id": self.spotify_client_id.get(),
@@ -519,6 +542,8 @@ class App(UiMixin, tk.Tk):
         success = False
         process = None
         try:
+            from spotify_metadata import prepare_spotify_config
+            config=prepare_spotify_config(config,getattr(self,"spotify_account",None))
             executable = Path(sys.executable)
             if executable.name.lower() == "pythonw.exe":
                 executable = executable.with_name("python.exe")
@@ -609,6 +634,8 @@ class App(UiMixin, tk.Tk):
                     self.tree.set(item, 'name', event['title'])
                     titles_changed = True
                 continue
+            if kind=='error' and item in self.jobs:
+                self.jobs[item]['last_error']=event.get('message','')
             if item in self.parallel.workers:
                 if kind=='exited':
                     closing=self.closing and len(self.parallel.workers)==1 and not self.effects_page.busy
@@ -737,6 +764,7 @@ class App(UiMixin, tk.Tk):
                 self.next_job()
         if titles_changed:
             self.persist_queue()
+        self.refresh_queue_timing()
         self._poll_after = self.after(100, self.poll_events)
 
     def write_log(self, text):
@@ -771,7 +799,7 @@ class App(UiMixin, tk.Tk):
         self.parallel.choice_closed()
 
     def send_version(self, item, selected_id):
-        self.send_reply(item, {"selected_id": selected_id})
+        self.send_reply(item, selected_id if isinstance(selected_id,dict) else {"selected_id": selected_id})
 
     def send_reply(self, item, reply):
         if item in self.parallel.workers:
@@ -795,6 +823,10 @@ class App(UiMixin, tk.Tk):
         self.dismiss_version_picker()
         self.status.set("Escolha recebida. Continuando…")
 
+    def show_failures(self,ids=None):
+        from failure_ui import show_failures
+        show_failures(self,ids)
+
     def retry(self):
         for item in self.tree.selection():
             if self.jobs[item]["state"] in ("Falhou", "Cancelado"):
@@ -804,7 +836,7 @@ class App(UiMixin, tk.Tk):
         if event is not None and event.widget.winfo_toplevel() != self:
             return
         page = self.pages.select()
-        if page == str(self.download_page):
+        if page == str(self.queue_page):
             table = self.tree
         elif page == str(self.playlist_page):
             table = self.playlist_page.table
@@ -876,7 +908,7 @@ class App(UiMixin, tk.Tk):
         window.geometry("670x490")
         text = ("Onda • downloads de vídeo, áudio e fotos\n\n"
                 "1. O portátil e o instalador já incluem as ferramentas necessárias.\n"
-                "2. Em Links e fila, use Vídeo, Fotos / carrossel ou Post completo.\n"
+                "2. Em Links, use Vídeo, Fotos / carrossel ou Post completo.\n"
                 "3. Cole links, escolha o formato e adicione à fila.\n"
                 "4. Clique em Baixar fila. A barra acompanha cada transferência.\n\n"
                 "Redes sociais: cole o link da publicação. Instagram e Twitter/X reconhecem fotos e vídeos automaticamente. Mais de duas mídias abrem uma seleção. O tipo é automático quando o post só tem fotos ou só vídeos; Fotos / carrossel filtra imagens em posts mistos. "

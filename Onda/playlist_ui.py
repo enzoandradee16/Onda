@@ -21,8 +21,7 @@ class PlaylistPane(ttk.Frame):
     def __init__(self, parent, app):
         super().__init__(parent, padding=(0, 18, 0, 0))
         self.app = app
-        from spotify_account import SpotifyAccount
-        self.spotify_account = SpotifyAccount(app.preference_store.path.with_name("spotify-account.dpapi"))
+        self.spotify_account = app.spotify_account
         self.spotify_window = None
         self.list_window = None
         self.url = tk.StringVar()
@@ -334,6 +333,7 @@ class PlaylistPane(ttk.Frame):
         generation = self.generation
         credentials = self.app.spotify_client_id.get(), self.app.spotify_client_secret.get()
         automatic = self.app.auto_match.get()
+        automatic_metadata = self.app.auto_metadata.get()
         flac = MODES[self.app.playlist_mode.get()] == "flac"
         self.set_busy(True)
         self.status.set("Conferindo versões das faixas selecionadas…")
@@ -353,11 +353,11 @@ class PlaylistPane(ttk.Frame):
                         if not is_streaming_link(row["source_url"]):
                             status = tr("Vídeo da própria playlist")
                         else:
-                            if row.get('platform') == 'Spotify' and row.get('method') in ('Spotify Web API', 'Spotify Embed público'):
+                            if row.get('platform') == 'Spotify' and row.get('artists') and row.get('method') in ('Spotify Web API', 'Spotify Embed público'):
                                 from spotify_search import cached_record
                                 record = cached_record(row, row['source_url'])
                             else:
-                                record = client.resolve(row["source_url"])
+                                record = client.resolve(row["source_url"], **({"automatic":True} if automatic_metadata else {}))
                             if flac:
                                 from lossless_source import search_matches, choose_match
                                 def need_choice(_record, candidates):
@@ -408,7 +408,7 @@ class PlaylistPane(ttk.Frame):
                 job['display_name'] = name
                 self.app.tree.set(item, 'name', name)
                 cached = True
-            if row.get('platform') == 'Spotify' and row.get('method') in ('Spotify Web API', 'Spotify Embed público'):
+            if row.get('platform') == 'Spotify' and row.get('artists') and row.get('method') in ('Spotify Web API', 'Spotify Embed público'):
                 job['catalog_record'] = cached_record(row, row['source_url'])
                 cached = True
         if cached:
@@ -416,10 +416,9 @@ class PlaylistPane(ttk.Frame):
         count = len(added or [])
         from file_output import component
         self.status.set(f"{count} itens adicionados. Destino: {component(getattr(self, 'playlist_folder_title', self.playlist_title))} dentro da pasta configurada.")
-        if count:
-            self.app.pages.select(self.app.download_page)
-            if start:
-                self.app.start(only_items=added)
+        if count and start:
+            self.app.start(only_items=added)
+            self.app.show_queue()
 
     def poll(self):
         if self.closed:

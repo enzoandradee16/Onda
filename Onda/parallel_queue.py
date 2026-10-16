@@ -6,10 +6,10 @@ CHOICES={'choose_flac','choose_media','choose_version','choose_catalog','choose_
 class ParallelQueue:
     def __init__(self,app):
         self.app=app;self.workers=set();self.processes={};self.scope=None;self.limit=1
-        self.choice_item=None;self.waiting=[];self.completed=set()
+        self.choice_item=None;self.waiting=[];self.completed=set();self.attempted=set();self.reported=True
 
     def start(self,scope):
-        self.completed.clear()
+        self.completed.clear();self.attempted.clear();self.reported=False
         self.scope=set(scope) if scope is not None else None
         self.limit=int(self.app.concurrent_downloads.get())
         self.app.cancelled.clear();self.app.running=True
@@ -29,9 +29,10 @@ class ParallelQueue:
             for item in app.tree.get_children():
                 if len(self.workers)>=self.limit:break
                 if item in self.workers or app.jobs[item]['state']!='Na fila' or self.scope is not None and item not in self.scope:continue
-                self.workers.add(item);app.active=item
+                self.workers.add(item);self.attempted.add(item);app.active=item
+                app.jobs[item].pop('last_error',None)
                 app.jobs[item]['saved_sizes']={};app.set_state(item,'Em andamento')
-                config={**app.jobs[item],'auto_match':app.auto_match.get(),'ffmpeg':app.ffmpeg.get().strip(),
+                config={**app.jobs[item],'_cleanup_work':True,'auto_metadata':app.auto_metadata.get(),'auto_match':app.auto_match.get(),'ffmpeg':app.ffmpeg.get().strip(),
                         'cookies_file':app.social_cookies.get().strip(),'spotify_client_id':app.spotify_client_id.get(),
                         'spotify_client_secret':app.spotify_client_secret.get(),'resume_downloads':app.resume_downloads.get()}
                 threading.Thread(target=app.supervise,args=(item,config),daemon=True).start()
@@ -44,6 +45,11 @@ class ParallelQueue:
             app.set_progress(0 if interrupted else 100)
             app.status.set("Fila interrompida" if interrupted else "Fila finalizada")
             app.detail.set("Confira o estado de cada item. Os arquivos concluídos foram preservados.")
+            if not self.reported:
+                self.reported=True
+                if not interrupted and not app.closing:
+                    show=getattr(app,'show_failures',None)
+                    if show:show(self.attempted.copy())
             if app.closing and not app.effects_page.busy:app.destroy()
 
     def admit(self,item,event):

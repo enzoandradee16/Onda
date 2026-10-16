@@ -55,10 +55,11 @@ def describe_streaming(client, url):
         raise
 
 
-def resolve_record(url, credentials, cookies):
+def resolve_record(url, credentials, cookies,account=None):
     from metadata import MetadataClient, is_streaming_link
     if is_streaming_link(url):
         client = MetadataClient(*credentials)
+        if account is not None and account.connected:client.spotify_get=account.get
         try:
             return describe_streaming(client, url)
         finally:
@@ -108,7 +109,7 @@ class TitleLookup:
             except queue.Empty:
                 continue
             try:
-                record = resolve_record(url, credentials, cookies)
+                record = resolve_record(url, credentials, cookies,account=getattr(self,"spotify_account",None))
                 name = record_name(record)
                 if name and not self.stopped.is_set():
                     from queue_details import queue_info

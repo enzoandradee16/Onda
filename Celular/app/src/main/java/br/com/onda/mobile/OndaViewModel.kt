@@ -63,6 +63,8 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
     val collection=MutableStateFlow(JSONObject())
     val busy=MutableStateFlow(false)
     val status=MutableStateFlow("")
+    val addingToQueue=MutableStateFlow(false)
+    val queueNavigation=MutableStateFlow(false)
     val dialogNotice=MutableStateFlow<DialogNotice?>(null)
     fun showNotice(title:String,message:String) {dialogNotice.value=DialogNotice(title,message)}
     fun dismissNotice() {dialogNotice.value=null}
@@ -198,7 +200,17 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
         operation("spotify_connect",options,dialog=true)
     }
     fun cancel() { OndaStore.dismissQuestions(queryId.value);MobileEngine.cancel(queryId.value) }
-    fun search(query: String, provider: String) = operation("search",OndaStore.config().put("query",query).put("provider",provider)) { searchResults.value=it.optJSONArray("tracks")?.objects() ?: emptyList() }
+    private var searchRevision=0
+    fun search(query: String, provider: String, refresh: Boolean=false) {
+        if(busy.value)return
+        val revision=++searchRevision
+        operation("search",OndaStore.config().put("query",query).put("provider",provider).put("refresh_search",refresh)) {
+            if(revision==searchRevision) {
+                searchResults.value=it.optJSONArray("tracks")?.objects() ?: emptyList()
+                status.value=listOf("${searchResults.value.size} resultado(s).",it.stringList("warnings"),it.stringList("suggestions")).filter {text->text.isNotBlank()}.joinToString(" ")
+            }
+        }
+    }
     fun loadCollection(url: String, options: JSONObject) = operation("collection",OndaStore.config(options).put("url",url)) { collection.value=it }
     fun importCollection(path: String) = operation("import",OndaStore.config().put("path",path).put("extension",path.substringAfterLast('.'))) { collection.value=it }
     fun importLocal(uri: Uri, category: String, dialog: Boolean=false, finished: (java.io.File)->Unit) {
@@ -288,11 +300,41 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
         if(group!=null) extra.put("playlist_title",group)
         return OndaStore.enqueue(url,"${record.stringList("artists")} - ${record.optString("title")}".trim(' ','-'),options,extra)
     }
-    fun queueCollection(rows:List<JSONObject>,options:JSONObject,group:String,now:Boolean) {
+    fun enqueueLinks(urls:List<String>,now:Boolean) {
+        if(addingToQueue.value || urls.isEmpty())return
+        addingToQueue.value=true
+        val options=JSONObject(OndaStore.settings.value.toString())
         viewModelScope.launch {
-            val ids=withContext(Dispatchers.IO) {OndaStore.enqueueBatch {rows.map {queueTrack(it,options,group,immediate=now)}}}
-            if(now && ids.isNotEmpty()) DownloadService.batch(getApplication(),ids)
-            status.value="${ids.size} itens adicionados à fila"
+            val ids=mutableListOf<String>()
+            try {
+                for(chunk in urls.chunked(100)) {
+                    ids+=withContext(Dispatchers.IO) {OndaStore.enqueueBatch {chunk.map {OndaStore.enqueue(it,options=options,extra=JSONObject().put("_immediate",now))}}}
+                    status.value="${ids.size} de ${urls.size} itens adicionados à fila";yield()
+                }
+                if(now && ids.isNotEmpty()) {DownloadService.batch(getApplication(),ids);queueNavigation.value=true}
+                status.value="${ids.size} itens adicionados à fila"
+            } catch(error:CancellationException) {throw error}
+            catch(error:Exception) {showNotice("Adicionar à fila","${ids.size} de ${urls.size} itens adicionados à fila"+"\n"+(error.message ?: "Falha ao adicionar itens. Os itens já adicionados foram preservados."))}
+            finally {addingToQueue.value=false}
+        }
+    }
+    fun queueCollection(rows:List<JSONObject>,options:JSONObject,group:String,now:Boolean) {
+        if(addingToQueue.value || rows.isEmpty())return
+        addingToQueue.value=true
+        viewModelScope.launch {
+            val ids=mutableListOf<String>()
+            try {
+                // Bounded transactions publish progress without one refresh per song.
+                for(chunk in rows.chunked(100)) {
+                    ids+=withContext(Dispatchers.IO) {OndaStore.enqueueBatch {chunk.map {queueTrack(it,options,group,immediate=now)}}}
+                    status.value="${ids.size} de ${rows.size} itens adicionados à fila"
+                    yield()
+                }
+                if(now && ids.isNotEmpty()) {DownloadService.batch(getApplication(),ids);queueNavigation.value=true}
+                status.value="${ids.size} itens adicionados à fila"
+            } catch(error:CancellationException) {throw error}
+            catch(error:Exception) {showNotice("Adicionar à fila","${ids.size} de ${rows.size} itens adicionados à fila"+"\n"+(error.message ?: "Falha ao adicionar itens. Os itens já adicionados foram preservados."))}
+            finally {addingToQueue.value=false}
         }
     }
     override fun onCleared() { stopPreview();cancel();effectRequests.close(); player.release(); super.onCleared() }

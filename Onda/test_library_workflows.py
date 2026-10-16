@@ -173,8 +173,6 @@ class BatchTests(unittest.TestCase):
 
 
 import os
-import tkinter as tk
-from unittest.mock import patch
 
 @unittest.skipUnless(os.environ.get('ONDA_UI_TESTS'), 'Tk integration')
 class WorkflowUiTests(unittest.TestCase):

@@ -23,8 +23,8 @@ import org.json.JSONObject
 
 val categories=linkedMapOf(
     "Geral" to listOf("language","remember","check_updates","notice_duration"),
-    "Aparência" to listOf("queue_view","queue_card_size","history_card_size","pure_black_separators","history_view","theme","accent","tab_order","interface_font","interface_font_size"),
-    "Downloads" to listOf("detect_duplicates","filename_template","concurrent_downloads","resume_downloads","resume_queue","normalize_volume","schedule_enabled","schedule_start","schedule_stop","mode","audio_quality","height","fps","playlist_limit","organization","duplicate_policy","output_uri","auto_match","confirm_version","review_metadata"),
+    "Aparência" to listOf("queue_actions_at_top","queue_view","queue_card_size","history_card_size","pure_black_separators","history_view","theme","accent","tab_order","interface_font","interface_font_size"),
+    "Downloads" to listOf("detect_duplicates","filename_template","concurrent_downloads","resume_downloads","resume_queue","normalize_volume","schedule_enabled","schedule_start","schedule_stop","mode","audio_quality","height","fps","playlist_limit","organization","duplicate_policy","output_uri","auto_metadata","auto_match","confirm_version","review_metadata"),
     "Imagens" to listOf("image_format","image_width","image_height","keep_ratio"),
     "Áudio" to listOf("search_preview","effects_preview","keep_preview"),
     "Contas" to listOf("spotify_client_id","cookies_file","youtube_cookies_file"))
@@ -47,6 +47,13 @@ val categories=linkedMapOf(
         put("output_uri",uri.toString())
     }}
     val cookies=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) {uri->if(uri!=null) vm.importLocal(uri,"cookies",dialog=true) {put("cookies_file",it.absolutePath)}}
+    val youtubeCookies=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) {uri->
+        if(uri!=null)vm.importLocal(uri,"cookies",dialog=true) {file->
+            if(isYouTubeCookieFile(file))OndaStore.saveSettings(JSONObject(OndaStore.settings.value.toString()).put("youtube_cookies_file",file.absolutePath).put("youtube_user_agent",""))
+            else {file.delete();vm.showNotice("Importar cookies do YouTube","Arquivo de cookies do YouTube inválido. Exporte cookies.txt no formato Netscape a partir de uma sessão do YouTube.")}
+        }
+    }
+
     Dialog(onDismissRequest=close) {
         Surface(modifier=Modifier.clip(RoundedCornerShape(28.dp)),shape=RoundedCornerShape(28.dp)) {Column(Modifier.fillMaxWidth().fillMaxHeight(.94f).padding(16.dp)) {
             UiText("Do seu jeito.",style=MaterialTheme.typography.headlineSmall)
@@ -86,7 +93,8 @@ val categories=linkedMapOf(
                         UiText(FONT_PREVIEW,style=MaterialTheme.typography.bodyLarge,modifier=Modifier.testTag("font-preview"))
                         UiText("A fonte muda na hora. Ative Lembrar configurações para manter sua escolha ao reabrir.",style=MaterialTheme.typography.bodySmall)
                         SettingsDivider()
-                        Select("Mostrar itens em Links e fila",settings.optString("queue_view","Completa"),listOf("Compacto","Completa")){put("queue_view",it)}
+                        Toggle("Mostrar ações antes das listas",settings.optBoolean("queue_actions_at_top",true)){put("queue_actions_at_top",it)}
+                        Select("Mostrar itens na fila",settings.optString("queue_view","Completa"),listOf("Compacto","Completa")){put("queue_view",it)}
                         Select("Tamanho dos cards da fila",settings.optString("queue_card_size","Grande"),listOf("Pequeno","Médio","Grande")){put("queue_card_size",it)}
                         Select("Mostrar músicas no histórico",settings.optString("history_view","Compacto"),listOf("Compacto","Completa")){put("history_view",it)}
                         UiText("Compacto: exibição atual. Completa: cards com capa e informações disponíveis da música e do álbum.",style=MaterialTheme.typography.bodySmall)
@@ -117,6 +125,9 @@ val categories=linkedMapOf(
                         val duplicates=linkedMapOf("Perguntar" to "ask","Manter ambos" to "keep","Substituir" to "replace","Pular" to "skip")
                         SettingsDivider()
                         Select("Quando o arquivo já existir",duplicates.entries.firstOrNull {it.value==settings.optString("duplicate_policy")}?.key ?: "Perguntar",duplicates.keys.toList()){put("duplicate_policy",duplicates.getValue(it))}
+                        SettingsDivider()
+                        Toggle("Escolher automaticamente os metadados mais semelhantes",settings.optBoolean("auto_metadata")){put("auto_metadata",it)}
+                        UiText("Seleciona o primeiro resultado de maior similaridade entre os metadados compatíveis, sem abrir a escolha. Sem correspondência compatível, informa o erro. Não altera a escolha da versão de áudio.",style=MaterialTheme.typography.bodySmall)
                         SettingsDivider()
                         Toggle("Escolher automaticamente a versão mais semelhante no YouTube",settings.optBoolean("auto_match")){put("auto_match",it)}
                         SettingsDivider()
@@ -162,11 +173,12 @@ val categories=linkedMapOf(
                         TextButton(onClick={vm.operation("spotify_disconnect",JSONObject(),dialog=true)}){UiText("Desconectar")}
                         UiText("No Spotify Developers, cadastre o retorno http://127.0.0.1:8765/callback. A conexão usa PKCE e abre o navegador do celular. A disponibilidade das playlists depende das permissões da API.",style=MaterialTheme.typography.bodySmall)
                         SettingsDivider()
+                        OutlinedButton(onClick={youtubeCookies.launch(arrayOf("text/plain","application/octet-stream"))}){UiText("Importar cookies do YouTube")}
                         OutlinedButton(onClick={cookies.launch(arrayOf("text/plain","application/octet-stream"))}){UiText("Importar cookies.txt")}
                         UiText(if(settings.optString("cookies_file").isBlank()) "Nenhum cookie importado" else "Cookies salvos no armazenamento privado do ONDA",style=MaterialTheme.typography.bodySmall)
                         TextButton(onClick={val path=settings.optString("cookies_file");if(path.isNotBlank()) java.io.File(path).delete();put("cookies_file","")}){UiText("Remover cookies")}
                         if(settings.optString("youtube_cookies_file").isNotBlank()) SettingsDivider()
-                        if(settings.optString("youtube_cookies_file").isNotBlank()) TextButton(onClick={java.io.File(settings.getString("youtube_cookies_file")).delete();put("youtube_cookies_file","");android.webkit.CookieManager.getInstance().removeAllCookies(null)}) {UiText("Remover sessão do YouTube")}
+                        if(settings.optString("youtube_cookies_file").isNotBlank()) TextButton(onClick={java.io.File(settings.getString("youtube_cookies_file")).delete();put("youtube_cookies_file","");put("youtube_user_agent","");android.webkit.CookieManager.getInstance().removeAllCookies(null)}) {UiText("Remover sessão do YouTube")}
                     }
                     "Ferramentas"->{
                         AppUpdateControls(vm)

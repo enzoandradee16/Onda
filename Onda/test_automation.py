@@ -74,8 +74,8 @@ class MatchingTests(unittest.TestCase):
             select_candidate(record, [candidate()])
 
     def test_ambiguous_titles_rejected(self):
-        with self.assertRaisesRegex(ValueError, "incerta"):
-            select_candidate(catalog(), [candidate(), candidate(id="12345678901", title="Artista Exemplo Canção Azul Special")])
+        selected=select_candidate(catalog(), [candidate(), candidate(id="12345678901", title="Artista Exemplo Canção Azul Special")])
+        self.assertEqual(selected['id'],candidate()['id'])
 
     def test_same_version_different_upload_offers_choice(self):
         with self.assertRaises(AmbiguousMatch) as caught:
@@ -143,20 +143,41 @@ class TagTests(unittest.TestCase):
     def test_streaming_pipeline_tags_before_success(self, spotify_anchor=None):
         import functools
         import http.server
+        import http.cookiejar
         import threading
-        from engine import run_worker
+        from yt_dlp.cookies import YoutubeDLCookieJar
+        from engine import run_worker, download_with_recovery
         source = self.make_audio("wav")
-        handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=str(self.root))
+        class SessionHandler(http.server.SimpleHTTPRequestHandler):
+            def do_GET(self):
+                if 'onda_test_session=search-session' not in self.headers.get('Cookie',''):
+                    self.send_error(403, 'Search session was not retained')
+                    return
+                super().do_GET()
+        handler = functools.partial(SessionHandler, directory=str(self.root))
         server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
-        match = {**self.match, "source_url": f"http://127.0.0.1:{server.server_port}/{source.name}"}
+        # This generic extractor identifies the synthetic fixture as "test".
+        match = {**self.match, "id":"test", "title":"test", "duration":None, "selection":"user",
+                 "source_url": f"http://127.0.0.1:{server.server_port}/{source.name}"}
+        def search_with_session(record,logger,**_):
+            jar=YoutubeDLCookieJar()
+            jar.set_cookie(http.cookiejar.Cookie(0,'onda_test_session','search-session',None,False,
+                '127.0.0.1',False,False,'/',True,False,None,True,None,None,{},False))
+            logger.youtube_cookiejar=jar
+            return match
         try:
             output = io.StringIO()
-            config = {"url": spotify_anchor["source_url"] if spotify_anchor else self.record["source_url"], "folder": str(self.root / "out"), "mode": "mp3", "ffmpeg": os.environ["ONDA_FFMPEG"]}
+            config = {"url": spotify_anchor["source_url"] if spotify_anchor else self.record["source_url"], "folder": str(self.root / "out"), "mode": "mp3", "ffmpeg": os.environ["ONDA_FFMPEG"], "_cleanup_work": True}
             def fetch(url):
                 return spotify_anchor if spotify_anchor and url == spotify_anchor["source_url"] else self.record
-            with patch("metadata.MetadataClient.fetch", side_effect=fetch), patch("matching.find_youtube", return_value=match), patch("tagging.fetch_cover", return_value=self.cover), contextlib.redirect_stdout(output):
+            def download_with_leftover(url,options,configure,saved):
+                result=download_with_recovery(url,options,configure,saved)
+                # yt-dlp may leave thumbnails/cache even when all media succeeded.
+                (Path(options["paths"]["home"])/"unused-thumbnail.webp").write_bytes(b'temporary')
+                return result
+            with patch("metadata.MetadataClient.fetch", side_effect=fetch), patch("matching.find_youtube", side_effect=search_with_session), patch("tagging.fetch_cover", return_value=self.cover), patch("engine.download_with_recovery",side_effect=download_with_leftover), contextlib.redirect_stdout(output):
                 code = run_worker(config)
             self.assertEqual(code, 0, output.getvalue())
             events = [json.loads(line) for line in output.getvalue().splitlines()]
@@ -165,10 +186,13 @@ class TagTests(unittest.TestCase):
             from mutagen.id3 import ID3
             self.assertEqual(str(ID3(path)["TALB"]), self.record["album"])
             self.assertTrue(path.with_suffix(".mp3.metadata.json").exists())
+            self.assertFalse(list((self.root/"out").rglob(".onda-work")))
             if spotify_anchor:
                 provenance = json.loads(path.with_suffix(".mp3.metadata.json").read_text(encoding="utf-8"))
                 self.assertEqual(provenance["catalog"]["requested_source_url"], spotify_anchor["source_url"])
-                self.assertEqual(provenance["catalog"]["platform"], "Deezer")
+                self.assertEqual(provenance["catalog"]["platform"], "Spotify")
+                self.assertEqual(provenance["catalog"]["metadata_sources"]["album"]["platform"],"Deezer")
+                self.assertEqual(provenance["catalog"]["metadata_sources"]["title"]["platform"],"Spotify")
                 self.assertEqual(provenance["catalog"]["catalog_match"]["selection"], "automatic")
         finally:
             server.shutdown()

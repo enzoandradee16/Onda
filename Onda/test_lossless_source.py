@@ -23,7 +23,7 @@ class MatchingTests(unittest.TestCase):
         self.assertEqual([r['id'] for r in ranked],['2','1'])
         self.assertEqual(ranked[0]['source_url'],'https://tracks.monochrome.st/track/2')
 
-    def test_ambiguous_requires_choice_except_when_automatic(self):
+    def test_ambiguous_requires_choice_even_when_automatic(self):
         ranked=rank_matches(RECORD,[row('1',isrc='ONE'),row('2',isrc='TWO')])
         choose=Mock(return_value=ranked[1])
         chosen=choose_match(RECORD,ranked,choose,{})
@@ -31,7 +31,7 @@ class MatchingTests(unittest.TestCase):
         self.assertEqual(choose.call_args.args[0]['_audio_provider'],'Monochrome')
         choose.reset_mock()
         chosen=choose_match(RECORD,ranked,choose,{'auto_match':True,'confirm_version':True})
-        self.assertEqual(chosen['id'],'1')
+        self.assertEqual(chosen['id'],ranked[0]['id'])
         choose.assert_not_called()
 
     def test_missing_flac_explains_unavailability(self):

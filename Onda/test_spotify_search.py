@@ -76,7 +76,7 @@ class SpotifySearchUiTests(unittest.TestCase):
                         app.update()
                         if pane.records:break
                         time.sleep(.01)
-                    self.assertEqual(pane.records,[result])
+                    self.assertEqual([{key:value for key,value in row.items() if key!='search_score'} for row in pane.records],[result])
                     self.assertEqual(search.call_args.args,('artist music','Spotify'))
                     self.assertIs(search.call_args.kwargs['account'],app.playlist_page.spotify_account)
                 app.queue_catalog(result,'mp3','192 kbps')

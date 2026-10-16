@@ -91,3 +91,32 @@ def publish(source, folder, policy="keep", choose=None, *, config=None, record=N
             raise
         source.unlink()
         return str(candidate), False
+
+
+def cleanup_completed_work(staging, root):
+    """Remove only a successful job's staging tree; retain other jobs' partials."""
+    import stat
+    def reparse(path):
+        details=path.lstat()
+        return stat.S_ISLNK(details.st_mode) or bool(getattr(details,'st_file_attributes',0) & 0x400)
+    try:
+        root=Path(root).expanduser().resolve()
+        staging=Path(staging).absolute()
+        work=staging.parent
+        if work.name!='.onda-work' or not re.fullmatch(r'[0-9a-f]{20}',staging.name):
+            return False
+        if not staging.resolve().is_relative_to(root) or staging.resolve()==root:
+            return False
+        # Reject junctions and symlinks before any recursive deletion.
+        for parent in (staging,*staging.parents):
+            if parent.exists() and reparse(parent):return False
+            if parent==root:break
+        if staging.exists():
+            for directory,folders,files in os.walk(staging,followlinks=False):
+                if any(reparse(Path(directory)/name) for name in folders+files):return False
+            shutil.rmtree(staging)
+        try:work.rmdir()
+        except OSError:pass  # Other workers or resumable partials may still own this root.
+        return True
+    except (OSError,ValueError,RuntimeError):
+        return False

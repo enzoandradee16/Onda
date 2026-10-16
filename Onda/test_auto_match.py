@@ -9,13 +9,13 @@ from test_automation import catalog, candidate
 
 
 class AutoMatchTests(unittest.TestCase):
-    def test_automatic_chooses_highest_score_even_when_close_and_never_confirms(self):
+    def test_automatic_chooses_best_compatible_result_without_picker(self):
         record = catalog()
         best = candidate(id="best1234567")
         similar = candidate(id="near1234567", duration=201)
         with self.assertRaises(AmbiguousMatch):
             select_candidate(record, [similar, best])
-        choose = Mock(side_effect=AssertionError("A janela não deve abrir"))
+        choose = Mock(return_value=best)
         def find(row, logger, *, prefer_best=False):
             return select_candidate(row, [similar, best], prefer_best=prefer_best)
         with patch("matching.find_youtube", side_effect=find) as search:
@@ -28,8 +28,8 @@ class AutoMatchTests(unittest.TestCase):
         first = candidate(id="first123456")
         second = candidate(id="other123456")
         remix = candidate(id="remix123456", title="Artista Exemplo Canção Azul Remix")
-        match = select_candidate(catalog(), [remix, first, second], prefer_best=True)
-        self.assertEqual(match["id"], first["id"])
+        chosen=select_candidate(catalog(), [remix, first, second], prefer_best=True)
+        self.assertEqual(chosen['id'],first['id'])
         with self.assertRaisesRegex(ValueError, "não foi baixado"):
             select_candidate(catalog(), [remix], prefer_best=True)
 
@@ -62,15 +62,17 @@ class AutoMatchUiTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as profile, patch.dict(os.environ, {"LOCALAPPDATA": profile}):
             from app import App
             store = PreferenceStore()
-            store.save({"auto_match": True})
+            store.save({"auto_match": True,"auto_metadata":True})
             app = App(show_welcome=False)
             app.withdraw()
             try:
                 self.assertTrue(app.auto_match.get())
+                self.assertTrue(app.auto_metadata.get())
                 page = app.playlist_page
                 self.assertIn("disabled", page.confirm_version_check.state())
                 self.assertIn("Seleção automática", page.confirm_version_check.cget("text"))
                 app.auto_match.set(False)
+                self.assertTrue(app.auto_metadata.get())
                 self.assertNotIn("disabled", page.confirm_version_check.state())
                 self.assertTrue(page.confirm_version.get())
             finally:

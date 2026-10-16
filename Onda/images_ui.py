@@ -105,10 +105,9 @@ class ImagesPane(ttk.Frame):
             messagebox.showwarning(tr('Imagens'), tr(str(exc)), parent=self)
             return
         added = self.app.add(lines=[url], overrides={'mode':'photos', 'playlist':False, 'image_options':options}, reuse_existing=start)
-        if added:
-            self.app.pages.select(self.app.download_page)
-            if start:
-                self.app.start(only_item=added[0])
+        if added and start:
+            self.app.start(only_item=added[0])
+            self.app.show_queue()
 
     def preview(self):
         if self.busy:

@@ -1,5 +1,30 @@
 # Histórico de versões
 
+## Em desenvolvimento
+
+- Busca adicional de aliases no MusicBrainz após falha da busca normal, com confirmação por gravação e identidade do artista, cache local com expiração, rejeição de homônimos e limite de consultas compartilhado entre downloads.
+
+- Correspondência: alias verificado Antônio Carlos Jobim/Tom Jobim, com fonte registrada e preservação dos filtros de duração e versão. Janela de falhas mantém os botões visíveis e limita a área do motivo com rolagem. Motivo e link original da falha passam a persistir na fila.
+
+- Links Spotify (PC e Android): preserva os metadados originais, reaproveita dados completos das playlists e a conexão nos links individuais. Outros catálogos preenchem somente campos ausentes, com origem registrada por campo; links de outros serviços não recebem essa prioridade.
+
+- PC e Android: resumo automático das falhas ao finalizar a fila, com exportação TXT (música, link e motivo), pesquisa e escolha manual de metadados por item e nova tentativa apenas dos itens desse resumo.
+
+- PC e Android: verificações adicionais de créditos de participação, pontuação, versões equivalentes, artista localizado com ISRC, edições de álbum, ano de lançamento e conteúdo explícito/limpo. Dados estruturados de uploads Topic auxiliam a busca sem desativar os filtros de versão e duração.
+
+- Comparação de títulos preserva letras japonesas e outros alfabetos. Quando a busca no YouTube não encontra uma versão compatível, tenta títulos alternativos confirmados em catálogo por artista e duração junto ao ISRC ou álbum/faixa/disco. A posição na playlist não é usada como número da faixa; títulos originais são preservados no áudio.
+
+- PC: remove a área temporária dos downloads concluídos, incluindo sobras de miniaturas e processamento; apaga `.onda-work` quando o último trabalho termina e a pasta fica vazia. Arquivos parciais de outros itens são preservados para retomada.
+
+- PC e Android: tempo decorrido da execução e estimativa do tempo restante junto à contagem da fila. Pausas não entram no tempo; estimativa usa as conclusões observadas, considerando o ritmo com downloads simultâneos.
+
+- PC e Android: opção independente para escolher automaticamente os metadados de maior similaridade entre resultados compatíveis, preservando escolhas manuais salvas.
+
+- PC e Android: contagem na fila com concluídos/total e quantidade restante, atualizada ao concluir, adicionar ou remover itens. Falhas e cancelamentos continuam como não concluídos.
+
+- Android: navegação rápida nas filas e playlists, ações antes das listas como opção, inclusão em lotes para coleções grandes e pedidos ao serviço com token pequeno.
+- Android: sessão atual do YouTube aplicada aos itens já na fila, exportação de cookies validada, importação específica de cookies do YouTube e diagnóstico de sessão recusada.
+
 ## 1.1.2 — 2026-10-15
 
 - Detecção de links duplicados na fila e no histórico, com confirmação e normalização de links de compartilhamento.
@@ -56,6 +81,16 @@ Primeira versão oficial para Windows e Android.
 - Preparação de versões e pacotes de pré-release.
 
 ## Em desenvolvimento
+
+- Busca adicional de aliases no MusicBrainz após falha da busca normal, com confirmação por gravação e identidade do artista, cache local com expiração, rejeição de homônimos e limite de consultas compartilhado entre downloads.
+
+- Correspondência: alias verificado Antônio Carlos Jobim/Tom Jobim, com fonte registrada e preservação dos filtros de duração e versão. Janela de falhas mantém os botões visíveis e limita a área do motivo com rolagem. Motivo e link original da falha passam a persistir na fila.
+
+- Links Spotify (PC e Android): preserva os metadados originais, reaproveita dados completos das playlists e a conexão nos links individuais. Outros catálogos preenchem somente campos ausentes, com origem registrada por campo; links de outros serviços não recebem essa prioridade.
+
+- PC e Android: resumo automático das falhas ao finalizar a fila, com exportação TXT (música, link e motivo), pesquisa e escolha manual de metadados por item e nova tentativa apenas dos itens desse resumo.
+
+- PC e Android: verificações adicionais de créditos de participação, pontuação, versões equivalentes, artista localizado com ISRC, edições de álbum, ano de lançamento e conteúdo explícito/limpo. Dados estruturados de uploads Topic auxiliam a busca sem desativar os filtros de versão e duração.
 
 - Navegação e configurações: reutilização de tema/layout no PC, troca direta de categorias no Android e menos trabalho durante transições e arraste dos controles.
 

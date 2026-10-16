@@ -56,6 +56,7 @@ class CatalogPane(ttk.Frame):
         self.records = []
         self.messages = queue.Queue()
         self.generation = 0
+        self.search_cancel = threading.Event()
         self.cover_generation = 0
         self.closed = False
         self.player = None
@@ -74,9 +75,11 @@ class CatalogPane(ttk.Frame):
         self.entry.bind("<Return>", self.enter_search)
         self.entry.bind("<KP_Enter>", self.enter_search)
         self.provider = app.catalog_provider
-        TranslatedCombobox(search, textvariable=self.provider, values=("Deezer", "Apple / iTunes", "Spotify"), state="readonly", width=15).grid(row=0, column=1, padx=(0, 10))
+        TranslatedCombobox(search, textvariable=self.provider, values=("Todos", "Deezer", "Apple / iTunes", "Spotify"), state="readonly", width=15).grid(row=0, column=1, padx=(0, 10))
         self.search_button = ttk.Button(search, text=tr("Pesquisar"), style="Accent.TButton", command=self.search)
         self.search_button.grid(row=0, column=2)
+        ttk.Button(search,text=tr('Filtros'),command=self.search_filters).grid(row=0,column=3,padx=(8,0))
+        ttk.Button(search,text=tr('Atualizar busca'),command=self.refresh_search).grid(row=1,column=3,pady=(8,0))
         self.spotify_connect_button = ttk.Button(search, text=tr('Conectar Spotify'), command=lambda: self.app.playlist_page.connect_spotify())
         self.spotify_connect_button.grid(row=1, column=0, columnspan=3, sticky='e', pady=(8, 0))
         def provider_changed(*_):
@@ -127,6 +130,7 @@ class CatalogPane(ttk.Frame):
         self.preview_button.pack(side="left")
         self.source_button = ttk.Button(actions, text=tr("Ver no catálogo"), command=self.open_source, state="disabled")
         self.source_button.pack(side="left", padx=8)
+        ttk.Button(actions,text=tr('Comparar resultados'),command=self.compare_results).pack(side='left')
         self.download_button = ttk.Button(actions, text=tr("Baixar…"), style="Accent.TButton", command=self.open_track, state="disabled")
         self.download_button.pack(side="right")
         self.status = tk.StringVar(value="Busque pelo nome. Exemplo: Stardust Music Sounds Better With You")
@@ -144,19 +148,20 @@ class CatalogPane(ttk.Frame):
 
     def enter_search(self, _event=None):
         # Holding Enter must not toggle the running search into cancellation.
-        if self.search_button.cget("text") != "Cancelar":
+        if self.search_button.cget("text") != tr("Cancelar"):
             self.query.set(self.query.get().replace("\r", " ").replace("\n", " ").strip())
             self.search()
         return "break"
 
     def search(self):
-        if self.search_button.cget("text") == "Cancelar":
+        if self.search_button.cget("text") == tr("Cancelar"):
             self.generation += 1
+            self.search_cancel.set()
             self.search_button.configure(text=tr("Pesquisar"))
             self.status.set("Pesquisa cancelada.")
             return
         query = self.query.get().strip()
-        if len(query) < 2:
+        if not query:
             self.status.set("Digite o nome de uma música, artista ou um link de faixa.")
             self.entry.focus_set()
             return
@@ -167,19 +172,26 @@ class CatalogPane(ttk.Frame):
             return
         self.stop_preview()
         self.generation += 1
+        self.search_cancel.set()
+        self.search_cancel = threading.Event()
+        cancel = self.search_cancel
         generation = self.generation
         provider = self.provider.get()
-        account = self.app.playlist_page.spotify_account if provider == 'Spotify' else None
+        account = self.app.spotify_account
         credentials = (self.app.spotify_client_id.get(), self.app.spotify_client_secret.get())
-        self.records = []
-        self.table.delete(*self.table.get_children())
-        self.selected()
+        automatic_metadata = self.app.auto_metadata.get()
+        refresh = getattr(self,'refresh_requested',False)
+        self.refresh_requested = False
         self.search_button.configure(text=tr("Cancelar"))
         self.status.set("Consultando o catálogo…")
         def worker():
             client = MetadataClient(*credentials)
+            client.cancelled = cancel.is_set
+            if account.connected:client.spotify_get=account.get
             try:
-                records = [client.resolve(query)] if is_streaming_link(query) else (client.search(query, provider, account=account) if provider == 'Spotify' else client.search(query, provider))
+                from music_search import search_music
+                records = search_music(client,query,provider,account=account,cancelled=cancel.is_set,
+                                       automatic=automatic_metadata,refresh=refresh)
                 self.messages.put(("search", generation, records))
             except CatalogChoiceRequired as exc:
                 self.messages.put(("catalog_choice", generation, (exc.anchor, exc.candidates)))
@@ -188,6 +200,60 @@ class CatalogPane(ttk.Frame):
             finally:
                 client.close()
         threading.Thread(target=worker, daemon=True).start()
+
+    def refresh_search(self):
+        from music_search import clear_cache
+        clear_cache()
+        if self.search_button.cget('text') == tr('Cancelar'):
+            self.search()
+        self.refresh_requested = True
+        self.search()
+
+    def compare_results(self):
+        if len(self.records)<2:
+            self.status.set(tr('Busque pelo menos dois resultados para comparar.'))
+            return
+        dialog=tk.Toplevel(self);dialog.title(tr('Comparar resultados'));dialog.transient(self.winfo_toplevel())
+        body=ttk.Frame(dialog,padding=16);body.pack(fill='both',expand=True)
+        labels=[str(i+1)+'. '+str(row.get('title'))+' · '+', '.join(row.get('artists') or []) for i,row in enumerate(self.records)]
+        left,right=tk.StringVar(value=labels[0]),tk.StringVar(value=labels[1])
+        for column,var in enumerate((left,right)):
+            ttk.Combobox(body,textvariable=var,values=labels,state='readonly',width=42).grid(row=0,column=column,padx=6,pady=6)
+        text=tk.Text(body,width=90,height=14,wrap='word');text.grid(row=1,column=0,columnspan=2)
+        def update(*_):
+            a,b=(self.records[labels.index(var.get())] for var in (left,right))
+            from edition_evidence import differences
+            lines=[]
+            for key,label in (('title','Título'),('artists','Artistas'),('album','Álbum'),('release_date','Data'),('duration_ms','Duração (ms)'),('isrc','ISRC'),('platform','Catálogo')):
+                values=[', '.join(row.get(key) or []) if key=='artists' else str(row.get(key) or '—') for row in (a,b)]
+                lines.append(tr(label)+': '+values[0]+'  |  '+values[1])
+            lines.extend(['','; '.join(differences(a,b)) or tr('Sem divergências explícitas; isso não comprova a mesma gravação.')])
+            text.configure(state='normal');text.delete('1.0','end');text.insert('1.0','\n\n'.join(lines));text.configure(state='disabled')
+        left.trace_add('write',update);right.trace_add('write',update);update()
+
+    def search_filters(self):
+        dialog=tk.Toplevel(self)
+        dialog.title(tr('Filtros da busca'))
+        dialog.transient(self.winfo_toplevel())
+        body=ttk.Frame(dialog,padding=16);body.pack(fill='both',expand=True)
+        variables={}
+        for index,(key,label) in enumerate((('artista','Artista'),('titulo','Título'),('album','Álbum'),('versao','Versão'),('ano','Ano ou intervalo'),('duracao','Duração ou intervalo'))):
+            ttk.Label(body,text=tr(label)).grid(row=index,column=0,sticky='w',padx=6,pady=5)
+            variables[key]=tk.StringVar()
+            ttk.Entry(body,textvariable=variables[key],width=32).grid(row=index,column=1)
+        exact=tk.BooleanVar()
+        ttk.Checkbutton(body,text=tr('Exatamente este título'),variable=exact).grid(row=6,column=0,columnspan=2,sticky='w')
+        ttk.Label(body,text='ano:2020-2022 · duracao:3:00-4:00',style='Muted.TLabel').grid(row=7,column=0,columnspan=2,pady=8)
+        def apply():
+            import re
+            query=re.sub(r'(?<!\S)(?:artista|artist|titulo|title|album|versao|version|ano|year|duracao|duration|exata|exact):("[^"]*"|\S+)','',self.query.get()).strip()
+            parts=[query]+[key+':"'+value.get().replace('"','').strip()+'"' for key,value in variables.items() if value.get().strip()]
+            if exact.get():parts.append('exata:sim')
+            self.query.set(' '.join(filter(None,parts)))
+            dialog.destroy()
+            if self.search_button.cget('text')==tr('Cancelar'):self.search()
+            self.search()
+        ttk.Button(body,text=tr('Pesquisar'),command=apply).grid(row=8,column=1,sticky='e')
 
     def current(self):
         selection = self.table.selection()
@@ -207,12 +273,12 @@ class CatalogPane(ttk.Frame):
             self.track_info.set(tr("Capa, álbum e metadados acompanham o arquivo."))
             return
         self.track_title.set(record.get("title") or tr("Música"))
-        self.track_info.set(" · ".join(filter(None, [", ".join(record.get("artists", [])), record.get("album"), record.get("platform")])))
+        self.track_info.set(" · ".join(filter(None, [", ".join(record.get("artists", [])), record.get("album"), record.get("release_date"), record.get("platform"), '; '.join(record.get('match_reasons') or [])])))
         if record.get("cover_url"):
-            generation, url, folder = self.cover_generation, record["cover_url"], self.app.ffmpeg.get()
+            generation, url = self.cover_generation, record["cover_url"]
             def worker():
                 try:
-                    self.messages.put(("cover", generation, cover_png(url, folder)))
+                    self.messages.put(("cover", generation, cover_png(url)))
                 except Exception:
                     self.messages.put(("cover", generation, None))
             threading.Thread(target=worker, daemon=True).start()
@@ -307,7 +373,11 @@ class CatalogPane(ttk.Frame):
             if kind == "error":
                 self.status.set(value)
                 continue
+            details=value if isinstance(value,dict) else {}
+            value=details.get('tracks',[]) if details else value
             self.records = value
+            self.table.delete(*self.table.get_children())
+            self.selected()
             if value:
                 self.empty.place_forget()
             else:
@@ -317,6 +387,8 @@ class CatalogPane(ttk.Frame):
                 duration = f"{seconds//60}:{seconds%60:02}" if seconds else "—"
                 self.table.insert("", "end", iid=str(index), values=(record.get("title"), ", ".join(record.get("artists", [])), record.get("album") or "—", duration))
             self.status.set(f"{len(value)} resultado(s). Selecione uma faixa para ouvir ou baixar." if value else "Nenhuma música encontrada. Tente outro nome ou catálogo.")
+            extra=details.get('warnings',[])+(['Sugestões: '+', '.join(details['suggestions'])] if details.get('suggestions') else [])
+            if extra:self.status.set(self.status.get()+' '+'; '.join(extra))
             if value:
                 self.table.selection_set("0")
         if self.player and self.player.poll() is not None:
@@ -362,6 +434,7 @@ class CatalogPane(ttk.Frame):
         if self.closed:
             return
         self.closed = True
+        self.search_cancel.set()
         self.after_cancel(self.poll_id)
         self.stop_preview()
 

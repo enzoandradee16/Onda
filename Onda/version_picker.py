@@ -22,6 +22,7 @@ class VersionPicker(tk.Toplevel):
         self.minsize(760, 420)
         self.transient(parent)
         self.provider = event.get("audio_provider", "YouTube")
+        self.record=event
         self.on_select = on_select
         self.confirmed = False
         from audio_tools import PreviewPlayer
@@ -64,6 +65,13 @@ class VersionPicker(tk.Toplevel):
         self.open_button.pack(side="left")
         self.preview_button = ttk.Button(controls, text=tr("Ouvir / parar prévia"), command=self.preview, state="disabled")
         self.preview_button.pack(side="left", padx=8)
+        self.remember_choice=tk.BooleanVar(value=False)
+        self.remember_check=ttk.Checkbutton(body,text=tr('Lembrar esta escolha após verificar novamente'),variable=self.remember_choice)
+        self.remember_check.grid(row=6,column=0,sticky='w')
+        self.reset_choice=ttk.Button(body,text=tr('Desfazer escolhas e rejeições salvas'),command=self.clear_choices)
+        self.reset_choice.grid(row=7,column=0,sticky='w')
+        self.reject_button=ttk.Button(controls,text=tr('Versão errada'),command=self.reject)
+        self.reject_button.pack(side='left')
         self.select_button = ttk.Button(controls, text=tr("Baixar esta versão"), style="Accent.TButton", command=self.choose, state="disabled")
         self.select_button.pack(side="right")
         ttk.Button(controls, text=tr("Cancelar"), command=on_cancel).pack(side="right", padx=8)
@@ -82,13 +90,29 @@ class VersionPicker(tk.Toplevel):
         self.select_button.configure(state=state)
         self.preview_button.configure(state=state)
         self.player.stop()
-        self.preview_status.set("")
+        row=self.candidates[self.table.selection()[0]] if self.table.selection() else {}
+        self.preview_status.set('; '.join(tr(reason) for reason in row.get('match_reasons') or []))
 
     def choose(self):
         if not self.confirmed and self.table.selection():
             self.confirmed = True
             self.select_button.configure(state="disabled")
-            self.on_select(self.candidates[self.table.selection()[0]]["id"])
+            selected=self.candidates[self.table.selection()[0]]["id"]
+            self.on_select({'selected_id':selected,'remember_choice':True} if self.remember_choice.get() else selected)
+
+    def reject(self):
+        if self.table.selection():
+            from search_choices import ChoiceStore
+            key=self.table.selection()[0]
+            ChoiceStore().set(self.record,self.candidates[key]['id'],False)
+            self.table.delete(key)
+            self.selected()
+            self.preview_status.set(tr('Versão rejeitada. Use Desfazer para permitir novamente.'))
+
+    def clear_choices(self):
+        from search_choices import ChoiceStore
+        ChoiceStore().clear(self.record)
+        self.preview_status.set(tr('Escolhas salvas removidas. Faça uma nova busca para restaurar os resultados.'))
 
     def double_click(self, event):
         row = self.table.identify_row(event.y)

@@ -16,8 +16,9 @@ object DownloadRuntime {
 
 suspend fun runDownloads(context:Context,only:String?=null,batch:Set<String>?=null,scheduled:Boolean=false,requestsOnly:Boolean=false,notify:(String,Int?)->Unit):Boolean=coroutineScope {
     if(!DownloadRuntime.running.compareAndSet(false,true)) return@coroutineScope false
-    DownloadRuntime.stopped=false;OndaStore.running.value=true
+    DownloadRuntime.stopped=false;OndaStore.queueTiming.setRunning(true);OndaStore.running.value=true
     val tasks=mutableMapOf<String,Job>()
+    val attempted=mutableSetOf<String>();var finishedNormally=false
     val selection=DownloadScope(!requestsOnly && only==null && batch==null,batch ?: only?.let {setOf(it)} ?: emptySet())
     val notificationGate=ProgressGate(500)
     try {
@@ -28,11 +29,12 @@ suspend fun runDownloads(context:Context,only:String?=null,batch:Set<String>?=nu
             val limit=OndaStore.settings.value.optInt("concurrent_downloads",1).coerceIn(1,4)
             while(tasks.size<limit) {
                 val item=OndaStore.items.value.firstOrNull {it.state=="Pendente" && it.id !in DownloadRuntime.ids && selection.accepts(it.id)} ?: break
+                attempted.add(item.id)
                 DownloadRuntime.ids.add(item.id);OndaStore.active.value=DownloadRuntime.ids.firstOrNull().orEmpty()
                 OndaStore.update(item.id,"Baixando")
                 tasks[item.id]=launch(Dispatchers.IO) {
                     try {
-                        val config=applyVersionSelection(JSONObject(item.config.toString()),OndaStore.settings.value).put("spotify_client_secret",SecureVault.get("spotify-api") ?: "").put("_identity",item.id)
+                        val config=applyVersionSelection(OndaStore.executionConfig(item.config),OndaStore.settings.value).put("spotify_client_secret",SecureVault.get("spotify-api") ?: "").put("_identity",item.id)
                         var failed=false
                         val progressGate=ProgressGate(150)
                         val result=MobileEngine.call(context,item.id,config.optString("_operation","download"),config,EventCallback {raw->
@@ -66,9 +68,11 @@ suspend fun runDownloads(context:Context,only:String?=null,batch:Set<String>?=nu
         }
         if(DownloadRuntime.stopped) DownloadRuntime.ids.toList().forEach {MobileEngine.cancel(it)}
         tasks.values.joinAll()
+        finishedNormally=!DownloadRuntime.stopped && isActive
         true
     } finally {
         DownloadRuntime.ids.toList().forEach {MobileEngine.cancel(it);OndaStore.dismissQuestions(it);OndaStore.update(it,"Pendente")}
-        DownloadRuntime.ids.clear();OndaStore.active.value="";OndaStore.running.value=false;DownloadRuntime.running.set(false)
+        DownloadRuntime.ids.clear();OndaStore.active.value="";OndaStore.queueTiming.setRunning(false);OndaStore.running.value=false;DownloadRuntime.running.set(false)
+        if(finishedNormally) OndaStore.failureSummary.value=finishedFailureIds(attempted,OndaStore.items.value.map {it.id to it.state},true).takeIf {it.isNotEmpty()}
     }
 }

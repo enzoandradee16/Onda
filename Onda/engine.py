@@ -147,19 +147,43 @@ def reject_live(info, *, incomplete=False):
 
 
 def download_with_recovery(url, options, configure, saved):
-    """Refresh expired YouTube media URLs once and test candidate formats."""
+    """Bounded YouTube 403 recovery, with an extra delayed audio attempt."""
     from yt_dlp import YoutubeDL
     from yt_dlp.utils import DownloadError
 
     host = (urlsplit(url).hostname or "").lower().rstrip(".")
     youtube = any(host == domain or host.endswith("." + domain)
                   for domain in ("youtube.com", "youtu.be"))
-    for attempt in range(2):
+    failed_audio_formats = set()
+    from yt_dlp.postprocessor.common import PostProcessor
+    class RememberAudioFormat(PostProcessor):
+        def run(self, info):
+            # before_dl runs after selection, even if the first media GET fails.
+            if info.get('vcodec') == 'none' and info.get('format_id'):
+                failed_audio_formats.add(str(info['format_id']))
+            return [], info
+
+    attempts = 3 if youtube and options.get('format') in ('bestaudio', 'bestaudio/best') else 2
+    for attempt in range(attempts):
+        if attempt == 2:
+            import random
+            emit('stage', message='HTTP 403 persistiu. Aguardando antes da última tentativa de áudio…')
+            time.sleep(1.0 + random.random())
         current = dict(options)
         if attempt:
             # The selector keeps the requested codec/resolution/FPS constraints.
             # Testing is lazy: reject inaccessible candidates before choosing one.
             current["check_formats"] = "selected"
+            selector = options.get('format')
+            if failed_audio_formats and selector in ('bestaudio', 'bestaudio/best'):
+                # A short format probe can succeed while the full transfer is denied.
+                # Prefer a different stream of this same video; preserve original-audio mode.
+                filters = ''.join('[format_id!=' + value + ']' for value in sorted(failed_audio_formats)
+                                  if all(c.isalnum() or c in '._-' for c in value))
+                if filters:
+                    alternatives = '/'.join(branch + filters for branch in selector.split('/'))
+                    current['format'] = 'bestaudio[protocol^=m3u8]' + filters + '/' + alternatives
+                    emit('log', message='Recuperação HTTP 403: formatos recusados: ' + ', '.join(sorted(failed_audio_formats)) + '; priorizando áudio HLS do mesmo vídeo.')
         try:
             with YoutubeDL(current) as downloader:
                 from kwai import OndaKwaiIE
@@ -170,12 +194,13 @@ def download_with_recovery(url, options, configure, saved):
                     downloader.process_ie_result(info, download=True)
                     return 0
                 configure(downloader)
+                if youtube:downloader.add_post_processor(RememberAudioFormat(downloader), when="before_dl")
                 return downloader.download([url])
         except DownloadError as exc:
             forbidden = "HTTP Error 403" in str(exc)
             if not (youtube and forbidden):
                 raise
-            if attempt or saved:
+            if attempt == attempts - 1 or saved:
                 raise RuntimeError(
                     "O YouTube recusou o acesso ao arquivo (HTTP 403). "
                     "Tente novamente mais tarde. Se persistir, atualize o yt-dlp. "
@@ -190,6 +215,13 @@ def emit(kind: str, **values):
 
 
 class Logger:
+    def __init__(self, config=None):
+        config = config or {}
+        self.youtube_options = {}
+        self.youtube_cookiejar = None
+        if config.get('cookies_file'):
+            self.youtube_options['cookiefile'] = config['cookies_file']
+
     def debug(self, message):
         if not message.startswith("[debug]"):
             emit("log", message=message)
@@ -202,7 +234,7 @@ class Logger:
 
 
 def ask_version(record, candidates, input_stream=None):
-    fields = ("id", "title", "channel", "uploader", "duration", "match_score", "source_url", "manual_review")
+    fields = ("id", "title", "channel", "uploader", "duration", "match_score", "source_url", "manual_review", "match_reasons", "match_confidence")
     emit("choose_version", title=record["title"], artists=record.get("artists", []),
          audio_provider=record.get("_audio_provider", "YouTube"),
          duration_ms=record.get("duration_ms"),
@@ -214,14 +246,14 @@ def ask_version(record, candidates, input_stream=None):
         raise ValueError("A escolha da versão foi interrompida.") from None
     for candidate in candidates:
         if candidate["id"] == selected:
-            return {**candidate, "selection": "user"}
+            return {**candidate, "selection": "user", "remember_choice":reply.get('remember_choice') is True}
     raise ValueError("Nenhuma versão válida foi selecionada.")
 
 
 def ask_catalog(anchor, candidates, input_stream=None):
     from catalog_match import picker_event
     event = picker_event(anchor, candidates)
-    fields = ("id", "title", "artists", "platform", "album", "duration", "duration_ms", "match_score", "source_url")
+    fields = ("id", "title", "artists", "platform", "album", "duration", "duration_ms", "match_score", "source_url", "match_reasons", "match_confidence")
     emit("choose_catalog", title=event["title"], artists=event["artists"], duration_ms=event["duration_ms"],
          candidates=[{k: row.get(k) for k in fields} for row in event["candidates"]])
     try:
@@ -280,6 +312,7 @@ def ask_flac_browser(record, url, input_stream=None):
 
 def run_worker(config: dict) -> int:
     try:
+        session_logger = Logger(config)
         from yt_dlp.postprocessor.common import PostProcessor
 
         from metadata import MetadataClient, is_streaming_link
@@ -314,19 +347,20 @@ def run_worker(config: dict) -> int:
             try:
                 if config.get('catalog_record'):
                     from spotify_search import cached_record
-                    record = cached_record(config['catalog_record'], url)
+                    record = client.complete_spotify(cached_record(config['catalog_record'], url),choose=ask_catalog,automatic=bool(config.get('auto_metadata')))
                 else:
-                    record = client.resolve(url, choose=ask_catalog, selected_catalog_url=config.get("selected_catalog_url"))
+                    record = client.resolve(url, choose=ask_catalog, selected_catalog_url=config.get("selected_catalog_url"), **({"automatic": True} if config.get("auto_metadata") else {}))
             finally:
                 client.close()
-            emit("log", message="Metadados e capa: " + record["platform"] + " • " + record["source_url"])
+            from spotify_metadata import source_label
+            emit("log", message="Metadados e capa: " + source_label(record) + " • " + record["source_url"])
             if config["mode"] == "flac":
                 if config.get("review_metadata"):
                     record = ask_review(record)
                 from lossless_source import download_flac
                 return download_flac(config, record, emit, ask_version, ask_duplicate)
             emit("stage", message="Procurando uma versão correspondente no YouTube…")
-            match = resolve_youtube(record, Logger(), ask_version,
+            match = resolve_youtube(record, session_logger, ask_version,
                                     automatic=bool(config.get("auto_match")), confirm=bool(config.get("confirm_version")))
             url = match["source_url"]
             emit("log", message=f"Selecionado: {match['title']} • {url} • similaridade {match['match_score']:.0%}")
@@ -407,6 +441,12 @@ def run_worker(config: dict) -> int:
                      playlist=bool(config.get("playlist")), fps=info.get("fps"))
                 return [], info
 
+        class VerifyRecording(PostProcessor):
+            def run(self, info):
+                from matching import revalidate_match
+                revalidate_match(record,match,info)
+                return [], info
+
         class PrepareDirectMetadata(PostProcessor):
             def run(self, info):
                 nonlocal record, match, cover, output_folder
@@ -427,8 +467,12 @@ def run_worker(config: dict) -> int:
                 return [], info
 
         options = build_options(config)
-        options.update(logger=Logger(), progress_hooks=[progress], postprocessor_hooks=[postprocess])
+        options.update(logger=session_logger, progress_hooks=[progress], postprocessor_hooks=[postprocess])
         def configure(downloader):
+            if session_logger.youtube_cookiejar is not None:
+                downloader.cookiejar = session_logger.youtube_cookiejar
+            if streaming and match:
+                downloader.add_post_processor(VerifyRecording(downloader), when="before_dl")
             if not streaming and config.get("review_metadata") and config["mode"] in ("mp3", "m4a", "flac"):
                 downloader.add_post_processor(PrepareDirectMetadata(downloader), when="pre_process")
             downloader.add_post_processor(EstimateSize(downloader), when="before_dl")
@@ -439,11 +483,16 @@ def run_worker(config: dict) -> int:
         code = download_with_recovery(url, options, configure, saved)
         if code or not saved:
             raise RuntimeError("Nenhum arquivo concluído ou parte da playlist falhou. Veja os detalhes.")
-        try:
-            staging.rmdir()
-            staging.parent.rmdir()
-        except OSError:
-            pass
+        if config.get("_cleanup_work"):
+            from file_output import cleanup_completed_work
+            if not cleanup_completed_work(staging, destination_config["folder"]):
+                emit("log", message="O download foi concluído, mas alguns arquivos temporários não puderam ser removidos.")
+        else:
+            try:
+                staging.rmdir()
+                staging.parent.rmdir()
+            except OSError:
+                pass
         emit("done", files=saved)
         return 0
     except Exception as exc:

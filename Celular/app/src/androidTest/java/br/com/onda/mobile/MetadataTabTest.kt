@@ -72,7 +72,7 @@ class MetadataTabTest {
         try {
             compose.runOnIdle {
                 OndaStore.saveSettings(JSONObject(before.toString()).put("tab_order",JSONArray(listOf("Imagens","Pesquisar","Links e fila","Playlists / Álbuns","Histórico","Efeitos"))))
-                assertEquals("Metadados",OndaStore.settings.value.getJSONArray("tab_order").getString(6))
+                assertEquals("Metadados",OndaStore.settings.value.getJSONArray("tab_order").getString(7))
                 vm.collection.value=JSONObject().put("title","Álbum de teste").put("subtitle","Artista de teste").put("kind","album")
                     .put("tracks",JSONArray().put(JSONObject().put("title","Primeira música").put("artists",JSONArray().put("Artista")).put("source_url","https://example.com/song")))
             }

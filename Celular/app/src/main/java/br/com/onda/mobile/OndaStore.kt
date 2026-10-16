@@ -37,22 +37,30 @@ object OndaStore {
     val question = MutableStateFlow<Question?>(null)
     val messages = MutableStateFlow<List<String>>(emptyList())
     val running = MutableStateFlow(false)
+    val failureSummary=MutableStateFlow<List<String>?>(null)
+    internal val queueTiming=QueueTiming()
     val sharedLink = MutableStateFlow("")
     val active = MutableStateFlow("")
     val selectAll = kotlinx.coroutines.flow.MutableSharedFlow<Unit>(extraBufferCapacity=1)
     private val questions = java.util.ArrayDeque<Question>()
     private var batchDepth=0
     private val batchItems=mutableListOf<DownloadItem>()
+    private val batchDuplicateKeys=hashSetOf<QueueDuplicateKey>()
+    private var batchPosition=0L
     private val batchQuestions=mutableListOf<()->Unit>()
     @Synchronized fun <T> enqueueBatch(action: ()->T):T {
         val outer=batchDepth==0
-        if(outer){batchItems.clear();batchQuestions.clear()}
+        if(outer){
+            batchItems.clear();batchQuestions.clear();batchDuplicateKeys.clear()
+            items.value.filter {it.state!="Erro"}.mapNotNullTo(batchDuplicateKeys){queueDuplicateKey(it.config)}
+            database.readableDatabase.rawQuery("SELECT COALESCE(MAX(position),0) FROM queue_order",null).use {it.moveToFirst();batchPosition=it.getLong(0)}
+        }
         var committed=false
         database.writableDatabase.beginTransaction();batchDepth++
         try {val result=action();database.writableDatabase.setTransactionSuccessful();committed=true;return result}
         finally {
             batchDepth--;database.writableDatabase.endTransaction()
-            if(outer){val prompts=batchQuestions.toList();batchItems.clear();batchQuestions.clear();refreshQueue();if(committed)prompts.forEach {it()}}
+            if(outer){val prompts=batchQuestions.toList();batchItems.clear();batchQuestions.clear();batchDuplicateKeys.clear();refreshQueue();if(committed)prompts.forEach {it()}}
         }
     }
     fun initialize(value: Context) {
@@ -77,13 +85,13 @@ object OndaStore {
         refresh()
     }
     fun defaults() = JSONObject().put("language","pt-BR").put("mode","mp3").put("audio_quality","320 kbps").put("height",1080).put("fps",JSONObject.NULL)
-        .put("queue_view","Completa").put("queue_card_size","Grande").put("pure_black_separators",false).put("history_card_size","Grande").put("history_view","Compacto").put("playlist_limit",2000).put("link_playlist",false).put("auto_match",false).put("confirm_version",false).put("review_metadata",false)
+        .put("queue_actions_at_top",true).put("queue_view","Completa").put("queue_card_size","Grande").put("pure_black_separators",false).put("history_card_size","Grande").put("history_view","Compacto").put("playlist_limit",2000).put("link_playlist",false).put("auto_metadata",false).put("auto_match",false).put("confirm_version",false).put("review_metadata",false)
         .put("detect_duplicates",true).put("filename_template","Original").put("duplicate_policy","ask").put("organization","Pasta de destino").put("interface_font",DEFAULT_INTERFACE_FONT).put("interface_font_size","100%").put("theme","Seguir o sistema").put("accent","Verde-Água")
         .put("concurrent_downloads","1").put("resume_downloads",true).put("resume_queue",false).put("normalize_volume",false)
         .put("schedule_enabled",false).put("schedule_start","22:00").put("schedule_stop","07:00").put("check_updates",false).put("notice_duration","Após 3 segundos")
         .put("search_preview",25).put("effects_preview",25).put("keep_preview",false).put("remember",true)
         .put("image_format","Original").put("image_width",0).put("image_height",0).put("keep_ratio",true)
-        .put("tab_order",JSONArray(listOf("Pesquisar","Links e fila","Imagens","Playlists / Álbuns","Histórico","Efeitos","Metadados")))
+        .put("tab_order",JSONArray(listOf("Pesquisar","Links e fila","Fila","Imagens","Playlists / Álbuns","Histórico","Efeitos","Metadados")))
         .put("output_uri", "").put("cookies_file", "").put("youtube_cookies_file", "").put("spotify_client_id", "")
     fun normalizeAppearance(value:JSONObject) {
         if(value.optString("queue_view") !in listOf("Compacto","Completa"))value.put("queue_view","Completa")
@@ -93,7 +101,9 @@ object OndaStore {
         val available=defaults().getJSONArray("tab_order").let {a->(0 until a.length()).map {a.getString(it)}}
         val saved=value.optJSONArray("tab_order")
         val ordered=if(saved==null) emptyList() else (0 until saved.length()).map {saved.optString(it)}.filter {it in available}.distinct()
-        value.put("tab_order",JSONArray(ordered+available.filter {it !in ordered}))
+        val complete=(ordered+available.filter {it !in ordered && it!="Fila"}).toMutableList()
+        if("Fila" !in complete)complete.add(complete.indexOf("Links e fila")+1,"Fila")
+        value.put("tab_order",JSONArray(complete))
         val aliases=mapOf("Menta" to "Verde-Água","Verde-água" to "Verde-Água","Lima" to "Verde-limão","Lavanda" to "Lilás","Pêssego" to "Coral","Prata" to "Cinza")
         aliases[value.optString("accent")]?.let {value.put("accent",it)}
         if(value.optString("theme")=="Sistema") value.put("theme","Seguir o sistema")
@@ -119,6 +129,10 @@ object OndaStore {
             .put("width",options.optInt("image_width")).put("height",options.optInt("image_height"))
             .put("keep_ratio",options.optBoolean("keep_ratio",true)))
     }
+    fun executionConfig(stored:JSONObject):JSONObject=JSONObject(stored.toString()).apply {
+        val live=settings.value
+        listOf("cookies_file","youtube_cookies_file","youtube_user_agent").forEach {key->put(key,live.optString(key))}
+    }
     @Synchronized fun refresh() {refreshQueue();refreshHistory()}
     @Synchronized private fun refreshQueue() {
         val previous=items.value.associateBy {it.id}
@@ -131,6 +145,7 @@ object OndaStore {
             }
         }
         items.value = queue
+        if(queue.isEmpty())queueTiming.reset()
     }
     @Synchronized private fun refreshHistory() {
         val past = mutableListOf<HistoryItem>()
@@ -143,13 +158,18 @@ object OndaStore {
         val id = UUID.randomUUID().toString()
         val config = config(options,includeSecrets=false).put("url",url)
         extra?.keys()?.forEach { config.put(it,extra.get(it)) }
+        val duplicateKey=queueDuplicateKey(config)
+        val queuedDuplicate=if(batchDepth>0) duplicateKey!=null && duplicateKey in batchDuplicateKeys else items.value.any {it.state!="Erro" && duplicateJob(it.config,config)}
         val duplicate=config.optBoolean("detect_duplicates",true) && config.optString("_operation").isBlank() && (
-            (items.value.asSequence()+batchItems.asSequence()).any {it.state!="Erro" && duplicateJob(it.config,config)} || (!config.optBoolean("playlist") && config.optString("playlist_title").isBlank() && database.readableDatabase.rawQuery("SELECT 1 FROM history_sources WHERE source=? AND lower(mode)=lower(?) LIMIT 1",arrayOf(jobSource(config),config.optString("mode"))).use {it.moveToFirst()}))
+            queuedDuplicate || (!config.optBoolean("playlist") && config.optString("playlist_title").isBlank() && database.readableDatabase.rawQuery("SELECT 1 FROM history_sources WHERE source=? AND lower(mode)=lower(?) LIMIT 1",arrayOf(jobSource(config),config.optString("mode"))).use {it.moveToFirst()}))
         val state=if(duplicate) "Duplicata" else "Pendente"
         // Secrets are injected at execution and never stored in the queue database.
         config.remove("spotify_client_secret")
         database.writableDatabase.execSQL("INSERT INTO queue VALUES(?,?,?,?)",arrayOf(id,title,config.toString(),state))
-        database.writableDatabase.execSQL("INSERT INTO queue_order VALUES(?,(SELECT COALESCE(MAX(position),0)+1 FROM queue_order))",arrayOf(id))
+        if(batchDepth>0) {
+            database.writableDatabase.execSQL("INSERT INTO queue_order VALUES(?,?)",arrayOf(id,++batchPosition))
+            if(duplicateKey!=null)batchDuplicateKeys.add(duplicateKey)
+        } else database.writableDatabase.execSQL("INSERT INTO queue_order VALUES(?,(SELECT COALESCE(MAX(position),0)+1 FROM queue_order))",arrayOf(id))
         val added=DownloadItem(id,title,config,state)
         if(batchDepth==0)items.value=items.value+added else batchItems.add(added)
         val prompt:()->Unit = {ask("duplicate-$id",JSONObject().put("type","choose_queue_duplicate").put("path",title)) {answer->
@@ -174,6 +194,7 @@ object OndaStore {
         val previous = items.value.firstOrNull { it.id == id } ?: return
         if(previous.state==state && (progress==null || progress==previous.progress) && (message==null || message==previous.message)) return
         if(previous.state != state) database.writableDatabase.execSQL("UPDATE queue SET state=? WHERE id=?",arrayOf(state,id))
+        if(previous.state!="Concluído" && state=="Concluído")queueTiming.recordCompletion()
         items.value = items.value.map { if(it.id==id) it.copy(state=state,progress=progress ?: it.progress,message=message ?: it.message) else it }
     }
     @Synchronized fun rename(id: String, title: String) {
@@ -220,8 +241,18 @@ object OndaStore {
             db.setTransactionSuccessful()
         } finally {db.endTransaction()}
         items.value=items.value.filterNot {it.id in removable}
+        if(items.value.isEmpty())queueTiming.reset()
     }
     fun retry(ids: Set<String>) { ids.filter { it!=active.value && it !in DownloadRuntime.ids }.forEach { update(it,"Pendente",0f,"") } }
+    @Synchronized fun useFailureMetadata(id:String,record:JSONObject):Boolean {
+        val item=items.value.firstOrNull {it.id==id && it.state in setOf("Erro","Pendente")} ?: return false
+        if(id in DownloadRuntime.ids || id==active.value)return false
+        val config=repairedFailureConfig(item.config,record) ?: return false
+        val title=(record.stringList("artists")+" - "+record.optString("title")).trim(' ','-')
+        database.writableDatabase.execSQL("UPDATE queue SET config=?, title=?, state=? WHERE id=?",arrayOf(config.toString(),title,"Pendente",id))
+        items.value=items.value.map {if(it.id==id)it.copy(title=title,config=config,state="Pendente",progress=0f,message="Metadados escolhidos") else it}
+        return true
+    }
     @Synchronized fun retryWithVersionChoice(id:String) {
         val item=items.value.firstOrNull {it.id==id && it.state=="Erro"} ?: return
         if(id==active.value || id in DownloadRuntime.ids)return

@@ -38,3 +38,6 @@ build/
 
 # Local performance samples and temporary benchmark copies
 /diagnosticos/resultados/
+
+# Temporary local builds and backup sources
+/Onda/.build-tmp/

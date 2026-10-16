@@ -88,7 +88,7 @@ class ImagesUiTests(unittest.TestCase):
                 app.pages.select(app.images_page)
                 app.update()
                 pane=app.images_page
-                self.assertEqual(len(app.pages.tabs()),7)
+                self.assertEqual(len(app.pages.tabs()),8)
                 visible_tabs=set()
                 import tkinter as tk
                 for x in range(app.pages.winfo_width()):
@@ -96,7 +96,7 @@ class ImagesUiTests(unittest.TestCase):
                         visible_tabs.add(app.pages.index(f'@{x},15'))
                     except tk.TclError:
                         pass
-                self.assertEqual(visible_tabs,set(range(7)))
+                self.assertEqual(visible_tabs,set(range(8)))
                 self.assertLess(pane.winfo_rooty()+pane.winfo_height(),app.winfo_rooty()+app.winfo_height()+1)
                 pane.url.set('https://example.com/image.png')
                 pane.format.set('WebP')

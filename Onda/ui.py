@@ -96,18 +96,21 @@ class UiMixin:
             mark.create_line(x, y + 4, x, 32 - y, width=3, fill=ACCENT, capstyle="round")
         ttk.Label(top, text=tr("ONDA"), font=("Segoe UI", 22, "bold"), foreground=ACCENT).pack(side="left")
         ttk.Button(top, text=tr("Configurações"), style="Quiet.TButton", command=self.show_settings).pack(side="right")
+        ttk.Button(top,text=tr("Atalhos"),style="Quiet.TButton",command=self.show_shortcuts).pack(side="right",padx=6)
         ttk.Button(top, text=tr("Metadados"), style="Quiet.TButton", command=self.open_metadata).pack(side="right", padx=6)
 
         self.pages = ttk.Notebook(main)
         self.pages.grid(row=1, column=0, sticky="nsew")
         from settings_scroll import SettingsCategory, scroll_page, refresh_page_layout
         self.download_page = SettingsCategory(self.pages,BG,fill_viewport=True,padding=(0,14,0,0))
+        self.queue_page = SettingsCategory(self.pages,BG,fill_viewport=True,padding=(0,14,0,0))
         self.bind("<MouseWheel>",scroll_page,add="+")
         self.bind("<Configure>", refresh_page_layout, add="+")
         from lazy_ui import LazyPane
         self.catalog_page = LazyPane(self.pages, self, "catalog_ui", "CatalogPane")
         self.pages.add(self.catalog_page, text=tr("Pesquisar músicas"))
-        self.pages.add(self.download_page, text=tr("Links e fila"))
+        self.pages.add(self.download_page, text=tr("Links"))
+        self.pages.add(self.queue_page, text=tr("Fila"))
         self.effects_page = LazyPane(self.pages, self, "effects_ui", "EffectsPane")
         self.playlist_page = LazyPane(self.pages, self, "playlist_ui", "PlaylistPane")
         self.history_page = LazyPane(self.pages, self, "history_ui", "HistoryPane")
@@ -120,18 +123,16 @@ class UiMixin:
         self.pages.add(self.metadata_page, text=tr("Editar metadados"))
         self.bind("<Control-MouseWheel>",lambda event:self.history_page.resize_cards(event)
                   if self.pages.select()==str(self.history_page) else self.queue_cards.resize_cards(event)
-                  if self.pages.select()==str(self.download_page) else scroll_page(event))
+                  if self.pages.select()==str(self.queue_page) else scroll_page(event))
         from tab_order import TabReorder
         self.tab_reorder = TabReorder(self.pages, {
-            'catalog': self.catalog_page, 'downloads': self.download_page,
+            'catalog': self.catalog_page, 'downloads': self.download_page, 'queue': self.queue_page,
             'images': self.images_page, 'playlists': self.playlist_page,
             'history': self.history_page, 'effects': self.effects_page, 'metadata': self.metadata_page,
         }, self.tab_order.get(), lambda order: self.tab_order.set(tuple(order)))
         self.pages.bind("<<NotebookTabChanged>>", self.tab_changed)
         main = self.download_page.content
         main.columnconfigure(0, weight=1)
-        main.rowconfigure(4, weight=1, minsize=90)
-
         heading = ttk.Frame(main)
         heading.grid(row=1, column=0, sticky="ew", pady=(0, 8))
         ttk.Label(heading, text=tr("Do link para sua biblioteca."), font=("Segoe UI", 21, "bold"), anchor="center").pack(fill="x")
@@ -179,11 +180,25 @@ class UiMixin:
 
         ttk.Checkbutton(card,text=tr("Normalizar volume"),variable=self.normalize_volume).grid(row=4,column=0,sticky="w",pady=(4,0))
 
-        queue_head = ttk.Frame(main)
-        queue_head.grid(row=3, column=0, sticky="ew", pady=(14, 10))
+        ttk.Button(main,text=tr("Ver fila"),command=self.show_queue).grid(row=3,column=0,sticky="e",pady=12)
+        ttk.Label(main,textvariable=display_var(self.notice_display),style="Muted.TLabel",wraplength=760).grid(row=4,column=0,sticky="w")
+
+        main = self.queue_page.content
+        main.columnconfigure(0,weight=1)
+        main.rowconfigure(4,weight=1,minsize=90)
+        queue_header = ttk.Frame(main)
+        queue_header.grid(row=3, column=0, sticky="ew", pady=(14, 10))
+        queue_head = ttk.Frame(queue_header)
+        queue_head.pack(fill="x")
         ttk.Label(queue_head, text=tr("Seus downloads"), font=("Segoe UI", 12, "bold")).pack(side="left")
-        self.queue_count = tk.StringVar(value="0 itens")
-        ttk.Label(queue_head, textvariable=display_var(self.queue_count), style="Muted.TLabel").pack(side="left", padx=12)
+        self.queue_count = tk.StringVar(value="Concluídos: 0/0 · Restantes: 0")
+        summary = ttk.Frame(queue_head)
+        summary.pack(side="left", padx=12)
+        ttk.Label(summary, textvariable=display_var(self.queue_count), style="Muted.TLabel").pack(anchor="w")
+        self.queue_time = tk.StringVar(value="Tempo decorrido: 00:00 · Tempo restante: —")
+        clock_row=ttk.Frame(queue_header);clock_row.pack(fill="x",pady=(6,0))
+        ttk.Label(clock_row,textvariable=display_var(self.queue_time),style="Muted.TLabel").pack(side="left")
+        ttk.Button(clock_row,text=tr("Falhas da fila"),style="Quiet.TButton",command=self.show_failures).pack(side="right")
         self.retry_button = ttk.Button(queue_head, text=tr("Tentar novamente"), style="Quiet.TButton", command=self.retry, state="disabled")
         self.retry_button.pack(side="right")
         self.remove_button = ttk.Button(queue_head, text=tr("Remover selecionados"), style="Quiet.TButton", command=self.remove, state="disabled")
@@ -293,7 +308,9 @@ class UiMixin:
         if hasattr(self,"queue_cards"):self.queue_cards.refresh()
         count = len(self.jobs)
         self.clear_queue_button.configure(state="normal" if count else "disabled")
-        self.queue_count.set(f"{count} {'item' if count == 1 else 'itens'}")
+        completed = sum(job.get("state") == "Concluído" for job in self.jobs.values())
+        self.queue_count.set(f"Concluídos: {completed}/{count} · Restantes: {count - completed}")
+        self.refresh_queue_timing(force=True)
         if count:
             self.empty_queue.place_forget()
         else:
@@ -301,6 +318,23 @@ class UiMixin:
         selected = self.tree.selection()
         self.remove_button.configure(state="normal" if selected else "disabled")
         self.retry_button.configure(state="normal" if any(self.jobs.get(i, {}).get("state") in ("Falhou", "Cancelado") for i in selected) else "disabled")
+
+    def refresh_queue_timing(self, force=False):
+        import time
+        from queue_timing import duration_text
+        active = self.running or bool(self.parallel.workers)
+        if not self.jobs:
+            self.queue_timing.reset()
+        else:
+            self.queue_timing.set_running(active)
+        now = time.monotonic()
+        if not force and now - self._queue_clock_refresh < 1:
+            return
+        self._queue_clock_refresh = now
+        remaining = sum(job.get("state") != "Concluído" for job in self.jobs.values())
+        elapsed, estimate = self.queue_timing.snapshot(remaining, bool(self.jobs))
+        eta = "≈ " + duration_text(estimate) if estimate else "00:00" if estimate == 0 else tr("Calculando…") if active and self.jobs else "—"
+        self.queue_time.set(f"Tempo decorrido: {duration_text(elapsed)} · Tempo restante: {eta}")
 
     def _build_settings(self):
         self.settings_window = tk.Toplevel(self)
@@ -357,7 +391,7 @@ class UiMixin:
         ttk.Label(appearance, text=tr("Mostrar músicas no histórico"), style="Muted.TLabel").pack(anchor="w", pady=(12,4))
         TranslatedCombobox(appearance, textvariable=self.history_view, values=("Compacto", "Completa"), state="readonly", width=28).pack(anchor="w")
         ttk.Label(appearance, text=tr("Compacto: lista atual. Completa: cards com capa, artista, álbum e dados do arquivo disponíveis."), style="Muted.TLabel", wraplength=480).pack(anchor="w", pady=(6,12))
-        ttk.Label(appearance,text=tr("Mostrar itens em Links e fila"),style="Muted.TLabel").pack(anchor="w",pady=(12,4))
+        ttk.Label(appearance,text=tr("Mostrar itens na fila"),style="Muted.TLabel").pack(anchor="w",pady=(12,4))
         TranslatedCombobox(appearance,textvariable=self.queue_view,values=("Compacto","Completa"),state="readonly",width=28).pack(anchor="w")
         general = categories["Geral"]
         ttk.Label(general, text=tr("Preferências"), font=("Segoe UI", 13, "bold")).pack(anchor="w", pady=(0, 12))
@@ -391,6 +425,8 @@ class UiMixin:
         downloads = categories["Downloads"]
         ttk.Label(downloads, text=tr("Downloads e arquivos"), font=("Segoe UI", 13, "bold")).pack(anchor="w", pady=(0, 8))
         ttk.Label(downloads, text=tr("As opções são aplicadas aos próximos links adicionados."), style="Muted.TLabel").pack(anchor="w", pady=(0, 8))
+        ttk.Checkbutton(downloads, text=tr("Escolher automaticamente os metadados mais semelhantes"), variable=self.auto_metadata).pack(anchor="w", pady=(0, 6))
+        ttk.Label(downloads, text=tr("Seleciona o primeiro resultado de maior similaridade entre os metadados compatíveis, sem abrir a escolha. Sem correspondência compatível, informa o erro. Não altera a escolha da versão de áudio."), style="Muted.TLabel", wraplength=480).pack(anchor="w", fill="x", pady=(0, 12))
         ttk.Checkbutton(downloads, text=tr("Escolher automaticamente a versão mais semelhante no YouTube"), variable=self.auto_match).pack(anchor="w", pady=(0, 6))
         ttk.Label(downloads, text=tr("Vale para os próximos downloads iniciados, inclusive itens já na fila. Ignora a confirmação de versão; escolhe a maior similaridade entre as versões compatíveis. Se nenhuma for compatível, informa o erro sem abrir uma escolha."), style="Muted.TLabel", wraplength=480).pack(anchor="w", fill="x", pady=(0, 12))
         ttk.Checkbutton(downloads, text=tr("Revisar metadados antes de baixar"), variable=self.review_metadata).pack(anchor="w", pady=(0, 8))
