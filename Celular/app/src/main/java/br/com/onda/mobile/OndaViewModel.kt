@@ -39,6 +39,8 @@ private fun operationNoticeTitle(action:String)=when(action) {
     "import"->"Importar arquivo"
     "matches"->"Conferir correspondências"
     "export_list"->"Exportar lista"
+    "cache_info","cache_clear"->"Cache"
+    "video_probe","video_convert"->"Conversor de vídeos"
     "probe"->"Escolher arquivo de áudio"
     else->"ONDA"
 }
@@ -51,6 +53,7 @@ private fun importNoticeTitle(category:String)=when(category) {
     "flac-browser"->"Escolher arquivo FLAC"
     "audio-editor"->"Editar metadados"
     "audio"->"Usar em efeitos"
+    "video-converter"->"Escolher vídeo"
     "image"->"Escolher imagem"
     "playlist"->"Importar álbum ou playlist"
     else->"Importar arquivo"

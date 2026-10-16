@@ -12,6 +12,59 @@ class QueueCardsTests(unittest.TestCase):
         self.app.destroy();self.env.stop();self.folder.cleanup()
         from i18n import set_language
         set_language('pt-BR')
+    def test_search_and_state_filters_leave_execution_model_intact(self):
+        app=self.app
+        first=app.add(lines=['https://example.com/a'],overrides={'display_name':'Antônio - Colette','queue_info':{'artists':['Piero Piccioni'],'album':'Cinema'}})[0]
+        second=app.add(lines=['https://example.com/b'],overrides={'display_name':'Daft Punk - One More Time'})[0]
+        app.jobs[second]['state']='Falhou'
+        app.queue_view.set('Compacto');app.queue_filter.query.set('antonio');app.update()
+        self.assertEqual(app.queue_filter.visible_keys(),(first,))
+        self.assertEqual(app.queue_filter.view.get_children(),(first,))
+        self.assertEqual(app.tree.get_children(),(first,second))
+        app.queue_view.set('Completa');app.update()
+        self.assertEqual(tuple(app.queue_cards.rows),(first,))
+        app.queue_filter.query.set('');app.queue_filter.state.set('Com falha');app.update()
+        self.assertEqual(tuple(app.queue_cards.rows),(second,))
+        app.queue_filter.query.set('nonexistent');app.update()
+        self.assertFalse(app.queue_cards.rows)
+        self.assertEqual(len(app.jobs),2)
+        app.queue_filter.clear();app.update()
+        self.assertEqual(app.queue_filter.visible_keys(),(first,second))
+
+    def test_compact_history_loads_metadata_icon(self):
+        import json,time
+        from pathlib import Path
+        app=self.app
+        path=Path(self.folder.name)/'track.mp3';path.write_bytes(b'fixture')
+        Path(str(path)+'.metadata.json').write_text(json.dumps({'catalog':{'platform':'Apple / iTunes'}}))
+        app.library.add_history(str(path),'mp3','https://music.apple.com/song/123')
+        app.history_view.set('Compacto')
+        app.pages.select(app.history_page);app.update()
+        page=app.history_page.ensure_ready();page.refresh()
+        key=page.table.get_children()[0]
+        deadline=time.monotonic()+3
+        while not page.table.item(key,'image') and time.monotonic()<deadline:
+            app.update();time.sleep(.02)
+        image=page.table.item(key,'image')
+        self.assertTrue(image)
+        self.assertEqual(int(app.tk.call('image','width',image[0])),18)
+        self.assertEqual(page.table.column('#0','width'),52)
+        page.table.selection_set(key);app.update()
+        self.assertEqual(str(page.origin_button.cget('state')),'normal')
+
+    def test_compact_restores_platform_icon_in_separate_column(self):
+        app=self.app
+        key=app.add(lines=['https://example.com/song'],overrides={'queue_info':{'platform':'Spotify'}})[0]
+        app.queue_view.set('Completa');app.update()
+        app.tree.item(key,image='')
+        app.queue_view.set('Compacto');app.update()
+        image=app.tree.item(key,'image')
+        self.assertTrue(image)
+        width=int(app.tk.call('image','width',image[0]))
+        self.assertEqual(width,18)
+        self.assertGreaterEqual(app.tree.column('#0','width'),width+30)
+        self.assertIn('tree',str(app.tree.cget('show')))
+
     def test_card_selection_refreshes_visible_rows_once(self):
         key=self.app.add(lines=['https://example.com/song'])[0]
         self.app.queue_view.set('Completa')

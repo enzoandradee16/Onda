@@ -145,9 +145,9 @@ class PreferenceStore:
             if isinstance(data.get(name), str) and len(data[name]) <= 32768 and "\x00" not in data[name]:
                 if data[name].strip() or name == "ffmpeg":
                     result[name] = data[name]
-        from playlist_options import PLAYLIST_LIMITS
-        if data.get("playlist_limit") in PLAYLIST_LIMITS:
-            result["playlist_limit"] = data["playlist_limit"]
+        from playlist_options import playlist_limit
+        try:result["playlist_limit"]=str(playlist_limit(data.get("playlist_limit")))
+        except ValueError:pass
         if type(data.get("playlist")) is bool:
             result["playlist"] = data["playlist"]
         for name, choices in (("mp3_quality", MP3_QUALITIES), ("m4a_quality", M4A_QUALITIES)):

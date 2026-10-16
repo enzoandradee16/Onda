@@ -108,7 +108,7 @@ def queue_actions(app):
             action("Mover para cima",lambda:move_queue(app,-1),movable),action("Mover para baixo",lambda:move_queue(app,1),movable),
             action("Próximo",lambda:move_queue(app,0),movable),None,
             action("Abrir pasta",app.open_folder),action("Copiar link",lambda:copy_text(app.tree,"\n".join(app.jobs[k]["url"] for k in app.tree.selection())),bool(selected)),action("Ver detalhes",app.show_log),button(app.cancel_button),
-            action("Selecionar tudo",lambda:app.tree.selection_set(app.tree.get_children()),bool(app.tree.get_children())),
+            action("Selecionar tudo",lambda:app.tree.selection_set(app.queue_filter.visible_keys()),bool(app.tree.get_children())),
             action("Limpar seleção",lambda:app.tree.selection_remove(app.tree.selection()),bool(selected)),button(app.clear_queue_button),
             *display_actions(app.queue_view,app.queue_card_size)]
 
@@ -122,7 +122,7 @@ def bind_history(page):
         keys=page.table.selection()
         row=page.rows.get(keys[0],{}) if keys else {}
         available=bool(row.get("path")) and Path(row["path"]).is_file()
-        return [action("Abrir arquivo",page.open,available),action("Abrir pasta",lambda:page.open(True),available),
+        return [action("Abrir arquivo",page.open,available),action("Abrir pasta",lambda:page.open(True),available),action("Abrir origem",page.open_origin,bool(page.origin())),
                 action("Editar áudio / letra",page.edit_audio,available),action("Editar metadados em lote",page.edit_batch,bool(keys)),action("Usar nos efeitos",page.effects,available),None,
                 action("Copiar caminho",lambda:copy_text(page.table,row.get("path","")),bool(row)),action("Limpar histórico",page.clear,bool(page.rows)),*display_actions(page.app.history_view,page.app.history_card_size)]
     def changed():

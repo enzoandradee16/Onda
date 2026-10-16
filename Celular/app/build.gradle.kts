@@ -54,13 +54,14 @@ android {
         applicationId = "br.com.onda.mobile"
         minSdk = 26
         targetSdk = 35
-        versionCode = 21
-        versionName = "1.1.3"
+        versionCode = 22
+        versionName = "1.1.4"
         ndk { abiFilters += targetAbis }
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     buildFeatures { compose = true; buildConfig = true }
     sourceSets["main"].assets.srcDir("../../Onda/locales")
+    sourceSets["main"].assets.srcDir("../../Onda/settings_schema")
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
     kotlinOptions { jvmTarget = "17" }
     sourceSets["main"].jniLibs.srcDir(layout.buildDirectory.dir("generated/nativeTools"))

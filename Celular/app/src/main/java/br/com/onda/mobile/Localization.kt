@@ -75,6 +75,6 @@ internal fun translateUi(text:String,language:String=OndaStore.settings.value.op
     val language=LocalUiLanguage.current
     val context=LocalContext.current
     val translated=remember(text,language) {translateUi(text,language,context)}
-    androidx.compose.material3.Text(translated,modifier=modifier,color=color,fontWeight=fontWeight,
+    androidx.compose.material3.Text(translated,modifier=settingsSearchModifier(text,modifier),color=color,fontWeight=fontWeight,
         textAlign=textAlign,overflow=overflow,softWrap=softWrap,maxLines=maxLines,style=style)
 }

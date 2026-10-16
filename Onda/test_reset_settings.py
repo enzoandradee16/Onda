@@ -24,7 +24,7 @@ class ResetSettingsTests(unittest.TestCase):
     def test_every_preference_is_listed_and_partial_reset_preserves_other_values(self):
         app=self.app
         listed={name for fields in GROUPS.values() for name in fields}
-        self.assertEqual(listed,set(app.preference_fields)|{'remember_settings','social_cookies'})
+        self.assertEqual(listed,set(app.preference_fields)|{'remember_settings','social_cookies','youtube_cookies'})
         app.remember_settings.set(True)
         app.image_format.set('SVG');app.image_size.set('Personalizado');app.image_width.set('640')
         app.mp3_quality.set('128 kbps')

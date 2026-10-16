@@ -2,7 +2,7 @@
 from i18n import tr
 import tkinter as tk
 
-DEFAULT_ORDER = ('catalog', 'downloads', 'queue', 'images', 'playlists', 'history', 'effects', 'metadata')
+DEFAULT_ORDER = ('catalog', 'downloads', 'queue', 'images', 'converter', 'playlists', 'history', 'effects', 'metadata')
 
 
 def normalize_order(value):
@@ -12,8 +12,10 @@ def normalize_order(value):
     for key in value:
         if isinstance(key, str) and key in DEFAULT_ORDER and key not in result:
             result.append(key)
+    missing_converter='converter' not in result
     missing_queue='queue' not in result
-    result += [key for key in DEFAULT_ORDER if key not in result and key!='queue']
+    result += [key for key in DEFAULT_ORDER if key not in result and key not in ('queue','converter')]
+    if missing_converter:result.insert(result.index('images')+1,'converter')
     if missing_queue:result.insert(result.index('downloads')+1,'queue')
     return result
 

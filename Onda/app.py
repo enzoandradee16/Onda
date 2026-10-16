@@ -73,6 +73,7 @@ class App(UiMixin, tk.Tk):
         self.folder = tk.StringVar(value=os.environ.get("ONDA_DOWNLOADS", str(BASE / "downloads")))
         self.ffmpeg = tk.StringVar()
         self.social_cookies = tk.StringVar()
+        self.youtube_cookies = tk.StringVar()
         self.playlist = tk.BooleanVar(value=False)
         self.playlist_limit = tk.StringVar(value="1000")
         self.mp3_quality = tk.StringVar(value="320 kbps")
@@ -169,8 +170,8 @@ class App(UiMixin, tk.Tk):
         self.restore_queue()
         from advanced_ui import tick,check_update
         self._schedule_after=self.after(2500,lambda:tick(self))
-        if self.resume_queue.get() and not self.schedule_enabled.get():self.after(2000,self.start)
-        if self.check_updates.get():self.after(3000,lambda:check_update(self))
+        if self.resume_queue.get() and not self.schedule_enabled.get():self._resume_after=self.after(2000,self.start)
+        if self.check_updates.get():self._update_check_after=self.after(3000,lambda:check_update(self))
         self.bind("<Alt-a>", self.select_all_items)
         self.bind("<Alt-A>", self.select_all_items)
         from keyboard_shortcuts import KeyboardShortcuts
@@ -225,7 +226,7 @@ class App(UiMixin, tk.Tk):
 
     def restart_app(self):
         if self.language.get()==self._applied_language:return
-        if self.running or self.updating or self.effects_page.busy or self.playlist_page.busy or self.metadata_page.busy:
+        if self.running or self.updating or self.effects_page.busy or self.playlist_page.busy or self.metadata_page.busy or self.converter_page.busy:
             messagebox.showinfo(tr("Reiniciar"),tr("Termine as operações em andamento antes de reiniciar o ONDA."),parent=self)
             return
         self.restart_requested=True
@@ -290,6 +291,13 @@ class App(UiMixin, tk.Tk):
         if folder:
             self.ffmpeg.set(str(folder))
             self.write_log("FFmpeg pronto para uso neste computador.")
+
+    def download_cookies(self,url):
+        from urllib.parse import urlsplit
+        from metadata import is_streaming_link
+        host=(urlsplit(url).hostname or '').lower()
+        youtube=host in ('youtube.com','www.youtube.com','m.youtube.com','music.youtube.com','youtu.be')
+        return (self.youtube_cookies.get().strip() if youtube or is_streaming_link(url) else '') or self.social_cookies.get().strip()
 
     def choose_social_cookies(self):
         path = filedialog.askopenfilename(title=tr("Cookies no formato Netscape"), filetypes=[("Cookies", "*.txt"), (tr("Todos os arquivos"), "*.*")])
@@ -372,6 +380,8 @@ class App(UiMixin, tk.Tk):
             format_name = {"photos": "FOTOS", "social": "POST"}.get(job["mode"], job["mode"].upper()) + (" " + job["audio_quality"].split()[0] if job["audio_quality"] else "")
             item = self.tree.insert("", "end", values=(job.get("display_name") or url, format_name, tr("A consultar"), tr(job["state"])), tags=(job["state"],))
             self.jobs[item] = job
+            from metadata_badges import apply_tree_badge
+            apply_tree_badge(self.tree,item,job.get("catalog_record") or job.get("queue_info") or {})
             added.append(item)
         if from_input:
             self.urls.delete("1.0", "end")
@@ -532,9 +542,9 @@ class App(UiMixin, tk.Tk):
         self.status.set("Obtendo informações…")
         self.detail.set("Aguardando o servidor. O cancelamento continua disponível.")
         self.set_progress(None)
-        config = {**self.jobs[pending], "_cleanup_work": True, "auto_metadata": self.auto_metadata.get(), "auto_match": self.auto_match.get(), "ffmpeg": self.ffmpeg.get().strip(),
+        config = {**self.jobs[pending], "_cleanup_work": True, "auto_metadata": self.auto_metadata.get(), "auto_match": self.auto_match.get(), "confirm_version": self.confirm_version.get(), "ffmpeg": self.ffmpeg.get().strip(),
                   "resume_downloads": self.resume_downloads.get(),
-                  "cookies_file": self.social_cookies.get().strip(),
+                  "cookies_file": self.download_cookies(self.jobs[pending].get("url","")),
                   "spotify_client_id": self.spotify_client_id.get(),
                   "spotify_client_secret": self.spotify_client_secret.get()}
         threading.Thread(target=self.supervise, args=(pending, config), daemon=True).start()
@@ -629,6 +639,8 @@ class App(UiMixin, tk.Tk):
                 job = self.jobs.get(item)
                 if job and job['url']==event.get('url') and event.get('queue_info'):
                     job['queue_info']={**event['queue_info'],**{k:v for k,v in (job.get('queue_info') or {}).items() if v not in (None,'',[],{})}}
+                    from metadata_badges import apply_tree_badge
+                    apply_tree_badge(self.tree,item,job.get('catalog_record') or job['queue_info'])
                     titles_changed=True
                 if job and job['url'] == event.get('url') and not job.get('display_name') and job['state'] in ('Na fila', 'Falhou'):
                     job['display_name'] = event['title']
@@ -949,10 +961,10 @@ class App(UiMixin, tk.Tk):
             self.title_lookup.shutdown()
         if hasattr(self, "catalog_page"):
             self.catalog_page.shutdown()
-        for name in ("effects_page", "playlist_page", "images_page", "metadata_page"):
+        for name in ("effects_page", "playlist_page", "images_page", "metadata_page", "converter_page"):
             if hasattr(self, name):
                 getattr(self, name).shutdown()
-        for name in ("_poll_after", "_preference_after", "_welcome_after", "_schedule_after"):
+        for name in ("_poll_after", "_preference_after", "_welcome_after", "_schedule_after", "_update_check_after", "_resume_after"):
             callback = getattr(self, name, None)
             if callback is not None:
                 try:
@@ -964,6 +976,9 @@ class App(UiMixin, tk.Tk):
         super().destroy()
 
     def close(self):
+        if self.converter_page.busy:
+            messagebox.showinfo(tr("Conversor"),tr("Cancele ou aguarde a conversão antes de fechar o ONDA."),parent=self)
+            return
         if self.metadata_page.busy:
             messagebox.showinfo(tr("Editar metadados"),tr("Aguarde o processamento do arquivo terminar antes de fechar o ONDA."),parent=self)
             return
@@ -1016,7 +1031,7 @@ class App(UiMixin, tk.Tk):
 
     def tab_changed(self, _=None):
         selected = self.pages.select()
-        for page in (self.catalog_page, self.images_page, self.playlist_page, self.history_page, self.effects_page, self.metadata_page):
+        for page in (self.catalog_page, self.images_page, self.playlist_page, self.history_page, self.effects_page, self.metadata_page, self.converter_page):
             if selected == str(page):
                 page.ensure_ready()
                 break
@@ -1032,7 +1047,7 @@ class App(UiMixin, tk.Tk):
     def update_downloader(self):
         if self.updating:
             return
-        if self.active or self.effects_page.busy or self.playlist_page.busy or self.metadata_page.busy:
+        if self.active or self.effects_page.busy or self.playlist_page.busy or self.metadata_page.busy or self.converter_page.busy:
             self.update_status.set("Termine os downloads, consultas de playlist e exportações antes de atualizar.")
             return
         self.updating = True

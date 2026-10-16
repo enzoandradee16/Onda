@@ -151,6 +151,7 @@ def configure(root, native, libs):
     import engine
     import audio_tools
     import effects_worker
+    import video_converter
     import yt_dlp
     from yt_dlp.postprocessor.ffmpeg import FFmpegPostProcessor
     engine.emit = effects_worker.emit = emit
@@ -163,7 +164,7 @@ def configure(root, native, libs):
         if name not in paths:
             raise ValueError('Ferramenta não disponível: ' + name)
         return paths[name]
-    audio_tools.executable = effects_worker.executable = executable
+    audio_tools.executable = effects_worker.executable = video_converter.executable = executable
     class AndroidOS:
         """Android SELinux disallows hard links; preserve exclusive publication."""
         def __getattr__(self, name):
@@ -186,6 +187,7 @@ def configure(root, native, libs):
                 Path(target).unlink(missing_ok=True)
                 raise
     effects_worker.os = AndroidOS()
+    video_converter.os = AndroidOS()
     FFmpegPostProcessor._determine_executables = lambda self: dict(paths)
     original = yt_dlp.YoutubeDL.__init__
     def initialize(self, params=None, *args, **kwargs):
@@ -304,6 +306,16 @@ def render_preview(config):
 
 
 def perform(action, config):
+    if action in ('cache_info','cache_clear'):
+        from cache_cleanup import cache_info,clear_cache
+        return (clear_cache if action=='cache_clear' else cache_info)(_root)
+
+    if action in ('video_probe','video_convert'):
+        from video_converter import probe_video,convert_video
+        if action=='video_probe':return probe_video(config['source'],config.get('ffmpeg',''))
+        result=convert_video(config,emit,_local.state['cancel'].is_set)
+        emit('file',path=result['path'],mode=config['video_format'],size=Path(result['path']).stat().st_size)
+        return {'message':'Vídeo convertido e salvo.'}
     if action == 'audio_batch_edit':
         from batch_metadata import edit_batch
         return edit_batch(dict(config, _android_batch=True), emit)

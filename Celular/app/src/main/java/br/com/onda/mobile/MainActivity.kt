@@ -112,7 +112,7 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
     LaunchedEffect(queueRequested) {if(queueRequested) {tab="Fila";vm.queueNavigation.value=false}}
     var metadataUri by rememberSaveable {mutableStateOf<String?>(null)}
     var showSettings by rememberSaveable { mutableStateOf(false) }
-    var settingsCategory by rememberSaveable { mutableStateOf("Aparência") }
+    var settingsCategory by rememberSaveable { mutableStateOf("Geral") }
     var youtubeSession by rememberSaveable {mutableStateOf(false)}
     var showLicenses by rememberSaveable {mutableStateOf(false)}
     val drawer=rememberDrawerState(DrawerValue.Closed)
@@ -171,7 +171,7 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
                     NavigationDrawerItem(label={UiText(tabLabel(name))},selected=tab==name,onClick={navigateFromDrawer {tab=name}},modifier=Modifier.padding(horizontal=10.dp).testTag("tab-$name"))
                 }
                 HorizontalDivider(Modifier.padding(12.dp))
-                NavigationDrawerItem(label={UiText("Configurações")},selected=false,onClick={navigateFromDrawer {settingsCategory="Aparência";showSettings=true}})
+                NavigationDrawerItem(label={UiText("Configurações")},selected=false,onClick={navigateFromDrawer {settingsCategory="Geral";showSettings=true}})
                 NavigationDrawerItem(label={UiText("Sessão do YouTube")},selected=false,onClick={navigateFromDrawer {youtubeSession=true}})
                 NavigationDrawerItem(label={UiText("Licenças e fontes")},selected=false,onClick={navigateFromDrawer {showLicenses=true}})
                 NavigationDrawerItem(label={UiText("Falhas da fila")},selected=false,onClick={navigateFromDrawer {OndaStore.failureSummary.value=OndaStore.items.value.filter {it.state=="Erro"}.map {it.id}.takeIf {it.isNotEmpty()}}})
@@ -196,6 +196,7 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
                         "Histórico"->HistoryPage(vm,onEditMetadata={metadataUri=it.uri;tab="Metadados"})
                         "Efeitos"->EffectsPage(vm)
                         "Metadados"->MetadataPage(vm,metadataUri){metadataUri=null}
+                        "Conversor de vídeos"->VideoConverterPage(vm)
                     }}
                 }
             }
@@ -211,7 +212,7 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
         if(showLicenses) LicensesWindow {showLicenses=false}
         if(welcome) AlertDialog(containerColor=ondaDialogContainerColor(),onDismissRequest={preferences.edit().putBoolean("welcome_seen",true).apply();welcome=false},title={UiText("Bem-vindo ao Onda")},
             text={UiText("Ajuste o básico para começar. Você pode fechar esta janela e configurar tudo depois.")},
-            confirmButton={TextButton(onClick={preferences.edit().putBoolean("welcome_seen",true).apply();welcome=false;settingsCategory="Aparência";showSettings=true}){UiText("Configurações")}},
+            confirmButton={TextButton(onClick={preferences.edit().putBoolean("welcome_seen",true).apply();welcome=false;settingsCategory="Geral";showSettings=true}){UiText("Configurações")}},
             dismissButton={TextButton(onClick={preferences.edit().putBoolean("welcome_seen",true).apply();welcome=false}){UiText("Agora não")}})
         notice?.let {current->
             val destination=noticeDestination(current.message)
@@ -301,6 +302,7 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
                 Text(row.cleanString("title"),fontWeight=FontWeight.Bold)
                 Text(row.stringList("artists"))
                 Text(row.cleanString("album"))
+                MetadataPlatformBadge(row)
                 Text(listOf(row.cleanString("release_date"),mediaClock(row.optLong("duration_ms")/1000),row.cleanString("isrc"),row.cleanString("platform")).filter {it.isNotBlank()}.joinToString(" · "))
                 HorizontalDivider(Modifier.padding(vertical=12.dp))
             }
@@ -404,6 +406,7 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
             TextButton(contentPadding=PaddingValues(horizontal=4.dp,vertical=8.dp),onClick={vm.queueTrack(record,origin="search")}) {UiText("Adicionar à fila")}
             Button(contentPadding=PaddingValues(horizontal=10.dp,vertical=8.dp),onClick=onDownload) {UiText("Baixar agora")}
         }
+        MetadataPlatformBadge(record)
         Text(listOf(record.cleanString("platform"),record.cleanString("release_date")).filter {it.isNotBlank()}.joinToString(" · "),style=MaterialTheme.typography.bodySmall)
         Row {
             TextButton(onClick={val url=record.cleanString("source_url");if(url.startsWith("https://")) OndaStore.context.startActivity(Intent(Intent.ACTION_VIEW,android.net.Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))}){UiText("Ver no catálogo")}
@@ -445,6 +448,10 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
     val small=cardSize=="Pequeno"
     val cardPadding=if(!complete)4.dp else if(small)6.dp else if(cardSize=="Médio")10.dp else LayoutSpacing.section
     val queue by OndaStore.items.collectAsStateWithLifecycle()
+    var query by rememberSaveable {mutableStateOf("")}
+    var stateFilter by rememberSaveable {mutableStateOf("Todos")}
+    val visible=remember(queue,query,stateFilter) {queue.filter {queueMatches(it.title,it.state,it.config,query,stateFilter)}}
+    val visibleIds=remember(visible) {visible.map {it.id}.toSet()}
     val completed=remember(queue) {queue.count {it.state=="Concluído"}}
     val running by OndaStore.running.collectAsStateWithLifecycle()
     var clockTick by remember {mutableLongStateOf(0L)}
@@ -458,7 +465,7 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
     var selected by remember {mutableStateOf(setOf<String>())}
     var showLogs by remember {mutableStateOf(false)}
     var clear by remember {mutableStateOf(false)}
-    LaunchedEffect(queue) {OndaStore.selectAll.collect {selected=queue.filterNot {it.config.optBoolean("_immediate")}.map {it.id}.toSet()}}
+    LaunchedEffect(visibleIds) {selected=selected.intersect(visibleIds);OndaStore.selectAll.collect {selected=visible.filterNot {it.config.optBoolean("_immediate")}.map {it.id}.toSet()}}
     val queueActions:@Composable ()->Unit = {
         Column(Modifier.fillMaxWidth(),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
             Button(onClick={DownloadService.start(OndaStore.context)},enabled=queue.any {it.state=="Pendente"},
@@ -473,8 +480,15 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
     }
     NavigableList(Modifier.fillMaxSize().padding(horizontal=LayoutSpacing.inset),navigationId="queue") {
         item {PageTitle("Fila de downloads","Acompanhe, organize e gerencie seus downloads.")}
+        item {OutlinedTextField(query,{query=it},label={UiText("Buscar na fila")},singleLine=true,modifier=Modifier.fillMaxWidth().testTag("queue-search"))}
+        item {Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
+            Select("Estado",stateFilter,queueFilters,Modifier.weight(1f)){stateFilter=it}
+            TextButton(onClick={query="";stateFilter="Todos"}){UiText("Limpar filtros")}
+        }}
+        item {UiText("Exibindo ${visible.size} de ${queue.size} itens.",style=MaterialTheme.typography.bodySmall)}
+        if(visible.isEmpty() && queue.isNotEmpty())item {UiText("Nenhum item corresponde aos filtros.")}
         item {Row(Modifier.horizontalScroll(rememberScrollState())) {
-            TextButton(onClick={selected=queue.filterNot {it.config.optBoolean("_immediate")}.map {it.id}.toSet()}) {UiText("Selecionar tudo")}
+            TextButton(onClick={selected=visible.filterNot {it.config.optBoolean("_immediate")}.map {it.id}.toSet()}) {UiText("Selecionar visíveis")}
             TextButton(onClick={OndaStore.remove(selected);selected=emptySet()}) {UiText("Remover selecionados")}
             TextButton(onClick={clear=true}) {UiText("Limpar fila")}
             TextButton(onClick={OndaStore.retry(selected)}) {UiText("Tentar novamente")}
@@ -484,7 +498,7 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
         if(actionsAtTop)item {queueActions()}
         if(adding)item {LinearProgressIndicator(Modifier.fillMaxWidth())}
         item {QueueDisplayControls(settings)}
-        items(queue,key={it.id}) {item->
+        items(visible,key={it.id}) {item->
             LaunchedEffect(item.id,complete) {if(complete && item.config.optJSONObject("queue_info")?.cleanString("cover_url").isNullOrBlank())vm.loadQueueInformation(item)}
             val immediate=item.config.optBoolean("_immediate")
             val cardModifier=Modifier.fillMaxWidth().let {base->if(immediate) base else base.toggleable(value=item.id in selected,role=Role.Checkbox,onValueChange={checked->selected=if(checked) selected+item.id else selected-item.id})}
@@ -505,6 +519,7 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
                 if(item.state=="Erro" && item.message.contains("Nenhuma versão suficientemente compatível",ignoreCase=true)) {
                     TextButton(onClick={OndaStore.retryWithVersionChoice(item.id)}) {UiText("Escolher versão")}
                 }
+                MetadataPlatformBadge(item.config.optJSONObject("catalog_record") ?: item.config.optJSONObject("queue_info"))
                 UiText("${item.config.optString("mode").uppercase()} · ${item.state}",style=MaterialTheme.typography.labelMedium)
                 if(item.state in listOf("Baixando","Aguardando escolha")) LinearProgressIndicator(progress={item.progress/100},modifier=Modifier.fillMaxWidth().padding(vertical=6.dp))
                 if(item.message.isNotBlank() && (complete || item.state=="Erro")) UiText(item.message,style=MaterialTheme.typography.bodySmall,maxLines=if(small)1 else 3)
@@ -542,10 +557,19 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
     fun put(key: String,value: Any) {change(JSONObject(config.toString()).put(key,value))}
     Select("Formato",config.optString("image_format","Original"),listOf("Original","JPG","PNG","WebP","SVG")){put("image_format",it)}
     if(separated)SettingsDivider()
+    val sizes=linkedMapOf("Original" to (0 to 0),"Até 1920 × 1080" to (1920 to 1080),"Até 1280 × 720" to (1280 to 720),"Até 1080 × 1080" to (1080 to 1080),"Personalizado" to null)
+    val selectedSize=config.optString("image_size").ifBlank {if(config.optInt("image_width")==0 && config.optInt("image_height")==0) "Original" else "Personalizado"}
+    Select("Tamanho máximo",selectedSize,sizes.keys.toList()){size->
+        val next=JSONObject(config.toString()).put("image_size",size)
+        sizes[size]?.let {next.put("image_width",it.first).put("image_height",it.second)}
+        change(next)
+    }
+    if(selectedSize=="Personalizado") {
     UiText("Largura × altura (px)",style=MaterialTheme.typography.labelMedium)
     Row(horizontalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
         OutlinedTextField(config.optInt("image_width").takeIf {it>0}?.toString() ?: "",{put("image_width",it.toIntOrNull()?.coerceIn(0,16384) ?: 0)},label={UiText("Largura")},modifier=Modifier.weight(1f),singleLine=true)
         OutlinedTextField(config.optInt("image_height").takeIf {it>0}?.toString() ?: "",{put("image_height",it.toIntOrNull()?.coerceIn(0,16384) ?: 0)},label={UiText("Altura")},modifier=Modifier.weight(1f),singleLine=true)
+    }
     }
     if(separated)SettingsDivider()
     Toggle("Manter proporção (sem ampliar ou distorcer)",config.optBoolean("keep_ratio",true)){put("keep_ratio",it)}
@@ -671,7 +695,12 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
                 Text(item.title,Modifier.weight(1f),fontWeight=FontWeight.Bold)
                 TextButton(onClick={OndaStore.removeHistory(item.id)},modifier=Modifier.testTag("remove-history-${item.id}")){UiText("Remover")}
             }
+            MetadataPlatformBadge(JSONObject().put("platform",item.metadataPlatform))
             UiText("${item.mode.uppercase()} · %.1f MB".format(item.size/1048576.0),style=MaterialTheme.typography.bodySmall)
+            TextButton(enabled=historyOrigin(item.source).isNotBlank(),onClick={
+                runCatching {OndaStore.context.startActivity(Intent(Intent.ACTION_VIEW,android.net.Uri.parse(historyOrigin(item.source))).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))}
+                    .onFailure {vm.showNotice("Abrir origem","Não foi possível abrir a origem.")}
+            }){UiText("Abrir origem")}
             Row(Modifier.horizontalScroll(rememberScrollState())) {TextButton(onClick={runCatching {OndaStore.open(item.uri,item.mode)}.onFailure {OndaStore.log("Nenhum aplicativo disponível para abrir este arquivo.")}}){UiText("Abrir arquivo")};TextButton(onClick={vm.openHistoryFolder(item.uri)},modifier=Modifier.testTag("open-history-folder-${item.id}")){UiText("Abrir pasta")};TextButton(onClick={OndaStore.share(item.uri,item.title)}){UiText("Compartilhar")}
                 if(item.mode.lowercase() in setOf("mp3","m4a","flac","wav","ogg","opus")) TextButton(onClick={onEditMetadata(item)}) {UiText("Editar metadados")}
                 if(historySupportsEffects(item)) TextButton(onClick={vm.useInEffects(item.uri)}) {UiText("Usar nos efeitos")}

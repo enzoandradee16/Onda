@@ -53,7 +53,7 @@ class KeyboardShortcutTests(unittest.TestCase):
 
     def test_numeric_shortcuts_follow_reordered_tabs_and_cycle_once(self):
         app=self.app
-        app.tab_reorder.apply(['images','queue','downloads','catalog','history','playlists','metadata','effects'])
+        app.tab_reorder.apply(['images','queue','downloads','catalog','history','playlists','metadata','effects','converter'])
         self.send('<Control-Key-1>')
         self.assertEqual(app.pages.select(),str(app.images_page))
         self.send('<Control-Tab>',app.pages)

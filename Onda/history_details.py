@@ -15,6 +15,7 @@ def history_details(path):
 def _cached_details(path, modified, size):
     source=Path(path)
     result={'size':size,'cover':''}
+    result['platform']=history_platform(path)
     try:
         result.update(read_audio(source))
         result['cover']=cover_preview(str(source))
@@ -31,3 +32,15 @@ def detail_lines(record, translate=lambda text: text):
     if record.get('size') is not None:lines.append(f"{translate('Tamanho')}: {record['size']/1048576:.1f} MB")
     if record.get('note'):lines.append(translate(record['note']))
     return ' · '.join(lines)
+
+def history_platform(path):
+    """Read only provenance for compact rows; no audio decoding or artwork loading."""
+    import json
+    try:
+        sidecar=Path(str(path)+'.metadata.json')
+        if sidecar.is_file() and sidecar.stat().st_size<2_000_000:
+            data=json.loads(sidecar.read_text(encoding='utf-8'))
+            catalog=data.get('catalog',{}) if isinstance(data,dict) else {}
+            if isinstance(catalog,dict):return str(catalog.get('platform') or '')
+    except (ValueError,OSError):pass
+    return ''

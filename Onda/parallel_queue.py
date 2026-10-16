@@ -32,8 +32,8 @@ class ParallelQueue:
                 self.workers.add(item);self.attempted.add(item);app.active=item
                 app.jobs[item].pop('last_error',None)
                 app.jobs[item]['saved_sizes']={};app.set_state(item,'Em andamento')
-                config={**app.jobs[item],'_cleanup_work':True,'auto_metadata':app.auto_metadata.get(),'auto_match':app.auto_match.get(),'ffmpeg':app.ffmpeg.get().strip(),
-                        'cookies_file':app.social_cookies.get().strip(),'spotify_client_id':app.spotify_client_id.get(),
+                config={**app.jobs[item],'_cleanup_work':True,'auto_metadata':app.auto_metadata.get(),'auto_match':app.auto_match.get(),'confirm_version':app.confirm_version.get() if hasattr(app,'confirm_version') else False,'ffmpeg':app.ffmpeg.get().strip(),
+                        'cookies_file':app.download_cookies(app.jobs[item].get('url','')) if hasattr(app,'download_cookies') else app.social_cookies.get().strip(),'spotify_client_id':app.spotify_client_id.get(),
                         'spotify_client_secret':app.spotify_client_secret.get(),'resume_downloads':app.resume_downloads.get()}
                 threading.Thread(target=app.supervise,args=(item,config),daemon=True).start()
         app.active=next(iter(self.workers),None)

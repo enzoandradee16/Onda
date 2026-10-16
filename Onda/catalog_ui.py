@@ -268,6 +268,8 @@ class CatalogPane(ttk.Frame):
         self.preview_button.configure(state="normal" if record and record.get("preview_url") else "disabled")
         self.art.configure(image="", text=tr("♪"))
         self.photo = None
+        from metadata_badges import apply_badge
+        apply_badge(self.info_label,record or {})
         if not record:
             self.track_title.set(tr("Escolha uma música nos resultados"))
             self.track_info.set(tr("Capa, álbum e metadados acompanham o arquivo."))

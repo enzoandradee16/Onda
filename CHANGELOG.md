@@ -1,5 +1,17 @@
 # Histórico de versões
 
+## 1.1.4 — 2026-10-16
+
+- Conversor de vídeos em uma aba própria, ao lado de Imagens: MP4, MKV e MOV, qualidade, resolução máxima, bitrate, FPS, remoção de áudio, progresso e cancelamento. O original é preservado.
+- Extração de áudio de vídeos para MP3, M4A e AAC, com seleção da qualidade em kbps. A prévia abre o aplicativo padrão do sistema.
+- Busca e filtros de estado na fila, com contagem dos resultados e seleção dos itens visíveis. Os filtros não alteram a execução da fila.
+- Ícones monocolor da plataforma dos metadados, incluindo Apple Music, e opção Abrir origem no histórico quando o endereço estiver registrado.
+- Limpeza de cache nas configurações, com estimativa de espaço e proteção de downloads, fila, histórico, contas e trabalhos ativos.
+- Pesquisa nas configurações e categorias unificadas: Geral, Aparência, Downloads, Imagens, Áudio, Contas e Ferramentas. Opções comuns seguem a mesma ordem nas duas versões.
+- Verificação de atualizações ao abrir ativada por padrão nas novas instalações; preferências existentes são preservadas.
+- Ajustes de ícones no modo compacto, seletores, ações da fila e configurações de escolha automática de versão.
+
+
 ## 1.1.3 — 2026-10-15
 
 - Interface PC/Android: espaçamento Compacto/Padrão/Confortável com aplicação imediata e preferência persistida; exportação/importação inclui a nova opção.

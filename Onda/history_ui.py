@@ -44,7 +44,8 @@ class HistoryPane(ttk.Frame):
         TranslatedCombobox(self.size_controls,textvariable=app.history_card_size,values=("Pequeno","Médio","Grande"),state="readonly",width=14).pack(side="left",padx=(0,8))
         panel = self.panel = ttk.Frame(self)
         panel.grid(row=3, column=0, sticky="nsew")
-        self.table = ttk.Treeview(panel, columns=("name", "mode", "date"), show="headings", selectmode="extended")
+        self.table = ttk.Treeview(panel, columns=("name", "mode", "date"), show="tree headings", selectmode="extended")
+        self.table.column("#0",width=52,minwidth=52,stretch=False,anchor="center")
         from list_context import bind_history
         bind_history(self)
         for key, label, width in (("name", "ARQUIVO", 480), ("mode", "FORMATO", 100), ("date", "DATA", 200)):
@@ -54,10 +55,12 @@ class HistoryPane(ttk.Frame):
         scroll = ttk.Scrollbar(panel, command=self.table.yview)
         scroll.pack(side="right", fill="y")
         self.table.configure(yscrollcommand=scroll.set)
+        self.table.bind("<<TreeviewSelect>>",lambda _:self.update_origin_button(),add="+")
         self.table.bind("<Double-1>", lambda _: self.open())
         controls = ttk.Frame(self)
         controls.grid(row=4, column=0, sticky="ew", pady=16)
         ttk.Button(controls, text=tr("Abrir arquivo"), command=self.open).pack(side="left")
+        self.origin_button=ttk.Button(controls,text=tr("Abrir origem"),command=self.open_origin,state="disabled");self.origin_button.pack(side="left",padx=4)
         ttk.Button(controls, text=tr("Abrir pasta"), command=lambda: self.open(True)).pack(side="left", padx=8)
         ttk.Button(controls, text=tr("Usar nos efeitos"), style="Accent.TButton", command=self.effects).pack(side="right")
         ttk.Button(controls,text=tr("Editar áudio / letra"),command=self.edit_audio).pack(side="left",padx=4)
@@ -119,6 +122,14 @@ class HistoryPane(ttk.Frame):
             self._generation += 1
             self.cards.grid_remove()
             self.panel.grid()
+            generation=self._generation
+            snapshot=list(self.rows.items())
+            def load_origins():
+                from history_details import history_platform
+                for key,row in snapshot:
+                    if self._closed or generation!=self._generation:return
+                    self._events.put((generation,key,{'platform':history_platform(row['path'])}))
+            threading.Thread(target=load_origins,daemon=True).start()
 
     def render_cards(self):
         from history_details import history_details
@@ -145,8 +156,9 @@ class HistoryPane(ttk.Frame):
             details.grid(row=2,column=1,sticky="w")
             ttk.Label(card,text=tr(f"{row['mode']} · Baixado em {row['date'][:19].replace('T',' ')}"),style="CardMuted.TLabel").grid(row=3,column=1,sticky="w",pady=(6,0))
             actions=ttk.Frame(card,style="Card.TFrame");actions.grid(row=4,column=0,columnspan=2,sticky="ew",pady=(10,0))
-            for label,action in (("Abrir arquivo",self.open),("Abrir pasta",lambda:self.open(True)),("Editar metadados",self.edit_audio),("Usar nos efeitos",self.effects)):
-                ttk.Button(actions,text=tr(label),command=lambda key=key,action=action:self.card_action(key,action)).pack(side="left",padx=(0,6))
+            for label,action in (("Abrir arquivo",self.open),("Abrir pasta",lambda:self.open(True)),("Abrir origem",self.open_origin),("Editar metadados",self.edit_audio),("Usar nos efeitos",self.effects)):
+                from history_origin import history_origin
+                ttk.Button(actions,text=tr(label),command=lambda key=key,action=action:self.card_action(key,action),state='disabled' if label=='Abrir origem' and not history_origin(row.get('source','')) else 'normal').pack(side="left",padx=(0,6))
             checked=tk.BooleanVar(value=key in selected)
             self._card_checks[key]=checked
             ttk.Checkbutton(actions,text=tr("Selecionar música"),variable=checked,command=lambda key=key:self.toggle_card(key)).pack(side="right")
@@ -183,6 +195,7 @@ class HistoryPane(ttk.Frame):
 
     def select_card(self,key):
         self.table.selection_set(key)
+        self.update_origin_button()
         self._selected_card.set(key)
         self.highlight_cards()
 
@@ -217,10 +230,18 @@ class HistoryPane(ttk.Frame):
         for _ in range(30):
             try:generation,key,data=self._events.get_nowait()
             except queue.Empty:break
-            if generation!=self._generation or key not in self._cards:continue
+            if generation!=self._generation:continue
+            if self._view=='Compacto':
+                if key in self.rows and self.table.exists(key):
+                    from metadata_badges import apply_tree_badge
+                    apply_tree_badge(self.table,key,data)
+                continue
+            if key not in self._cards:continue
             cover,title,artist,details=self._cards[key]
             if data.get('title'):title.configure(text=data['title'])
             artist.configure(text='; '.join(data.get('artists') or []) or tr('Artista não informado'))
+            from metadata_badges import apply_badge
+            apply_badge(artist,data)
             details.configure(text=detail_lines(data, translate=tr))
             if data.get('cover'):
                 import base64,io
@@ -242,6 +263,18 @@ class HistoryPane(ttk.Frame):
             return None
         return path
 
+    def origin(self):
+        from history_origin import history_origin
+        keys=self.table.selection()
+        return history_origin(self.rows.get(keys[0],{}).get('source','')) if keys else ''
+    def update_origin_button(self):
+        if hasattr(self,'origin_button'):self.origin_button.configure(state='normal' if self.origin() else 'disabled')
+    def open_origin(self):
+        import webbrowser
+        url=self.origin()
+        if url:
+            try:webbrowser.open(url)
+            except OSError:self.status.set(tr('Não foi possível abrir a origem.'))
     def open(self, folder=False):
         path = self.current()
         if not path:

@@ -9,9 +9,9 @@ from preferences import PreferenceStore
 
 class TabPreferenceTests(unittest.TestCase):
     def test_normalize_old_or_invalid_order_preserves_all_tabs(self):
-        self.assertEqual(normalize_order(['effects','catalog','effects','missing',{}]),['effects','catalog','downloads','queue','images','playlists','history','metadata'])
+        self.assertEqual(normalize_order(['effects','catalog','effects','missing',{}]),['effects','catalog','downloads','queue','images','converter','playlists','history','metadata'])
         self.assertEqual(normalize_order('effects'),list(DEFAULT_ORDER))
-        self.assertEqual(normalize_order(['downloads','catalog','playlists','history','effects'])[-2:],['images','metadata'])
+        self.assertEqual(normalize_order(['downloads','catalog','playlists','history','effects'])[-3:],['images','converter','metadata'])
         self.assertNotIn('tab_order',PreferenceStore.clean({'tab_order':'invalid'}))
 
     def test_saved_order_roundtrip(self):
@@ -31,6 +31,21 @@ class TabDragTests(unittest.TestCase):
         from app import App
         self.app=App(show_welcome=False)
         self.app.update()
+
+    def test_converter_content_loads_when_selected(self):
+        page=self.app.converter_page
+        self.assertIsNone(page._content)
+        self.app.pages.select(str(page))
+        self.app.update()
+        self.assertIsNotNone(page._content)
+        self.assertTrue(page._content.winfo_ismapped())
+        self.assertTrue(page._content.choose_button.winfo_ismapped())
+        self.assertTrue(page._content.start_button.winfo_ismapped())
+        self.assertEqual(page._content.format.get(),'MP4')
+        page._content.format.set('MP3');self.app.update()
+        self.assertEqual([i for i,c in enumerate(page._content.option_cells) if c.winfo_ismapped()],[0,4])
+        page._content.format.set('MP4');self.app.update()
+        self.assertTrue(all(c.winfo_ismapped() for c in page._content.option_cells))
 
     def tearDown(self):
         self.app.destroy()

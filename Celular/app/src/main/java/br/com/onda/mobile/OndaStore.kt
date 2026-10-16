@@ -17,7 +17,7 @@ import java.io.File
 import java.util.UUID
 
 data class DownloadItem(val id: String, val title: String, val config: JSONObject, val state: String = "Pendente", val progress: Float = 0f, val message: String = "")
-data class HistoryItem(val id: Long, val title: String, val uri: String, val mode: String, val size: Long)
+data class HistoryItem(val id: Long, val title: String, val uri: String, val mode: String, val size: Long, val metadataPlatform:String="",val source:String="")
 data class Question(val identity: String, val event: JSONObject, val callback: ((JSONObject)->Unit)?=null)
 
 private class OndaDatabase(context: Context) : SQLiteOpenHelper(context,"onda.sqlite3",null,1) {
@@ -80,6 +80,7 @@ object OndaStore {
         database.writableDatabase.execSQL("CREATE TABLE IF NOT EXISTS queue_order (id TEXT PRIMARY KEY, position INTEGER NOT NULL)")
         database.writableDatabase.execSQL("INSERT OR IGNORE INTO queue_order SELECT id,rowid FROM queue")
         database.writableDatabase.execSQL("CREATE TABLE IF NOT EXISTS history_sources (history_id INTEGER PRIMARY KEY, source TEXT NOT NULL, mode TEXT NOT NULL)")
+        database.writableDatabase.execSQL("CREATE TABLE IF NOT EXISTS history_metadata_platform (history_id INTEGER PRIMARY KEY, platform TEXT NOT NULL)")
         database.writableDatabase.execSQL("CREATE INDEX IF NOT EXISTS history_source_index ON history_sources(source,mode)")
         database.writableDatabase.execSQL("UPDATE queue SET state='Erro' WHERE state='Duplicata'")
         refresh()
@@ -88,12 +89,13 @@ object OndaStore {
         .put("queue_actions_at_top",true).put("queue_view","Completa").put("queue_card_size","Grande").put("pure_black_separators",false).put("history_card_size","Grande").put("history_view","Compacto").put("playlist_limit",2000).put("link_playlist",false).put("auto_metadata",false).put("auto_match",false).put("confirm_version",false).put("review_metadata",false)
         .put("detect_duplicates",true).put("filename_template","Original").put("duplicate_policy","ask").put("organization","Pasta de destino").put("interface_font",DEFAULT_INTERFACE_FONT).put("interface_font_size","100%").put("interface_spacing","Padrão").put("theme","Seguir o sistema").put("accent","Verde-Água")
         .put("concurrent_downloads","1").put("resume_downloads",true).put("resume_queue",false).put("normalize_volume",false)
-        .put("schedule_enabled",false).put("schedule_start","22:00").put("schedule_stop","07:00").put("check_updates",false).put("notice_duration","Após 3 segundos").put("notice_animation",true)
+        .put("schedule_enabled",false).put("schedule_start","22:00").put("schedule_stop","07:00").put("check_updates",true).put("notice_duration","Após 3 segundos").put("notice_animation",true)
         .put("search_preview",25).put("effects_preview",25).put("keep_preview",false).put("remember",true)
-        .put("image_format","Original").put("image_width",0).put("image_height",0).put("keep_ratio",true)
-        .put("tab_order",JSONArray(listOf("Pesquisar","Links e fila","Fila","Imagens","Playlists / Álbuns","Histórico","Efeitos","Metadados")))
+        .put("image_format","Original").put("image_size","Original").put("image_width",0).put("image_height",0).put("keep_ratio",true)
+        .put("tab_order",JSONArray(listOf("Pesquisar","Links e fila","Fila","Imagens","Conversor de vídeos","Playlists / Álbuns","Histórico","Efeitos","Metadados")))
         .put("output_uri", "").put("cookies_file", "").put("youtube_cookies_file", "").put("spotify_client_id", "")
     fun normalizeAppearance(value:JSONObject) {
+        if(value.optString("image_size")=="Original" && (value.optInt("image_width")>0 || value.optInt("image_height")>0))value.put("image_size","Personalizado")
         value.put("interface_spacing",normalizedSpacing(value.optString("interface_spacing","Padrão")))
         if(value.optString("queue_view") !in listOf("Compacto","Completa"))value.put("queue_view","Completa")
         if(value.optString("queue_card_size") !in listOf("Pequeno","Médio","Grande"))value.put("queue_card_size","Grande")
@@ -101,9 +103,10 @@ object OndaStore {
         value.put("interface_font",normalizeInterfaceFont(value.optString("interface_font",DEFAULT_INTERFACE_FONT)))
         val available=defaults().getJSONArray("tab_order").let {a->(0 until a.length()).map {a.getString(it)}}
         val saved=value.optJSONArray("tab_order")
-        val ordered=if(saved==null) emptyList() else (0 until saved.length()).map {saved.optString(it)}.filter {it in available}.distinct()
-        val complete=(ordered+available.filter {it !in ordered && it!="Fila"}).toMutableList()
+        val ordered=if(saved==null) emptyList() else (0 until saved.length()).map {saved.optString(it).let {name->if(name=="Conversor") "Conversor de vídeos" else name}}.filter {it in available}.distinct()
+        val complete=(ordered+available.filter {it !in ordered && it!="Fila" && it!="Conversor de vídeos"}).toMutableList()
         if("Fila" !in complete)complete.add(complete.indexOf("Links e fila")+1,"Fila")
+        if("Conversor de vídeos" !in complete)complete.add(complete.indexOf("Imagens")+1,"Conversor de vídeos")
         value.put("tab_order",JSONArray(complete))
         val aliases=mapOf("Menta" to "Verde-Água","Verde-água" to "Verde-Água","Lima" to "Verde-limão","Lavanda" to "Lilás","Pêssego" to "Coral","Prata" to "Cinza")
         aliases[value.optString("accent")]?.let {value.put("accent",it)}
@@ -150,8 +153,8 @@ object OndaStore {
     }
     @Synchronized private fun refreshHistory() {
         val past = mutableListOf<HistoryItem>()
-        database.readableDatabase.rawQuery("SELECT id,title,uri,mode,size FROM history ORDER BY id DESC LIMIT 3000",null).use { cursor ->
-            while(cursor.moveToNext()) past += HistoryItem(cursor.getLong(0),cursor.getString(1),cursor.getString(2),cursor.getString(3),cursor.getLong(4))
+        database.readableDatabase.rawQuery("SELECT h.id,h.title,h.uri,h.mode,h.size,COALESCE(m.platform,''),COALESCE(s.source,'') FROM history h LEFT JOIN history_metadata_platform m ON m.history_id=h.id LEFT JOIN history_sources s ON s.history_id=h.id ORDER BY h.id DESC LIMIT 3000",null).use { cursor ->
+            while(cursor.moveToNext()) past += HistoryItem(cursor.getLong(0),cursor.getString(1),cursor.getString(2),cursor.getString(3),cursor.getLong(4),cursor.getString(5),cursor.getString(6))
         }
         history.value = past
     }
@@ -377,6 +380,9 @@ object OndaStore {
         if(config.optString("url").isNotBlank() && config.optString("_operation").isBlank()) {
             database.writableDatabase.execSQL("INSERT INTO history_sources(history_id,source,mode) VALUES(?,?,?)",arrayOf<Any>(historyId,jobSource(config),mode))
         }
+        val metadata=config.optJSONObject("catalog_record") ?: config.optJSONObject("queue_info")
+        val platform=metadata?.cleanString("platform").orEmpty()
+        if(platform.isNotBlank())database.writableDatabase.execSQL("INSERT OR REPLACE INTO history_metadata_platform(history_id,platform) VALUES(?,?)",arrayOf<Any>(historyId,platform))
         synchronized(this) {refreshHistory()}
         // MediaStore/SAF now owns the exported copy. Keep custom inputs and the
         // Android 8/9 FileProvider source, which still backs the published URI.
@@ -402,11 +408,11 @@ object OndaStore {
         val intent = Intent(Intent.ACTION_SEND).setType(mimeFor(title)).putExtra(Intent.EXTRA_STREAM,Uri.parse(uri)).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         context.startActivity(Intent.createChooser(intent,"Compartilhar").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
-    @Synchronized fun removeHistory(id: Long) { database.writableDatabase.delete("history_sources","history_id=?",arrayOf(id.toString())); database.writableDatabase.delete("history","id=?",arrayOf(id.toString())); refreshHistory() }
-    @Synchronized fun clearHistory() { database.writableDatabase.execSQL("DELETE FROM history_sources"); database.writableDatabase.execSQL("DELETE FROM history"); refreshHistory() }
+    @Synchronized fun removeHistory(id: Long) { database.writableDatabase.delete("history_metadata_platform","history_id=?",arrayOf(id.toString())); database.writableDatabase.delete("history_sources","history_id=?",arrayOf(id.toString())); database.writableDatabase.delete("history","id=?",arrayOf(id.toString())); refreshHistory() }
+    @Synchronized fun clearHistory() { database.writableDatabase.execSQL("DELETE FROM history_metadata_platform"); database.writableDatabase.execSQL("DELETE FROM history_sources"); database.writableDatabase.execSQL("DELETE FROM history"); refreshHistory() }
     fun mimeFor(name: String): String = when(name.substringAfterLast('.').lowercase()) {
         "mp3"->"audio/mpeg"; "m4a"->"audio/mp4"; "flac"->"audio/flac"; "wav"->"audio/wav"
-        "mp4"->"video/mp4"; "mkv"->"video/x-matroska"; "webm"->"video/webm"
+        "mov"->"video/quicktime"; "mp4"->"video/mp4"; "mkv"->"video/x-matroska"; "webm"->"video/webm"
         "jpg","jpeg"->"image/jpeg"; "png"->"image/png"; "webp"->"image/webp"; "svg"->"image/svg+xml"
         else->"application/octet-stream"
     }

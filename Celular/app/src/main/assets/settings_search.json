@@ -1,0 +1,482 @@
+[
+  {
+    "category": "Geral",
+    "label": "Preferências",
+    "keywords": ""
+  },
+  {
+    "category": "Geral",
+    "label": "Idioma",
+    "keywords": ""
+  },
+  {
+    "category": "Geral",
+    "label": "Lembrar configurações",
+    "keywords": ""
+  },
+  {
+    "category": "Geral",
+    "label": "Ative para recuperar suas opções ao abrir o aplicativo novamente.",
+    "keywords": ""
+  },
+  {
+    "category": "Geral",
+    "label": "Animar avisos",
+    "keywords": ""
+  },
+  {
+    "category": "Geral",
+    "label": "Duração dos avisos",
+    "keywords": " Avisos de operações em andamento permanecem até terminar. O botão × permite fechar manualmente."
+  },
+  {
+    "category": "Geral",
+    "label": "Restaurar configurações",
+    "keywords": ""
+  },
+  {
+    "category": "Geral",
+    "label": "Restaurar TODAS as configurações ao padrão",
+    "keywords": ""
+  },
+  {
+    "category": "Geral",
+    "label": "Escolher quais configurações restaurar…",
+    "keywords": ""
+  },
+  {
+    "category": "Aparência",
+    "label": "Tema e cores",
+    "keywords": ""
+  },
+  {
+    "category": "Aparência",
+    "label": "Modo de aparência",
+    "keywords": ""
+  },
+  {
+    "category": "Aparência",
+    "label": "Mostrar bordas e separações no Preto puro",
+    "keywords": ""
+  },
+  {
+    "category": "Aparência",
+    "label": "Cor de destaque",
+    "keywords": ""
+  },
+  {
+    "category": "Aparência",
+    "label": "Espaçamento da interface",
+    "keywords": ""
+  },
+  {
+    "category": "Aparência",
+    "label": "Alterar tamanho da fonte",
+    "keywords": ""
+  },
+  {
+    "category": "Aparência",
+    "label": "Fonte da interface",
+    "keywords": ""
+  },
+  {
+    "category": "Aparência",
+    "label": "A fonte muda na hora. Ative Lembrar configurações para manter sua escolha ao reabrir.",
+    "keywords": ""
+  },
+  {
+    "category": "Aparência",
+    "label": "Mostrar ações antes das listas",
+    "keywords": ""
+  },
+  {
+    "category": "Aparência",
+    "label": "Mostrar itens na fila",
+    "keywords": ""
+  },
+  {
+    "category": "Aparência",
+    "label": "Tamanho dos cards da fila",
+    "keywords": ""
+  },
+  {
+    "category": "Aparência",
+    "label": "Mostrar músicas no histórico",
+    "keywords": " Compacto: exibição atual. Completa: cards com capa e informações disponíveis da música e do álbum."
+  },
+  {
+    "category": "Aparência",
+    "label": "Tamanho dos cards do histórico",
+    "keywords": ""
+  },
+  {
+    "category": "Aparência",
+    "label": "Ordem das abas",
+    "keywords": ""
+  },
+  {
+    "category": "Aparência",
+    "label": "Restaurar ordem das abas",
+    "keywords": ""
+  },
+  {
+    "category": "Downloads",
+    "label": "Downloads e arquivos",
+    "keywords": ""
+  },
+  {
+    "category": "Downloads",
+    "label": "As opções são aplicadas aos próximos links adicionados.",
+    "keywords": ""
+  },
+  {
+    "category": "Downloads",
+    "label": "Pasta de destino",
+    "keywords": ""
+  },
+  {
+    "category": "Downloads",
+    "label": "Usar pasta padrão",
+    "keywords": ""
+  },
+  {
+    "category": "Downloads",
+    "label": "Quando o arquivo já existir",
+    "keywords": ""
+  },
+  {
+    "category": "Downloads",
+    "label": "Baixar playlist de vídeo",
+    "keywords": ""
+  },
+  {
+    "category": "Downloads",
+    "label": "Máximo de itens por playlist",
+    "keywords": ""
+  },
+  {
+    "category": "Downloads",
+    "label": "Escolher automaticamente os metadados mais semelhantes",
+    "keywords": " Seleciona o primeiro resultado de maior similaridade entre os metadados compatíveis, sem abrir a escolha. Sem correspondência compatível, informa o erro. Não altera a escolha da versão de áudio."
+  },
+  {
+    "category": "Downloads",
+    "label": "Escolher automaticamente a versão mais semelhante no YouTube",
+    "keywords": " Vale para os próximos downloads iniciados, inclusive itens já na fila e álbuns. Escolhe a maior similaridade entre as versões compatíveis."
+  },
+  {
+    "category": "Downloads",
+    "label": "A confirmação de versão fica desativada enquanto a escolha automática está ligada.",
+    "keywords": ""
+  },
+  {
+    "category": "Downloads",
+    "label": "Confirmar a versão do YouTube de cada música antes de baixar",
+    "keywords": ""
+  },
+  {
+    "category": "Downloads",
+    "label": "Revisar metadados antes de baixar",
+    "keywords": " Spotify, Deezer e Apple Music fornecem metadados; o áudio correspondente é obtido do YouTube."
+  },
+  {
+    "category": "Áudio",
+    "label": "Reprodução e prévias",
+    "keywords": ""
+  },
+  {
+    "category": "Áudio",
+    "label": "Duração das prévias",
+    "keywords": ""
+  },
+  {
+    "category": "Áudio",
+    "label": "Vale para a próxima prévia. Nas pesquisas, o catálogo pode fornecer um trecho menor.",
+    "keywords": ""
+  },
+  {
+    "category": "Áudio",
+    "label": "Continuar prévia dos efeitos em outras abas",
+    "keywords": ""
+  },
+  {
+    "category": "Contas",
+    "label": "Contas e acesso",
+    "keywords": ""
+  },
+  {
+    "category": "Contas",
+    "label": "Spotify · opcional",
+    "keywords": ""
+  },
+  {
+    "category": "Contas",
+    "label": "Client ID",
+    "keywords": ""
+  },
+  {
+    "category": "Contas",
+    "label": "Client Secret · opcional",
+    "keywords": ""
+  },
+  {
+    "category": "Contas",
+    "label": "Abrir Spotify Developers",
+    "keywords": " No Spotify Developers, cadastre o retorno http://127.0.0.1:8765/callback. A conexão usa PKCE e abre o navegador do celular. A disponibilidade das playlists depende das permissões da API."
+  },
+  {
+    "category": "Contas",
+    "label": "Importar cookies do YouTube",
+    "keywords": ""
+  },
+  {
+    "category": "Contas",
+    "label": "Importar cookies.txt",
+    "keywords": ""
+  },
+  {
+    "category": "Contas",
+    "label": "Remover cookies",
+    "keywords": ""
+  },
+  {
+    "category": "Contas",
+    "label": "Remover sessão do YouTube",
+    "keywords": ""
+  },
+  {
+    "category": "Ferramentas",
+    "label": "Ferramentas e atualizações",
+    "keywords": " Python, FFmpeg, FFprobe e QuickJS acompanham esta versão Android de desenvolvimento. Não é necessário instalar Termux."
+  },
+  {
+    "category": "Ferramentas",
+    "label": "Atualizar ferramentas",
+    "keywords": ""
+  },
+  {
+    "category": "Ferramentas",
+    "label": "Verificar ferramentas",
+    "keywords": ""
+  },
+  {
+    "category": "Downloads",
+    "label": "Fila e agendamento",
+    "keywords": ""
+  },
+  {
+    "category": "Downloads",
+    "label": "Downloads simultâneos",
+    "keywords": ""
+  },
+  {
+    "category": "Downloads",
+    "label": "No Android, escolha de 1 a 4 downloads simultâneos.",
+    "keywords": ""
+  },
+  {
+    "category": "Downloads",
+    "label": "Detectar duplicatas na fila e no histórico",
+    "keywords": ""
+  },
+  {
+    "category": "Downloads",
+    "label": "Retomar arquivos interrompidos quando possível",
+    "keywords": ""
+  },
+  {
+    "category": "Downloads",
+    "label": "Retomar fila ao abrir o ONDA",
+    "keywords": ""
+  },
+  {
+    "category": "Downloads",
+    "label": "Normalizar volume dos próximos downloads",
+    "keywords": ""
+  },
+  {
+    "category": "Downloads",
+    "label": "Agendar downloads",
+    "keywords": ""
+  },
+  {
+    "category": "Downloads",
+    "label": "Começar · HH:MM",
+    "keywords": ""
+  },
+  {
+    "category": "Downloads",
+    "label": "Parar · HH:MM",
+    "keywords": ""
+  },
+  {
+    "category": "Downloads",
+    "label": "Informe horários diferentes no formato HH:MM.",
+    "keywords": " O Android pode atrasar o início para economizar bateria. A fila interrompida fica pendente para retomar."
+  },
+  {
+    "category": "Geral",
+    "label": "Exportar configurações…",
+    "keywords": ""
+  },
+  {
+    "category": "Geral",
+    "label": "Importar configurações…",
+    "keywords": ""
+  },
+  {
+    "category": "Geral",
+    "label": "A transferência não inclui contas, cookies nem caminhos de pastas.",
+    "keywords": ""
+  },
+  {
+    "category": "Ferramentas",
+    "label": "Verificar atualizações do ONDA ao abrir",
+    "keywords": ""
+  },
+  {
+    "category": "Ferramentas",
+    "label": "Verificar atualização do ONDA",
+    "keywords": ""
+  },
+  {
+    "category": "Ferramentas",
+    "label": "Baixando atualização do ONDA",
+    "keywords": ""
+  },
+  {
+    "category": "Ferramentas",
+    "label": "Cancelar download da atualização",
+    "keywords": ""
+  },
+  {
+    "category": "Ferramentas",
+    "label": "Instalar atualização",
+    "keywords": ""
+  },
+  {
+    "category": "Ferramentas",
+    "label": "Descartar atualização baixada",
+    "keywords": ""
+  },
+  {
+    "category": "Ferramentas",
+    "label": "Não foi possível baixar a atualização. Tente novamente.",
+    "keywords": ""
+  },
+  {
+    "category": "Ferramentas",
+    "label": "Baixar nova versão",
+    "keywords": " A atualização é baixada dentro do ONDA e continua em segundo plano. Ao terminar, toque em Instalar atualização e confirme no Android. Seus dados são preservados."
+  },
+  {
+    "category": "Ferramentas",
+    "label": "Cache",
+    "keywords": " Limpa capas, buscas e caches temporários. Downloads, fila, histórico, contas e escolhas salvas são preservados."
+  },
+  {
+    "category": "Ferramentas",
+    "label": "Limpar cache",
+    "keywords": ""
+  },
+  {
+    "category": "Ferramentas",
+    "label": "Atualizar tamanho",
+    "keywords": ""
+  },
+  {
+    "category": "Ferramentas",
+    "label": "Aguarde as operações em andamento antes de limpar o cache.",
+    "keywords": ""
+  },
+  {
+    "category": "Downloads",
+    "label": "Organizar músicas em",
+    "keywords": ""
+  },
+  {
+    "category": "Downloads",
+    "label": "Nome dos arquivos",
+    "keywords": ""
+  },
+  {
+    "category": "Downloads",
+    "label": "Prévia de organização",
+    "keywords": ""
+  },
+  {
+    "category": "Downloads",
+    "label": "As pastas de playlists são preservadas. Números de faixa ausentes são omitidos.",
+    "keywords": ""
+  },
+  {
+    "category": "Downloads",
+    "label": "Formato",
+    "keywords": ""
+  },
+  {
+    "category": "Downloads",
+    "label": "Qualidade de áudio",
+    "keywords": ""
+  },
+  {
+    "category": "Downloads",
+    "label": "Resolução máxima",
+    "keywords": ""
+  },
+  {
+    "category": "Downloads",
+    "label": "FPS máximo",
+    "keywords": " Links de catálogo em FLAC baixam diretamente do Monochrome, quando disponíveis. Outros links são convertidos; isso não melhora fontes com perdas."
+  },
+  {
+    "category": "Imagens",
+    "label": "Formato",
+    "keywords": ""
+  },
+  {
+    "category": "Imagens",
+    "label": "Tamanho máximo",
+    "keywords": ""
+  },
+  {
+    "category": "Imagens",
+    "label": "Largura × altura (px)",
+    "keywords": ""
+  },
+  {
+    "category": "Imagens",
+    "label": "Largura",
+    "keywords": ""
+  },
+  {
+    "category": "Imagens",
+    "label": "Altura",
+    "keywords": ""
+  },
+  {
+    "category": "Imagens",
+    "label": "Manter proporção (sem ampliar ou distorcer)",
+    "keywords": ""
+  },
+  {
+    "category": "Áudio",
+    "label": "Músicas nas pesquisas",
+    "keywords": ""
+  },
+  {
+    "category": "Áudio",
+    "label": "Slowed / Sped Up e Reverb",
+    "keywords": ""
+  },
+  {
+    "category": "Contas",
+    "label": "Conectar",
+    "keywords": "Spotify"
+  },
+  {
+    "category": "Contas",
+    "label": "Desconectar",
+    "keywords": "Spotify"
+  }
+]

@@ -20,8 +20,9 @@ import java.io.File
 @Composable fun AdvancedDownloadOptions(settings:JSONObject,put:(String,Any)->Unit) {
     UiText("Fila e agendamento",style=MaterialTheme.typography.titleMedium)
     SettingsDivider()
-    Select("Downloads simultâneos (1 a 4)",settings.optString("concurrent_downloads","1"),listOf("1","2","3","4")){put("concurrent_downloads",it)}
+    Select("Downloads simultâneos",settings.optString("concurrent_downloads","1"),listOf("1","2","3","4")){put("concurrent_downloads",it)}
     SettingsDivider()
+    UiText("No Android, escolha de 1 a 4 downloads simultâneos.",style=MaterialTheme.typography.bodySmall)
     Toggle("Detectar duplicatas na fila e no histórico",settings.optBoolean("detect_duplicates",true)){put("detect_duplicates",it)}
     SettingsDivider()
     Toggle("Retomar arquivos interrompidos quando possível",settings.optBoolean("resume_downloads",true)){put("resume_downloads",it)}

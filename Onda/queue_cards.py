@@ -18,6 +18,13 @@ class QueueCards(ttk.Frame):
         self.traces=[(var,var.trace_add('write',self.changed)) for var in (app.queue_view,app.queue_card_size)]
 
     def changed(self,*_):
+        if self.app.queue_view.get()=='Compacto':
+            from metadata_badges import apply_tree_badge
+            self.app.tree.configure(show='tree headings')
+            self.app.tree.column('#0',width=52,minwidth=52,stretch=False)
+            for key in self.app.tree.get_children():
+                job=self.app.jobs.get(key,{})
+                apply_tree_badge(self.app.tree,key,job.get('catalog_record') or job.get('queue_info') or {})
         self.signature=None
         self.refresh()
 
@@ -26,15 +33,14 @@ class QueueCards(ttk.Frame):
         if not complete:
             self.pack_forget()
             self.app.queue_size_controls.pack_forget()
-            if not self.app.tree.winfo_manager():
-                self.app.tree.pack(side='left',fill='both',expand=True)
-                self.scroll.pack(side='right',fill='y')
+            self.app.queue_filter.compact(self.scroll)
             return
         self.app.tree.pack_forget();self.scroll.pack_forget()
+        if self.app.queue_filter.view:self.app.queue_filter.view.pack_forget()
         if not self.app.queue_size_controls.winfo_manager():self.app.queue_size_controls.pack(side='left',padx=4)
         if not self.winfo_manager():self.pack(fill='both',expand=True)
         self.artwork.poll()
-        keys=self.app.tree.get_children()
+        keys=self.app.queue_filter.visible_keys()
         self.metadata_requested.intersection_update(keys)
         if not keys:self.app.empty_queue.lift()
         signature=(keys[:self.limit],self.app.queue_card_size.get(),len(keys)>self.limit)
@@ -86,7 +92,12 @@ class QueueCards(ttk.Frame):
                     cover._queue_image=ImageTk.PhotoImage(image.copy(),master=cover)
                 cover.configure(image=cover._queue_image,text='')
                 cover._artwork_source=artwork
-            snapshot=(values[0] if values else job.get('url',''),subtitle,job.get('url',''),key in selected)
+            from metadata_badges import apply_badge,provider,NAMES
+            origin=job.get('catalog_record') or info
+            platform=NAMES.get(provider(origin),'')
+            source_text=' · '.join(v for v in (platform,job.get('url','')) if v)
+            apply_badge(source,origin)
+            snapshot=(values[0] if values else job.get('url',''),subtitle,source_text,key in selected)
             if snapshot!=previous:
                 title.configure(text=snapshot[0]);details.configure(text=subtitle);source.configure(text=snapshot[2])
                 var.set(snapshot[3]);card.configure(style='HistorySelected.TFrame' if snapshot[3] else 'Card.TFrame')

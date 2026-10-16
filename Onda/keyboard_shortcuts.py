@@ -4,7 +4,7 @@ from tkinter import ttk
 from i18n import tr
 
 SHORTCUTS = (
-    ("Ctrl+1 … Ctrl+8", "Abrir aba pela posição atual"),
+    ("Ctrl+1 … Ctrl+9", "Abrir aba pela posição atual"),
     ("Ctrl+Tab / Ctrl+Shift+Tab", "Ir para a próxima aba / aba anterior"),
     ("Ctrl+↑ / Ctrl+↓", "Rolar a página atual para cima / baixo"),
     ("Ctrl+A", "Selecionar todos os itens da lista atual"),
@@ -51,7 +51,7 @@ class KeyboardShortcuts:
             '<Control-ISO_Left_Tab>':'previous',
             '<Control-Up>':'scroll-up','<Control-Down>':'scroll-down',
         }
-        bindings.update({f'<Control-Key-{number}>':f'tab:{number-1}' for number in range(1,9)})
+        bindings.update({f'<Control-Key-{number}>':f'tab:{number-1}' for number in range(1,10)})
         for sequence,action in bindings.items():
             callback=lambda event,key=action:self.dispatch(key,event)
             app.bind_class(self.tag,sequence,callback)
@@ -116,13 +116,14 @@ class KeyboardShortcuts:
             elif current==str(app.playlist_page):table=app.playlist_page.table
             elif current==str(app.history_page):table=app.history_page.table
             else:return
-            table.selection_set(table.get_children())
+            table.selection_set(app.queue_filter.visible_keys() if table is app.tree else table.get_children())
         elif action=='links':self.select(app.download_page,app.urls)
         elif action=='queue':app.show_queue()
         elif action=='history':self.select(app.history_page)
         elif action=='search':
             if current==str(app.playlist_page):field=app.playlist_page.search_entry
             elif current==str(app.history_page):field=app.history_page.search_entry
+            elif current==str(app.queue_page):field=app.queue_filter.entry
             else:
                 self.select(app.catalog_page)
                 field=app.catalog_page.entry

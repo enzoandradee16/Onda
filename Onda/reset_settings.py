@@ -4,23 +4,62 @@ from i18n_tk import display_var
 import tkinter as tk
 from tkinter import ttk, messagebox
 
-GROUPS = {
-    'Aparência': {'interface_spacing':'Espaçamento da interface', 'history_card_size':'Tamanho dos cards do histórico', 'pure_black_separators':'Separações no Preto puro', 'history_view':'Exibição do histórico', 'theme_mode':'Modo claro, escuro ou sistema', 'theme_accent':'Cor de destaque', 'interface_font':'Fonte da interface', 'interface_font_size':'Alterar tamanho da fonte'},
-    'Geral': {'language':'Idioma','notice_duration':'Duração dos avisos','check_updates':'Verificar atualizações do ONDA', 'tab_order':'Ordem das abas', 'remember_settings':'Lembrar configurações'},
-    'Downloads': {'concurrent_downloads':'Downloads simultâneos','resume_downloads':'Retomar arquivos interrompidos','resume_queue':'Retomar fila ao abrir','normalize_volume':'Normalizar volume','schedule_enabled':'Agendar downloads','schedule_start':'Horário de início','schedule_stop':'Horário de parada','folder':'Pasta de destino', 'detect_duplicates':'Detectar duplicatas na fila e no histórico', 'filename_template':'Nome dos arquivos', 'organization':'Organização por pastas', 'duplicates':'Tratamento de arquivos duplicados', 'review_metadata':'Revisão de metadados', 'auto_metadata':'Escolha automática dos metadados', 'auto_match':'Escolha automática da versão', 'playlist_limit':'Limite de itens de playlists'},
-    'Fila': {'queue_view':'Exibição da fila','queue_card_size':'Tamanho dos cards da fila'},
-    'Links': {'mode':'Formato', 'height':'Resolução máxima', 'fps':'FPS máximo', 'mp3_quality':'Qualidade MP3', 'm4a_quality':'Qualidade M4A', 'playlist':'Baixar playlist de vídeo'},
-    'Playlists': {'playlist_mode':'Formato da playlist', 'playlist_height':'Resolução da playlist', 'playlist_fps':'FPS da playlist', 'playlist_mp3_quality':'Qualidade MP3 da playlist', 'playlist_m4a_quality':'Qualidade M4A da playlist'},
-    'Imagens': {'image_format':'Formato da imagem', 'image_size':'Tamanho máximo', 'image_width':'Largura personalizada', 'image_height':'Altura personalizada', 'image_keep_ratio':'Manter proporção'},
-    'Áudio': {'effects_keep_pitch':'Manter tom nos efeitos', 'background_preview':'Continuar prévia em outras abas', 'effects_preview_duration':'Duração da prévia dos efeitos', 'search_preview_duration':'Duração da prévia nas pesquisas'},
-    'Catálogo': {'catalog_provider':'Plataforma de pesquisa de músicas'},
-    'Ferramentas e sessão': {'ffmpeg':'Pasta do FFmpeg', 'social_cookies':'Arquivo de cookies desta sessão'},
-}
+GROUPS = {'Geral': {'language': 'Idioma', 'notice_duration': 'Duração dos avisos', 'notice_animation':'Animar avisos', 'remember_settings': 'Lembrar configurações'},
+ 'Aparência': {'interface_spacing': 'Espaçamento da interface',
+               'history_card_size': 'Tamanho dos cards do histórico',
+               'pure_black_separators': 'Separações no Preto puro',
+               'history_view': 'Exibição do histórico',
+               'theme_mode': 'Modo claro, escuro ou sistema',
+               'theme_accent': 'Cor de destaque',
+               'interface_font': 'Fonte da interface',
+               'interface_font_size': 'Alterar tamanho da fonte',
+               'queue_view': 'Exibição da fila', 'queue_actions_at_top':'Mostrar ações antes das listas',
+               'queue_card_size': 'Tamanho dos cards da fila',
+               'tab_order': 'Ordem das abas'},
+ 'Downloads': {'concurrent_downloads': 'Downloads simultâneos',
+               'resume_downloads': 'Retomar arquivos interrompidos',
+               'resume_queue': 'Retomar fila ao abrir',
+               'normalize_volume': 'Normalizar volume',
+               'schedule_enabled': 'Agendar downloads',
+               'schedule_start': 'Horário de início',
+               'schedule_stop': 'Horário de parada',
+               'folder': 'Pasta de destino',
+               'detect_duplicates': 'Detectar duplicatas na fila e no histórico',
+               'filename_template': 'Nome dos arquivos',
+               'organization': 'Organização por pastas',
+               'duplicates': 'Tratamento de arquivos duplicados',
+               'review_metadata': 'Revisão de metadados', 'confirm_version':'Confirmar versão antes de baixar',
+               'auto_metadata': 'Escolha automática dos metadados',
+               'auto_match': 'Escolha automática da versão',
+               'playlist_limit': 'Limite de itens de playlists',
+               'mode': 'Formato',
+               'height': 'Resolução máxima',
+               'fps': 'FPS máximo',
+               'mp3_quality': 'Qualidade MP3',
+               'm4a_quality': 'Qualidade M4A',
+               'playlist': 'Baixar playlist de vídeo',
+               'playlist_mode': 'Formato da playlist',
+               'playlist_height': 'Resolução da playlist',
+               'playlist_fps': 'FPS da playlist',
+               'playlist_mp3_quality': 'Qualidade MP3 da playlist',
+               'playlist_m4a_quality': 'Qualidade M4A da playlist',
+               'catalog_provider': 'Plataforma de pesquisa de músicas'},
+ 'Imagens': {'image_format': 'Formato da imagem',
+             'image_size': 'Tamanho máximo',
+             'image_width': 'Largura personalizada',
+             'image_height': 'Altura personalizada',
+             'image_keep_ratio': 'Manter proporção'},
+ 'Áudio': {'effects_keep_pitch': 'Manter tom nos efeitos',
+           'background_preview': 'Continuar prévia em outras abas',
+           'effects_preview_duration': 'Duração da prévia dos efeitos',
+           'search_preview_duration': 'Duração da prévia nas pesquisas'},
+ 'Contas': {'social_cookies': 'Arquivo de cookies desta sessão','youtube_cookies':'Sessão do YouTube'},
+ 'Ferramentas': {'check_updates': 'Verificar atualizações do ONDA', 'ffmpeg': 'Pasta do FFmpeg'}}
 
 
 def apply_defaults(app, names):
     names=set(names)
-    known=set(app.preference_defaults)|{'remember_settings','social_cookies'}
+    known=set(app.preference_defaults)|{'remember_settings','social_cookies','youtube_cookies'}
     if names-known:
         raise ValueError('Configuração desconhecida.')
     # Avoid writing intermediate combinations while resetting several fields.
@@ -35,6 +74,7 @@ def apply_defaults(app, names):
         if 'tab_order' in names:
             app.tab_reorder.cancel()
             app.tab_reorder.apply(app.tab_order.get())
+        if 'youtube_cookies' in names:app.youtube_cookies.set('')
         if 'social_cookies' in names:
             app.social_cookies.set('')
         app.playlist_page.format_changed()

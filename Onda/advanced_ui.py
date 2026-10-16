@@ -19,22 +19,32 @@ def move_queue(app,direction):
     for index,key in enumerate(order):app.tree.move(key,'',index)
     app.persist_queue()
 
-def settings_tools(app,parent):
+def download_policy_controls(app,parent):
     ttk.Separator(parent).pack(fill='x',pady=12)
     ttk.Label(parent,text=tr('Fila e agendamento'),font=('Segoe UI',12,'bold')).pack(anchor='w')
-    ttk.Label(parent,text=tr('Downloads simultâneos (1 a 15)')).pack(anchor='w',pady=(8,3))
+    ttk.Label(parent,text=tr('Downloads simultâneos')).pack(anchor='w',pady=(8,3))
     TranslatedCombobox(parent,textvariable=app.concurrent_downloads,values=tuple(str(n) for n in range(1,16)),state='readonly',width=8).pack(anchor='w')
+    ttk.Label(parent,text=tr('No PC, escolha de 1 a 15 downloads simultâneos.'),wraplength=460,style='Muted.TLabel').pack(anchor='w',pady=(4,0))
     ttk.Label(parent,text=tr('Aviso: muitos downloads simultâneos, especialmente de 10 a 15, podem pesar o app e aumentar o uso de memória, processador e internet. Reduza se notar lentidão.'),wraplength=460,style='Muted.TLabel').pack(anchor='w',pady=(6,8))
-    for key,label in (('detect_duplicates','Detectar duplicatas na fila e no histórico'),('resume_downloads','Retomar arquivos interrompidos quando possível'),('resume_queue','Retomar fila ao abrir o ONDA'),('normalize_volume','Normalizar volume dos próximos downloads'),('schedule_enabled','Agendar downloads'),('check_updates','Verificar atualizações do ONDA ao abrir')):
+    for key,label in (('detect_duplicates','Detectar duplicatas na fila e no histórico'),('resume_downloads','Retomar arquivos interrompidos quando possível'),('resume_queue','Retomar fila ao abrir o ONDA'),('normalize_volume','Normalizar volume dos próximos downloads'),('schedule_enabled','Agendar downloads')):
         ttk.Checkbutton(parent,text=tr(label),variable=getattr(app,key)).pack(anchor='w',pady=5)
     hours=ttk.Frame(parent);hours.pack(fill='x',pady=6)
     for key,label in (('schedule_start','Começar · HH:MM'),('schedule_stop','Parar · HH:MM')):
         panel=ttk.Frame(hours);panel.pack(side='left',padx=(0,16));ttk.Label(panel,text=tr(label)).pack(anchor='w');ttk.Entry(panel,textvariable=getattr(app,key),width=12).pack()
     ttk.Label(parent,text=tr('O PC precisa estar ligado e o ONDA aberto. A janela pode atravessar a meia-noite.'),wraplength=460,style='Muted.TLabel').pack(anchor='w')
-    ttk.Button(parent,text=tr('Exportar configurações…'),command=lambda:transfer(app,False)).pack(anchor='w',pady=(12,5))
+
+def preference_transfer_controls(app,parent):
+    ttk.Separator(parent).pack(fill='x',pady=12)
+    ttk.Button(parent,text=tr('Exportar configurações…'),command=lambda:transfer(app,False)).pack(anchor='w',pady=(0,5))
     ttk.Button(parent,text=tr('Importar configurações…'),command=lambda:transfer(app,True)).pack(anchor='w')
+    ttk.Label(parent,text=tr('A transferência não inclui contas, cookies nem caminhos de pastas.'),wraplength=460,style='Muted.TLabel').pack(anchor='w',pady=(6,0))
+
+def app_update_controls(app,parent):
+    ttk.Separator(parent).pack(fill='x',pady=12)
+    ttk.Label(parent,text=tr('Atualizações do ONDA'),font=('Segoe UI',12,'bold')).pack(anchor='w')
+    ttk.Checkbutton(parent,text=tr('Verificar atualizações do ONDA ao abrir'),variable=app.check_updates).pack(anchor='w',pady=6)
     ttk.Button(parent,text=tr('Verificar atualização do ONDA'),command=lambda:check_update(app,True)).pack(anchor='w',pady=8)
-    ttk.Label(parent,text=tr('A transferência não inclui contas, cookies nem caminhos de pastas.'),wraplength=460,style='Muted.TLabel').pack(anchor='w')
+
 
 def transfer(app,importing):
     from advanced_options import import_settings,export_settings
@@ -58,7 +68,7 @@ def transfer(app,importing):
 def check_update(app,manual=False):
     from advanced_options import release_update
     def worker():
-        try:result=release_update('windows','1.1.3')
+        try:result=release_update('windows','1.1.4')
         except Exception:result={'available':False,'message':'Não foi possível verificar atualizações. Confira sua conexão.'}
         app.events.put((None,{'type':'app_update','result':result,'manual':manual}))
     threading.Thread(target=worker,daemon=True).start()
