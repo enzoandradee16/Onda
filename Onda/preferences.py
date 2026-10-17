@@ -107,6 +107,9 @@ class PreferenceStore:
                 result[name] = str(int(value))
         if type(data.get('image_keep_ratio')) is bool:
             result['image_keep_ratio'] = data['image_keep_ratio']
+        if isinstance(data.get('hidden_tabs'), (list, tuple)):
+            from tab_order import normalize_hidden
+            result['hidden_tabs'] = normalize_hidden(data['hidden_tabs'])
         if isinstance(data.get('tab_order'), (list, tuple)):
             from tab_order import normalize_order
             result['tab_order'] = normalize_order(data['tab_order'])

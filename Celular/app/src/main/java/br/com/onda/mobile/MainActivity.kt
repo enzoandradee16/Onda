@@ -90,7 +90,7 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
     val palette=if(dark) accents else lightAccents
     val accent=Color(palette[settings.optString("accent")] ?: palette.getValue("Verde-Água"))
     val baseScheme=if(dark) darkColorScheme(primary=accent,background=Color(0xFF0E131B),surface=Color(0xFF161E29),onPrimary=Color(0xFF10171F)) else lightColorScheme(primary=accent)
-    val tabs=settings.optJSONArray("tab_order") ?: OndaStore.defaults().getJSONArray("tab_order")
+    val tabs=visibleTabs(settings)
     val blackScheme=if(pureBlack) baseScheme.copy(
         background=Color.Black,surface=Color.Black,surfaceTint=Color.Transparent,
         surfaceDim=Color.Black,surfaceBright=Color(0xFF181818),
@@ -108,6 +108,7 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
     SideEffect {activityWindow?.let {applyNavigationBarTheme(it,scheme.background,dark)}}
     val homeTab=tabs.optString(0,"Pesquisar")
     var tab by rememberSaveable { mutableStateOf(homeTab) }
+    LaunchedEffect(tab,tabs.toString()) {if((0 until tabs.length()).none {tabs.getString(it)==tab}) tab=homeTab}
     val queueRequested by vm.queueNavigation.collectAsStateWithLifecycle()
     LaunchedEffect(queueRequested) {if(queueRequested) {tab="Fila";vm.queueNavigation.value=false}}
     var metadataUri by rememberSaveable {mutableStateOf<String?>(null)}
@@ -206,6 +207,10 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
         if(question==null && notice==null && !showSettings && !youtubeSession && !showLicenses && !welcome) {
             failureIds?.let {FailureSummaryWindow(it,vm){OndaStore.failureSummary.value=null}}
         }
+        ClipboardDownloadPrompt(settings.optBoolean("clipboard_links",true),!busy && question==null && notice==null && !showSettings && !youtubeSession && !showLicenses && !welcome) {candidate->
+            if(candidate.optBoolean("collection"))vm.loadCollection(candidate.getString("url"),OndaStore.collectionOptions(),startDownload=true)
+            else vm.enqueueLinks(listOf(candidate.getString("url")),true)
+        }
         question?.let { ChoiceWindow(it,vm) }
         if(showSettings) SettingsWindow(vm,initialCategory=settingsCategory) {showSettings=false}
         if(youtubeSession) YouTubeSessionWindow {youtubeSession=false}
@@ -254,6 +259,8 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
     "Áudio · M4A (AAC)" to "m4a","Áudio · FLAC" to "flac","Fotos · todas do carrossel" to "photos",
     "Publicação · fotos e vídeos originais" to "social")
 @Composable fun FormatOptions(config: JSONObject, changed: (JSONObject)->Unit, separated:Boolean=false) {
+    val preferences by OndaStore.settings.collectAsStateWithLifecycle()
+    if(!separated && preferences.optBoolean("simple_download_ui",false)) return
     fun put(key: String, value: Any) {changed(JSONObject(config.toString()).put(key,value))}
     val mode=config.optString("mode","mp3")
     Row(horizontalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
@@ -554,6 +561,8 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
     }
 }
 @Composable fun ImageOptions(config: JSONObject, change: (JSONObject)->Unit, separated:Boolean=false) {
+    val preferences by OndaStore.settings.collectAsStateWithLifecycle()
+    if(!separated && preferences.optBoolean("simple_download_ui",false)) return
     fun put(key: String,value: Any) {change(JSONObject(config.toString()).put(key,value))}
     Select("Formato",config.optString("image_format","Original"),listOf("Original","JPG","PNG","WebP","SVG")){put("image_format",it)}
     if(separated)SettingsDivider()

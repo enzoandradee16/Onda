@@ -5,7 +5,7 @@ from pathlib import Path
 import shutil
 
 
-def fetch_cover(url):
+def fetch_cover(url, *, _attempt=0):
     if not url:
         return None
     import requests
@@ -19,7 +19,12 @@ def fetch_cover(url):
                 data.extend(chunk)
                 if len(data) > 10 * 1024 * 1024:
                     raise ValueError("A capa excede o limite de 10 MB.")
-    except requests.RequestException:
+    except requests.RequestException as error:
+        status = getattr(getattr(error, 'response', None), 'status_code', None)
+        if _attempt < 2 and (status is None or status == 429 or status >= 500):
+            import time
+            time.sleep(.5 * (_attempt + 1))
+            return fetch_cover(url, _attempt=_attempt + 1)
         raise ValueError("Não foi possível obter a capa. Tente novamente.") from None
     if data[:3] == b"\xff\xd8\xff":
         mime = "image/jpeg"
@@ -119,3 +124,12 @@ def apply_tags(filename, record, match, cover=None):
         temporary.unlink(missing_ok=True)
         sidecar_temp.unlink(missing_ok=True)
     return str(sidecar)
+
+
+def optional_cover(url, emit):
+    """A remote artwork outage must not discard an otherwise valid recording."""
+    try:
+        return fetch_cover(url)
+    except ValueError as error:
+        emit('log', message=str(error) + ' Continuando sem capa.')
+        return None

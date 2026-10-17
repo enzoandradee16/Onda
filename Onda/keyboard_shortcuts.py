@@ -96,11 +96,11 @@ class KeyboardShortcuts:
         app=self.app
         current=app.pages.select()
         if action.startswith('tab:'):
-            tabs=app.pages.tabs();index=int(action.split(':')[1])
+            tabs=app.pages.visible_tabs();index=int(action.split(':')[1])
             if index>=len(tabs):return
             app.pages.select(tabs[index])
         elif action in ('next','previous'):
-            tabs=app.pages.tabs();index=app.pages.index('current')
+            tabs=app.pages.visible_tabs();index=tabs.index(current)
             app.pages.select(tabs[(index+(1 if action=='next' else -1))%len(tabs)])
         elif action in ('scroll-up','scroll-down'):
             page=app.nametowidget(current)

@@ -14,14 +14,17 @@
       "Lembrar configurações",
       "Avisos",
       "Exportar e importar",
-      "Restaurar configurações"
+      "Restaurar configurações",
+      "Reconhecer links copiados automaticamente"
     ],
     "Aparência": [
       "Tema e cores",
       "Espaçamento e fontes",
       "Fila",
       "Histórico",
-      "Ordem das abas"
+      "Ordem das abas",
+      "Mostrar ou ocultar abas",
+      "Simplificar controles de download"
     ],
     "Downloads": [
       "Formato e qualidade",
@@ -30,7 +33,9 @@
       "Arquivos existentes",
       "Playlists",
       "Metadados e versão",
-      "Fila e agendamento"
+      "Fila e agendamento",
+      "Baixar mídias sociais automaticamente na maior qualidade",
+      "Selecionar todas as mídias ao abrir a publicação"
     ],
     "Imagens": [
       "Formato",
@@ -60,7 +65,8 @@
       "Exportar configurações…",
       "Importar configurações…",
       "Restaurar TODAS as configurações ao padrão",
-      "Escolher quais configurações restaurar…"
+      "Escolher quais configurações restaurar…",
+      "Reconhecer links copiados automaticamente"
     ],
     "Aparência": [
       "Modo de aparência",
@@ -75,7 +81,9 @@
       "Mostrar músicas no histórico",
       "Tamanho dos cards do histórico",
       "Ordem das abas",
-      "Restaurar ordem das abas"
+      "Restaurar ordem das abas",
+      "Mostrar ou ocultar abas",
+      "Simplificar controles de download"
     ],
     "Downloads": [
       "Formato",
@@ -97,7 +105,9 @@
       "Normalizar volume dos próximos downloads",
       "Agendar downloads",
       "Começar · HH:MM",
-      "Parar · HH:MM"
+      "Parar · HH:MM",
+      "Baixar mídias sociais automaticamente na maior qualidade",
+      "Selecionar todas as mídias ao abrir a publicação"
     ],
     "Imagens": [
       "Formato",

@@ -14,12 +14,13 @@ import org.json.JSONObject
 import java.util.Locale
 
 @Composable fun TrackDownloadDialog(record:JSONObject,baseOptions:JSONObject,onDismiss:()->Unit,onSubmit:(JSONObject,Boolean)->Unit) {
+    val simple=baseOptions.optBoolean("simple_download_ui",false)
     var preset by rememberSaveable {mutableStateOf("MP3 320")}
     var format by rememberSaveable {mutableStateOf("M4A")}
     var quality by rememberSaveable {mutableStateOf("256 kbps")}
     val qualities=if(format=="MP3")listOf("320 kbps","256 kbps","192 kbps","128 kbps","96 kbps") else listOf("256 kbps","192 kbps","128 kbps","96 kbps")
-    val mode=when(preset) {"FLAC"->"flac";"Personalizar"->format.lowercase(Locale.ROOT);else->"mp3"}
-    val bitrate=when(preset) {"MP3 320"->"320 kbps";"MP3 128"->"128 kbps";else->quality}
+    val mode=if(simple) "mp3" else when(preset) {"FLAC"->"flac";"Personalizar"->format.lowercase(Locale.ROOT);else->"mp3"}
+    val bitrate=if(simple) "320 kbps" else when(preset) {"MP3 320"->"320 kbps";"MP3 128"->"128 kbps";else->quality}
     fun submit(now:Boolean) {
         val options=JSONObject(baseOptions.toString()).put("mode",mode)
         if(mode!="flac")options.put("audio_quality",bitrate)
@@ -35,6 +36,7 @@ import java.util.Locale
                     Text(record.cleanString("album").ifBlank {translateUi("Álbum não informado",LocalUiLanguage.current)},style=MaterialTheme.typography.bodySmall)
                 }
             }
+            if(!simple) {
             Select("Formato",preset,listOf("MP3 320","MP3 128","FLAC","Personalizar")){preset=it}
             UiText(when(preset) {
                 "MP3 320"->"Alta qualidade · maior compatibilidade"
@@ -48,6 +50,7 @@ import java.util.Locale
                     if(it=="M4A" && quality=="320 kbps")quality="256 kbps"
                 }
                 Select("Qualidade de áudio",quality,qualities){quality=it}
+            }
             }
             val duration=record.optLong("duration_ms")
             UiText(if(mode!="flac" && duration>0) {

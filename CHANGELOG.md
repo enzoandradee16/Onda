@@ -1,5 +1,14 @@
 # Histórico de versões
 
+## 1.1.5 — 2026-10-17
+
+- Reconhecimento de links copiados com confirmação obrigatória antes do download. Evita repetir avisos do mesmo link; opção em Configurações → Geral, ativada por padrão. Android verifica somente com o aplicativo em primeiro plano.
+- Abas opcionais podem ser ocultadas individualmente, preservando as principais e a ordem escolhida.
+- Interface simplificada opcional oculta controles de formato/qualidade sem alterar espaçamento ou escolhas salvas.
+- Instagram, TikTok e Kwai: qualidade automática e seleção inicial de todas as mídias, com opções independentes. Permite desmarcar itens e alternar Selecionar todas/Desmarcar todas.
+- Downloads: novas tentativas de capa, conclusão sem imagem quando a capa falha, recuperação com outra versão compatível após rejeição e busca ampliada por álbum, mantendo os filtros de identidade.
+
+
 ## 1.1.4 — 2026-10-16
 
 - Conversor de vídeos em uma aba própria, ao lado de Imagens: MP4, MKV e MOV, qualidade, resolução máxima, bitrate, FPS, remoção de áudio, progresso e cancelamento. O original é preservado.

@@ -85,6 +85,7 @@ class App(UiMixin, tk.Tk):
         self.playlist_m4a_quality = tk.StringVar(value="256 kbps")
         from tab_order import DEFAULT_ORDER
         self.tab_order = tk.Variable(value=DEFAULT_ORDER)
+        self.hidden_tabs = tk.Variable(value=())
         self.image_format = tk.StringVar(value='Original')
         self.image_size = tk.StringVar(value='Original')
         self.image_width = tk.StringVar(value='1920')
@@ -124,7 +125,7 @@ class App(UiMixin, tk.Tk):
         from advanced_options import DEFAULTS
         for key,value in DEFAULTS.items():
             setattr(self,key,tk.BooleanVar(value=value) if type(value) is bool else tk.StringVar(value=value))
-        self.preference_fields = {name: getattr(self, name) for name in ("language", "queue_card_size", "queue_view", "history_card_size", "pure_black_separators", "history_view", "theme_mode", "theme_accent", "interface_font", "interface_font_size", "interface_spacing", "notice_duration", "effects_keep_pitch", "image_format", "image_size", "image_width", "image_height", "image_keep_ratio", "tab_order", "playlist_mode", "playlist_height", "playlist_fps", "playlist_mp3_quality", "playlist_m4a_quality", "mode", "height", "fps", "catalog_provider", "folder", "ffmpeg", "playlist", "playlist_limit", "mp3_quality", "m4a_quality", "review_metadata", "auto_match", "background_preview", "effects_preview_duration", "search_preview_duration", "organization", "filename_template", "duplicates")}
+        self.preference_fields = {name: getattr(self, name) for name in ("language", "queue_card_size", "queue_view", "history_card_size", "pure_black_separators", "history_view", "theme_mode", "theme_accent", "interface_font", "interface_font_size", "interface_spacing", "notice_duration", "effects_keep_pitch", "image_format", "image_size", "image_width", "image_height", "image_keep_ratio", "tab_order", "hidden_tabs", "playlist_mode", "playlist_height", "playlist_fps", "playlist_mp3_quality", "playlist_m4a_quality", "mode", "height", "fps", "catalog_provider", "folder", "ffmpeg", "playlist", "playlist_limit", "mp3_quality", "m4a_quality", "review_metadata", "auto_match", "background_preview", "effects_preview_duration", "search_preview_duration", "organization", "filename_template", "duplicates")}
         self.preference_fields.update({key:getattr(self,key) for key in DEFAULTS})
         self.preference_defaults = {name: variable.get() for name, variable in self.preference_fields.items()}
         self.preference_defaults["language"] = "pt-BR"
@@ -186,6 +187,8 @@ class App(UiMixin, tk.Tk):
             self.write_log(credential_warning)
             self.credential_status.set("Falha ao carregar. Informe e salve novamente.")
         self.protocol("WM_DELETE_WINDOW", self.close)
+        from clipboard_watch import ClipboardWatch
+        self.clipboard_watch = ClipboardWatch(self)
         self._poll_after = self.after(100, self.poll_events)
         self._welcome_after = None
         self.welcome_window = None
@@ -327,6 +330,7 @@ class App(UiMixin, tk.Tk):
                     "folder": str(Path(self.folder.get()).expanduser().resolve()),
                     "playlist": self.playlist.get(), "playlist_limit": int(self.playlist_limit.get()),
                     "state": "Na fila", "review_metadata": self.review_metadata.get(),
+                    "auto_select_media":self.auto_select_media.get(), "simple_download_ui":self.simple_download_ui.get(), "social_best_quality":self.social_best_quality.get(),
                     "normalize_volume": self.normalize_volume.get(), "resume_downloads": self.resume_downloads.get(),
                     "filename_template": self.filename_template.get(), "detect_duplicates": self.detect_duplicates.get(),
                     "organization": self.organization.get(), "duplicate_policy": DUPLICATES[self.duplicates.get()]}
@@ -343,6 +347,10 @@ class App(UiMixin, tk.Tk):
             import uuid
             job = {**defaults, "url": url, "work_id":str(uuid.uuid4())}
             job.update(item_overrides)
+            if restored_jobs is not None:
+                for flag in ('simple_download_ui','social_best_quality'):job[flag]=item_overrides.get(flag,False)
+            from download_defaults import effective_download
+            job = effective_download(job)
             if job["mode"] in ("photos", "social") and streaming:
                 invalid.append(line)
                 self.write_log("Escolha um formato de áudio para links de música.")
@@ -358,6 +366,8 @@ class App(UiMixin, tk.Tk):
                     self.write_log("Link de streaming: formato automático " + job["mode"].upper() + " para áudio com tags e capa.")
             job["audio_quality"] = item_overrides.get("audio_quality") or (item_overrides.get("mp3_quality", self.mp3_quality.get()) if job["mode"] == "mp3" else (item_overrides.get("m4a_quality", self.m4a_quality.get()) if job["mode"] == "m4a" else None))
             job["fps"] = item_overrides.get("fps", FPS_OPTIONS[self.fps.get()]) if job["mode"] in ("video", "mp4") else None
+            from download_defaults import effective_download
+            job = effective_download(job)
             key = (url, job["mode"], job["folder"], job["height"], job["playlist"], job["audio_quality"], job["fps"], job.get("selected_catalog_url"), job.get("playlist_title"), job.get("playlist_limit", 1000) if job["playlist"] else None, json.dumps(job.get("image_options"), sort_keys=True))
             if restored_jobs is None and self.detect_duplicates.get():
                 from duplicate_links import duplicate_job
@@ -406,6 +416,15 @@ class App(UiMixin, tk.Tk):
 
     def show_queue(self):
         self.pages.select(self.queue_page)
+
+    def download_clipboard_link(self, candidate):
+        if candidate['collection']:
+            self.playlist_page.ensure_ready()
+            self.playlist_page.url.set(candidate['url'])
+            self.playlist_page.load(start_download=True)
+        else:
+            added=self.add(lines=[candidate['url']],overrides={'playlist':False},reuse_existing=True)
+            if added:self.start(only_item=added[0]);self.show_queue()
 
     def download_now(self):
         if self.updating:
@@ -952,6 +971,7 @@ class App(UiMixin, tk.Tk):
             webbrowser.open((BASE / "README.md").as_uri())
 
     def destroy(self):
+        if hasattr(self,"clipboard_watch"):self.clipboard_watch.shutdown()
         if hasattr(self,"status_notice"):self.status_notice.shutdown()
         if hasattr(self, "history_page"):
             self.history_page.shutdown()

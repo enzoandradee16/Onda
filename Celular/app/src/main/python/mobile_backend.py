@@ -306,6 +306,10 @@ def render_preview(config):
 
 
 def perform(action, config):
+    if action == "clipboard_link":
+        from clipboard_links import recognize_link
+        return recognize_link(config.get("text")) or {}
+
     if action in ('cache_info','cache_clear'):
         from cache_cleanup import cache_info,clear_cache
         return (clear_cache if action=='cache_clear' else cache_info)(_root)

@@ -478,5 +478,30 @@
     "category": "Contas",
     "label": "Desconectar",
     "keywords": "Spotify"
+  },
+  {
+    "category": "Aparência",
+    "label": "Mostrar ou ocultar abas",
+    "keywords": "abas visibilidade navegação"
+  },
+  {
+    "category": "Aparência",
+    "label": "Simplificar controles de download",
+    "keywords": "qualidade automático formato interface simples"
+  },
+  {
+    "category": "Downloads",
+    "label": "Baixar mídias sociais automaticamente na maior qualidade",
+    "keywords": "qualidade automático formato interface simples"
+  },
+  {
+    "category": "Downloads",
+    "label": "Selecionar todas as mídias ao abrir a publicação",
+    "keywords": "fotos vídeos seleção automática todas Instagram TikTok Kwai"
+  },
+  {
+    "category": "Geral",
+    "label": "Reconhecer links copiados automaticamente",
+    "keywords": "clipboard área transferência links copiados confirmação"
   }
 ]

@@ -311,7 +311,9 @@ def ask_flac_browser(record, url, input_stream=None):
 
 
 def run_worker(config: dict) -> int:
+    from download_defaults import effective_download
     try:
+        config = effective_download(config)
         session_logger = Logger(config)
         from yt_dlp.postprocessor.common import PostProcessor
 
@@ -341,7 +343,7 @@ def run_worker(config: dict) -> int:
         Path(config["folder"]).mkdir(parents=True, exist_ok=True)
         if streaming:
             from matching import resolve_youtube
-            from tagging import fetch_cover
+            from tagging import optional_cover
             emit("stage", message="Consultando metadados da música…")
             client = MetadataClient(config.get("spotify_client_id", ""), config.get("spotify_client_secret", ""))
             try:
@@ -372,7 +374,7 @@ def run_worker(config: dict) -> int:
                 from review import local_cover
                 cover = local_cover(record["cover_path"])
             else:
-                cover = fetch_cover(record.get("cover_url"))
+                cover = optional_cover(record.get("cover_url"), emit)
             config = dict(config, playlist=False, output_artist=record["artists"][0], output_title=record["title"])
             if config["mode"] in ("video", "mp4", "original"):
                 config["mode"] = "mp3" if config["mode"] in ("video", "mp4") else "m4a"
@@ -452,7 +454,7 @@ def run_worker(config: dict) -> int:
                 nonlocal record, match, cover, output_folder
                 from metadata import base_record
                 from review import local_cover
-                from tagging import fetch_cover
+                from tagging import optional_cover
                 record = base_record("YouTube" if info.get("extractor_key") == "Youtube" else "Fonte",
                                      str(info.get("id") or "audio"), info.get("webpage_url") or url, "Metadados informados pela fonte")
                 record.update(title=info.get("track") or info.get("title") or "Música",
@@ -461,7 +463,7 @@ def run_worker(config: dict) -> int:
                               cover_url=info.get("thumbnail"))
                 match = {"source_url": info.get("webpage_url") or url, "title": info.get("title"), "selection": "user", "match_score": None}
                 record = ask_review(record, audio_source=match["source_url"])
-                cover = local_cover(record["cover_path"]) if record.get("cover_path") else fetch_cover(record.get("cover_url"))
+                cover = local_cover(record["cover_path"]) if record.get("cover_path") else optional_cover(record.get("cover_url"), emit)
                 info["artist"], info["track"] = record["artists"][0], record["title"]
                 output_folder = destination(destination_config, record)
                 return [], info
@@ -480,7 +482,19 @@ def run_worker(config: dict) -> int:
                 from audio_quality import AudioQualityPP
                 downloader.add_post_processor(AudioQualityPP(downloader, audio_bitrate(config), config["mode"]))
             downloader.add_post_processor(CaptureFile(downloader), when="after_move")
-        code = download_with_recovery(url, options, configure, saved)
+        if streaming:
+            from catalog_recovery import download_recording
+            def attempt_recording(selected):
+                nonlocal match, url
+                if selected.get('id') != match.get('id'):
+                    emit('log', message=f"Selecionado: {selected['title']} • {selected['source_url']} • similaridade {selected['match_score']:.0%}")
+                match = selected
+                url = selected['source_url']
+                return download_with_recovery(url, options, configure, saved)
+            code = download_recording(record, match, session_logger, ask_version, attempt_recording, saved,
+                                      automatic=bool(config.get('auto_match')), confirm=bool(config.get('confirm_version')))
+        else:
+            code = download_with_recovery(url, options, configure, saved)
         if code or not saved:
             raise RuntimeError("Nenhum arquivo concluído ou parte da playlist falhou. Veja os detalhes.")
         if config.get("_cleanup_work"):

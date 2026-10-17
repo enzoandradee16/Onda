@@ -85,13 +85,14 @@ object OndaStore {
         database.writableDatabase.execSQL("UPDATE queue SET state='Erro' WHERE state='Duplicata'")
         refresh()
     }
-    fun defaults() = JSONObject().put("language","pt-BR").put("mode","mp3").put("audio_quality","320 kbps").put("height",1080).put("fps",JSONObject.NULL)
+    fun defaults() = JSONObject().put("clipboard_links",true).put("auto_select_media",true).put("simple_download_ui",false).put("social_best_quality",true).put("language","pt-BR").put("mode","mp3").put("audio_quality","320 kbps").put("height",1080).put("fps",JSONObject.NULL)
         .put("queue_actions_at_top",true).put("queue_view","Completa").put("queue_card_size","Grande").put("pure_black_separators",false).put("history_card_size","Grande").put("history_view","Compacto").put("playlist_limit",2000).put("link_playlist",false).put("auto_metadata",false).put("auto_match",false).put("confirm_version",false).put("review_metadata",false)
         .put("detect_duplicates",true).put("filename_template","Original").put("duplicate_policy","ask").put("organization","Pasta de destino").put("interface_font",DEFAULT_INTERFACE_FONT).put("interface_font_size","100%").put("interface_spacing","Padrão").put("theme","Seguir o sistema").put("accent","Verde-Água")
         .put("concurrent_downloads","1").put("resume_downloads",true).put("resume_queue",false).put("normalize_volume",false)
         .put("schedule_enabled",false).put("schedule_start","22:00").put("schedule_stop","07:00").put("check_updates",true).put("notice_duration","Após 3 segundos").put("notice_animation",true)
         .put("search_preview",25).put("effects_preview",25).put("keep_preview",false).put("remember",true)
         .put("image_format","Original").put("image_size","Original").put("image_width",0).put("image_height",0).put("keep_ratio",true)
+        .put("hidden_tabs",JSONArray())
         .put("tab_order",JSONArray(listOf("Pesquisar","Links e fila","Fila","Imagens","Conversor de vídeos","Playlists / Álbuns","Histórico","Efeitos","Metadados")))
         .put("output_uri", "").put("cookies_file", "").put("youtube_cookies_file", "").put("spotify_client_id", "")
     fun normalizeAppearance(value:JSONObject) {
@@ -108,6 +109,7 @@ object OndaStore {
         if("Fila" !in complete)complete.add(complete.indexOf("Links e fila")+1,"Fila")
         if("Conversor de vídeos" !in complete)complete.add(complete.indexOf("Imagens")+1,"Conversor de vídeos")
         value.put("tab_order",JSONArray(complete))
+        value.put("hidden_tabs",JSONArray(hiddenTabs(value)))
         val aliases=mapOf("Menta" to "Verde-Água","Verde-água" to "Verde-Água","Lima" to "Verde-limão","Lavanda" to "Lilás","Pêssego" to "Coral","Prata" to "Cinza")
         aliases[value.optString("accent")]?.let {value.put("accent",it)}
         if(value.optString("theme")=="Sistema") value.put("theme","Seguir o sistema")
@@ -160,8 +162,11 @@ object OndaStore {
     }
     @Synchronized fun enqueue(url: String, title: String = url, options: JSONObject = settings.value, extra: JSONObject? = null): String {
         val id = UUID.randomUUID().toString()
-        val config = config(options,includeSecrets=false).put("url",url)
+        var config = config(options,includeSecrets=false).put("url",url)
         extra?.keys()?.forEach { config.put(it,extra.get(it)) }
+        config.put("auto_select_media",settings.value.optBoolean("auto_select_media",true))
+        config.put("simple_download_ui",settings.value.optBoolean("simple_download_ui",false)).put("social_best_quality",settings.value.optBoolean("social_best_quality",true))
+        config=effectiveDownloadOptions(config)
         val duplicateKey=queueDuplicateKey(config)
         val queuedDuplicate=if(batchDepth>0) duplicateKey!=null && duplicateKey in batchDuplicateKeys else items.value.any {it.state!="Erro" && duplicateJob(it.config,config)}
         val duplicate=config.optBoolean("detect_duplicates",true) && config.optString("_operation").isBlank() && (

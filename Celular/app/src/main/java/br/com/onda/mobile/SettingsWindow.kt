@@ -24,9 +24,9 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 val categories=linkedMapOf(
-    "Geral" to listOf("language","remember","notice_duration","notice_animation"),
-    "Aparência" to listOf("queue_actions_at_top","queue_view","queue_card_size","history_card_size","pure_black_separators","history_view","theme","accent","tab_order","interface_font","interface_font_size","interface_spacing"),
-    "Downloads" to listOf("detect_duplicates","filename_template","concurrent_downloads","resume_downloads","resume_queue","normalize_volume","schedule_enabled","schedule_start","schedule_stop","mode","audio_quality","height","fps","playlist_limit","link_playlist","organization","duplicate_policy","output_uri","auto_metadata","auto_match","confirm_version","review_metadata"),
+    "Geral" to listOf("clipboard_links","language","remember","notice_duration","notice_animation"),
+    "Aparência" to listOf("simple_download_ui","queue_actions_at_top","queue_view","queue_card_size","history_card_size","pure_black_separators","history_view","theme","accent","tab_order","hidden_tabs","interface_font","interface_font_size","interface_spacing"),
+    "Downloads" to listOf("auto_select_media","social_best_quality","detect_duplicates","filename_template","concurrent_downloads","resume_downloads","resume_queue","normalize_volume","schedule_enabled","schedule_start","schedule_stop","mode","audio_quality","height","fps","playlist_limit","link_playlist","organization","duplicate_policy","output_uri","auto_metadata","auto_match","confirm_version","review_metadata"),
     "Imagens" to listOf("image_format","image_size","image_width","image_height","keep_ratio"),
     "Áudio" to listOf("search_preview","effects_preview","keep_preview"),
     "Contas" to listOf("spotify_client_id","cookies_file","youtube_cookies_file"),
@@ -90,6 +90,7 @@ val categories=linkedMapOf(
             Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(top=LayoutSpacing.controls),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
                 when(names[page]) {
                     "Geral"->{
+                        Toggle("Reconhecer links copiados automaticamente",settings.optBoolean("clipboard_links",true)){put("clipboard_links",it)}
                         UiText("Preferências",style=MaterialTheme.typography.titleMedium)
                         Select("Idioma",settings.optString("language","pt-BR"),UI_LANGUAGES){put("language",it)}
                         SettingsDivider()
@@ -107,6 +108,9 @@ val categories=linkedMapOf(
                         TextButton(onClick={reset=true}){UiText("Escolher quais configurações restaurar…")}
                     }
                     "Aparência"->{
+                        Toggle("Simplificar controles de download",settings.optBoolean("simple_download_ui",false)){put("simple_download_ui",it)}
+                        UiText("Oculta formato e qualidade nas abas de download e usa a maior qualidade disponível. Não altera o espaçamento nem as abas visíveis.",style=MaterialTheme.typography.bodySmall)
+                        SettingsDivider()
                         UiText("Tema e cores",style=MaterialTheme.typography.titleMedium)
                         SettingsDivider()
                         Select("Modo de aparência",settings.optString("theme"),listOf("Seguir o sistema","Escuro","Preto puro","Claro")){put("theme",it)}
@@ -137,8 +141,24 @@ val categories=linkedMapOf(
                             TextButton(enabled=index<order.lastIndex,onClick={val copy=order.toMutableList();java.util.Collections.swap(copy,index,index+1);put("tab_order",JSONArray(copy))}){AccessibleSymbol("↓","Mover ${translateUi(tabLabel(name),LocalUiLanguage.current)} para baixo")}
                         }}
                         TextButton(onClick={put("tab_order",OndaStore.defaults().getJSONArray("tab_order"))}){UiText("Restaurar ordem das abas")}
+                        UiText("Mostrar ou ocultar abas",style=MaterialTheme.typography.titleMedium)
+                        UiText("Pesquisar músicas, Links e Fila ficam sempre disponíveis.",style=MaterialTheme.typography.bodySmall)
+                        val hidden=hiddenTabs(settings)
+                        order.forEach {name->
+                            if(name in requiredTabs) UiText(tabLabel(name),Modifier.padding(vertical=8.dp))
+                            else Toggle(tabLabel(name),name !in hidden) {shown->
+                                put("hidden_tabs",JSONArray(if(shown) hidden.filter {it!=name} else hidden+name))
+                            }
+                        }
+
                     }
                     "Downloads"->{
+                        Toggle("Selecionar todas as mídias ao abrir a publicação",settings.optBoolean("auto_select_media",true)){put("auto_select_media",it)}
+                        UiText("Instagram, TikTok e Kwai: você pode desmarcar fotos e vídeos individualmente antes de confirmar.",style=MaterialTheme.typography.bodySmall)
+                        SettingsDivider()
+                        Toggle("Baixar mídias sociais automaticamente na maior qualidade",settings.optBoolean("social_best_quality",true)){put("social_best_quality",it)}
+                        UiText("Instagram, TikTok e Kwai: escolhe automaticamente a maior qualidade. Você ainda pode escolher quais itens baixar.",style=MaterialTheme.typography.bodySmall)
+                        SettingsDivider()
                         UiText("Downloads e arquivos",style=MaterialTheme.typography.titleMedium)
                         UiText("As opções são aplicadas aos próximos links adicionados.",style=MaterialTheme.typography.bodySmall)
                         FormatOptions(settings,OndaStore::saveSettings,separated=true)

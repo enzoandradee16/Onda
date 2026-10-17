@@ -6,9 +6,9 @@ using System.Windows.Forms;
 
 [assembly: AssemblyTitle("Onda")]
 [assembly: AssemblyProduct("Onda")]
-[assembly: AssemblyVersion("1.1.4.0")]
-[assembly: AssemblyFileVersion("1.1.4.0")]
-[assembly: AssemblyInformationalVersion("1.1.4")]
+[assembly: AssemblyVersion("1.1.5.0")]
+[assembly: AssemblyFileVersion("1.1.5.0")]
+[assembly: AssemblyInformationalVersion("1.1.5")]
 
 internal static class Launcher {
     private static string Quote(string value) {

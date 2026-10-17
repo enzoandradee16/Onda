@@ -102,7 +102,8 @@ class UiMixin:
         ttk.Button(top,text=tr("Atalhos"),style="Quiet.TButton",command=self.show_shortcuts).pack(side="right",padx=6)
         ttk.Button(top, text=tr("Metadados"), style="Quiet.TButton", command=self.open_metadata).pack(side="right", padx=6)
 
-        self.pages = ttk.Notebook(main)
+        from tab_order import NavigationNotebook
+        self.pages = NavigationNotebook(main)
         self.pages.grid(row=1, column=0, sticky="nsew")
         from settings_scroll import SettingsCategory, scroll_page, refresh_page_layout
         self.download_page = SettingsCategory(self.pages,BG,fill_viewport=True,padding=(0,14,0,0))
@@ -135,6 +136,8 @@ class UiMixin:
             'images': self.images_page, 'playlists': self.playlist_page,
             'history': self.history_page, 'effects': self.effects_page, 'metadata': self.metadata_page, 'converter': self.converter_page,
         }, self.tab_order.get(), lambda order: self.tab_order.set(tuple(order)))
+        self.tab_reorder.set_hidden(self.hidden_tabs.get())
+        self.hidden_tabs.trace_add('write', lambda *_: self.tab_reorder.set_hidden(self.hidden_tabs.get()))
         self.pages.bind("<<NotebookTabChanged>>", self.tab_changed)
         main = self.download_page.content
         main.columnconfigure(0, weight=1)
@@ -163,7 +166,8 @@ class UiMixin:
         actions = ttk.Frame(card, style="Card.TFrame")
         actions.grid(row=2, column=0, sticky="ew", pady=(12, 0))
         actions.columnconfigure(3, weight=1)
-        ttk.Label(actions, text=tr("Formato"), style="CardMuted.TLabel").grid(row=0, column=0, sticky="w", pady=(0, 5))
+        self.format_caption = ttk.Label(actions, text=tr("Formato"), style="CardMuted.TLabel")
+        self.format_caption.grid(row=0, column=0, sticky="w", pady=(0, 5))
         self.format_label = tk.StringVar()
         self.format_box = TranslatedCombobox(actions, textvariable=self.format_label, values=list(FORMAT_LABELS), state="readonly", width=14)
         self.format_box.grid(row=1, column=0, sticky="w", padx=(0, 14))
@@ -280,6 +284,7 @@ class UiMixin:
         position_actions()
         self._build_settings()
         self._build_log()
+        self.simple_download_ui.trace_add("write", lambda *_: self.update_quality_selector())
         self.mode.trace_add("write", lambda *_: self.sync_format())
         self.sync_format()
         main.bind("<Configure>", lambda e: (self.status_label.configure(wraplength=max(400, e.width-110)),
@@ -295,6 +300,11 @@ class UiMixin:
         self.mode.set(next(label for label, mode in MODES.items() if mode == value))
 
     def update_quality_selector(self):
+        controls=(self.format_caption,self.format_box,self.quality_caption,self.quality_selector,self.fps_label,self.fps_selector)
+        if self.simple_download_ui.get():
+            for widget in controls:widget.grid_remove()
+            return
+        for widget in controls:widget.grid()
         mode = MODES[self.mode.get()]
         self.quality_caption.configure(text=tr("Resolução" if mode in ("video", "mp4") else "Qualidade"))
         for widget in (self.fps_label, self.fps_selector):
@@ -414,9 +424,12 @@ class UiMixin:
         for label,var,values in (("Mostrar itens na fila",self.queue_view,("Compacto","Completa")),("Tamanho dos cards da fila",self.queue_card_size,("Pequeno","Médio","Grande")),("Mostrar músicas no histórico",self.history_view,("Compacto","Completa")),("Tamanho dos cards do histórico",self.history_card_size,("Pequeno","Médio","Grande"))):
             ttk.Label(appearance,text=tr(label),style="Muted.TLabel").pack(anchor="w",pady=(10,4))
             TranslatedCombobox(appearance,textvariable=var,values=values,state="readonly",width=28).pack(anchor="w")
+        ttk.Checkbutton(appearance,text=tr('Simplificar controles de download'),variable=self.simple_download_ui).pack(anchor='w',pady=(12,0))
+        ttk.Label(appearance,text=tr('Oculta formato e qualidade nas abas de download e usa a maior qualidade disponível. Não altera o espaçamento nem as abas visíveis.'),wraplength=480,style='Muted.TLabel').pack(anchor='w',pady=(4,10))
         from settings_common_ui import tab_order_controls
         tab_order_controls(self,appearance)
         general = categories["Geral"]
+        ttk.Checkbutton(general,text=tr("Reconhecer links copiados automaticamente"),variable=self.clipboard_links).pack(anchor="w",pady=(0,8))
         ttk.Label(general, text=tr("Preferências"), font=("Segoe UI", 13, "bold")).pack(anchor="w", pady=(0, 12))
         ttk.Label(general, text=tr("Idioma")).pack(anchor="w")
         TranslatedCombobox(general, textvariable=self.language, values=("pt-BR", "es", "en"), state="readonly", width=24).pack(anchor="w", pady=(4, 6))
@@ -450,6 +463,10 @@ class UiMixin:
         ttk.Label(downloads, text=tr("Downloads e arquivos"), font=("Segoe UI", 13, "bold")).pack(anchor="w", pady=(0, 8))
         ttk.Label(downloads, text=tr("As opções são aplicadas aos próximos links adicionados."), style="Muted.TLabel").pack(anchor="w", pady=(0, 8))
         from settings_common_ui import format_controls
+        ttk.Checkbutton(downloads,text=tr('Baixar mídias sociais automaticamente na maior qualidade'),variable=self.social_best_quality).pack(anchor='w',pady=(8,8))
+        ttk.Label(downloads,text=tr('Instagram, TikTok e Kwai: escolhe automaticamente a maior qualidade. Você ainda pode escolher quais itens baixar.'),wraplength=480,style='Muted.TLabel').pack(anchor='w',pady=(0,8))
+        ttk.Checkbutton(downloads,text=tr('Selecionar todas as mídias ao abrir a publicação'),variable=self.auto_select_media).pack(anchor='w',pady=(8,0))
+        ttk.Label(downloads,text=tr('Instagram, TikTok e Kwai: você pode desmarcar fotos e vídeos individualmente antes de confirmar.'),wraplength=480,style='Muted.TLabel').pack(anchor='w',pady=(4,8))
         format_controls(self,downloads)
         ttk.Label(downloads, text=tr("Pasta de destino"), style="Muted.TLabel").pack(anchor="w")
         row = ttk.Frame(downloads)

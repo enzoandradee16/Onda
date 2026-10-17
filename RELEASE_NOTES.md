@@ -1,18 +1,13 @@
-# ONDA 1.1.4
+# ONDA 1.1.5
 
-Novas ferramentas para arquivos locais e melhorias na organização do Windows e Android.
+- Reconhecimento de links copiados com confirmação obrigatória antes do download. Evita repetir avisos do mesmo link; opção em Configurações → Geral, ativada por padrão. Android verifica somente com o aplicativo em primeiro plano.
+- Abas opcionais podem ser ocultadas individualmente, preservando as principais e a ordem escolhida.
+- Interface simplificada opcional oculta controles de formato/qualidade sem alterar espaçamento ou escolhas salvas.
+- Instagram, TikTok e Kwai: qualidade automática e seleção inicial de todas as mídias, com opções independentes. Permite desmarcar itens e alternar Selecionar todas/Desmarcar todas.
+- Downloads: novas tentativas de capa, conclusão sem imagem quando a capa falha, recuperação com outra versão compatível após rejeição e busca ampliada por álbum, mantendo os filtros de identidade.
 
-- Conversor de vídeos em uma aba própria, ao lado de Imagens: MP4, MKV e MOV, qualidade, resolução máxima, bitrate, FPS, remoção de áudio, progresso e cancelamento. O original é preservado.
-- Extração de áudio de vídeos para MP3, M4A e AAC, com seleção da qualidade em kbps. A prévia abre o aplicativo padrão do sistema.
-- Busca e filtros de estado na fila, com contagem dos resultados e seleção dos itens visíveis. Os filtros não alteram a execução da fila.
-- Ícones monocolor da plataforma dos metadados, incluindo Apple Music, e opção Abrir origem no histórico quando o endereço estiver registrado.
-- Limpeza de cache nas configurações, com estimativa de espaço e proteção de downloads, fila, histórico, contas e trabalhos ativos.
-- Pesquisa nas configurações e categorias unificadas: Geral, Aparência, Downloads, Imagens, Áudio, Contas e Ferramentas. Opções comuns seguem a mesma ordem nas duas versões.
-- Verificação de atualizações ao abrir ativada por padrão nas novas instalações; preferências existentes são preservadas.
-- Ajustes de ícones no modo compacto, seletores, ações da fila e configurações de escolha automática de versão.
+Windows 10/11 x64: portátil e instalador 1.1.5.0. Android 8+ ARM64: 1.1.5, versionCode 23, assinado com a chave de produção original. Windows sem assinatura Authenticode.
 
-Windows 10/11 x64: instalador e portátil, versão 1.1.4.0. Android 8 ou superior ARM64: APK 1.1.4, versionCode 22, assinado com a chave de produção original.
+A leitura da área de transferência não faz consultas de rede antes da confirmação. No Android, o sistema pode exibir um aviso de acesso à área de transferência. Links ou conteúdos privados ainda podem exigir sessão e disponibilidade nas plataformas.
 
-O conversor aceita vídeos locais e exporta a primeira faixa de vídeo/áudio. No Android, mantenha o aplicativo aberto durante a conversão. O Windows continua sem assinatura Authenticode. Downloads dependem das restrições das plataformas.
-
-As próximas adições do roadmap ficam para a 1.1.5. Consulte VALIDACAO.md para os testes desta versão.
+Pacotes locais preparados de alterações ainda não commitadas, identificadas no SOURCE_MANIFEST.json. Nenhum commit, push ou publicação foi realizado.

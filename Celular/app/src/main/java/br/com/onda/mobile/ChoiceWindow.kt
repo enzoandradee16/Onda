@@ -16,8 +16,10 @@ import org.json.JSONObject
     val event=question.event
     val kind=event.optString("type")
     var selected by remember(question) {mutableStateOf(
-        if(kind=="choose_media" && event.optJSONArray("candidates")?.length()==1)
-            setOf(event.getJSONArray("candidates").getJSONObject(0).get("id").toString()) else setOf<String>()
+        if(kind=="choose_media") {
+            val rows=event.optJSONArray("candidates")?.objects() ?: emptyList()
+            rows.filter {it.optBoolean("auto_select_media",rows.size==1)}.map {it.get("id").toString()}.toSet()
+        } else setOf<String>()
     )}
     var mediaModes by remember(question) {mutableStateOf(mapOf<String,String>())}
     var rememberChoice by remember(question) {mutableStateOf(false)}
@@ -78,7 +80,11 @@ import org.json.JSONObject
                 }
                 "choose_duplicate"->{UiText(event.optString("path").substringAfterLast('/'));listOf("keep" to "Manter ambos","replace" to "Substituir","skip" to "Pular").forEach {(value,label)->Toggle(label,value in selected){selected=setOf(value)}}}
                 else->{
-                    if(kind=="choose_media") TextButton(onClick={selected=candidates.map {it.get("id").toString()}.toSet()}){UiText("Selecionar todos")}
+                    if(kind=="choose_media") {
+                        val allIds=candidates.map {it.get("id").toString()}.toSet()
+                        val allSelected=allIds.isNotEmpty() && selected.containsAll(allIds)
+                        TextButton(onClick={selected=if(allSelected) emptySet() else allIds}){UiText(if(allSelected) "Desmarcar todas" else "Selecionar todas")}
+                    }
                     candidates.forEach {candidate->
                         val id=if(kind=="choose_catalog") candidate.optString("source_url") else candidate.opt("id")?.toString().orEmpty()
                         val video=candidate.optString("kind") in listOf("video","Vídeo") || candidate.optString("type")=="video"
@@ -93,12 +99,12 @@ import org.json.JSONObject
                                 candidate.optJSONArray("match_reasons")?.let {reasons->Text((0 until reasons.length()).joinToString("; "){translateUi(reasons.optString(it))},style=MaterialTheme.typography.bodySmall)}
                                 val thumbnail=candidate.optString("thumbnail",candidate.optString("preview_url"))
                                 if(thumbnail.startsWith("https://")) AsyncImage(thumbnail,translateUi("Prévia da mídia",LocalUiLanguage.current),Modifier.height(110.dp))
-                                if(kind=="choose_media" && video) {
+                                if(kind=="choose_media" && video && !candidate.optBoolean("automatic_quality")) {
                                     val outputs=linkedMapOf("Vídeo · MP4" to "mp4", "Vídeo · MKV" to "video", "Só áudio · MP3" to "mp3", "Só áudio · M4A" to "m4a", "Só áudio · FLAC" to "flac", "Só áudio · original" to "original")
                                     val mode=mediaModes[id] ?: candidate.optString("default_mode", "mp4")
                                     Select("Baixar este vídeo como",outputs.entries.firstOrNull {it.value==mode}?.key ?: "Vídeo · MP4",outputs.keys.toList()){mediaModes=mediaModes+(id to outputs.getValue(it))}
                                 }
-                                if(kind=="choose_media" && candidate.optBoolean("photo_choice")) {
+                                if(kind=="choose_media" && candidate.optBoolean("photo_choice") && !candidate.optBoolean("automatic_quality")) {
                                     val outputs=if(candidate.optBoolean("has_audio")) linkedMapOf("Só foto" to "photos", "Foto com música · MP4" to "photo_video") else linkedMapOf("Só foto" to "photos")
                                     Select("Baixar esta foto como",outputs.entries.firstOrNull {it.value==mediaModes[id]}?.key ?: "Só foto",outputs.keys.toList()){mediaModes=mediaModes+(id to outputs.getValue(it))}
                                     if(!candidate.optBoolean("has_audio")) UiText("A plataforma não disponibilizou a música desta foto.",style=MaterialTheme.typography.bodySmall)

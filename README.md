@@ -10,7 +10,7 @@ O ONDA nasceu como um projeto pessoal, feito inicialmente para meu uso e de amig
 
 O projeto continua em desenvolvimento. Sugestões, contribuições e relatos de problemas são bem-vindos.
 
-**Versão 1.1.4 para Windows 10 ou superior (x64) e Android 8 ou superior (ARM64).**
+**Versão 1.1.5 para Windows 10 ou superior (x64) e Android 8 ou superior (ARM64).**
 
 ![ONDA no Windows: downloads em andamento — tema escuro](docs/images/pc/downloads-escuro.png)
 
@@ -39,7 +39,7 @@ Os executáveis Windows não têm assinatura digital. O Windows pode mostrar um 
 
 ## Idioma
 
-A versão 1.1.4 inclui **Português (Brasil)**, **Español** e **English**, nessa ordem, em **Configurações → Geral → Idioma**. Os pacotes 1.1.4 estão preparados localmente; a publicação no GitHub é uma etapa separada. Português continua como idioma padrão. O nome **ONDA** permanece em todos os idiomas. As duas interfaces usam o mesmo catálogo de tradução. No Android, a alteração é imediata; no Windows, reinicie o aplicativo. A escolha é preservada mesmo com “Lembrar configurações” desativado. Nomes de músicas, artistas, álbuns e arquivos permanecem originais.
+A versão 1.1.5 inclui **Português (Brasil)**, **Español** e **English**, nessa ordem, em **Configurações → Geral → Idioma**. Os pacotes 1.1.5 estão preparados localmente; a publicação no GitHub é uma etapa separada. Português continua como idioma padrão. O nome **ONDA** permanece em todos os idiomas. As duas interfaces usam o mesmo catálogo de tradução. No Android, a alteração é imediata; no Windows, reinicie o aplicativo. A escolha é preservada mesmo com “Lembrar configurações” desativado. Nomes de músicas, artistas, álbuns e arquivos permanecem originais.
 
 No Android, o ícone da tela inicial e dos aplicativos recentes acompanha a cor de destaque e os modos claro, escuro, preto puro ou sistema. Alguns launchers podem demorar a atualizar o ícone ou exigir recriar um atalho antigo.
 

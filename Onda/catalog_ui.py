@@ -476,6 +476,9 @@ class TrackDialog(tk.Toplevel):
         custom.grid(row=2, column=0, sticky="ew", pady=(12, 0))
         self.format = tk.StringVar(value="M4A")
         self.quality = tk.StringVar(value="256 kbps")
+        from simple_download_ui import bind_simple_grid
+        bind_simple_grid(app,options)
+        bind_simple_grid(app,custom)
         self.format_box = TranslatedCombobox(custom, textvariable=self.format, values=("MP3", "M4A"), state="disabled", width=10)
         self.format_box.pack(side="left", padx=(0, 10))
         self.quality_box = TranslatedCombobox(custom, textvariable=self.quality, values=M4A_QUALITIES, state="disabled", width=15)

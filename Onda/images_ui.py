@@ -41,13 +41,17 @@ class ImagesPane(ttk.Frame):
         for col, text, var, values, width in ((0, 'Formato', self.format, tuple(FORMATS), 12), (1, 'Tamanho máximo', self.size, tuple(SIZES), 22)):
             ttk.Label(options, text=tr(text), style='CardMuted.TLabel').grid(row=0, column=col, sticky='w')
             TranslatedCombobox(options, textvariable=var, values=values, state='readonly', width=width).grid(row=1, column=col, sticky='w', padx=(0, 12), pady=(4, 0))
+        from simple_download_ui import bind_simple_grid
+        bind_simple_grid(app,options)
         self.custom = ttk.Frame(card, style='Card.TFrame')
         self.custom.grid(row=2, column=0, columnspan=4, sticky='ew', pady=(10, 0))
         ttk.Label(self.custom, text=tr('Largura × altura (px)'), style='CardMuted.TLabel').pack(side='left', padx=(0, 10))
         ttk.Entry(self.custom, textvariable=self.width, width=7).pack(side='left')
         ttk.Label(self.custom, text=tr(' × '), style='CardMuted.TLabel').pack(side='left')
         ttk.Entry(self.custom, textvariable=self.height, width=7).pack(side='left')
-        ttk.Checkbutton(card, text=tr('Manter proporção (sem ampliar ou distorcer)'), variable=self.keep_ratio).grid(row=3, column=0, columnspan=4, sticky='w', pady=(10, 0))
+        keep_check=ttk.Checkbutton(card, text=tr('Manter proporção (sem ampliar ou distorcer)'), variable=self.keep_ratio)
+        keep_check.grid(row=3, column=0, columnspan=4, sticky='w', pady=(10, 0))
+        bind_simple_grid(app,keep_check)
         self.format_note = ttk.Label(card, text=tr('SVG incorpora a imagem original; não vetoriza. Animações usam o primeiro quadro.'), style='CardMuted.TLabel', wraplength=680)
         self.format_note.grid(row=4, column=0, columnspan=4, sticky='w', pady=(8, 0))
         self.preview_label = ttk.Label(self, text=tr('A prévia aparecerá aqui.'), anchor='center', style='Muted.TLabel')
@@ -62,10 +66,14 @@ class ImagesPane(ttk.Frame):
         for var in (self.format, self.width, self.height, self.keep_ratio):
             var.trace_add('write', self.changed)
         self.url.trace_add('write', self.link_changed)
+        trace=app.simple_download_ui.trace_add('write',self.changed)
+        self.bind('<Destroy>',lambda e:app.simple_download_ui.trace_remove('write',trace) if e.widget is self else None,add='+')
         self.changed()
         self._poll = self.after(100, self.poll)
 
     def options(self):
+        if self.app.simple_download_ui.get():
+            return {'format':'Original','width':0,'height':0,'keep_ratio':True}
         size = SIZES[self.size.get()]
         if size is None:
             try:
@@ -77,11 +85,11 @@ class ImagesPane(ttk.Frame):
         return validate_options({'format':self.format.get(), 'width':size[0], 'height':size[1], 'keep_ratio':self.keep_ratio.get()})
 
     def changed(self, *_):
-        if self.format.get() == 'SVG':
+        if self.format.get() == 'SVG' and not self.app.simple_download_ui.get():
             self.format_note.grid()
         else:
             self.format_note.grid_remove()
-        if self.size.get() == 'Personalizado':
+        if self.size.get() == 'Personalizado' and not self.app.simple_download_ui.get():
             self.custom.grid()
         else:
             self.custom.grid_remove()

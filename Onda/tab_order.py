@@ -1,8 +1,26 @@
 """Stable tab identities and drag ordering without changing active content."""
 from i18n import tr
 import tkinter as tk
+from tkinter import ttk
 
 DEFAULT_ORDER = ('catalog', 'downloads', 'queue', 'images', 'converter', 'playlists', 'history', 'effects', 'metadata')
+
+
+REQUIRED_TABS = frozenset(('catalog', 'downloads', 'queue'))
+
+def normalize_hidden(value):
+    if not isinstance(value, (list, tuple)):
+        return []
+    return [key for key in DEFAULT_ORDER if key not in REQUIRED_TABS and key in value]
+
+class NavigationNotebook(ttk.Notebook):
+    def select(self, tab_id=None):
+        if tab_id is not None and self.tab(tab_id, 'state') == 'hidden':
+            return super().select()
+        return super().select(tab_id) if tab_id is not None else super().select()
+
+    def visible_tabs(self):
+        return tuple(tab for tab in self.tabs() if self.tab(tab, 'state') != 'hidden')
 
 
 def normalize_order(value):
@@ -23,6 +41,7 @@ def normalize_order(value):
 class TabReorder:
     def __init__(self, notebook, pages, order, changed):
         self.notebook, self.pages, self.changed = notebook, pages, changed
+        self.hidden = []
         self.drag = None
         self.apply(order)
         notebook.bind('<ButtonPress-1>', self.press, add='+')
@@ -44,8 +63,17 @@ class TabReorder:
         selected=self.notebook.select()
         for index,key in enumerate(normalize_order(order)):
             self.notebook.insert(index,self.pages[key])
-        if selected:
+        self.set_hidden(self.hidden)
+        if selected and self.notebook.tab(selected,'state') != 'hidden':
             self.notebook.select(selected)
+
+    def set_hidden(self, value):
+        self.hidden = normalize_hidden(value)
+        for key, page in self.pages.items():
+            self.notebook.tab(page, state='hidden' if key in self.hidden else 'normal')
+        selected = self.notebook.select()
+        if not selected or self.notebook.tab(selected, 'state') == 'hidden':
+            self.notebook.select(self.pages['catalog'])
 
     def hit(self, event):
         try:
@@ -97,9 +125,10 @@ class TabReorder:
         self.context_tab=self.hit(event)
         if self.context_tab:
             self.cancel()
-            index=self.notebook.index(self.context_tab)
+            visible=self.notebook.visible_tabs()
+            index=visible.index(self.context_tab)
             self.menu.entryconfigure(0,state='normal' if index>0 else 'disabled')
-            self.menu.entryconfigure(1,state='normal' if index<len(self.pages)-1 else 'disabled')
+            self.menu.entryconfigure(1,state='normal' if index<len(visible)-1 else 'disabled')
             try:
                 self.menu.tk_popup(event.x_root,event.y_root)
             finally:
@@ -109,9 +138,10 @@ class TabReorder:
     def move(self, direction):
         target=getattr(self,'context_tab',None)
         if target:
-            index=self.notebook.index(target)+direction
-            if 0<=index<len(self.pages):
-                self.notebook.insert(index,target)
+            visible=self.notebook.visible_tabs()
+            index=visible.index(target)+direction
+            if 0<=index<len(visible):
+                self.notebook.insert(self.notebook.index(visible[index]),target)
                 self.changed(self.order())
 
     def reset(self):

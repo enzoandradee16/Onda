@@ -266,9 +266,13 @@ def download_selected(items, session, config, emit, ask_duplicate, choose=None):
                             for domain in ('instagram', 'tiktok', 'kwai', 'kwai-video', 'kw')))
     if single_photo:
         candidates[0]['photo_choice'] = True
+    from download_defaults import supported_social, automatic_social
     for candidate in candidates:
         candidate['default_mode'] = config['mode']
-    response = choose(candidates) if choose and (single_photo or len(candidates) > 2 or (has_photos and has_videos)) else [item['id'] for item in candidates]
+        if supported_social(config.get('url','')):
+            candidate['auto_select_media'] = config.get('auto_select_media',True) is not False
+        candidate['automatic_quality'] = automatic_social(config)
+    response = choose(candidates) if choose and (single_photo or len(candidates) > 2 or (len(candidates) > 1 and supported_social(config.get('url',''))) or (has_photos and has_videos)) else [item['id'] for item in candidates]
     from media_selection import validate_selection
     ids, modes = validate_selection(response if isinstance(response, dict) else {'selected_ids': response}, candidates)
     selected = set(ids)
@@ -481,6 +485,14 @@ def access_error(exc):
 
 
 def download_post(config, emit, ask_duplicate, choose=None):
+    from download_defaults import automatic_social, effective_download
+    if automatic_social(config):
+        config = effective_download(config)
+        if choose is not None:
+            original_choose=choose
+            def choose(candidates):
+                response=original_choose(candidates)
+                return dict(response,media_modes={}) if isinstance(response,dict) else response
     result=_download_post(config,emit,ask_duplicate,choose)
     # Wait until the entire post succeeds: a later video may need an older .part.
     if result and config.get('_cleanup_work'):

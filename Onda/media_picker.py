@@ -19,7 +19,7 @@ class MediaPicker(tk.Toplevel):
         self.protocol("WM_DELETE_WINDOW", cancel)
         self.items = event["candidates"]
         self.confirm, self.cancel = confirm, cancel
-        self.variables = {item["id"]: tk.BooleanVar(value=True) for item in self.items}
+        self.variables = {item["id"]: tk.BooleanVar(value=item.get("auto_select_media",True) is not False) for item in self.items}
         self.video_modes = {}
         self.results = queue.Queue()
         self.generation = 0
@@ -51,7 +51,7 @@ class MediaPicker(tk.Toplevel):
                             variable=self.variables[item["id"]], command=lambda value=item: self.changed(value)).pack(side="left")
             ttk.Button(row, text=tr("Ver"), command=lambda value=item: self.preview(value), width=5).pack(side="right")
             from media_selection import output_choices
-            choices = output_choices(item)
+            choices = {} if item.get("automatic_quality") else output_choices(item)
             if item.get('photo_choice') and not item.get('has_audio'):
                 ttk.Label(rows, text=tr('A plataforma não disponibilizou a música desta foto.'),
                           wraplength=320, style='Muted.TLabel').pack(fill='x', padx=20)
@@ -72,8 +72,8 @@ class MediaPicker(tk.Toplevel):
         ttk.Label(right, text=tr("Vídeos mostram uma miniatura."), style="Muted.TLabel", anchor="center").pack(fill="x", pady=8)
         footer = ttk.Frame(body)
         footer.pack(fill="x", pady=(16, 0))
-        ttk.Button(footer, text=tr("Selecionar todos"), command=lambda: self.select_all(True)).pack(side="left")
-        ttk.Button(footer, text=tr("Limpar seleção"), command=lambda: self.select_all(False)).pack(side="left", padx=6)
+        self.select_all_button = ttk.Button(footer, command=lambda: self.select_all(len(self.selected()) != len(self.items)))
+        self.select_all_button.pack(side="left")
         self.download_button = ttk.Button(footer, style="Accent.TButton", command=self.accept)
         self.download_button.pack(side="right")
         ttk.Button(footer, text=tr("Cancelar"), command=cancel).pack(side="right", padx=8)
@@ -88,6 +88,7 @@ class MediaPicker(tk.Toplevel):
 
     def changed(self, item=None):
         count = len(self.selected())
+        self.select_all_button.configure(text=tr("Desmarcar todas" if self.items and count == len(self.items) else "Selecionar todas"))
         self.download_button.configure(text=tr(f"Baixar selecionados ({count})"), state="normal" if count else "disabled")
         if item:
             self.preview(item)

@@ -62,4 +62,26 @@ class MediaChoiceTest {
             } finally {compose.runOnIdle {OndaStore.dismissQuestions("choice-test")}}
         }
     }
+
+    @Test fun multipleMediaStartSelectedAndToggleAllOrIndividual() {
+        ready()
+        for(enabled in listOf(true,false)) {
+            var reply:JSONObject?=null
+            val candidates=JSONArray()
+            for(i in 1..2)candidates.put(JSONObject().put("id",i.toString()).put("title","Foto $i").put("kind","Foto").put("auto_select_media",enabled))
+            compose.runOnIdle {OndaStore.ask("choice-test",JSONObject().put("type","choose_media").put("candidates",candidates)){reply=it}}
+            try {
+                if(enabled) {
+                    compose.onNodeWithText("Desmarcar todas").performClick()
+                    compose.onNodeWithText("Confirmar").assertIsNotEnabled()
+                }
+                compose.onNodeWithText("Selecionar todas").performClick()
+                compose.onNodeWithText("Desmarcar todas").assertIsDisplayed()
+                compose.onNodeWithText("Foto 1").performClick()
+                compose.onNodeWithText("Selecionar todas").assertIsDisplayed()
+                compose.onNodeWithText("Confirmar").performClick()
+                compose.runOnIdle {assertEquals(listOf("2"),reply!!.getJSONArray("selected_ids").let {array->(0 until array.length()).map {array.getString(it)}})}
+            } finally {compose.runOnIdle {OndaStore.dismissQuestions("choice-test")}}
+        }
+    }
 }

@@ -81,6 +81,8 @@ class PlaylistPane(ttk.Frame):
         self.fps_combo = TranslatedCombobox(formats, textvariable=app.playlist_fps, values=list(FPS_OPTIONS), state="readonly", width=13)
         self.fps_combo.grid(row=1, column=2, sticky="ew", pady=(4, 0))
         self.format_changed()
+        from simple_download_ui import bind_simple_grid
+        bind_simple_grid(app,formats)
         self.collection_card = ttk.Frame(self, padding=10, style="Card.TFrame")
         self.collection_card.grid(row=4,column=0,sticky="ew",pady=(0,10))
         self.collection_card.columnconfigure(1,weight=1)
@@ -160,7 +162,7 @@ class PlaylistPane(ttk.Frame):
         self.export_button.configure(state="normal" if self.records and not value else "disabled")
         self.list_button.configure(state="normal" if self.records and not value else "disabled")
 
-    def load(self):
+    def load(self, start_download=False):
         if self.busy:
             return
         if self.spotify_window is not None and self.spotify_window.winfo_exists():
@@ -177,7 +179,9 @@ class PlaylistPane(ttk.Frame):
         def worker():
             client = MetadataClient(*credentials)
             try:
-                self.events.put((generation, "loaded", load_playlist(url, client, limit=limit, account=self.spotify_account, cancelled=lambda: self.closed)))
+                result=load_playlist(url, client, limit=limit, account=self.spotify_account, cancelled=lambda: self.closed)
+                result["_clipboard_download"]=start_download
+                self.events.put((generation, "loaded", result))
             except Exception as exc:
                 self.events.put((generation, "error", str(exc)))
             finally:
@@ -295,6 +299,7 @@ class PlaylistPane(ttk.Frame):
                     if self.list_window is not None and self.list_window.winfo_exists():
                         self.list_window.refresh(self)
                     self.set_busy(False)
+                    if result.get("_clipboard_download"):self.add(start=True)
                     return
                 self.table.insert("", "end", iid=key, values=(row["title"], ", ".join(row.get("artists", [])),
                     duration_label(row["duration_ms"] / 1000 if row.get("duration_ms") else None), tr("A consultar")))

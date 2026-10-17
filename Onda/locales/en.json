@@ -1506,5 +1506,18 @@
   "No PC, os arquivos de cookies são usados apenas nesta sessão.": "On PC, cookie files are used only during this session.",
   "Ferramentas verificadas.": "Tools verified.",
   "Não foi possível verificar as ferramentas. Confira a configuração do FFmpeg.": "Could not verify the tools. Check the FFmpeg settings.",
-  "Confirmar versão antes de baixar": "Confirm version before downloading"
+  "Confirmar versão antes de baixar": "Confirm version before downloading",
+  "Continuando sem capa.": "Continuing without artwork.",
+  "Mostrar ou ocultar abas": "Show or hide tabs",
+  "Pesquisar músicas, Links e Fila ficam sempre disponíveis.": "Search music, Links and Queue are always available.",
+  "Simplificar controles de download": "Simplify download controls",
+  "Oculta formato e qualidade nas abas de download e usa a maior qualidade disponível. Não altera o espaçamento nem as abas visíveis.": "Hides format and quality controls on download tabs and uses the highest available quality. Does not change spacing or visible tabs.",
+  "Baixar mídias sociais automaticamente na maior qualidade": "Automatically download social media at the highest quality",
+  "Instagram, TikTok e Kwai: baixa fotos e vídeos sem escolher formato. Independente da interface simplificada e das abas visíveis.": "Instagram, TikTok and Kwai: automatically chooses the best quality. You can still choose which items to download.",
+  "Selecionar todas as mídias ao abrir a publicação": "Select all media when opening a post",
+  "Instagram, TikTok e Kwai: você pode desmarcar fotos e vídeos individualmente antes de confirmar.": "Instagram, TikTok and Kwai: you can deselect individual photos and videos before confirming.",
+  "Instagram, TikTok e Kwai: escolhe automaticamente a maior qualidade. Você ainda pode escolher quais itens baixar.": "Instagram, TikTok and Kwai: automatically chooses the best quality. You can still choose which items to download.",
+  "Reconhecer links copiados automaticamente": "Automatically recognize copied links",
+  "Link copiado": "Copied link",
+  "Foi encontrado um link compatível. Deseja iniciar o download?": "A supported link was found. Start the download?"
 }

@@ -64,6 +64,22 @@ def tab_order_controls(app,parent):
     trace=app.tab_order.trace_add('write',refresh)
     tree.bind('<Destroy>',lambda e:app.tab_order.trace_remove('write',trace) if e.widget is tree else None)
     refresh()
+    from tab_order import DEFAULT_ORDER, REQUIRED_TABS
+    import tkinter as tk
+    ttk.Label(parent,text=tr('Mostrar ou ocultar abas'),font=('Segoe UI',12,'bold')).pack(anchor='w',pady=(12,6))
+    ttk.Label(parent,text=tr('Pesquisar músicas, Links e Fila ficam sempre disponíveis.'),wraplength=480).pack(anchor='w',pady=(0,6))
+    variables={}
+    def update_hidden():
+        app.hidden_tabs.set(tuple(key for key,var in variables.items() if not var.get() and key not in REQUIRED_TABS))
+    for key in DEFAULT_ORDER:
+        page=app.tab_reorder.pages[key]
+        var=tk.BooleanVar(value=key not in app.hidden_tabs.get());variables[key]=var
+        ttk.Checkbutton(parent,text=app.pages.tab(page,'text'),variable=var,command=update_hidden,
+                        state='disabled' if key in REQUIRED_TABS else 'normal').pack(anchor='w',pady=2)
+    def refresh_hidden(*_):
+        for key,var in variables.items():var.set(key in REQUIRED_TABS or key not in app.hidden_tabs.get())
+    hidden_trace=app.hidden_tabs.trace_add('write',refresh_hidden)
+    tree.bind('<Destroy>',lambda e:app.hidden_tabs.trace_remove('write',hidden_trace) if e.widget is tree else None,add='+')
 
 def account_controls(app,parent):
     import webbrowser

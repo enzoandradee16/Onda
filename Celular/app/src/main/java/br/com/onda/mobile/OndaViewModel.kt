@@ -214,7 +214,10 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
-    fun loadCollection(url: String, options: JSONObject) = operation("collection",OndaStore.config(options).put("url",url)) { collection.value=it }
+    fun loadCollection(url: String, options: JSONObject, startDownload:Boolean=false) = operation("collection",OndaStore.config(options).put("url",url)) {
+        collection.value=it
+        if(startDownload)queueCollection(it.optJSONArray("tracks")?.objects() ?: emptyList(),options,it.optString("folder_title",it.optString("title","Playlist")),true)
+    }
     fun importCollection(path: String) = operation("import",OndaStore.config().put("path",path).put("extension",path.substringAfterLast('.'))) { collection.value=it }
     fun importLocal(uri: Uri, category: String, dialog: Boolean=false, finished: (java.io.File)->Unit) {
         status.value="Importando arquivo…"

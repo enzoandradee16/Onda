@@ -4,7 +4,7 @@ from i18n_tk import display_var
 import tkinter as tk
 from tkinter import ttk, messagebox
 
-GROUPS = {'Geral': {'language': 'Idioma', 'notice_duration': 'Duração dos avisos', 'notice_animation':'Animar avisos', 'remember_settings': 'Lembrar configurações'},
+GROUPS = {'Geral': {'clipboard_links':'Reconhecer links copiados automaticamente','language': 'Idioma', 'notice_duration': 'Duração dos avisos', 'notice_animation':'Animar avisos', 'remember_settings': 'Lembrar configurações'},
  'Aparência': {'interface_spacing': 'Espaçamento da interface',
                'history_card_size': 'Tamanho dos cards do histórico',
                'pure_black_separators': 'Separações no Preto puro',
@@ -15,8 +15,8 @@ GROUPS = {'Geral': {'language': 'Idioma', 'notice_duration': 'Duração dos avis
                'interface_font_size': 'Alterar tamanho da fonte',
                'queue_view': 'Exibição da fila', 'queue_actions_at_top':'Mostrar ações antes das listas',
                'queue_card_size': 'Tamanho dos cards da fila',
-               'tab_order': 'Ordem das abas'},
- 'Downloads': {'concurrent_downloads': 'Downloads simultâneos',
+               'simple_download_ui':'Simplificar controles de download', 'hidden_tabs': 'Mostrar ou ocultar abas', 'tab_order': 'Ordem das abas'},
+ 'Downloads': {'auto_select_media':'Selecionar todas as mídias ao abrir a publicação','social_best_quality':'Baixar mídias sociais automaticamente na maior qualidade', 'concurrent_downloads': 'Downloads simultâneos',
                'resume_downloads': 'Retomar arquivos interrompidos',
                'resume_queue': 'Retomar fila ao abrir',
                'normalize_volume': 'Normalizar volume',

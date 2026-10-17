@@ -208,17 +208,19 @@ def find_youtube(record, logger, *, prefer_best=False):
     # of reinitializing the YouTube extractor for every spelling of a song.
     with YoutubeDL(options) as downloader:
         try:
-            return _find_youtube(record, downloader, prefer_best=prefer_best)
+            return _find_youtube(record, downloader, prefer_best=prefer_best, excluded_ids=getattr(logger, "excluded_youtube_ids", ()))
         finally:
             logger.youtube_cookiejar = downloader.cookiejar
 
 
-def _find_youtube(record, downloader, *, prefer_best=False):
+def _find_youtube(record, downloader, *, prefer_best=False, excluded_ids=()):
     import time
+    if not isinstance(excluded_ids, (set, frozenset, tuple, list)):
+        excluded_ids=()
     observed=[]
     query_cache={}
     deadline=time.monotonic()+60
-    def search(current,album=False,artist=None,exact=False):
+    def search(current,album=False,artist=None,exact=False,limit=8):
         nonlocal observed
         parts=[without_guest_credit(artist or current["artists"][0]),without_guest_credit(current["title"])]
         if album and current.get('album'):
@@ -227,10 +229,11 @@ def _find_youtube(record, downloader, *, prefer_best=False):
         query=" ".join('"' + part.replace('"'," ") + '"' for part in parts[:2]) if exact else " ".join([*parts,"audio"])
         if time.monotonic()>=deadline:
             raise NoCompatibleMatch('Tempo de pesquisa esgotado. Tente uma busca mais específica.')
-        if query not in query_cache:
-            result=downloader.extract_info("ytsearch8:"+query,download=False)
-            query_cache[query]=list((result or {}).get('entries') or [])
-        observed=query_cache[query]
+        cache_key=(query,limit)
+        if cache_key not in query_cache:
+            result=downloader.extract_info(f"ytsearch{limit}:"+query,download=False)
+            query_cache[cache_key]=[entry for entry in (result or {}).get('entries') or [] if isinstance(entry,dict) and entry.get('id') not in excluded_ids]
+        observed=query_cache[cache_key]
         return select_candidate(current,observed,prefer_best=prefer_best)
     try:
         return search(record)
@@ -274,7 +277,7 @@ def _find_youtube(record, downloader, *, prefer_best=False):
         # A generic cue name may be buried among the composer's other soundtracks.
         # Keep this extra query on the slow path and reuse the existing session.
         if not aliases and record.get('album'):
-            try:return search(record,album=True)
+            try:return search(record,album=True,limit=16)
             except NoCompatibleMatch:pass
         raise original_error
 
