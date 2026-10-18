@@ -1,5 +1,11 @@
 # Histórico de versões
 
+## Em desenvolvimento
+
+- Letra sincronizada LRC opcional, desligada por padrão, na reprodução local de PC e Android.
+- Conversão em lote de áudio e vídeo para os formatos disponíveis no conversor nas duas versões, preservando originais e tratando falhas por arquivo.
+- PC: arrastar arquivos para o conversor, editor ou efeitos e arrastar links para adicionar à fila após confirmação.
+
 ## 1.1.5 — 2026-10-17
 
 - Reconhecimento de links copiados com confirmação obrigatória antes do download. Evita repetir avisos do mesmo link; opção em Configurações → Geral, ativada por padrão. Android verifica somente com o aplicativo em primeiro plano.

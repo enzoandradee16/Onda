@@ -231,7 +231,7 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
         }
     }
 }
-fun tabLabel(tab: String)=when(tab) {"Links e fila"->"Links";"Metadados"->"Editar metadados";"Pesquisar"->"Pesquisar músicas";"Efeitos"->"Slowed / Sped Up";"Playlists / Álbuns"->"Álbuns e playlists";else->tab}
+fun tabLabel(tab: String)=when(tab) {"Conversor de vídeos"->"Conversor";"Links e fila"->"Links";"Metadados"->"Editar metadados";"Pesquisar"->"Pesquisar músicas";"Efeitos"->"Slowed / Sped Up";"Playlists / Álbuns"->"Álbuns e playlists";else->tab}
 
 @Composable fun PageTitle(title: String, description: String) {
     Column(Modifier.fillMaxWidth().padding(vertical=8.dp),horizontalAlignment=Alignment.CenterHorizontally) {
@@ -403,15 +403,34 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
         item {Spacer(Modifier.height(LayoutSpacing.controls))}
     }
 }
+internal fun displayReleaseDate(value:String):String {
+    val text=value.trim()
+    if(Regex("\\d{4}-\\d{2}-\\d{2}(?:T.*)?").matches(text)) {
+        try {
+            val date=java.time.LocalDate.parse(text.take(10))
+            return "%02d/%02d/%04d".format(java.util.Locale.ROOT,date.dayOfMonth,date.monthValue,date.year)
+        } catch(_:java.time.DateTimeException) {}
+    }
+    if(Regex("\\d{4}-\\d{2}").matches(text) && text.takeLast(2).toInt() in 1..12)return text.takeLast(2)+"/"+text.take(4)
+    return text
+}
+
 @Composable fun TrackCard(record: JSONObject, vm: OndaViewModel, onDownload:()->Unit, onCompare:(()->Unit)?=null) {
     val playing by vm.previewActive.collectAsStateWithLifecycle()
     val playingUrl by vm.previewUrl.collectAsStateWithLifecycle()
+    var releaseDate by remember(record) {mutableStateOf(record.cleanString("release_date"))}
+    LaunchedEffect(record) {releaseDate=vm.releaseDate(record)}
     val url=record.cleanString("preview_url")
     val thisPlaying=playing && playingUrl==url
     Card(Modifier.fillMaxWidth(),colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.background,contentColor=MaterialTheme.colorScheme.onBackground),elevation=CardDefaults.cardElevation(defaultElevation=0.dp)) { Column(Modifier.padding(12.dp)) {
         Row(verticalAlignment=Alignment.CenterVertically) {
             AsyncImage(model=record.cleanString("cover_url"),contentDescription=translateUi("Capa do álbum",LocalUiLanguage.current),modifier=Modifier.size(60.dp))
-            Column(Modifier.padding(start=12.dp).weight(1f)) {Text(record.cleanString("title"),fontWeight=FontWeight.Bold);Text(record.stringList("artists"),style=MaterialTheme.typography.bodySmall);Text(record.cleanString("album"),style=MaterialTheme.typography.bodySmall);if(record.optLong("duration_ms")>0) UiText(mediaClock(record.optLong("duration_ms")/1000),style=MaterialTheme.typography.labelSmall)}
+            Column(Modifier.padding(start=12.dp).weight(1f)) {Text(record.cleanString("title"),fontWeight=FontWeight.Bold);Text(record.stringList("artists"),style=MaterialTheme.typography.bodySmall);Text(record.cleanString("album"),style=MaterialTheme.typography.bodySmall)
+                releaseDate.takeIf {it.isNotBlank()}?.let { date ->
+                    Text(translateUi("Data de lançamento",LocalUiLanguage.current)+": "+displayReleaseDate(date),modifier=Modifier.padding(top=4.dp),style=MaterialTheme.typography.bodyMedium,fontWeight=FontWeight.Medium)
+                }
+                if(record.optLong("duration_ms")>0) UiText(mediaClock(record.optLong("duration_ms")/1000),style=MaterialTheme.typography.labelSmall)
+            }
         }
         Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceEvenly,verticalAlignment=Alignment.CenterVertically) {
             TextButton(contentPadding=PaddingValues(horizontal=4.dp,vertical=8.dp),onClick={if(thisPlaying) vm.stopPreview() else if(url.isNotBlank()) vm.preview(url,OndaStore.settings.value.optInt("search_preview",25)) else vm.status.value="Esta faixa não oferece prévia no catálogo."}) {UiText(if(thisPlaying) "Parar prévia" else "Ouvir prévia")}
@@ -419,7 +438,6 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
             Button(contentPadding=PaddingValues(horizontal=10.dp,vertical=8.dp),onClick=onDownload) {UiText("Baixar agora")}
         }
         MetadataPlatformBadge(record)
-        record.cleanString("release_date").takeIf {it.isNotBlank()}?.let {Text(it,style=MaterialTheme.typography.bodySmall)}
         Row {
             TextButton(onClick={val url=record.cleanString("source_url");if(url.startsWith("https://")) OndaStore.context.startActivity(Intent(Intent.ACTION_VIEW,android.net.Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))}){UiText("Ver no catálogo")}
             if(onCompare!=null)TextButton(onClick=onCompare){UiText("Comparar resultados")}
@@ -768,7 +786,23 @@ fun mediaClock(seconds:Long):String {val value=seconds.coerceAtLeast(0);return "
 }
 
 @Composable fun EffectsPage(vm: OndaViewModel) {
+    var lyrics by remember {mutableStateOf<List<Pair<Double,String>>>(emptyList())}
+    var lyricLine by remember {mutableStateOf("")}
+    val lyricSettings by OndaStore.settings.collectAsStateWithLifecycle()
+    val pickLyrics=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) {uri->if(uri!=null)vm.importLocal(uri,"lyrics") {file->
+        vm.operation("lyrics_read",JSONObject().put("source",file.absolutePath)) {result->
+            lyrics=result.optJSONArray("lines")?.let {rows->(0 until rows.length()).map {index->rows.getJSONArray(index).let {it.getDouble(0) to it.getString(1)}}} ?: emptyList()
+            file.delete()
+            if(lyrics.isEmpty())vm.showNotice("Importar letra LRC","Nenhum tempo válido na letra LRC.")
+            else OndaStore.saveSettings(JSONObject(OndaStore.settings.value.toString()).put("synced_lyrics",true))
+        }
+    }}
+    LaunchedEffect(lyrics,lyricSettings.optBoolean("synced_lyrics")) {
+        if(!lyricSettings.optBoolean("synced_lyrics")) {lyricLine="";return@LaunchedEffect}
+        while(true) {lyricLine=lyrics.lastOrNull {it.first<=vm.lyricsPosition()}?.second ?: "";delay(200)}
+    }
     var source by rememberSaveable {mutableStateOf("")}
+    LaunchedEffect(source) {lyrics=emptyList();lyricLine=""}
     var speed by rememberSaveable {mutableFloatStateOf(85f)}
     var reverb by rememberSaveable {mutableFloatStateOf(25f)}
     var pitch by rememberSaveable {mutableStateOf(false)}
@@ -797,6 +831,8 @@ fun mediaClock(seconds:Long):String {val value=seconds.coerceAtLeast(0);return "
     Column(Modifier.verticalScroll(rememberScrollState()).padding(LayoutSpacing.inset),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
         PageTitle("Slowed · Sped Up · Reverb","Desacelere ou acelere sua música. Adicione reverb se quiser.")
         OutlinedButton(onClick={choose.launch(arrayOf("audio/*"))},modifier=Modifier.fillMaxWidth()){UiText(if(source.isBlank()) "Abrir áudio" else importedAudioName(source),maxLines=2)}
+        TextButton(onClick={pickLyrics.launch(arrayOf("text/plain","application/x-lrc","application/octet-stream"))},enabled=source.isNotBlank()){UiText("Importar letra LRC")}
+        if(lyricLine.isNotBlank())Text(lyricLine,style=MaterialTheme.typography.titleMedium)
         val presets=remember {linkedMapOf("Original" to (100f to 0f),"Slowed leve" to (90f to 0f),"Slowed intenso" to (75f to 0f),"Sped Up leve" to (115f to 0f),"Sped Up intenso" to (130f to 0f),"Sped Up + Reverb" to (120f to 25f),"Só Reverb" to (100f to 30f),"Clássico" to (85f to 25f),"Atmosférico" to (75f to 50f))}
         val preset=presets.entries.firstOrNull {it.value.first.toInt()==speed.toInt() && it.value.second.toInt()==reverb.toInt()}?.key ?: "Personalizado"
         Select("Preset",preset,presets.keys.toList()) {val value=presets.getValue(it);speed=value.first;reverb=value.second}

@@ -41,3 +41,28 @@ build/
 
 # Temporary local builds and backup sources
 /Onda/.build-tmp/
+
+# Caches e cobertura de testes Python
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
+.coverage
+.coverage.*
+htmlcov/
+
+# Logs, temporarios e backups de editores
+*.log
+*.tmp
+*.temp
+*.bak
+*.orig
+*.rej
+*.swp
+*.swo
+*~
+
+# Metadados locais de outros sistemas
+.DS_Store
+._*

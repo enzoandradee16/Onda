@@ -2,7 +2,7 @@
 from datetime import datetime
 import re
 
-DEFAULTS={'clipboard_links':True,'auto_select_media':True,'simple_download_ui':False,'social_best_quality':True,'concurrent_downloads':'1','detect_duplicates':True,'auto_metadata':False,'resume_downloads':True,'resume_queue':False,'normalize_volume':False,
+DEFAULTS={'synced_lyrics':False,'clipboard_links':True,'auto_select_media':True,'simple_download_ui':False,'social_best_quality':True,'concurrent_downloads':'1','detect_duplicates':True,'auto_metadata':False,'resume_downloads':True,'resume_queue':False,'normalize_volume':False,
           'schedule_enabled':False,'schedule_start':'22:00','schedule_stop':'07:00','check_updates':True,'notice_animation':True,'queue_actions_at_top':True,'confirm_version':False}
 
 def valid_time(value):return isinstance(value,str) and re.fullmatch(r'(?:[01]\d|2[0-3]):[0-5]\d',value) is not None

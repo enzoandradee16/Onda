@@ -142,7 +142,7 @@ class UiMixin:
         self.metadata_page = LazyPane(self.pages, self, "audio_editor_ui", "MetadataPane")
         self.pages.add(self.metadata_page, text=tr("Editar metadados"))
         self.converter_page = LazyPane(self.pages, self, "converter_ui", "ConverterPane")
-        self.pages.add(self.converter_page, text=tr("Conversor de vídeos"))
+        self.pages.add(self.converter_page, text=tr("Conversor"))
         self.bind("<Control-MouseWheel>",lambda event:self.history_page.resize_cards(event)
                   if self.pages.select()==str(self.history_page) else self.queue_cards.resize_cards(event)
                   if self.pages.select()==str(self.queue_page) else scroll_page(event))
@@ -545,6 +545,8 @@ class UiMixin:
                   style="Muted.TLabel", wraplength=480).pack(anchor="w", pady=(4, 0))
 
         ttk.Checkbutton(audio,text=tr("Continuar prévia dos efeitos em outras abas"),variable=self.background_preview,command=self.tab_changed).pack(anchor="w",pady=(12,0))
+
+        ttk.Checkbutton(audio,text=tr("Mostrar letra sincronizada (LRC)"),variable=self.synced_lyrics).pack(anchor="w",pady=(12,0))
 
         accounts = categories["Contas"]
         ttk.Label(accounts, text=tr("Contas e acesso"), font=("Segoe UI", 13, "bold")).pack(anchor="w", pady=(0, 12))

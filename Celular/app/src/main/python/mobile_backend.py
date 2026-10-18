@@ -318,9 +318,15 @@ def perform(action, config):
         from cache_cleanup import cache_info,clear_cache
         return (clear_cache if action=='cache_clear' else cache_info)(_root)
 
+    if action == 'lyrics_read':
+        from synced_lyrics import read_lrc
+        return {'lines':read_lrc(config['source'])}
+    if action == 'convert_batch':
+        from video_converter import convert_batch
+        return convert_batch(config,emit,_local.state['cancel'].is_set)
     if action in ('video_probe','video_convert'):
         from video_converter import probe_video,convert_video
-        if action=='video_probe':return probe_video(config['source'],config.get('ffmpeg',''))
+        if action=='video_probe':return probe_video(config['source'],config.get('ffmpeg',''),audio_only=bool(config.get('audio_only')))
         result=convert_video(config,emit,_local.state['cancel'].is_set)
         emit('file',path=result['path'],mode=config['video_format'],size=Path(result['path']).stat().st_size)
         return {'message':'Vídeo convertido e salvo.'}
@@ -377,6 +383,13 @@ def perform(action, config):
         from spotify_metadata import prepare_spotify_config
         config=prepare_spotify_config(config,account())
         return {'code': engine.run_worker(config)}
+    if action == 'release_date':
+        from metadata import deezer_release_date
+        value = client(config)
+        try:
+            return {'release_date': deezer_release_date(config['record'], value)}
+        finally:
+            value.close()
     if action == 'search':
         from metadata import is_streaming_link
         value = client(config)

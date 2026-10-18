@@ -49,7 +49,7 @@ GROUPS = {'Geral': {'clipboard_links':'Reconhecer links copiados automaticamente
              'image_width': 'Largura personalizada',
              'image_height': 'Altura personalizada',
              'image_keep_ratio': 'Manter proporção'},
- 'Áudio': {'effects_keep_pitch': 'Manter tom nos efeitos',
+ 'Áudio': {'synced_lyrics':'Mostrar letra sincronizada (LRC)','effects_keep_pitch': 'Manter tom nos efeitos',
            'background_preview': 'Continuar prévia em outras abas',
            'effects_preview_duration': 'Duração da prévia dos efeitos',
            'search_preview_duration': 'Duração da prévia nas pesquisas'},

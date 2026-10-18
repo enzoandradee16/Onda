@@ -40,7 +40,7 @@ private fun operationNoticeTitle(action:String)=when(action) {
     "matches"->"Conferir correspondências"
     "export_list"->"Exportar lista"
     "cache_info","cache_clear"->"Cache"
-    "video_probe","video_convert"->"Conversor de vídeos"
+    "video_probe","video_convert","convert_batch"->"Conversor"
     "probe"->"Escolher arquivo de áudio"
     else->"ONDA"
 }
@@ -130,6 +130,21 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
             finally {if(effectRenderId==id) effectRenderId=""}
         }
     }}
+    fun lyricsPosition():Double=if(effectsPreviewEnabled.value) effectAnchor+player.currentPosition/1000.0*effectSpeed/100.0 else player.currentPosition/1000.0
+    fun importConversionBatch(uris:List<Uri>,finished:(List<String>)->Unit) {
+        if(busy.value)return
+        if(uris.size>1000) {showNotice("Converter em lote","Selecione de 1 a 1000 arquivos.");return}
+        busy.value=true
+        viewModelScope.launch {
+            val imported=mutableListOf<java.io.File>()
+            try {
+                withContext(Dispatchers.IO) {for(uri in uris) {ensureActive();imported+=OndaStore.importDocument(uri,"conversion-batch")}}
+                finished(imported.map {it.absolutePath})
+            } catch(error:CancellationException) {imported.forEach {it.delete()};throw error}
+            catch(error:Exception) {imported.forEach {it.delete()};status.value=error.message ?: "Não foi possível importar o arquivo"}
+            finally {busy.value=false}
+        }
+    }
     fun previewEffects(source:String,speed:Int,reverb:Int,pitch:Boolean,start:Int) {
         val continuing=effectsPreviewEnabled.value && effectSource==source && effectStart==start
         if(!continuing) {player.stop();previewUrl.value=""}
@@ -205,6 +220,26 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
         operation("spotify_connect",options,dialog=true)
     }
     fun cancel() { collectionSyncJob?.cancel();OndaStore.dismissQuestions(queryId.value);MobileEngine.cancel(queryId.value) }
+    private val releaseDates=mutableMapOf<String,String>()
+    private val releaseDateSlots=kotlinx.coroutines.sync.Semaphore(2)
+    suspend fun releaseDate(record:JSONObject):String {
+        val existing=record.cleanString("release_date")
+        if(existing.isNotBlank() || record.cleanString("platform")!="Deezer")return existing
+        val url=record.cleanString("source_url")
+        releaseDates[url]?.let {return it}
+        releaseDateSlots.acquire()
+        try {
+            releaseDates[url]?.let {return it}
+            val date=try {
+                withContext(Dispatchers.IO) {
+                    MobileEngine.call(getApplication(),UUID.randomUUID().toString(),"release_date",JSONObject().put("record",JSONObject(record.toString())),EventCallback {}).cleanString("release_date")
+                }
+            } catch(e:CancellationException) {throw e} catch(_:Exception) {""}
+            if(releaseDates.size>=500)releaseDates.clear()
+            releaseDates[url]=date
+            return date
+        } finally {releaseDateSlots.release()}
+    }
     private var searchRevision=0
     fun search(query: String, provider: String, refresh: Boolean=false) {
         if(busy.value)return

@@ -1,6 +1,6 @@
 # Roadmap do ONDA
 
-Recursos selecionados para futuras versões, organizados em uma sequência sugerida de implementação. Os itens marcados foram implementados na 1.1.4 ou no código da 1.1.5; os demais ficam para versões futuras. O portátil local e o APK 1.1.5 já incluem as correções e o alto contraste. O portátil também inclui as configurações de desempenho e suas últimas melhorias; o instalador e os arquivos da pasta Release não foram atualizados nesta rodada. Os itens desmarcados não representam funcionalidades concluídas. As etapas podem mudar conforme testes, necessidades e limitações das plataformas, sem compromisso de prazo ou versão.
+Recursos selecionados para futuras versões, organizados em uma sequência sugerida de implementação. Os itens marcados foram implementados na 1.1.4 ou no código da 1.1.5; os demais ficam para versões futuras. O portátil local e o APK x86_64 1.1.5 foram atualizados em 18/10/2026 com as últimas correções, incluindo datas de lançamento. O APK ARM64, o instalador e os arquivos da pasta Release não foram atualizados nesta rodada e não incluem todas as alterações recentes. Os itens desmarcados não representam funcionalidades concluídas. As etapas podem mudar conforme testes, necessidades e limitações das plataformas, sem compromisso de prazo ou versão.
 
 ## 1 — Controle da fila
 
@@ -22,19 +22,21 @@ Recursos selecionados para futuras versões, organizados em uma sequência suger
 
 ## 3 — Biblioteca, playlists e origem
 
-- [x] **Atualizar uma playlist já baixada — PC e Android (1.1.5):** recarregar a coleção pela origem, comparar com arquivos locais, histórico e a conferência anterior persistida, indicar faixas novas e oferecer Adicionar ausentes à fila. Não inclui automaticamente itens presentes, duvidosos ou já na fila; não inicia downloads sem a ação do usuário. Implementado e testado no código; pacotes ainda não atualizados.
-- [x] **Conferir playlist × arquivos locais — PC e Android (1.1.5):** conferir a pasta escolhida e os arquivos registrados no histórico completo; distinguir Presente, Ausente, Revisar e Na fila com motivo e caminho. Usar origem registrada ou metadados consistentes (título, artistas, álbum e duração), sem confirmar apenas pelo nome do arquivo. Android usa o seletor de pastas e as permissões de acesso existentes. Compartilha o motor de comparação com o PC; pacotes ainda não atualizados.
+- [x] **Atualizar uma playlist já baixada — PC e Android (1.1.5):** recarregar a coleção pela origem, comparar com arquivos locais, histórico e a conferência anterior persistida, indicar faixas novas e oferecer Adicionar ausentes à fila. Não inclui automaticamente itens presentes, duvidosos ou já na fila; não inicia downloads sem a ação do usuário. Implementado e testado; incluído no portátil e no APK x86_64 locais atualizados.
+- [x] **Conferir playlist × arquivos locais — PC e Android (1.1.5):** conferir a pasta escolhida e os arquivos registrados no histórico completo; distinguir Presente, Ausente, Revisar e Na fila com motivo e caminho. Usar origem registrada ou metadados consistentes (título, artistas, álbum e duração), sem confirmar apenas pelo nome do arquivo. Android usa o seletor de pastas e as permissões de acesso existentes. Compartilha o motor de comparação com o PC; incluído no portátil e no APK x86_64 locais atualizados.
 - [x] **Abrir a origem pelo histórico — PC e Android:** acessar a página original da faixa ou publicação, quando a origem estiver registrada.
 - [x] **Ícone da plataforma dos metadados — PC e Android:** mostrar um pequeno ícone da fonte dos metadados e identificar complementações de outros catálogos, sem confundir com a fonte do áudio.
 
 ## 4 — Arquivos locais e integração
 
-- [ ] **Letra sincronizada — PC e Android:** importar e acompanhar letras LRC durante a reprodução. Avaliar separadamente a busca automática de letras, suas fontes e permissões.
-- [ ] **Conversão de áudio em lote — PC e Android:** converter vários arquivos locais com escolha de formato, qualidade e destino, preservando metadados quando o formato permitir.
+- [x] **Letra sincronizada — PC e Android (código atual):** opção em Áudio, desativada por padrão. Importar LRC e acompanhar a linha na reprodução local da aba de efeitos, incluindo busca de posição e alteração de velocidade. PC também lê o LRC ao lado do áudio quando a opção está ativa. Sem busca automática de letras.
+- [x] **Conversão em lote — PC e Android (código atual):** selecionar vários áudios ou vídeos no conversor e escolher MP4, MKV, MOV, MP3, M4A ou AAC, conforme a mídia de entrada, com qualidade, destino, progresso e cancelamento. Processamento sequencial; preserva originais e tags compatíveis, evita sobrescrever saídas e informa falhas por arquivo.
 - [x] **Conversão de vídeos — PC e Android:** aba Conversor com MP4, MKV e MOV, H.264/AAC, qualidade e resolução máxima, progresso e cancelamento. Preserva o original e exporta o vídeo com a primeira faixa de áudio. Disponível na 1.1.4; remux sem recodificação e outros codecs ficam para evolução futura.
-- [ ] **Arrastar arquivos para o ONDA — PC:** encaminhar arquivos locais ao editor, conversor ou efeitos, conforme o tipo e a escolha do usuário.
-- [ ] **Fila por arrastar links — PC:** receber links arrastados do navegador e oferecer sua inclusão na fila.
+- [x] **Arrastar arquivos para o ONDA — PC (código atual):** receber áudios e vídeos pela janela e escolher o conversor, editor de metadados ou efeitos, conforme os tipos e a quantidade. Não inicia processamento automaticamente; mantém os seletores existentes como alternativa.
+- [x] **Fila por arrastar links — PC (código atual):** receber links compatíveis do navegador e pedir confirmação para adicionar à fila, sem iniciar downloads automaticamente. Usa a validação e a fila existentes, sem dependências extras.
 - [ ] **Integração com Compartilhar — PC:** avaliar o registro e o empacotamento necessários para receber links ou arquivos pelo compartilhamento do Windows.
+
+Os quatro recursos marcados como “código atual” foram validados e incluídos no portátil local e no APK x86_64 em 18/10/2026. Portátil aprovado no autoteste de inicialização; APK compilado, assinado e verificado, com SHA256 atualizado. A integração com Compartilhar do Windows permanece adiada a pedido do usuário.
 
 ## 5 — Personalização, acessibilidade e manutenção
 
@@ -55,6 +57,14 @@ Recursos selecionados para futuras versões, organizados em uma sequência suger
 
 ## Correções recentes — 1.1.5
 
+- Data de lançamento identificada nos detalhes da música no PC e com maior destaque no Android.
+- Consulta complementar dos detalhes do Deezer quando a busca não fornece a data: em segundo plano no PC e com cache e limite de consultas simultâneas no Android.
+- Datas exibidas sem horário no formato dia/mês/ano, inclusive Apple Music; datas com precisão parcial preservam apenas mês/ano ou ano. Metadados originais permanecem intactos.
+- Cartão de pesquisa no PC organizado com título, artista/álbum e identificação da plataforma ao lado do ícone; rótulo MP3 simplificado e aviso ao comparar o mesmo resultado nas duas versões.
+- Android: identificação do Deezer sem texto duplicado, correção da ação “Versão errada” e opção “Cancelar todas” nas perguntas de duplicatas.
+- Regras de Git atualizadas para caches de testes, logs, temporários e arquivos locais de ferramentas.
+- Pacotes locais atuais: portátil validado pelo autoteste de inicialização; APK x86_64 compilado, assinado com o certificado existente e verificado, com SHA256 atualizado. Cinco testes focados de datas e interface passaram. ARM64, instalador e pasta Release permanecem sem atualização nesta rodada.
+
 - Formato das configurações respeitado no modo simplificado, no PC e Android.
 - Cor do texto do campo “Máximo de itens por playlist” corrigida nos temas escuros do PC.
 - Descrição de “Ferramentas e atualizações” atualizada no Android, com traduções.
@@ -72,3 +82,5 @@ Recursos selecionados para futuras versões, organizados em uma sequência suger
 - Traduzir textos e descrições acessíveis em português, espanhol e inglês.
 - Validar filas grandes, cancelamento, falhas e persistência nas plataformas afetadas.
 - Ao concluir um item, marcar a caixa e registrar sua versão no changelog. Implementações parciais devem indicar claramente o que ainda falta.
+
+- Ajuste posterior no código: botão “Converter em lote” e seleção conjunta de áudios/vídeos nas duas versões, com todos os formatos do conversor liberados. Incluído no portátil e no APK x86_64 locais atualizados em 18/10/2026.

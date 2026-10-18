@@ -13,13 +13,15 @@ class ConverterPane(ttk.Frame):
     def __init__(self,parent,app):
         super().__init__(parent,padding=16)
         self.app=app;self.busy=False;self.closed=False;self.cancelled=threading.Event();self.events=queue.Queue();self.thread=None
-        self.source=tk.StringVar();self.format=tk.StringVar(value='MP4');self.quality=tk.StringVar(value='Equilibrada');self.resolution=tk.StringVar(value='Original')
-        self.status=tk.StringVar(value=tr('Escolha um vídeo para converter.'))
-        ttk.Label(self,text=tr('Conversor de vídeos'),font=('Segoe UI',20,'bold')).pack(anchor='w',pady=(0,8))
-        ttk.Label(self,text=tr('Converta vídeos locais sem alterar o arquivo original.'),style='Muted.TLabel').pack(anchor='w',pady=(0,12))
+        self.sources=[];self.source=tk.StringVar();self.format=tk.StringVar(value='MP4');self.quality=tk.StringVar(value='Equilibrada');self.resolution=tk.StringVar(value='Original')
+        self.status=tk.StringVar(value=tr('Escolha um arquivo para converter.'))
+        ttk.Label(self,text=tr('Conversor'),font=('Segoe UI',20,'bold')).pack(anchor='w',pady=(0,8))
+        ttk.Label(self,text=tr('Converta áudios e vídeos locais sem alterar os arquivos originais.'),style='Muted.TLabel').pack(anchor='w',pady=(0,12))
         ttk.Entry(self,textvariable=self.source,state='readonly').pack(fill='x')
-        self.choose_button=ttk.Button(self,text=tr('Escolher vídeo'),command=self.choose);self.choose_button.pack(anchor='w',pady=8)
-        self.preview_button=ttk.Button(self,text=tr('Prévia do original'),command=self.preview);self.preview_button.pack(anchor='w',pady=(0,8))
+        file_actions=ttk.Frame(self);file_actions.pack(fill='x',pady=8)
+        self.choose_button=ttk.Button(file_actions,text=tr('Escolher arquivo'),command=self.choose);self.choose_button.pack(side='left')
+        self.batch_button=ttk.Button(file_actions,text=tr('Converter em lote'),command=self.choose_batch);self.batch_button.pack(side='left',padx=8)
+        self.preview_button=ttk.Button(file_actions,text=tr('Prévia do original'),command=self.preview)
         self.bitrate=tk.StringVar(value='Automático');self.audio_bitrate=tk.StringVar(value='192k');self.fps=tk.StringVar(value='Original');self.audio=tk.StringVar(value='Manter áudio')
         self.options=[];self.option_cells=[]
         self.options_grid=ttk.Frame(self);self.options_grid.pack(fill="x",pady=(0,6))
@@ -42,7 +44,7 @@ class ConverterPane(ttk.Frame):
         help_label.pack(anchor='w')
         self.video_help.append(help_label)
         row=ttk.Frame(self);row.pack(fill='x',pady=12)
-        self.start_button=ttk.Button(row,text=tr('Converter vídeo'),style='Accent.TButton',command=self.start);self.start_button.pack(side='left')
+        self.start_button=ttk.Button(row,text=tr('Converter'),style='Accent.TButton',command=self.start);self.start_button.pack(side='left')
         self.cancel_button=ttk.Button(row,text=tr('Cancelar'),command=self.cancel,state='disabled');self.cancel_button.pack(side='left',padx=8)
         self.progress=ttk.Progressbar(self,maximum=100);self.progress.pack(fill='x',pady=8)
         ttk.Label(self,textvariable=self.status,wraplength=680).pack(anchor='w')
@@ -60,26 +62,47 @@ class ConverterPane(ttk.Frame):
         for index,cell in enumerate(cells):
             cell.grid(row=index//columns,column=index%columns,sticky='ew',padx=(0,12 if index%columns<columns-1 else 0),pady=(0,12))
     def choose(self):
-        value=filedialog.askopenfilename(parent=self.app,title=tr('Escolher vídeo'),filetypes=[(tr('Vídeo'),'*.mp4 *.mkv *.mov *.avi *.webm *.m4v *.mpeg *.mpg *.ts *.mts *.m2ts *.3gp *.flv *.wmv')])
-        if value:self.source.set(value)
+        value=filedialog.askopenfilename(parent=self.app,title=tr('Escolher arquivo'),filetypes=[(tr('Áudio e vídeo'),'*.mp3 *.m4a *.aac *.flac *.wav *.ogg *.opus *.mp4 *.mkv *.mov *.avi *.webm *.m4v *.mpeg *.mpg *.ts *.mts *.m2ts *.3gp *.flv *.wmv')])
+        if value:self.set_sources([value])
+    def set_sources(self,paths):
+        if self.busy:return
+        self.sources=list(dict.fromkeys(map(str,paths)))
+        self.source.set(self.sources[0] if self.sources else '')
+        if self.sources:self.preview_button.pack(side='left')
+        else:self.preview_button.pack_forget()
+        from video_converter import AUDIO_INPUT_EXTENSIONS
+        audio_source=any(Path(path).suffix.lower() in AUDIO_INPUT_EXTENSIONS for path in self.sources)
+        self.options[0].configure(values=AUDIO_FORMATS if audio_source else OUTPUT_FORMATS)
+        if audio_source:self.format.set('MP3')
+        else:self.layout_options()
+        self.status.set(str(len(self.sources))+' · '+tr('Arquivos selecionados'))
+
+    def choose_batch(self):
+        paths=filedialog.askopenfilenames(parent=self.app,title=tr('Converter em lote'),filetypes=[(tr('Áudio e vídeo'),'*.mp3 *.m4a *.aac *.flac *.wav *.ogg *.opus *.mp4 *.mkv *.mov *.avi *.webm *.m4v *.mpeg *.mpg *.ts *.mts *.m2ts *.3gp *.flv *.wmv')])
+        if paths:self.set_sources(paths)
+
     def preview(self):
-        if not Path(self.source.get()).is_file():self.status.set(tr('Escolha um vídeo para converter.'));return
+        if not Path(self.source.get()).is_file():self.status.set(tr('Escolha um arquivo para converter.'));return
         try:os.startfile(str(Path(self.source.get()).resolve()))
         except OSError:self.status.set(tr('Não foi possível abrir o vídeo no aplicativo padrão.'))
     def start(self):
         if self.busy:return
         source=Path(self.source.get())
-        if not source.is_file():self.status.set(tr('Escolha um vídeo para converter.'));return
-        mode=self.format.get();target=filedialog.asksaveasfilename(parent=self.app,title=tr('Salvar vídeo convertido'),initialdir=self.app.folder.get(),initialfile=source.stem+' - convertido.'+mode.lower(),defaultextension='.'+mode.lower(),filetypes=[(mode,'*.'+mode.lower())])
+        if not source.is_file():self.status.set(tr('Escolha um arquivo para converter.'));return
+        mode=self.format.get()
+        target=filedialog.askdirectory(parent=self.app,title=tr('Pasta de destino')) if len(self.sources)>1 else filedialog.asksaveasfilename(parent=self.app,title=tr('Salvar vídeo convertido'),initialdir=self.app.folder.get(),initialfile=source.stem+' - convertido.'+mode.lower(),defaultextension='.'+mode.lower(),filetypes=[(mode,'*.'+mode.lower())])
         if not target:return
         config={'source':str(source),'output':target,'ffmpeg':self.app.ffmpeg.get(),'video_format':mode,'video_quality':self.quality.get(),'video_resolution':self.resolution.get(),'video_bitrate':self.bitrate.get(),'audio_bitrate':self.audio_bitrate.get(),'video_fps':self.fps.get(),'video_audio':self.audio.get()}
+        if len(self.sources)>1:config.update(sources=list(self.sources),output_folder=target)
         from performance import snapshot
         config.update(snapshot(self.app))
-        self.busy=True;self.cancelled.clear();self.progress['value']=0;self.status.set(tr('Convertendo vídeo…'));self.choose_button.configure(state='disabled');self.start_button.configure(state='disabled');self.cancel_button.configure(state='normal')
+        self.busy=True;self.cancelled.clear();self.progress['value']=0;self.status.set(tr('Convertendo vídeo…'));self.choose_button.configure(state='disabled');self.batch_button.configure(state='disabled');self.start_button.configure(state='disabled');self.cancel_button.configure(state='normal')
         for combo in self.options:combo.configure(state='disabled')
         def work():
             try:
-                result=convert_video(config,lambda kind,**data:self.events.put((kind,data)),self.cancelled.is_set)
+                from video_converter import convert_batch
+                convert=convert_batch if config.get('sources') else convert_video
+                result=convert(config,lambda kind,**data:self.events.put((kind,data)),self.cancelled.is_set)
                 self.events.put(('finished',result))
             except ConversionCancelled:self.events.put(('error',{'message':'Conversão cancelada.'}))
             except Exception as error:self.events.put(('error',{'message':str(error)}))
@@ -88,11 +111,12 @@ class ConverterPane(ttk.Frame):
         while not self.events.empty():
             kind,data=self.events.get()
             if kind=='progress':self.progress['value']=data['percent']
+            elif kind=='file':continue
             elif kind=='stage':self.status.set(tr(data['message']))
             else:
-                self.busy=False;self.choose_button.configure(state='normal');self.start_button.configure(state='normal');self.cancel_button.configure(state='disabled')
+                self.busy=False;self.choose_button.configure(state='normal');self.batch_button.configure(state='normal');self.start_button.configure(state='normal');self.cancel_button.configure(state='disabled')
                 for combo in self.options:combo.configure(state='readonly')
-                self.status.set(tr('Vídeo convertido: {path}').replace('{path}',data['path']) if kind=='finished' else tr(data['message']))
+                self.status.set((data['message'] if 'results' in data else tr('Vídeo convertido: {path}').replace('{path}',data['path'])) if kind=='finished' else tr(data['message']))
         if not self.closed:self.timer=self.after(100,self.poll)
     def cancel(self):self.cancelled.set()
     def shutdown(self):

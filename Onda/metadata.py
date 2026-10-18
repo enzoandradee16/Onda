@@ -459,3 +459,31 @@ class MetadataClient:
             track_id = str(row["trackId"])
             records.append(apple_record({"results": [row]}, track_id, f"https://music.apple.com/{country}/song/{track_id}"))
         return records
+
+
+def deezer_release_date(record, client):
+    """Complete only the date, keeping the selected catalog identity intact."""
+    if record.get("release_date"):
+        return record["release_date"]
+    url = record.get("source_url") or ""
+    try:
+        service, _, _, _ = parse_link(url)
+    except (ValueError, MetadataError):
+        return None
+    if service != "deezer":
+        return None
+    return client.fetch(url).get("release_date")
+
+
+def display_release_date(value):
+    """Format catalog dates for display without changing stored metadata."""
+    from datetime import date
+    text = str(value or "").strip()
+    if re.fullmatch(r"\d{4}-\d{2}-\d{2}(?:T.*)?", text):
+        try:
+            return date.fromisoformat(text[:10]).strftime("%d/%m/%Y")
+        except ValueError:
+            pass
+    if re.fullmatch(r"\d{4}-\d{2}", text) and 1 <= int(text[5:]) <= 12:
+        return text[5:] + "/" + text[:4]
+    return text

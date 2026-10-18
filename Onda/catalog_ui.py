@@ -16,7 +16,7 @@ from urllib.parse import urlsplit
 import webbrowser
 
 from engine import MP3_QUALITIES, M4A_QUALITIES
-from metadata import MetadataClient, is_streaming_link
+from metadata import MetadataClient, is_streaming_link, display_release_date
 from catalog_match import CatalogChoiceRequired
 from size_estimate import estimate_size
 
@@ -117,17 +117,20 @@ class CatalogPane(ttk.Frame):
         card.grid(row=4, column=0, sticky="ew", pady=(14, 10))
         card.columnconfigure(1, weight=1)
         self.art = ttk.Label(card, text=tr("♪"), style="CardMuted.TLabel", font=("Segoe UI", 38), anchor="center", width=4)
-        self.art.grid(row=0, column=0, rowspan=4, sticky="ns", padx=(0, 16))
+        self.art.grid(row=0, column=0, rowspan=5, sticky="ns", padx=(0, 16))
         self.track_title = tk.StringVar(value=tr("Escolha uma música nos resultados"))
         self.track_info = tk.StringVar(value=tr("Capa, álbum e metadados acompanham o arquivo."))
         self.title_label = ttk.Label(card, textvariable=self.track_title, style="Card.TLabel", font=("Segoe UI", 12, "bold"), wraplength=560)
         self.title_label.grid(row=0, column=1, sticky="w")
         self.platform_label=ttk.Label(card,style="CardMuted.TLabel",padding=(0,0,6,0))
-        self.platform_label.grid(row=2,column=1,sticky="w",pady=(4,10))
+        self.platform_label.grid(row=3,column=1,sticky="w",pady=(4,10))
         self.info_label = ttk.Label(card, textvariable=self.track_info, style="CardMuted.TLabel", wraplength=560)
         self.info_label.grid(row=1, column=1, sticky="w", pady=(4, 0))
+        self.release_label = ttk.Label(card, style="Card.TLabel", wraplength=560)
+        self.release_label.grid(row=2, column=1, sticky="w", pady=(4, 0))
+        self.release_label.grid_remove()
         actions = ttk.Frame(card, style="Card.TFrame")
-        actions.grid(row=3, column=1, sticky="ew")
+        actions.grid(row=4, column=1, sticky="ew")
         self.preview_button = ttk.Button(actions, text=tr("Ouvir prévia"), command=self.preview, state="disabled")
         self.preview_button.pack(side="left")
         self.source_button = ttk.Button(actions, text=tr("Ver no catálogo"), command=self.open_source, state="disabled")
@@ -146,6 +149,7 @@ class CatalogPane(ttk.Frame):
         width = max(300, event.width - 210)
         self.title_label.configure(wraplength=width)
         self.info_label.configure(wraplength=width)
+        self.release_label.configure(wraplength=width)
         self.status_label.configure(wraplength=max(300, event.width - 20))
 
     def enter_search(self, _event=None):
@@ -279,13 +283,31 @@ class CatalogPane(ttk.Frame):
         self.photo = None
         from metadata_badges import apply_badge,provider,NAMES
         apply_badge(self.platform_label,record or {},text=NAMES.get(provider(record),(record or {}).get("platform","")))
+        self.release_label.grid_remove()
+        if record and record.get("release_date"):
+            self.release_label.configure(text=tr("Data de lançamento") + ": " + display_release_date(record["release_date"]))
+            self.release_label.grid()
         if not record:
             self.track_title.set(tr("Escolha uma música nos resultados"))
             self.track_info.set(tr("Capa, álbum e metadados acompanham o arquivo."))
             return
         self.track_title.set(record.get("title") or tr("Música"))
         artist_album=" — ".join(filter(None,[", ".join(record.get("artists", [])),record.get("album")]))
-        self.track_info.set(" · ".join(filter(None,[artist_album,record.get("release_date"),'; '.join(record.get("match_reasons") or [])])))
+        self.track_info.set(" · ".join(filter(None,[artist_album,'; '.join(record.get("match_reasons") or [])])))
+        if not record.get("release_date") and record.get("platform") == "Deezer" and not record.get("_date_requested"):
+            record["_date_requested"] = True
+            generation = self.cover_generation
+            def load_date():
+                from metadata import deezer_release_date
+                client = MetadataClient()
+                try:
+                    date = deezer_release_date(record, client)
+                    self.messages.put(("release_date", generation, (record, date)))
+                except Exception:
+                    pass
+                finally:
+                    client.close()
+            threading.Thread(target=load_date, daemon=True).start()
         if record.get("cover_url"):
             generation, url = self.cover_generation, record["cover_url"]
             def worker():
@@ -361,6 +383,14 @@ class CatalogPane(ttk.Frame):
                 kind, generation, value = self.messages.get_nowait()
             except queue.Empty:
                 break
+            if kind == "release_date":
+                record, date = value
+                if date:
+                    record["release_date"] = date
+                    if self.current() is record:
+                        self.release_label.configure(text=tr("Data de lançamento") + ": " + display_release_date(date))
+                        self.release_label.grid()
+                continue
             if kind == "cover":
                 if generation == self.cover_generation and value:
                     try:

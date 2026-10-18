@@ -122,10 +122,25 @@ class EffectsPane(ttk.Frame):
         self.bar.grid(row=8, column=0, sticky="ew", pady=8)
         self.status_label = ttk.Label(self, textvariable=display_var(self.status), style="Muted.TLabel", wraplength=800)
         self.status_label.grid(row=9, column=0, sticky="w")
+        self.lyric_rows=[]
+        self.lyric_text=tk.StringVar()
+        self.lyric_label=ttk.Label(self,textvariable=self.lyric_text,wraplength=760,anchor="center",font=('Segoe UI',12,'bold'))
+        self.lyric_label.grid(row=10,column=0,sticky="ew",pady=8)
+        ttk.Button(self,text=tr("Importar letra LRC"),command=self.choose_lyrics).grid(row=11,column=0,sticky="w")
         self.keep_pitch_trace = self.keep_pitch.trace_add("write", lambda *_: self.changed())
         self.source.trace_add("write", self.source_changed)
         self.changed()
         self.poll_id = self.after(100, self.poll)
+
+    def choose_lyrics(self):
+        path=filedialog.askopenfilename(parent=self.app,title=tr("Importar letra LRC"),filetypes=[('LRC','*.lrc')])
+        if path:
+            try:
+                from synced_lyrics import read_lrc
+                self.lyric_rows=read_lrc(path)
+                if not self.lyric_rows:raise ValueError(tr("Nenhum tempo válido na letra LRC."))
+                self.app.synced_lyrics.set(True)
+            except (OSError,ValueError) as error:self.status.set(str(error))
 
     def choose(self):
         path = filedialog.askopenfilename(parent=self.app, title=tr("Áudio para Slowed, Sped Up e Reverb"), filetypes=[(tr("Áudio"), "*.mp3 *.m4a *.flac *.wav *.ogg *.opus *.webm *.aac"), (tr("Todos os arquivos"), "*.*")])
@@ -134,6 +149,13 @@ class EffectsPane(ttk.Frame):
 
     def use_file(self, path):
         self.stop_preview()
+        self.lyric_rows=[];self.lyric_text.set("")
+        sidecar=Path(path).with_suffix('.lrc')
+        if self.app.synced_lyrics.get() and sidecar.is_file():
+            try:
+                from synced_lyrics import read_lrc
+                self.lyric_rows=read_lrc(sidecar)
+            except (OSError,ValueError):pass
         self.source.set(str(path))
         self.status.set("Áudio selecionado. Ouça um trecho antes de exportar.")
 
@@ -147,6 +169,9 @@ class EffectsPane(ttk.Frame):
     def set_position(self, seconds):
         seconds = max(0, min(float(seconds), self.duration)) if self.duration else max(0, float(seconds))
         self.position.set(seconds)
+        if hasattr(self,'lyric_rows'):
+            from synced_lyrics import line_at
+            self.lyric_text.set(line_at(self.lyric_rows,seconds) if self.app.synced_lyrics.get() else "")
         self.start_time.set(str(seconds))
         self.time_label.set(self.clock(seconds) + " / " + (self.clock(self.duration) if self.duration else "—"))
 

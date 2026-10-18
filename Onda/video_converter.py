@@ -18,6 +18,7 @@ VIDEO_BITRATES=('Automático','1000k','2500k','5000k','8000k','12000k','20000k')
 AUDIO_BITRATES=('96k','128k','192k','256k','320k')
 FRAME_RATES=('Original','24','25','30','50','60')
 AUDIO_MODES=('Manter áudio','Sem áudio')
+AUDIO_INPUT_EXTENSIONS={'.mp3','.m4a','.aac','.flac','.wav','.ogg','.opus'}
 VIDEO_EXTENSIONS={'.mp4','.mkv','.mov','.avi','.webm','.m4v','.mpeg','.mpg','.ts','.mts','.m2ts','.3gp','.flv','.wmv'}
 
 class ConversionCancelled(Exception):
@@ -25,7 +26,7 @@ class ConversionCancelled(Exception):
 
 def probe_video(source, folder='',audio_only=False):
     source=Path(source).resolve()
-    if not source.is_file() or source.suffix.lower() not in (VIDEO_EXTENSIONS | {'.mp3','.m4a','.aac'} if audio_only else VIDEO_EXTENSIONS):
+    if not source.is_file() or source.suffix.lower() not in (VIDEO_EXTENSIONS | AUDIO_INPUT_EXTENSIONS if audio_only else VIDEO_EXTENSIONS):
         raise ValueError('Escolha um arquivo de vídeo local compatível.')
     result=subprocess.run([executable('ffprobe',folder),'-v','error','-show_entries',
         'format=duration:stream=index,codec_type,width,height:stream_disposition=attached_pic',
@@ -36,7 +37,7 @@ def probe_video(source, folder='',audio_only=False):
     duration=float(info.get('format',{}).get('duration') or 0)
     audio=next((s for s in info.get('streams',[]) if s.get('codec_type')=='audio'),None)
     if (audio is None if audio_only else video is None) or not math.isfinite(duration) or duration<=0:
-        raise ValueError('O arquivo precisa conter vídeo e uma duração válida.')
+        raise ValueError('O vídeo selecionado não contém áudio.' if audio_only and audio is None else 'O arquivo precisa conter vídeo e uma duração válida.')
     return dict(duration=duration,width=int(video['width']) if video and not audio_only else 0,height=int(video['height']) if video and not audio_only else 0,video_index=int(video['index']) if video else -1,has_audio=audio is not None)
 
 def convert_video(config,emit=lambda *args,**kwargs:None,cancelled=lambda:False):
@@ -51,7 +52,7 @@ def convert_video(config,emit=lambda *args,**kwargs:None,cancelled=lambda:False)
     if output.suffix.lower()!='.'+mode.lower():raise ValueError('A extensão da saída deve corresponder ao formato escolhido.')
     def check():
         if cancelled():raise ConversionCancelled('Conversão cancelada.')
-    check();info=probe_video(source,config.get('ffmpeg',''));check()
+    check();info=probe_video(source,config.get('ffmpeg',''),audio_only=mode in AUDIO_FORMATS);check()
     if mode in AUDIO_FORMATS and not info['has_audio']:raise ValueError('O vídeo selecionado não contém áudio.')
     output.parent.mkdir(parents=True,exist_ok=True)
     fd,name=tempfile.mkstemp(prefix='.onda-convert-',suffix=output.suffix,dir=output.parent);os.close(fd)
@@ -114,3 +115,31 @@ def convert_video(config,emit=lambda *args,**kwargs:None,cancelled=lambda:False)
             process.wait()
             if process.stdout:process.stdout.close()
         temporary.unlink(missing_ok=True)
+
+
+def convert_batch(config,emit=lambda *args,**kwargs:None,cancelled=lambda:False):
+    mode=config.get('video_format','MP3')
+    if mode not in OUTPUT_FORMATS:raise ValueError('Formato de conversão inválido.')
+    sources=list(dict.fromkeys(config.get('sources',[])))
+    if not sources or len(sources)>1000:raise ValueError('Selecione de 1 a 1000 arquivos.')
+    folder=Path(config['output_folder']).resolve()
+    results=[];failures=[]
+    for index,source in enumerate(sources):
+        if cancelled():raise ConversionCancelled('Conversão cancelada.')
+        path=Path(source)
+        import re
+        name=re.sub(r'^(?:audio|conversion)-batch-[0-9a-f-]{36}-','',path.stem)
+        target=folder/(name+' - convertido.'+mode.lower())
+        suffix=2
+        while target.exists():
+            target=folder/(name+f' - convertido ({suffix}).'+mode.lower());suffix+=1
+        emit('stage',message=f'{index+1}/{len(sources)} · {path.name}')
+        def progress(kind,**data):
+            if kind=='progress':emit(kind,percent=(index+data['percent']/100)/len(sources)*100)
+        try:
+            result=convert_video(dict(config,source=str(path),output=str(target)),progress,cancelled)
+            results.append(result)
+            emit('file',path=result['path'],mode=mode,size=target.stat().st_size)
+        except ConversionCancelled:raise
+        except Exception as error:failures.append({'source':str(path),'error':str(error)})
+    return {'results':results,'failures':failures,'message':f"{len(results)}/{len(sources)} · "+'; '.join(row['source']+': '+row['error'] for row in failures)}

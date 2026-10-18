@@ -173,6 +173,14 @@ class App(UiMixin, tk.Tk):
         self.status_notice=StatusNotice(self)
         from appearance import ThemeManager
         self.theme_manager = ThemeManager(self)
+        self.drop_target=None
+        if os.name=='nt':
+            try:
+                from windows_drop import WindowsDrop
+                from drop_input import receive
+                self.update_idletasks()
+                self.drop_target=WindowsDrop(self,lambda payload:receive(self,payload))
+            except OSError as error:self.write_log('Arrastar: '+str(error))
         self.restore_queue()
         from advanced_ui import tick,check_update
         self._schedule_after=self.after(2500,lambda:tick(self))
@@ -987,6 +995,7 @@ class App(UiMixin, tk.Tk):
     def destroy(self):
         if hasattr(self,"parallel") and self.parallel.memory_wait is not None:
             self.after_cancel(self.parallel.memory_wait);self.parallel.memory_wait=None
+        if getattr(self,'drop_target',None):self.drop_target.shutdown()
         if hasattr(self,"clipboard_watch"):self.clipboard_watch.shutdown()
         if hasattr(self,"status_notice"):self.status_notice.shutdown()
         if hasattr(self, "history_page"):
