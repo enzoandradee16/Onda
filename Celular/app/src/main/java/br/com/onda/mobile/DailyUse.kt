@@ -81,13 +81,16 @@ internal fun queueFinished(context:Context,done:Int,total:Int) {
     runCatching {manager.notify(31,notification)}
 }
 
-@Composable internal fun DailyDownloadControls(settings:JSONObject,put:(String,Any)->Unit) {
+@Composable internal fun WifiDownloadControls(settings:JSONObject,put:(String,Any)->Unit) {
     SettingsDivider()
     Toggle("Somente Wi-Fi",settings.optBoolean("wifi_only")){put("wifi_only",it)}
     if(settings.optBoolean("wifi_only"))Select("Ao perder o Wi-Fi",settings.optString("wifi_loss","Pausar downloads"),wifiLossActions){put("wifi_loss",it)}
     UiText("Sem Wi-Fi, a fila aguarda e retoma automaticamente quando a conexão volta.",style=MaterialTheme.typography.bodySmall)
     if(settings.optBoolean("wifi_only") && settings.optString("wifi_loss")=="Concluir downloads ativos")UiText("Concluir ativos pode usar dados móveis; novos downloads aguardam Wi-Fi.",style=MaterialTheme.typography.bodySmall)
     SettingsDivider()
+}
+
+@Composable internal fun DailyDownloadControls(settings:JSONObject,put:(String,Any)->Unit) {
     Select("Ação ao terminar a fila",settings.optString("finish_action","Notificação"),finishActions){put("finish_action",it)}
     Toggle("Controles na notificação",settings.optBoolean("notification_controls",true)){put("notification_controls",it)}
 }

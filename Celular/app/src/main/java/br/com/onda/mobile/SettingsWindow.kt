@@ -24,7 +24,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 val categories=linkedMapOf(
-    "Geral" to listOf("remember","clipboard_links","language","notice_duration","notice_animation"),
+    "Geral" to listOf("remember","language","clipboard_links","notice_duration","notice_animation"),
     "Aparência" to listOf("simple_download_ui","queue_actions_at_top","queue_view","queue_card_size","history_card_size","pure_black_separators","history_view","theme","accent","tab_order","hidden_tabs","interface_font","interface_font_size","interface_spacing"),
     "Downloads" to listOf("wifi_only","wifi_loss","finish_action","notification_controls","auto_select_media","social_best_quality","detect_duplicates","filename_template","concurrent_downloads","resume_downloads","resume_queue","normalize_volume","schedule_enabled","schedule_start","schedule_stop","mode","audio_quality","height","fps","playlist_limit","link_playlist","organization","duplicate_policy","output_uri","auto_metadata","auto_match","confirm_version","review_metadata"),
     "Imagens" to listOf("image_format","image_size","image_width","image_height","keep_ratio"),
@@ -93,38 +93,38 @@ val categories=linkedMapOf(
                         Toggle("Lembrar configurações",settings.optBoolean("remember",true)){put("remember",it)}
                         UiText("Ative para recuperar suas opções ao abrir o aplicativo novamente.",style=MaterialTheme.typography.bodySmall)
                         SettingsDivider()
-                        Toggle("Reconhecer links copiados automaticamente",settings.optBoolean("clipboard_links",true)){put("clipboard_links",it)}
                         UiText("Preferências",style=MaterialTheme.typography.titleMedium)
                         Select("Idioma",settings.optString("language","pt-BR"),UI_LANGUAGES){put("language",it)}
                         SettingsDivider()
-                        Toggle("Animar avisos",settings.optBoolean("notice_animation",true)){put("notice_animation",it)}
+                        Toggle("Reconhecer links copiados automaticamente",settings.optBoolean("clipboard_links",true)){put("clipboard_links",it)}
                         Select("Duração dos avisos",settings.optString("notice_duration","Após 3 segundos"),noticeDurations.keys.toList()){put("notice_duration",it)}
                         UiText("Avisos de operações em andamento permanecem até terminar. O botão × permite fechar manualmente.",style=MaterialTheme.typography.bodySmall)
+                        Toggle("Animar avisos",settings.optBoolean("notice_animation",true)){put("notice_animation",it)}
                         PreferenceTransfer(vm)
                         SettingsDivider()
                         UiText("Restaurar configurações",style=MaterialTheme.typography.titleMedium)
-                        TextButton(onClick={reset=true}){UiText("Restaurar TODAS as configurações ao padrão")}
-                        SettingsDivider()
                         TextButton(onClick={reset=true}){UiText("Escolher quais configurações restaurar…")}
+                        SettingsDivider()
+                        TextButton(onClick={reset=true}){UiText("Restaurar TODAS as configurações ao padrão")}
                     }
                     "Aparência"->{
-                        Toggle("Simplificar controles de download",settings.optBoolean("simple_download_ui",false)){put("simple_download_ui",it)}
-                        UiText("Oculta formato e qualidade nas abas de download e usa a maior qualidade disponível. Não altera o espaçamento nem as abas visíveis.",style=MaterialTheme.typography.bodySmall)
-                        SettingsDivider()
                         UiText("Tema e cores",style=MaterialTheme.typography.titleMedium)
                         SettingsDivider()
                         Select("Modo de aparência",settings.optString("theme"),listOf("Seguir o sistema","Escuro","Preto puro","Claro","Alto contraste")){put("theme",it)}
-                        Toggle("Mostrar bordas e separações no Preto puro",settings.optBoolean("pure_black_separators",false)){put("pure_black_separators",it)}
-                        SettingsDivider()
                         Select("Cor de destaque",settings.optString("accent"),accents.keys.toList()){put("accent",it)}
                         SettingsDivider()
-                        Select("Espaçamento da interface",settings.optString("interface_spacing","Padrão"),spacingModes){put("interface_spacing",it)}
+                        Toggle("Mostrar bordas e separações no Preto puro",settings.optBoolean("pure_black_separators",false)){put("pure_black_separators",it)}
                         SettingsDivider()
                         Select("Alterar tamanho da fonte",settings.optString("interface_font_size","100%"),interfaceFontSizes){put("interface_font_size",it)}
                         SettingsDivider()
                         Select("Fonte da interface",settings.optString("interface_font",DEFAULT_INTERFACE_FONT),interfaceFonts.keys.toList()){put("interface_font",it)}
                         UiText(FONT_PREVIEW,style=MaterialTheme.typography.bodyLarge,modifier=Modifier.testTag("font-preview"))
                         UiText("A fonte muda na hora. Ative Lembrar configurações para manter sua escolha ao reabrir.",style=MaterialTheme.typography.bodySmall)
+                        SettingsDivider()
+                        Select("Espaçamento da interface",settings.optString("interface_spacing","Padrão"),spacingModes){put("interface_spacing",it)}
+                        SettingsDivider()
+                        Toggle("Simplificar controles de download",settings.optBoolean("simple_download_ui",false)){put("simple_download_ui",it)}
+                        UiText("Oculta formato e qualidade nas abas de download e usa a maior qualidade disponível. Não altera o espaçamento nem as abas visíveis.",style=MaterialTheme.typography.bodySmall)
                         SettingsDivider()
                         Toggle("Mostrar ações antes das listas",settings.optBoolean("queue_actions_at_top",true)){put("queue_actions_at_top",it)}
                         Select("Mostrar itens na fila",settings.optString("queue_view","Completa"),listOf("Compacto","Completa")){put("queue_view",it)}
@@ -153,28 +153,16 @@ val categories=linkedMapOf(
 
                     }
                     "Downloads"->{
-                        Toggle("Selecionar todas as mídias ao abrir a publicação",settings.optBoolean("auto_select_media",true)){put("auto_select_media",it)}
-                        UiText("Instagram, TikTok e Kwai: você pode desmarcar fotos e vídeos individualmente antes de confirmar.",style=MaterialTheme.typography.bodySmall)
-                        SettingsDivider()
-                        Toggle("Baixar mídias sociais automaticamente na maior qualidade",settings.optBoolean("social_best_quality",true)){put("social_best_quality",it)}
-                        UiText("Instagram, TikTok e Kwai: escolhe automaticamente a maior qualidade. Você ainda pode escolher quais itens baixar.",style=MaterialTheme.typography.bodySmall)
-                        SettingsDivider()
                         UiText("Downloads e arquivos",style=MaterialTheme.typography.titleMedium)
                         UiText("As opções são aplicadas aos próximos links adicionados.",style=MaterialTheme.typography.bodySmall)
-                        FormatOptions(settings,OndaStore::saveSettings,separated=true)
-                        SettingsDivider()
                         UiText("Pasta de destino",style=MaterialTheme.typography.labelMedium)
                         Button(onClick={folder.launch(null)}){UiText("Alterar")}
                         UiText(settings.optString("output_uri").ifBlank {"Downloads/ONDA no Android 10+. No Android 8/9, escolha uma pasta para preservar os arquivos ao desinstalar."},style=MaterialTheme.typography.bodySmall)
                         TextButton(onClick={put("output_uri","")}){UiText("Usar pasta padrão")}
                         SettingsDivider()
-                        OrganizationOptions(settings,::put)
-                        val duplicates=linkedMapOf("Perguntar" to "ask","Manter ambos" to "keep","Substituir" to "replace","Pular" to "skip")
-                        SettingsDivider()
-                        Select("Quando o arquivo já existir",duplicates.entries.firstOrNull {it.value==settings.optString("duplicate_policy")}?.key ?: "Perguntar",duplicates.keys.toList()){put("duplicate_policy",duplicates.getValue(it))}
-                        SettingsDivider()
-                        Toggle("Baixar playlist de vídeo",settings.optBoolean("link_playlist")){put("link_playlist",it)}
-                        OutlinedTextField(settings.optInt("playlist_limit").toString(),{put("playlist_limit",(it.toIntOrNull() ?: 2000).coerceIn(1,5000))},label={UiText("Máximo de itens por playlist")},modifier=Modifier.fillMaxWidth(),singleLine=true)
+                        FormatOptions(settings,OndaStore::saveSettings,separated=true)
+                        DownloadConcurrencyOptions(settings,::put)
+                        WifiDownloadControls(settings,::put)
                         SettingsDivider()
                         Toggle("Escolher automaticamente os metadados mais semelhantes",settings.optBoolean("auto_metadata")){put("auto_metadata",it)}
                         UiText("Seleciona o primeiro resultado de maior similaridade entre os metadados compatíveis, sem abrir a escolha. Sem correspondência compatível, informa o erro. Não altera a escolha da versão de áudio.",style=MaterialTheme.typography.bodySmall)
@@ -189,12 +177,28 @@ val categories=linkedMapOf(
                         SettingsDivider()
                         Toggle("Revisar metadados antes de baixar",settings.optBoolean("review_metadata")){put("review_metadata",it)}
                         UiText("Spotify, Deezer e Apple Music fornecem metadados; o áudio correspondente é obtido do YouTube.",style=MaterialTheme.typography.bodySmall)
+                        OrganizationOptions(settings,::put)
+                        val duplicates=linkedMapOf("Perguntar" to "ask","Manter ambos" to "keep","Substituir" to "replace","Pular" to "skip")
+                        SettingsDivider()
+                        Select("Quando o arquivo já existir",duplicates.entries.firstOrNull {it.value==settings.optString("duplicate_policy")}?.key ?: "Perguntar",duplicates.keys.toList()){put("duplicate_policy",duplicates.getValue(it))}
+                        SettingsDivider()
+                        Toggle("Baixar mídias sociais automaticamente na maior qualidade",settings.optBoolean("social_best_quality",true)){put("social_best_quality",it)}
+                        UiText("Instagram, TikTok e Kwai: escolhe automaticamente a maior qualidade. Você ainda pode escolher quais itens baixar.",style=MaterialTheme.typography.bodySmall)
+                        SettingsDivider()
+                        Toggle("Selecionar todas as mídias ao abrir a publicação",settings.optBoolean("auto_select_media",true)){put("auto_select_media",it)}
+                        UiText("Instagram, TikTok e Kwai: você pode desmarcar fotos e vídeos individualmente antes de confirmar.",style=MaterialTheme.typography.bodySmall)
+                        SettingsDivider()
+                        Toggle("Baixar playlist de vídeo",settings.optBoolean("link_playlist")){put("link_playlist",it)}
+                        OutlinedTextField(settings.optInt("playlist_limit").toString(),{put("playlist_limit",(it.toIntOrNull() ?: 2000).coerceIn(1,5000))},label={UiText("Máximo de itens por playlist")},modifier=Modifier.fillMaxWidth(),singleLine=true)
+                        SettingsDivider()
                         AdvancedDownloadOptions(settings,::put)
-                        DailyDownloadControls(settings){key,value->put(key,value)}
                     }
                     "Imagens"->ImageOptions(settings,OndaStore::saveSettings,separated=true)
                     "Áudio"->{
                         UiText("Reprodução e prévias",style=MaterialTheme.typography.titleMedium)
+                        Toggle("Continuar prévia dos efeitos em outras abas",settings.optBoolean("keep_preview")){put("keep_preview",it)}
+                        Toggle("Mostrar letra sincronizada (LRC)",settings.optBoolean("synced_lyrics")){put("synced_lyrics",it)}
+                        SettingsDivider()
                         UiText("Duração das prévias",style=MaterialTheme.typography.titleSmall)
                         for((key,label) in listOf("search_preview" to "Músicas nas pesquisas","effects_preview" to "Slowed / Sped Up e Reverb")) {
                             SettingsDivider()
@@ -204,12 +208,11 @@ val categories=linkedMapOf(
                         }
                         UiText("Vale para a próxima prévia. Nas pesquisas, o catálogo pode fornecer um trecho menor.",style=MaterialTheme.typography.bodySmall)
                         SettingsDivider()
-                        Toggle("Continuar prévia dos efeitos em outras abas",settings.optBoolean("keep_preview")){put("keep_preview",it)}
-                        Toggle("Mostrar letra sincronizada (LRC)",settings.optBoolean("synced_lyrics")){put("synced_lyrics",it)}
                     }
                     "Contas"->{
                         UiText("Contas e acesso",style=MaterialTheme.typography.titleMedium)
                         UiText("Spotify · opcional",style=MaterialTheme.typography.titleSmall)
+                        Button(onClick={vm.connectSpotify()}){UiText("Conectar")}
                         var secret by remember {mutableStateOf("")}
                         var secretReady by remember {mutableStateOf(false)}
                         LaunchedEffect(Unit) {
@@ -220,7 +223,6 @@ val categories=linkedMapOf(
                         OutlinedTextField(settings.optString("spotify_client_id"),{put("spotify_client_id",it)},label={UiText("Client ID")},modifier=Modifier.fillMaxWidth(),singleLine=true)
                         SettingsDivider()
                         OutlinedTextField(secret,{secret=it;SecureVault.put("spotify-api",it)},label={UiText("Client Secret · opcional")},enabled=secretReady,visualTransformation=androidx.compose.ui.text.input.PasswordVisualTransformation(),modifier=Modifier.fillMaxWidth(),singleLine=true)
-                        Button(onClick={vm.connectSpotify()}){UiText("Conectar")}
                         TextButton(onClick={runCatching {OndaStore.context.startActivity(Intent(Intent.ACTION_VIEW,android.net.Uri.parse("https://developer.spotify.com/dashboard")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))}.onFailure {vm.showNotice("Abrir Spotify Developers","Nenhum navegador disponível para abrir o Spotify Developers.")}}){UiText("Abrir Spotify Developers")}
                         TextButton(onClick={vm.operation("spotify_disconnect",JSONObject(),dialog=true)}){UiText("Desconectar")}
                         UiText("No Spotify Developers, cadastre o retorno http://127.0.0.1:8765/callback. A conexão usa PKCE e abre o navegador do celular. A disponibilidade das playlists depende das permissões da API.",style=MaterialTheme.typography.bodySmall)
@@ -233,8 +235,6 @@ val categories=linkedMapOf(
                         if(settings.optString("youtube_cookies_file").isNotBlank()) TextButton(onClick={java.io.File(settings.getString("youtube_cookies_file")).delete();put("youtube_cookies_file","");put("youtube_user_agent","");android.webkit.CookieManager.getInstance().removeAllCookies(null)}) {UiText("Remover sessão do YouTube")}
                     }
                     "Ferramentas"->{
-                        CacheControls(vm)
-                        SettingsDivider()
                         AppUpdateControls(vm)
                         SettingsDivider()
                         UiText("Ferramentas e atualizações",style=MaterialTheme.typography.titleMedium)
@@ -242,6 +242,8 @@ val categories=linkedMapOf(
                         Button(onClick={vm.operation("update",JSONObject(),dialog=true)}){UiText("Atualizar ferramentas")}
                         SettingsDivider()
                         OutlinedButton(onClick={vm.operation("self_test",JSONObject(),dialog=true){vm.showNotice("Verificar ferramentas","Ferramentas verificadas: ${it.optString("yt_dlp")}")}}){UiText("Verificar ferramentas")}
+                        CacheControls(vm)
+                        SettingsDivider()
                         UiText("ONDA Android ${BuildConfig.VERSION_NAME}" + if(BuildConfig.DEBUG) " · versão de desenvolvimento" else "",style=MaterialTheme.typography.bodySmall)
                     }
                 }

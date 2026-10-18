@@ -1,17 +1,20 @@
 # Histórico de versões
 
-## Em desenvolvimento
+## 1.1.6 — 2026-10-18
 
-- Android: modo Somente Wi-Fi com política ao perder a rede e retomada; controles opcionais de pausar/retomar, parar e abrir a fila na notificação, ativados por padrão.
-- PC: minimizar para a bandeja, restaurar/sair pelo menu e progresso agregado na barra de tarefas.
-- Ação ao terminar a fila nas duas versões: som, notificação, ambos ou nenhuma. PC também oferece desligamento confirmado e contagem regressiva cancelável.
+- Configurações reorganizadas por frequência de uso no PC e Android: opções principais primeiro e manutenção/restauração ao final, sem mudar preferências salvas.
 
-- Fila no PC e Android: atividade por item, motivos de espera, ordenação de pendentes e reordenação por arrastar, com setas e persistência.
-- Estimativa de espaço da fila, margem para temporários, indicação de tamanhos desconhecidos e aviso de possível falta de armazenamento antes de iniciar.
-
-- Letra sincronizada LRC opcional, desligada por padrão, na reprodução local de PC e Android.
-- Conversão em lote de áudio e vídeo para os formatos disponíveis no conversor nas duas versões, preservando originais e tratando falhas por arquivo.
-- PC: arrastar arquivos para o conversor, editor ou efeitos e arrastar links para adicionar à fila após confirmação.
+- Fila: indicador de atividade e espera, ordenação, reordenação por arrastar e estimativa de espaço necessário.
+- Android: modo Somente Wi-Fi, política ao perder a rede e controles opcionais de pausar/retomar, parar e abrir a fila na notificação.
+- PC: minimizar para a bandeja, ícone acompanhando o tema, menu de ações e progresso na barra de tarefas.
+- Ação ao terminar: nenhuma, som, notificação ou ambos; no PC, desligamento com confirmação e contagem cancelável.
+- Conversor de áudio/vídeo em lote, seleção por tipo de arquivo e controles adequados ao formato; prévia após selecionar arquivo no PC.
+- Letra sincronizada LRC opcional na reprodução local; PC aceita arquivos e links arrastados com confirmação.
+- Conferência de playlists com arquivos locais e histórico para adicionar somente faixas novas ou ausentes.
+- Alto contraste, atalhos personalizáveis e controles de desempenho no PC, com threads limitadas à CPU detectada.
+- Datas de lançamento mais visíveis, consulta complementar no Deezer e formatação das datas do Apple Music.
+- Ajustes nos cartões de metadados, comparação de resultados, duplicatas, formato no modo simplificado e Lembrar configurações no início de Geral.
+- Distribuição Android em dois APKs: ARM64 para aparelhos compatíveis e x86_64 para emuladores compatíveis. O atualizador da nova versão respeita a arquitetura instalada.
 
 ## 1.1.5 — 2026-10-17
 

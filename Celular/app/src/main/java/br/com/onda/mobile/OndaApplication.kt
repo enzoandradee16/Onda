@@ -72,6 +72,7 @@ object MobileEngine {
     }
     fun call(context: Context, identity: String, action: String, config: org.json.JSONObject, callback: EventCallback): org.json.JSONObject {
         initialize(context)
+        if(action=="app_update") config.put("abi",android.os.Build.SUPPORTED_ABIS.firstOrNull { it in BuildConfig.ONDA_ABIS.split(",") } ?: BuildConfig.ONDA_ABIS.substringBefore(","))
         return org.json.JSONObject(Python.getInstance().getModule("mobile_backend").callAttr("run",identity,action,config.toString(),callback).toString())
     }
     fun reply(identity: String, value: org.json.JSONObject) {

@@ -43,6 +43,29 @@ class SettingsLayoutUiTests(unittest.TestCase):
                 self.assertEqual(app.download_cookies('https://instagram.com/p/abc'),'social.txt')
             finally:app.destroy()
 
+    def test_frequent_settings_precede_maintenance(self):
+        from app import App
+        from tkinter import ttk
+        from settings_layout import LAYOUT
+        with tempfile.TemporaryDirectory() as folder,patch.dict(os.environ,{'LOCALAPPDATA':folder}):
+            app=App(show_welcome=False);app.withdraw()
+            try:
+                def labels(parent):
+                    result=[]
+                    for widget in parent.winfo_children():
+                        if isinstance(widget,(ttk.Label,ttk.Button,ttk.Checkbutton)):result.append(str(widget.cget('text')))
+                        result.extend(labels(widget))
+                    return result
+                for tab in app.settings_pages.tabs():
+                    category=app.settings_pages.tab(tab,'text')
+                    actual=labels(app.settings_categories[tab].content)
+                    expected=LAYOUT['common_options'].get(category,[])
+                    positions=[actual.index(label) for label in expected]
+                    self.assertEqual(positions,sorted(positions),category)
+                general=labels(app.settings_categories[app.settings_pages.tabs()[0]].content)
+                self.assertEqual(general[0],'Lembrar configurações')
+            finally:app.destroy()
+
     def test_controls_are_centralized_and_saved_values_survive(self):
         from app import App
         from preferences import PreferenceStore

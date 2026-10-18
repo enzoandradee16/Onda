@@ -87,7 +87,7 @@ def version_key(value):
     if not match:return (-1,)
     return tuple(int(match[i] or 0) for i in (1,2,3))+({'alpha':0,'beta':1,'rc':2,None:3}[match[4].lower() if match[4] else None],int(match[5] or 0))
 
-def release_update(platform,current,releases=None):
+def release_update(platform,current,releases=None,abi=None):
     if releases is None:
         import requests
         response=requests.get('https://api.github.com/repos/enzoandradee16/Onda/releases',headers={'Accept':'application/vnd.github+json'},params={'per_page':30},timeout=(5,15))
@@ -98,6 +98,7 @@ def release_update(platform,current,releases=None):
         if release.get('draft'):continue
         for asset in release.get('assets',[]):
             name=asset.get('name','')
+            if platform=='android' and abi and any(tag in name for tag in ('arm64-v8a','x86_64')) and abi not in name:continue
             if (platform=='android' and name.lower().endswith('.apk')) or (platform=='windows' and 'setup' in name.lower() and name.lower().endswith('.exe')):
                 version=name if version_key(name)!=(-1,) else release.get('tag_name','')
                 url=asset.get('browser_download_url','')

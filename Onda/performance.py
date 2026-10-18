@@ -58,8 +58,8 @@ def controls(app,parent):
     for key,label,choices in (
         ('concurrent_downloads','Downloads simultâneos',tuple(str(n) for n in range(1,16))),
         ('conversion_threads','Threads por conversão',thread_choices()),
-        ('worker_priority','Prioridade das tarefas',PRIORITIES),
-        ('memory_reserve','Aguardar quando a RAM livre ficar abaixo de',tuple(RESERVES))):
+        ('memory_reserve','Aguardar quando a RAM livre ficar abaixo de',tuple(RESERVES)),
+        ('worker_priority','Prioridade das tarefas',PRIORITIES)):
         ttk.Label(parent,text=tr(label)).pack(anchor='w',pady=(8,4))
         TranslatedCombobox(parent,textvariable=getattr(app,key),values=choices,state='readonly',width=28).pack(anchor='w',fill='x')
     ttk.Label(parent,text=tr('Menos downloads simultâneos e threads reduzem o consumo. A prioridade baixa favorece outros programas. As mudanças valem para novas tarefas; tarefas ativas continuam.'),style='Muted.TLabel',wraplength=480).pack(anchor='w',pady=(12,8))

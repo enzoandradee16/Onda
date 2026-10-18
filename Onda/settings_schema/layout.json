@@ -10,36 +10,37 @@
   ],
   "sections": {
     "Geral": [
-      "Idioma",
       "Lembrar configurações",
+      "Idioma",
+      "Ao fechar o ONDA",
+      "Reconhecer links copiados automaticamente",
       "Avisos",
       "Exportar e importar",
-      "Restaurar configurações",
-      "Reconhecer links copiados automaticamente",
-      "Ao fechar o ONDA"
+      "Restaurar configurações"
     ],
     "Aparência": [
       "Tema e cores",
       "Espaçamento e fontes",
+      "Simplificar controles de download",
       "Fila",
       "Histórico",
       "Ordem das abas",
-      "Mostrar ou ocultar abas",
-      "Simplificar controles de download"
+      "Mostrar ou ocultar abas"
     ],
     "Downloads": [
-      "Formato e qualidade",
       "Pasta de destino",
+      "Formato e qualidade",
+      "Downloads simultâneos",
+      "Somente Wi-Fi",
+      "Metadados e versão",
       "Organização dos arquivos",
       "Arquivos existentes",
-      "Playlists",
-      "Metadados e versão",
-      "Fila e agendamento",
       "Baixar mídias sociais automaticamente na maior qualidade",
       "Selecionar todas as mídias ao abrir a publicação",
-      "Somente Wi-Fi",
+      "Playlists",
       "Ação ao terminar a fila",
-      "Notificações"
+      "Notificações",
+      "Fila e agendamento"
     ],
     "Imagens": [
       "Formato",
@@ -56,30 +57,31 @@
       "YouTube e cookies"
     ],
     "Ferramentas": [
-      "Cache",
       "Atualizações do ONDA",
-      "Ferramentas e atualizações"
+      "Ferramentas e atualizações",
+      "Cache"
     ]
   },
   "common_options": {
     "Geral": [
-      "Idioma",
       "Lembrar configurações",
-      "Animar avisos",
+      "Idioma",
+      "Reconhecer links copiados automaticamente",
       "Duração dos avisos",
+      "Animar avisos",
       "Exportar configurações…",
       "Importar configurações…",
-      "Restaurar TODAS as configurações ao padrão",
       "Escolher quais configurações restaurar…",
-      "Reconhecer links copiados automaticamente"
+      "Restaurar TODAS as configurações ao padrão"
     ],
     "Aparência": [
       "Modo de aparência",
-      "Mostrar bordas e separações no Preto puro",
       "Cor de destaque",
-      "Espaçamento da interface",
+      "Mostrar bordas e separações no Preto puro",
       "Alterar tamanho da fonte",
       "Fonte da interface",
+      "Espaçamento da interface",
+      "Simplificar controles de download",
       "Mostrar ações antes das listas",
       "Mostrar itens na fila",
       "Tamanho dos cards da fila",
@@ -87,32 +89,31 @@
       "Tamanho dos cards do histórico",
       "Ordem das abas",
       "Restaurar ordem das abas",
-      "Mostrar ou ocultar abas",
-      "Simplificar controles de download"
+      "Mostrar ou ocultar abas"
     ],
     "Downloads": [
-      "Formato",
       "Pasta de destino",
       "Usar pasta padrão",
-      "Organizar músicas em",
-      "Nome dos arquivos",
-      "Quando o arquivo já existir",
-      "Baixar playlist de vídeo",
-      "Máximo de itens por playlist",
+      "Formato",
+      "Downloads simultâneos",
       "Escolher automaticamente os metadados mais semelhantes",
       "Escolher automaticamente a versão mais semelhante no YouTube",
       "Confirmar a versão do YouTube de cada música antes de baixar",
       "Revisar metadados antes de baixar",
-      "Downloads simultâneos",
+      "Organizar músicas em",
+      "Nome dos arquivos",
+      "Quando o arquivo já existir",
+      "Baixar mídias sociais automaticamente na maior qualidade",
+      "Selecionar todas as mídias ao abrir a publicação",
+      "Baixar playlist de vídeo",
+      "Máximo de itens por playlist",
       "Detectar duplicatas na fila e no histórico",
       "Retomar arquivos interrompidos quando possível",
       "Retomar fila ao abrir o ONDA",
       "Normalizar volume dos próximos downloads",
       "Agendar downloads",
       "Começar · HH:MM",
-      "Parar · HH:MM",
-      "Baixar mídias sociais automaticamente na maior qualidade",
-      "Selecionar todas as mídias ao abrir a publicação"
+      "Parar · HH:MM"
     ],
     "Imagens": [
       "Formato",
@@ -120,14 +121,14 @@
       "Manter proporção (sem ampliar ou distorcer)"
     ],
     "Áudio": [
+      "Continuar prévia dos efeitos em outras abas",
       "Músicas nas pesquisas",
-      "Slowed / Sped Up e Reverb",
-      "Continuar prévia dos efeitos em outras abas"
+      "Slowed / Sped Up e Reverb"
     ],
     "Contas": [
+      "Conectar",
       "Client ID",
       "Client Secret · opcional",
-      "Conectar",
       "Abrir Spotify Developers",
       "Desconectar",
       "Importar cookies do YouTube",
@@ -136,13 +137,13 @@
       "Remover sessão do YouTube"
     ],
     "Ferramentas": [
-      "Cache",
-      "Limpar cache",
-      "Atualizar tamanho",
       "Verificar atualizações do ONDA ao abrir",
       "Verificar atualização do ONDA",
       "Atualizar ferramentas",
-      "Verificar ferramentas"
+      "Verificar ferramentas",
+      "Cache",
+      "Limpar cache",
+      "Atualizar tamanho"
     ]
   }
 }

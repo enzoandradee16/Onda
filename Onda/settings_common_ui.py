@@ -85,13 +85,13 @@ def account_controls(app,parent):
     import webbrowser
     from tkinter import filedialog
     from i18n_tk import display_var
+    ttk.Button(parent,text=tr('Conectar'),command=lambda:app.playlist_page.connect_spotify()).pack(anchor='w',pady=6)
     for label,var,secret in (('Client ID',app.spotify_client_id,False),('Client Secret · opcional',app.spotify_client_secret,True)):
         ttk.Label(parent,text=tr(label)).pack(anchor='w')
         ttk.Entry(parent,textvariable=var,show='•' if secret else '').pack(fill='x',pady=(4,8))
     ttk.Button(parent,text=tr('Salvar neste computador'),command=app.save_spotify_credentials).pack(anchor='w')
     ttk.Button(parent,text=tr('Esquecer credenciais'),command=app.forget_spotify_credentials).pack(anchor='w',pady=4)
     ttk.Label(parent,textvariable=display_var(app.credential_status),style='Muted.TLabel',wraplength=480).pack(anchor='w')
-    ttk.Button(parent,text=tr('Conectar'),command=lambda:app.playlist_page.connect_spotify()).pack(anchor='w',pady=6)
     ttk.Button(parent,text=tr('Abrir Spotify Developers'),command=lambda:webbrowser.open('https://developer.spotify.com/dashboard')).pack(anchor='w')
     def disconnect():
         app.spotify_account.disconnect()

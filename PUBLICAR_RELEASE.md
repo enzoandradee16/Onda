@@ -1,13 +1,9 @@
-# Publicação do ONDA 1.1.5
+# Publicação do ONDA 1.1.6
 
-Pacotes preparados em `Release/1.1.5`. Preparar localmente não cria tag nem publica no GitHub.
+Pacotes em `Release/1.1.6`. O rascunho não deve ser publicado automaticamente.
 
-1. Revisar e enviar todos os fontes novos e alterados para o GitHub; os pacotes foram gerados da árvore local, confira o estado das mudanças pendentes antes de publicar.
-2. Confirmar que o commit corresponde ao `SOURCE_MANIFEST.json` e criar a tag **v1.1.5** nesse commit. Não reutilizar tags antigas.
-3. Criar a release com título **ONDA 1.1.5**, usando `RELEASE_NOTES.md`; desmarcar pré-release e escolher versão mais recente, quando a opção existir.
-4. Anexar os seis pacotes, `SHA256SUMS.txt`, `MANIFEST.json`, `SOURCE_MANIFEST.json`, `VALIDACAO.md` e os dois avisos de terceiros.
-5. Conferir hashes e arquivos antes de publicar. As versões Windows e Android devem ser publicadas juntas.
+1. Conferir o commit em SOURCE_MANIFEST.json e os sete pacotes: portátil, instalador, APK ARM64, APK x86_64 e três arquivos de fontes.
+2. Conferir MANIFEST.json, SHA256SUMS.txt, VALIDACAO.md e os avisos de terceiros.
+3. Revisar o rascunho ONDA 1.1.6 antes da publicação; preservar as releases existentes.
 
-O AppId Windows e a chave de produção Android foram preservados. APK: versionName 1.1.5, versionCode 23. Windows: versão de arquivo 1.1.5.0, sem Authenticode. A pasta Release/1.0.0 não foi alterada.
-
-Não distribuir cookies, configurações pessoais, credenciais, chaves privadas, mídias ou a pasta de desenvolvimento inteira. O FFmpeg Windows é preparado no primeiro uso e não é redistribuído nos pacotes. Desinstalação mantém as escolhas independentes de dados e cache; downloads são preservados.
+Android 1.1.6, código 24, assinatura de produção preservada. Windows 1.1.6.0 sem Authenticode. Não incluir credenciais, cookies ou configurações pessoais.

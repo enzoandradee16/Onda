@@ -357,7 +357,7 @@ def perform(action, config):
         return {'settings':import_settings(json.loads(path.read_text(encoding='utf-8')),'android')}
     if action=='app_update':
         from advanced_options import release_update
-        return release_update('android',config.get('version','1.1.0'))
+        return release_update('android',config.get('version','1.1.0'),abi=config.get('abi'))
     if action == 'describe':
         from metadata import is_streaming_link
         if is_streaming_link(config['url']):

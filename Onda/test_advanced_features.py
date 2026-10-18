@@ -37,6 +37,13 @@ class AdvancedOptionsTests(unittest.TestCase):
         releases[1]['assets'][0]['browser_download_url']='https://untrusted.example/file.apk'
         self.assertFalse(release_update('android','1.0.0-alpha.1',releases)['available'])
 
+    def test_android_update_matches_packaged_architecture(self):
+        assets=[{'name':f'ONDA-Android-1.1.6-{abi}.apk','browser_download_url':f'https://github.com/enzoandradee16/Onda/releases/download/v1.1.6/{abi}.apk'} for abi in ('arm64-v8a','x86_64')]
+        releases=[{'tag_name':'v1.1.6','assets':assets}]
+        for abi in ('arm64-v8a','x86_64'):
+            self.assertIn(abi,release_update('android','1.1.5',releases,abi=abi)['url'])
+        self.assertFalse(release_update('android','1.1.5',[{'assets':assets[:1]}],abi='x86_64')['available'])
+
 @unittest.skipUnless(os.environ.get('ONDA_FFMPEG'),'FFmpeg integration')
 class AudioLibraryTests(unittest.TestCase):
     def test_edit_can_replace_original_without_changing_name_or_leaving_a_copy(self):

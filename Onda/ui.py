@@ -422,13 +422,10 @@ class UiMixin:
         ttk.Label(appearance, text=tr('Modo de aparência'), style='Muted.TLabel').pack(anchor='w')
         self.theme_mode_combo = TranslatedCombobox(appearance, textvariable=self.theme_mode, values=THEME_MODES, state='readonly', width=28)
         self.theme_mode_combo.pack(anchor='w', fill='x', pady=(6, 16))
-        ttk.Checkbutton(appearance,text=tr("Mostrar bordas e separações no Preto puro"),variable=self.pure_black_separators).pack(anchor="w",pady=(0,12))
         ttk.Label(appearance, text=tr('Cor de destaque'), style='Muted.TLabel').pack(anchor='w')
         self.theme_accent_combo = TranslatedCombobox(appearance, textvariable=self.theme_accent, values=tuple(ACCENTS), state='readonly', width=28)
         self.theme_accent_combo.pack(anchor='w', fill='x', pady=(6, 16))
-        from interface_spacing import SPACING_MODES
-        ttk.Label(appearance,text=tr("Espaçamento da interface"),style="Muted.TLabel").pack(anchor="w")
-        TranslatedCombobox(appearance,textvariable=self.interface_spacing,values=SPACING_MODES,state="readonly",width=28).pack(anchor="w",fill="x",pady=(6,12))
+        ttk.Checkbutton(appearance,text=tr("Mostrar bordas e separações no Preto puro"),variable=self.pure_black_separators).pack(anchor="w",pady=(0,12))
         from interface_fonts import font_choices, FONT_PREVIEW, FONT_SIZES
         ttk.Label(appearance, text=tr("Alterar tamanho da fonte")).pack(anchor="w", pady=(12, 4))
         TranslatedCombobox(appearance, textvariable=self.interface_font_size, values=FONT_SIZES, state="readonly", width=12).pack(anchor="w")
@@ -441,13 +438,16 @@ class UiMixin:
         ttk.Label(appearance, text=tr('As mudanças aparecem na hora. Seguir o sistema acompanha o modo dos aplicativos do Windows, inclusive com o Onda aberto.'), style='Muted.TLabel', wraplength=480).pack(anchor='w')
         ttk.Label(appearance, text=tr('Para manter sua escolha ao reabrir, ative Lembrar configurações na categoria Geral.'), style='Muted.TLabel', wraplength=480).pack(anchor='w', pady=(12, 0))
 
+        from interface_spacing import SPACING_MODES
+        ttk.Label(appearance,text=tr("Espaçamento da interface"),style="Muted.TLabel").pack(anchor="w")
+        TranslatedCombobox(appearance,textvariable=self.interface_spacing,values=SPACING_MODES,state="readonly",width=28).pack(anchor="w",fill="x",pady=(6,12))
+        ttk.Checkbutton(appearance,text=tr('Simplificar controles de download'),variable=self.simple_download_ui).pack(anchor='w',pady=(12,0))
+        ttk.Label(appearance,text=tr('Oculta formato e qualidade nas abas de download e usa a maior qualidade disponível. Não altera o espaçamento nem as abas visíveis.'),wraplength=480,style='Muted.TLabel').pack(anchor='w',pady=(4,10))
+        ttk.Button(appearance,text=tr('Personalizar atalhos de teclado'),command=self.show_shortcuts).pack(anchor='w',pady=(12,0))
         ttk.Checkbutton(appearance,text=tr("Mostrar ações antes das listas"),variable=self.queue_actions_at_top).pack(anchor="w",pady=(12,0))
         for label,var,values in (("Mostrar itens na fila",self.queue_view,("Compacto","Completa")),("Tamanho dos cards da fila",self.queue_card_size,("Pequeno","Médio","Grande")),("Mostrar músicas no histórico",self.history_view,("Compacto","Completa")),("Tamanho dos cards do histórico",self.history_card_size,("Pequeno","Médio","Grande"))):
             ttk.Label(appearance,text=tr(label),style="Muted.TLabel").pack(anchor="w",pady=(10,4))
             TranslatedCombobox(appearance,textvariable=var,values=values,state="readonly",width=28).pack(anchor="w")
-        ttk.Checkbutton(appearance,text=tr('Simplificar controles de download'),variable=self.simple_download_ui).pack(anchor='w',pady=(12,0))
-        ttk.Label(appearance,text=tr('Oculta formato e qualidade nas abas de download e usa a maior qualidade disponível. Não altera o espaçamento nem as abas visíveis.'),wraplength=480,style='Muted.TLabel').pack(anchor='w',pady=(4,10))
-        ttk.Button(appearance,text=tr('Personalizar atalhos de teclado'),command=self.show_shortcuts).pack(anchor='w',pady=(12,0))
         from settings_common_ui import tab_order_controls
         tab_order_controls(self,appearance)
         general = categories["Geral"]
@@ -458,7 +458,6 @@ class UiMixin:
         ttk.Label(general, text=tr("Ative para recuperar suas opções ao abrir o aplicativo novamente."),
                   style="Muted.TLabel", wraplength=480).pack(anchor="w")
 
-        ttk.Checkbutton(general,text=tr("Reconhecer links copiados automaticamente"),variable=self.clipboard_links).pack(anchor="w",pady=(0,8))
         ttk.Label(general, text=tr("Preferências"), font=("Segoe UI", 13, "bold")).pack(anchor="w", pady=(0, 12))
         ttk.Label(general, text=tr("Idioma")).pack(anchor="w")
         TranslatedCombobox(general, textvariable=self.language, values=("pt-BR", "es", "en"), state="readonly", width=24).pack(anchor="w", pady=(4, 6))
@@ -469,18 +468,19 @@ class UiMixin:
         self.restart_slot.pack(anchor="w")
         self.restart_button=ttk.Button(self.restart_slot,text=tr("Reiniciar"),command=self.restart_app)
 
-        ttk.Checkbutton(general,text=tr("Animar avisos"),variable=self.notice_animation).pack(anchor="w",pady=(10,0))
+        ttk.Checkbutton(general,text=tr("Reconhecer links copiados automaticamente"),variable=self.clipboard_links).pack(anchor="w",pady=(0,8))
         from status_notice import NOTICE_DURATIONS
         ttk.Label(general,text=tr("Duração dos avisos")).pack(anchor="w",pady=(12,4))
         TranslatedCombobox(general,textvariable=self.notice_duration,values=tuple(NOTICE_DURATIONS),state="readonly").pack(anchor="w",fill="x")
         ttk.Label(general,text=tr("Avisos de operações em andamento permanecem até terminar. O botão × permite fechar manualmente."),style="Muted.TLabel",wraplength=480).pack(anchor="w",pady=(6,0))
+        ttk.Checkbutton(general,text=tr("Animar avisos"),variable=self.notice_animation).pack(anchor="w",pady=(10,0))
         from advanced_ui import preference_transfer_controls
         preference_transfer_controls(self,general)
         ttk.Separator(general).pack(fill='x', pady=18)
         ttk.Label(general, text=tr('Restaurar configurações'), font=('Segoe UI', 13, 'bold')).pack(anchor='w', pady=(0, 8))
         from reset_settings import show_reset
-        ttk.Button(general, text=tr('Restaurar TODAS as configurações ao padrão'), command=lambda: show_reset(self, True)).pack(anchor='w', pady=(0, 8))
-        ttk.Button(general, text=tr('Escolher quais configurações restaurar…'), command=lambda: show_reset(self, False)).pack(anchor='w')
+        ttk.Button(general, text=tr('Escolher quais configurações restaurar…'), command=lambda: show_reset(self, False)).pack(anchor='w', pady=(0, 8))
+        ttk.Button(general, text=tr('Restaurar TODAS as configurações ao padrão'), command=lambda: show_reset(self, True)).pack(anchor='w')
         ttk.Label(general, text=tr('Você poderá conferir as opções antes de confirmar. Contas, fila, histórico e arquivos baixados são mantidos.'), style='Muted.TLabel', wraplength=480).pack(anchor='w', pady=(8, 0))
 
 
@@ -488,17 +488,22 @@ class UiMixin:
         ttk.Label(downloads, text=tr("Downloads e arquivos"), font=("Segoe UI", 13, "bold")).pack(anchor="w", pady=(0, 8))
         ttk.Label(downloads, text=tr("As opções são aplicadas aos próximos links adicionados."), style="Muted.TLabel").pack(anchor="w", pady=(0, 8))
         from settings_common_ui import format_controls
-        ttk.Checkbutton(downloads,text=tr('Baixar mídias sociais automaticamente na maior qualidade'),variable=self.social_best_quality).pack(anchor='w',pady=(8,8))
-        ttk.Label(downloads,text=tr('Instagram, TikTok e Kwai: escolhe automaticamente a maior qualidade. Você ainda pode escolher quais itens baixar.'),wraplength=480,style='Muted.TLabel').pack(anchor='w',pady=(0,8))
-        ttk.Checkbutton(downloads,text=tr('Selecionar todas as mídias ao abrir a publicação'),variable=self.auto_select_media).pack(anchor='w',pady=(8,0))
-        ttk.Label(downloads,text=tr('Instagram, TikTok e Kwai: você pode desmarcar fotos e vídeos individualmente antes de confirmar.'),wraplength=480,style='Muted.TLabel').pack(anchor='w',pady=(4,8))
-        format_controls(self,downloads)
         ttk.Label(downloads, text=tr("Pasta de destino"), style="Muted.TLabel").pack(anchor="w")
         row = ttk.Frame(downloads)
         row.pack(fill="x", pady=(6, 8))
         ttk.Entry(row, textvariable=self.folder).pack(side="left", fill="x", expand=True)
         ttk.Button(row, text=tr("Alterar"), command=self.choose_folder).pack(side="right", padx=(8, 0))
         ttk.Button(downloads,text=tr("Usar pasta padrão"),command=lambda:self.folder.set(self.preference_defaults["folder"])).pack(anchor="w",pady=(0,8))
+        format_controls(self,downloads)
+        from advanced_ui import concurrency_controls
+        concurrency_controls(self,downloads)
+        ttk.Checkbutton(downloads, text=tr("Escolher automaticamente os metadados mais semelhantes"), variable=self.auto_metadata).pack(anchor="w", pady=(0, 6))
+        ttk.Label(downloads, text=tr("Seleciona o primeiro resultado de maior similaridade entre os metadados compatíveis, sem abrir a escolha. Sem correspondência compatível, informa o erro. Não altera a escolha da versão de áudio."), style="Muted.TLabel", wraplength=480).pack(anchor="w", fill="x", pady=(0, 12))
+        ttk.Checkbutton(downloads, text=tr("Escolher automaticamente a versão mais semelhante no YouTube"), variable=self.auto_match).pack(anchor="w", pady=(0, 6))
+        ttk.Label(downloads, text=tr("Vale para os próximos downloads iniciados, inclusive itens já na fila. Ignora a confirmação de versão; escolhe a maior similaridade entre as versões compatíveis. Se nenhuma for compatível, informa o erro sem abrir uma escolha."), style="Muted.TLabel", wraplength=480).pack(anchor="w", fill="x", pady=(0, 12))
+        ttk.Checkbutton(downloads,text=tr("Confirmar a versão do YouTube de cada música antes de baixar"),variable=self.confirm_version).pack(anchor="w",pady=(0,8))
+        ttk.Label(downloads,text=tr("A confirmação de versão fica desativada enquanto a escolha automática está ligada."),style="Muted.TLabel",wraplength=480).pack(anchor="w",pady=(0,8))
+        ttk.Checkbutton(downloads, text=tr("Revisar metadados antes de baixar"), variable=self.review_metadata).pack(anchor="w", pady=(0, 8))
         from file_output import ORGANIZATIONS, DUPLICATES
         ttk.Label(downloads, text=tr("Organizar músicas em"), style="Muted.TLabel").pack(anchor="w")
         TranslatedCombobox(downloads, textvariable=self.organization, values=ORGANIZATIONS, state="readonly").pack(fill="x", pady=(6, 8))
@@ -518,19 +523,16 @@ class UiMixin:
         ttk.Label(downloads, text=tr("Links de catálogo em FLAC baixam diretamente do Monochrome, quando disponíveis. Outros links são convertidos; isso não melhora fontes com perdas."),
                   style="Muted.TLabel", wraplength=480).pack(anchor="w", pady=(4, 0))
 
+        ttk.Checkbutton(downloads,text=tr('Baixar mídias sociais automaticamente na maior qualidade'),variable=self.social_best_quality).pack(anchor='w',pady=(8,8))
+        ttk.Label(downloads,text=tr('Instagram, TikTok e Kwai: escolhe automaticamente a maior qualidade. Você ainda pode escolher quais itens baixar.'),wraplength=480,style='Muted.TLabel').pack(anchor='w',pady=(0,8))
+        ttk.Checkbutton(downloads,text=tr('Selecionar todas as mídias ao abrir a publicação'),variable=self.auto_select_media).pack(anchor='w',pady=(8,0))
+        ttk.Label(downloads,text=tr('Instagram, TikTok e Kwai: você pode desmarcar fotos e vídeos individualmente antes de confirmar.'),wraplength=480,style='Muted.TLabel').pack(anchor='w',pady=(4,8))
         ttk.Checkbutton(downloads, text=tr("Baixar playlist de vídeo"), variable=self.playlist).pack(anchor="w", pady=(0, 8))
         limit_row = ttk.Frame(downloads)
         limit_row.pack(fill="x", pady=(0, 10))
         ttk.Label(limit_row, text=tr("Máximo de itens por playlist"), style="Muted.TLabel").pack(anchor="w")
         validate_limit=self.register(lambda value:not value or (len(value)<=4 and value.isascii() and value.isdigit() and 1<=int(value)<=5000))
         ttk.Spinbox(limit_row,textvariable=self.playlist_limit,from_=1,to=5000,validate="key",validatecommand=(validate_limit,"%P"),width=10).pack(fill="x",pady=(6,0))
-        ttk.Checkbutton(downloads, text=tr("Escolher automaticamente os metadados mais semelhantes"), variable=self.auto_metadata).pack(anchor="w", pady=(0, 6))
-        ttk.Label(downloads, text=tr("Seleciona o primeiro resultado de maior similaridade entre os metadados compatíveis, sem abrir a escolha. Sem correspondência compatível, informa o erro. Não altera a escolha da versão de áudio."), style="Muted.TLabel", wraplength=480).pack(anchor="w", fill="x", pady=(0, 12))
-        ttk.Checkbutton(downloads, text=tr("Escolher automaticamente a versão mais semelhante no YouTube"), variable=self.auto_match).pack(anchor="w", pady=(0, 6))
-        ttk.Label(downloads, text=tr("Vale para os próximos downloads iniciados, inclusive itens já na fila. Ignora a confirmação de versão; escolhe a maior similaridade entre as versões compatíveis. Se nenhuma for compatível, informa o erro sem abrir uma escolha."), style="Muted.TLabel", wraplength=480).pack(anchor="w", fill="x", pady=(0, 12))
-        ttk.Checkbutton(downloads,text=tr("Confirmar a versão do YouTube de cada música antes de baixar"),variable=self.confirm_version).pack(anchor="w",pady=(0,8))
-        ttk.Label(downloads,text=tr("A confirmação de versão fica desativada enquanto a escolha automática está ligada."),style="Muted.TLabel",wraplength=480).pack(anchor="w",pady=(0,8))
-        ttk.Checkbutton(downloads, text=tr("Revisar metadados antes de baixar"), variable=self.review_metadata).pack(anchor="w", pady=(0, 8))
         from advanced_ui import download_policy_controls
         download_policy_controls(self,downloads)
         images=categories["Imagens"]
@@ -539,6 +541,10 @@ class UiMixin:
 
         audio = categories["Áudio"]
         ttk.Label(audio, text=tr("Reprodução e prévias"), font=("Segoe UI", 13, "bold")).pack(anchor="w", pady=(0, 12))
+        ttk.Checkbutton(audio,text=tr("Continuar prévia dos efeitos em outras abas"),variable=self.background_preview,command=self.tab_changed).pack(anchor="w",pady=(12,0))
+
+        ttk.Checkbutton(audio,text=tr("Mostrar letra sincronizada (LRC)"),variable=self.synced_lyrics).pack(anchor="w",pady=(12,0))
+
         from preview_options import PREVIEW_DURATIONS
         ttk.Label(audio, text=tr("Duração das prévias"), font=("Segoe UI", 11, "bold")).pack(anchor="w", pady=(0, 12))
         for label, variable in (("Músicas nas pesquisas", self.search_preview_duration),
@@ -550,10 +556,6 @@ class UiMixin:
         ttk.Label(audio, text=tr("Vale para a próxima prévia. Nas pesquisas, o catálogo pode fornecer um trecho menor."),
                   style="Muted.TLabel", wraplength=480).pack(anchor="w", pady=(4, 0))
 
-        ttk.Checkbutton(audio,text=tr("Continuar prévia dos efeitos em outras abas"),variable=self.background_preview,command=self.tab_changed).pack(anchor="w",pady=(12,0))
-
-        ttk.Checkbutton(audio,text=tr("Mostrar letra sincronizada (LRC)"),variable=self.synced_lyrics).pack(anchor="w",pady=(12,0))
-
         accounts = categories["Contas"]
         ttk.Label(accounts, text=tr("Contas e acesso"), font=("Segoe UI", 13, "bold")).pack(anchor="w", pady=(0, 12))
         ttk.Label(accounts, text=tr("Spotify · opcional"), font=("Segoe UI", 11, "bold")).pack(anchor="w", pady=(0, 8))
@@ -561,11 +563,15 @@ class UiMixin:
         account_controls(self,accounts)
 
         tools_page = categories["Ferramentas"]
-        from cache_ui import CacheControls
-        CacheControls(tools_page,self).pack(fill="x",pady=(0,12))
         from advanced_ui import app_update_controls
         app_update_controls(self,tools_page)
         ttk.Label(tools_page, text=tr("Ferramentas e atualizações"), font=("Segoe UI", 13, "bold")).pack(anchor="w", pady=(0, 12))
+        self.update_button = ttk.Button(tools_page, text=tr("Atualizar ferramentas"), command=self.update_downloader)
+        self.update_button.pack(anchor="w", pady=(0, 8))
+        from settings_common_ui import verify_tools
+        verify_tools(self,tools_page)
+        ttk.Label(tools_page, textvariable=display_var(self.update_status), style="Muted.TLabel", wraplength=480).pack(anchor="w")
+
         ttk.Label(tools_page, text=tr("Pasta do FFmpeg · opcional quando já configurado"), style="Muted.TLabel").pack(anchor="w")
         tools = ttk.Frame(tools_page)
         tools.pack(fill="x", pady=(8, 24))
@@ -574,11 +580,8 @@ class UiMixin:
         ttk.Button(tools_page, text=tr("Preparar FFmpeg"), command=self.prepare_ffmpeg).pack(anchor="w", pady=(0, 8))
         ttk.Label(tools_page, text=tr("Baixado diretamente de gyan.dev uma vez por PC. Internet necessária no primeiro uso."),
                   style="Muted.TLabel", wraplength=480).pack(anchor="w", pady=(0, 12))
-        self.update_button = ttk.Button(tools_page, text=tr("Atualizar ferramentas"), command=self.update_downloader)
-        self.update_button.pack(anchor="w", pady=(0, 8))
-        from settings_common_ui import verify_tools
-        verify_tools(self,tools_page)
-        ttk.Label(tools_page, textvariable=display_var(self.update_status), style="Muted.TLabel", wraplength=480).pack(anchor="w")
+        from cache_ui import CacheControls
+        CacheControls(tools_page,self).pack(fill="x",pady=(0,12))
 
     def _build_log(self):
         self.log_window = tk.Toplevel(self)
