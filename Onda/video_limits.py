@@ -58,6 +58,9 @@ def enforce_video_limits(path, config, emit):
                    "-i", str(source), "-map", "0:v:0", "-map", "0:a?", "-map_metadata", "0",
                    "-vf", ",".join(filters), "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
                    "-pix_fmt", "yuv420p", "-c:a", "copy"]
+        from performance import thread_args
+        command[1:1]=thread_args(config)
+        command+=thread_args(config)
         if source.suffix.lower() == ".mp4":
             command += ["-movflags", "+faststart"]
         result = subprocess.run(command + [str(target)], capture_output=True, **process_options())

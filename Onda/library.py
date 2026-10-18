@@ -76,6 +76,11 @@ class LibraryStore:
             rows = db.execute("SELECT path,source FROM history WHERE lower(mode)=lower(?) ORDER BY id DESC", (mode,)).fetchall()
         return next((path for path, old in rows if source_key(old) == key and Path(path).is_file()), None)
 
+    def comparison_history(self):
+        with self.connect() as db:
+            db.row_factory=sqlite3.Row
+            return [dict(row) for row in db.execute('SELECT path,source FROM history ORDER BY id DESC')]
+
     def clear_history(self):
         with self.connect() as db:
             db.execute("DELETE FROM history")

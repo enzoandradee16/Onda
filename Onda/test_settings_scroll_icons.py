@@ -27,6 +27,25 @@ class WindowIconTests(unittest.TestCase):
 
 @unittest.skipUnless(os.environ.get("ONDA_UI_TESTS"), "Tk integration")
 class SettingsScrollUiTests(unittest.TestCase):
+    def test_root_brand_and_spinbox_theme_colors(self):
+        from app import App
+        from tkinter import ttk
+        with tempfile.TemporaryDirectory() as folder, patch.dict(os.environ, {"LOCALAPPDATA":folder}):
+            app=App(show_welcome=False)
+            app.clipboard_watch.shutdown()
+            try:
+                self.assertEqual(app._function_icon_key[0],"onda")
+                self.assertTrue(app._function_icon_key[1].endswith("onda.ico"))
+                brand=app._function_icon_key
+                for mode in ("Escuro","Preto puro","Claro"):
+                    app.theme_mode.set(mode)
+                    app.update()
+                    self.assertEqual(app._function_icon_key,brand)
+                    colors=app.theme_manager.colors
+                    self.assertEqual(ttk.Style(app).lookup("TSpinbox","foreground"),colors["text"])
+                    self.assertEqual(ttk.Style(app).lookup("TSpinbox","fieldbackground"),colors["input"])
+            finally:app.destroy()
+
     def test_categories_scroll_to_last_control_and_footer_stays_visible(self):
         with tempfile.TemporaryDirectory() as folder, patch.dict(os.environ, {"LOCALAPPDATA": folder}):
             from app import App

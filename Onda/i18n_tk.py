@@ -39,6 +39,7 @@ class TranslatedCombobox(ttk.Combobox):
 
     @staticmethod
     def _label(value):
+        if value=="Áudio · MP3 (320 kbps)":value="Áudio · MP3"
         return {"pt-BR":"Português (Brasil)","es":"Español","en":"English"}.get(value, tr(value))
 
     def _from_source(self, *_):

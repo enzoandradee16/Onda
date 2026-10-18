@@ -14,8 +14,14 @@ class DownloadDefaultsTest {
             assertEquals("social",result.getString("mode"));assertTrue(result.isNull("height"));assertEquals("mp3",source.getString("mode"))
         }
         val source=JSONObject().put("url","https://open.spotify.com/track/x").put("mode","m4a").put("simple_download_ui",true)
-        assertEquals("320 kbps",effectiveDownloadOptions(source).getString("audio_quality"))
-        assertEquals("mp3",effectiveDownloadOptions(source).getString("mode"))
+        assertEquals("256 kbps",effectiveDownloadOptions(source).getString("audio_quality"))
+        assertEquals("m4a",effectiveDownloadOptions(source).getString("mode"))
+    }
+    @Test fun simplifiedRespectsSettingsFormat() {
+        for(mode in listOf("m4a","flac")) {
+            val source=JSONObject().put("url","https://open.spotify.com/track/x").put("mode","mp3").put("simple_download_mode",mode).put("simple_download_ui",true)
+            assertEquals(mode,effectiveDownloadOptions(source).getString("mode"))
+        }
     }
     @Test fun operationsAndOtherHostsUnaffected() {
         val source=JSONObject().put("url","https://instagram.com.evil.test/x").put("mode","m4a").put("social_best_quality",true)

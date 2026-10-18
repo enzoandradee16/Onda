@@ -62,7 +62,7 @@ def convert_video(config,emit=lambda *args,**kwargs:None,cancelled=lambda:False)
         command=[executable('ffmpeg',config.get('ffmpeg','')),'-hide_banner','-loglevel','error','-nostdin','-y','-i',str(source),
             '-map',f"0:{info['video_index']}",'-map','0:a:0?','-map_metadata','0','-map_chapters','0',
             '-vf',scale,'-c:v','libx264','-preset','veryfast','-crf',str({'Equilibrada':23,'Alta qualidade':18,'Arquivo menor':28}[quality]),
-            '-pix_fmt','yuv420p','-threads','2','-c:a','aac','-b:a','192k']
+            '-pix_fmt','yuv420p','-c:a','aac','-b:a','192k']
         if bitrate!='Automático':
             index=command.index('-crf');del command[index:index+2]
             command+=['-b:v',bitrate]
@@ -73,10 +73,14 @@ def convert_video(config,emit=lambda *args,**kwargs:None,cancelled=lambda:False)
         if mode in AUDIO_FORMATS:
             command=[executable('ffmpeg',config.get('ffmpeg','')),'-hide_banner','-loglevel','error','-nostdin','-y','-i',str(source),'-map','0:a:0','-vn','-map_metadata','0','-c:a','libmp3lame' if mode=='MP3' else 'aac','-b:a',audio_bitrate]
             if mode=='M4A':command+=['-movflags','+faststart']
-        command+=['-progress','pipe:1','-nostats',str(temporary)]
+        from performance import thread_args,priority_flags
+        command[1:1]=thread_args(config)
+        command+=thread_args(config,default=2 if mode not in AUDIO_FORMATS else None)+['-progress','pipe:1','-nostats',str(temporary)]
+        child_options=process_options()
+        if os.name=='nt':child_options['creationflags']=child_options.get('creationflags',0)|priority_flags(config)
         emit('stage',message='Convertendo vídeo…')
         with tempfile.TemporaryFile() as errors:
-            process=subprocess.Popen(command,stdout=subprocess.PIPE,stderr=errors,text=True,stdin=subprocess.DEVNULL,**process_options())
+            process=subprocess.Popen(command,stdout=subprocess.PIPE,stderr=errors,text=True,stdin=subprocess.DEVNULL,**child_options)
             lines=queue.Queue()
             def read():
                 try:

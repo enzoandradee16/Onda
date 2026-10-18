@@ -62,8 +62,13 @@ class PreferenceStore:
     def clean(data):
         if not isinstance(data, dict):
             return {}
+        from shortcut_options import load_overrides
+        result_shortcuts=json.dumps(load_overrides(data.get("shortcut_keys","{}")))
         from advanced_options import clean_advanced
         result = clean_advanced(data)
+        from performance import clean as clean_performance
+        result.update(clean_performance(data))
+        if "shortcut_keys" in data:result["shortcut_keys"]=result_shortcuts
         if data.get("language") in ("pt-BR", "es", "en"):
             result["language"] = data["language"]
         from interface_spacing import SPACING_MODES

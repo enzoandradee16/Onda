@@ -14,8 +14,10 @@ internal fun effectiveDownloadOptions(value:JSONObject):JSONObject {
     if(social || simple) {
         result.put("height",JSONObject.NULL).put("fps",JSONObject.NULL)
         if(social) result.put("mode","social").put("audio_quality",JSONObject.NULL).put("normalize_volume",false).put("review_metadata",false).put("playlist",false)
-        else if(result.optString("mode")!="photos" || catalog) {
-            result.put("mode",if(catalog) "mp3" else "video").put("audio_quality",if(catalog) "320 kbps" else JSONObject.NULL)
+        else {
+            var mode=if(result.optString("mode")=="photos") "photos" else result.optString("simple_download_mode",result.optString("mode","mp3"))
+            if(catalog && mode in listOf("photos","social","video","mp4","original")) mode=if(mode=="original") "m4a" else "mp3"
+            result.put("mode",mode).put("audio_quality",when(mode) {"mp3"->"320 kbps";"m4a"->"256 kbps";else->JSONObject.NULL})
         }
         if(social || result.optString("mode")=="photos") result.put("image_options",JSONObject().put("format","Original").put("width",0).put("height",0).put("keep_ratio",true))
     }

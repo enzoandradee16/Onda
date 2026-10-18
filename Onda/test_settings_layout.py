@@ -7,7 +7,7 @@ class SettingsLayoutTests(unittest.TestCase):
     def test_shared_categories_and_resets_match(self):
         expected=('Geral','Aparência','Downloads','Imagens','Áudio','Contas','Ferramentas')
         self.assertEqual(CATEGORIES,expected)
-        self.assertEqual(tuple(GROUPS),expected)
+        self.assertEqual(tuple(GROUPS),(*expected,"Desempenho"))
         self.assertIn('check_updates',GROUPS['Ferramentas'])
         self.assertNotIn('check_updates',GROUPS['Geral'])
         self.assertIn('tab_order',GROUPS['Aparência'])
@@ -51,7 +51,7 @@ class SettingsLayoutUiTests(unittest.TestCase):
             app=App(show_welcome=False);app.withdraw()
             try:
                 tabs=app.settings_pages.tabs()
-                self.assertEqual(tuple(app.settings_pages.tab(tab,'text') for tab in tabs),CATEGORIES)
+                self.assertEqual(tuple(app.settings_pages.tab(tab,'text') for tab in tabs),(*CATEGORIES,'Desempenho'))
                 self.assertEqual(app.concurrent_downloads.get(),'3')
                 self.assertEqual(app.mp3_quality.get(),'128 kbps')
                 self.assertFalse(app.check_updates.get())

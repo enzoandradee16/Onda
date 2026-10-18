@@ -19,8 +19,9 @@ import java.util.Locale
     var format by rememberSaveable {mutableStateOf("M4A")}
     var quality by rememberSaveable {mutableStateOf("256 kbps")}
     val qualities=if(format=="MP3")listOf("320 kbps","256 kbps","192 kbps","128 kbps","96 kbps") else listOf("256 kbps","192 kbps","128 kbps","96 kbps")
-    val mode=if(simple) "mp3" else when(preset) {"FLAC"->"flac";"Personalizar"->format.lowercase(Locale.ROOT);else->"mp3"}
-    val bitrate=if(simple) "320 kbps" else when(preset) {"MP3 320"->"320 kbps";"MP3 128"->"128 kbps";else->quality}
+    val configuredMode=baseOptions.optString("mode","mp3")
+    val mode=if(simple) when(configuredMode) {"m4a","flac"->configuredMode;"original"->"m4a";else->"mp3"} else when(preset) {"FLAC"->"flac";"Personalizar"->format.lowercase(Locale.ROOT);else->"mp3"}
+    val bitrate=if(simple) if(mode=="m4a") "256 kbps" else "320 kbps" else when(preset) {"MP3 320"->"320 kbps";"MP3 128"->"128 kbps";else->quality}
     fun submit(now:Boolean) {
         val options=JSONObject(baseOptions.toString()).put("mode",mode)
         if(mode!="flac")options.put("audio_quality",bitrate)

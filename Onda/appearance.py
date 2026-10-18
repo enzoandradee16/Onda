@@ -5,7 +5,7 @@ from tkinter import ttk
 import tkinter.font as tkfont
 from interface_fonts import font_family, DEFAULT_FONT, font_scale
 
-THEME_MODES = ('Seguir o sistema', 'Escuro', 'Preto puro', 'Claro')
+THEME_MODES = ('Seguir o sistema', 'Escuro', 'Preto puro', 'Claro', 'Alto contraste')
 ACCENTS = {
     'Verde-Água': ('#79e2c4', '#087e69'),
     'Azul': ('#8dbbff', '#245fbe'),
@@ -61,6 +61,11 @@ def palette(mode='Seguir o sistema', accent='Verde-Água', separators=False):
     colors['flat_black'] = mode == 'Preto puro' and not separators
     if colors['flat_black']:
         colors.update(bg='#000000', surface='#000000', input='#000000', line='#000000', hover='#000000', selected='#000000')
+    if mode=='Alto contraste':
+        colors.update(bg='#000000',surface='#000000',input='#000000',text='#ffffff',
+                      muted='#ffffff',line='#ffffff',accent='#ffff00',accent_text='#000000',
+                      error='#ffb3b3',hover='#202020',accent_hover='#ffffff',
+                      selected='#003366',disabled='#a6a6a6',flat_black=False)
     return colors
 
 
@@ -153,6 +158,12 @@ class ThemeManager:
                 widget._onda_color_roles = roles
             if roles:
                 widget.configure(**{option:c[role] for option,role in roles.items()})
+            if isinstance(widget,(tk.Text,tk.Entry,tk.Listbox,tk.Canvas)):
+                if not hasattr(widget,'_onda_focus_defaults'):
+                    widget._onda_focus_defaults={key:widget.cget(key) for key in ('highlightthickness','highlightbackground','highlightcolor')}
+                if c['mode']=='Alto contraste':
+                    widget.configure(highlightthickness=2,highlightbackground=c['line'],highlightcolor=c['accent'])
+                else:widget.configure(highlightthickness=widget._onda_focus_defaults['highlightthickness'],highlightbackground=c['line'],highlightcolor=c['accent'])
             if isinstance(widget, tk.Canvas):
                 fills = getattr(widget, '_onda_fill_roles', {})
                 for item in widget.find_all():
@@ -214,7 +225,7 @@ class ThemeManager:
             user32.GetAncestor.argtypes = [wintypes.HWND, wintypes.UINT]
             user32.GetAncestor.restype = wintypes.HWND
             handle = user32.GetAncestor(window.winfo_id(), 2)
-            value = wintypes.BOOL(self.colors['mode'] in ('Escuro', 'Preto puro'))
+            value = wintypes.BOOL(self.colors['mode'] in ('Escuro', 'Preto puro', 'Alto contraste'))
             func = ctypes.windll.dwmapi.DwmSetWindowAttribute
             func.argtypes = [wintypes.HWND,wintypes.DWORD,ctypes.c_void_p,wintypes.DWORD]
             func(handle,20,ctypes.byref(value),ctypes.sizeof(value))

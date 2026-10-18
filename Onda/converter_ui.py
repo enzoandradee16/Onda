@@ -73,6 +73,8 @@ class ConverterPane(ttk.Frame):
         mode=self.format.get();target=filedialog.asksaveasfilename(parent=self.app,title=tr('Salvar vídeo convertido'),initialdir=self.app.folder.get(),initialfile=source.stem+' - convertido.'+mode.lower(),defaultextension='.'+mode.lower(),filetypes=[(mode,'*.'+mode.lower())])
         if not target:return
         config={'source':str(source),'output':target,'ffmpeg':self.app.ffmpeg.get(),'video_format':mode,'video_quality':self.quality.get(),'video_resolution':self.resolution.get(),'video_bitrate':self.bitrate.get(),'audio_bitrate':self.audio_bitrate.get(),'video_fps':self.fps.get(),'video_audio':self.audio.get()}
+        from performance import snapshot
+        config.update(snapshot(self.app))
         self.busy=True;self.cancelled.clear();self.progress['value']=0;self.status.set(tr('Convertendo vídeo…'));self.choose_button.configure(state='disabled');self.start_button.configure(state='disabled');self.cancel_button.configure(state='normal')
         for combo in self.options:combo.configure(state='disabled')
         def work():

@@ -115,9 +115,10 @@ def normalize_audio(source, config, emit=lambda *args,**kwargs:None, *, preview=
     path=Path(source)
     if path.suffix.lower() not in AUDIO_TYPES:return path
     tool=executable('ffmpeg',config.get('ffmpeg',''))
-    prefix=[tool,'-y','-v','info']
+    from performance import thread_args
+    prefix=[tool,'-y','-v','info']+thread_args(config)
     if preview:prefix+=['-ss',str(max(0,float(config.get('start',0))))]
-    prefix+=['-i',str(path),'-vn','-sn','-dn']
+    prefix+=['-i',str(path),'-vn','-sn','-dn']+thread_args(config)
     if preview:prefix+=['-t','20']
     emit('stage',message='Medindo o volume da música…')
     result=subprocess.run(prefix+['-af','loudnorm=I=-16:TP=-1.5:LRA=11:print_format=json','-f','null','-'],capture_output=True,timeout=1800,**process_options())

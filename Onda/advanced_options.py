@@ -48,7 +48,7 @@ def import_settings(payload,platform):
         if key in result and type(result[key]) is not bool:result.pop(key)
     from engine import MODES,HEIGHTS,FPS_OPTIONS
     choices={'interface_spacing':{'Compacto','Padrão','Confortável'},'queue_view':{'Compacto','Completa'},'queue_card_size':{'Pequeno','Médio','Grande'},'language':{'pt-BR','es','en'},'history_card_size':{'Pequeno','Médio','Grande'},'history_view':{'Compacto','Completa'},'mode':set(MODES.values()),'height':set(HEIGHTS.values()),'fps':set(FPS_OPTIONS.values()),
-             'theme':{'Claro','Escuro','Preto puro','Seguir o sistema'},
+             'theme':{'Claro','Escuro','Preto puro','Seguir o sistema','Alto contraste'},
              'audio_quality':{'320 kbps','256 kbps','192 kbps','128 kbps','96 kbps','64 kbps','Melhor disponível'},
              'organization':{'Catálogo','Pasta de destino','Artista','Artista / Álbum'}}
     from file_output import ORGANIZATIONS

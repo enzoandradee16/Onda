@@ -117,15 +117,17 @@ class CatalogPane(ttk.Frame):
         card.grid(row=4, column=0, sticky="ew", pady=(14, 10))
         card.columnconfigure(1, weight=1)
         self.art = ttk.Label(card, text=tr("♪"), style="CardMuted.TLabel", font=("Segoe UI", 38), anchor="center", width=4)
-        self.art.grid(row=0, column=0, rowspan=3, sticky="ns", padx=(0, 16))
+        self.art.grid(row=0, column=0, rowspan=4, sticky="ns", padx=(0, 16))
         self.track_title = tk.StringVar(value=tr("Escolha uma música nos resultados"))
         self.track_info = tk.StringVar(value=tr("Capa, álbum e metadados acompanham o arquivo."))
         self.title_label = ttk.Label(card, textvariable=self.track_title, style="Card.TLabel", font=("Segoe UI", 12, "bold"), wraplength=560)
         self.title_label.grid(row=0, column=1, sticky="w")
+        self.platform_label=ttk.Label(card,style="CardMuted.TLabel",padding=(0,0,6,0))
+        self.platform_label.grid(row=2,column=1,sticky="w",pady=(4,10))
         self.info_label = ttk.Label(card, textvariable=self.track_info, style="CardMuted.TLabel", wraplength=560)
-        self.info_label.grid(row=1, column=1, sticky="w", pady=(4, 10))
+        self.info_label.grid(row=1, column=1, sticky="w", pady=(4, 0))
         actions = ttk.Frame(card, style="Card.TFrame")
-        actions.grid(row=2, column=1, sticky="ew")
+        actions.grid(row=3, column=1, sticky="ew")
         self.preview_button = ttk.Button(actions, text=tr("Ouvir prévia"), command=self.preview, state="disabled")
         self.preview_button.pack(side="left")
         self.source_button = ttk.Button(actions, text=tr("Ver no catálogo"), command=self.open_source, state="disabled")
@@ -222,6 +224,13 @@ class CatalogPane(ttk.Frame):
         text=tk.Text(body,width=90,height=14,wrap='word');text.grid(row=1,column=0,columnspan=2)
         def update(*_):
             a,b=(self.records[labels.index(var.get())] for var in (left,right))
+            from duplicate_links import source_key
+            source=a.get('source_url')
+            if a is b or (source and source_key(source)==source_key(b.get('source_url'))):
+                text.configure(state='normal');text.delete('1.0','end')
+                text.insert('1.0',tr('Essa música já foi selecionada. Escolha outro resultado para comparar.'))
+                text.configure(state='disabled')
+                return
             from edition_evidence import differences
             lines=[]
             for key,label in (('title','Título'),('artists','Artistas'),('album','Álbum'),('release_date','Data'),('duration_ms','Duração (ms)'),('isrc','ISRC'),('platform','Catálogo')):
@@ -268,14 +277,15 @@ class CatalogPane(ttk.Frame):
         self.preview_button.configure(state="normal" if record and record.get("preview_url") else "disabled")
         self.art.configure(image="", text=tr("♪"))
         self.photo = None
-        from metadata_badges import apply_badge
-        apply_badge(self.info_label,record or {})
+        from metadata_badges import apply_badge,provider,NAMES
+        apply_badge(self.platform_label,record or {},text=NAMES.get(provider(record),(record or {}).get("platform","")))
         if not record:
             self.track_title.set(tr("Escolha uma música nos resultados"))
             self.track_info.set(tr("Capa, álbum e metadados acompanham o arquivo."))
             return
         self.track_title.set(record.get("title") or tr("Música"))
-        self.track_info.set(" · ".join(filter(None, [", ".join(record.get("artists", [])), record.get("album"), record.get("release_date"), record.get("platform"), '; '.join(record.get('match_reasons') or [])])))
+        artist_album=" — ".join(filter(None,[", ".join(record.get("artists", [])),record.get("album")]))
+        self.track_info.set(" · ".join(filter(None,[artist_album,record.get("release_date"),'; '.join(record.get("match_reasons") or [])])))
         if record.get("cover_url"):
             generation, url = self.cover_generation, record["cover_url"]
             def worker():
@@ -497,6 +507,10 @@ class TrackDialog(tk.Toplevel):
         self.update_format()
 
     def choice(self):
+        if self.app.simple_download_ui.get():
+            from download_defaults import effective_download
+            config=effective_download({'url':self.record['source_url'],'mode':MODES[self.app.mode.get()],'simple_download_ui':True})
+            return config['mode'],config['audio_quality']
         return (self.format.get().lower(), self.quality.get()) if self.preset.get() == "Personalizar" else self.presets[self.preset.get()]
 
     def update_format(self, _=None):

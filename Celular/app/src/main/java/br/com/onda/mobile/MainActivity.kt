@@ -86,7 +86,7 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
     val effectsSource by vm.effectsSource.collectAsStateWithLifecycle()
     val shared by OndaStore.sharedLink.collectAsStateWithLifecycle()
     val pureBlack=settings.optString("theme")=="Preto puro"
-    val dark=when(settings.optString("theme")) { "Claro"->false; "Escuro","Preto puro"->true; else->isSystemInDarkTheme() }
+    val dark=when(settings.optString("theme")) { "Claro"->false; "Escuro","Preto puro","Alto contraste"->true; else->isSystemInDarkTheme() }
     val palette=if(dark) accents else lightAccents
     val accent=Color(palette[settings.optString("accent")] ?: palette.getValue("Verde-Água"))
     val baseScheme=if(dark) darkColorScheme(primary=accent,background=Color(0xFF0E131B),surface=Color(0xFF161E29),onPrimary=Color(0xFF10171F)) else lightColorScheme(primary=accent)
@@ -98,7 +98,7 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
         surfaceContainerHigh=Color(0xFF101010),surfaceContainerHighest=Color(0xFF181818),
         surfaceVariant=Color(0xFF181818),outlineVariant=Color(0xFF303030)
     ) else baseScheme
-    val scheme=if(pureBlack) pureBlackSurfaces(blackScheme,settings.optBoolean("pure_black_separators",false)) else blackScheme
+    val scheme=if(settings.optString("theme")=="Alto contraste") highContrastScheme() else if(pureBlack) pureBlackSurfaces(blackScheme,settings.optBoolean("pure_black_separators",false)) else blackScheme
     val iconActivity=androidx.activity.compose.LocalActivity.current
     LaunchedEffect(settings.optString("theme"),settings.optString("accent"),dark,iconActivity) {
         LauncherIcons.sync(OndaStore.context,settings)
@@ -255,7 +255,7 @@ fun tabLabel(tab: String)=when(tab) {"Links e fila"->"Links";"Metadados"->"Edita
     }
 }
 val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · MP4" to "mp4",
-    "Áudio · original, sem recodificar" to "original","Áudio · MP3 (320 kbps)" to "mp3",
+    "Áudio · original, sem recodificar" to "original","Áudio · MP3" to "mp3",
     "Áudio · M4A (AAC)" to "m4a","Áudio · FLAC" to "flac","Fotos · todas do carrossel" to "photos",
     "Publicação · fotos e vídeos originais" to "social")
 @Composable fun FormatOptions(config: JSONObject, changed: (JSONObject)->Unit, separated:Boolean=false) {
@@ -264,7 +264,7 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
     fun put(key: String, value: Any) {changed(JSONObject(config.toString()).put(key,value))}
     val mode=config.optString("mode","mp3")
     Row(horizontalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
-        Select("Formato",modes.entries.firstOrNull {it.value==mode}?.key ?: "Áudio · MP3 (320 kbps)",modes.keys.toList(),Modifier.weight(1f)) {put("mode",modes.getValue(it))}
+        Select("Formato",modes.entries.firstOrNull {it.value==mode}?.key ?: "Áudio · MP3",modes.keys.toList(),Modifier.weight(1f)) {put("mode",modes.getValue(it))}
         if(mode in listOf("mp3","m4a")) {
             val qualities=if(mode=="mp3") listOf("320 kbps","256 kbps","192 kbps","128 kbps","96 kbps") else listOf("256 kbps","192 kbps","128 kbps","96 kbps")
             Select("Qualidade de áudio",config.optString("audio_quality").takeIf {it in qualities} ?: qualities.first(),qualities,Modifier.weight(1f)) {put("audio_quality",it)}
@@ -310,7 +310,7 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
                 Text(row.stringList("artists"))
                 Text(row.cleanString("album"))
                 MetadataPlatformBadge(row)
-                Text(listOf(row.cleanString("release_date"),mediaClock(row.optLong("duration_ms")/1000),row.cleanString("isrc"),row.cleanString("platform")).filter {it.isNotBlank()}.joinToString(" · "))
+                Text(listOf(row.cleanString("release_date"),mediaClock(row.optLong("duration_ms")/1000),row.cleanString("isrc")).filter {it.isNotBlank()}.joinToString(" · "))
                 HorizontalDivider(Modifier.padding(vertical=12.dp))
             }
         }
@@ -393,7 +393,12 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
         }
         if(results.isEmpty()) item {UiText("Sua biblioteca começa com uma busca",fontWeight=FontWeight.Bold);UiText("Encontre a música e escolha a versão que você quer.",style=MaterialTheme.typography.bodySmall)}
         if(comparison.size==1)item {UiText("Selecione outro resultado para comparar.")}
-        items(results,contentType={"search_track"}) {record-> TrackCard(record,vm,onDownload={downloadTrack=record.toString()},onCompare={comparison=(comparison+record).takeLast(2)}) }
+        items(results,contentType={"search_track"}) {record-> TrackCard(record,vm,onDownload={downloadTrack=record.toString()},onCompare={
+            val source=record.cleanString("source_url")
+            val repeated=comparison.any {it===record || (source.isNotBlank() && sourceKey(it.cleanString("source_url"))==sourceKey(source))}
+            if(repeated)vm.showNotice("Comparar resultados","Essa música já foi selecionada. Escolha outro resultado para comparar.")
+            else comparison=(comparison+record).takeLast(2)
+        }) }
         item {UiText("Catálogo e capa: plataforma selecionada  •  Áudio: YouTube / FLAC: Monochrome",style=MaterialTheme.typography.bodySmall)}
         item {Spacer(Modifier.height(LayoutSpacing.controls))}
     }
@@ -414,7 +419,7 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
             Button(contentPadding=PaddingValues(horizontal=10.dp,vertical=8.dp),onClick=onDownload) {UiText("Baixar agora")}
         }
         MetadataPlatformBadge(record)
-        Text(listOf(record.cleanString("platform"),record.cleanString("release_date")).filter {it.isNotBlank()}.joinToString(" · "),style=MaterialTheme.typography.bodySmall)
+        record.cleanString("release_date").takeIf {it.isNotBlank()}?.let {Text(it,style=MaterialTheme.typography.bodySmall)}
         Row {
             TextButton(onClick={val url=record.cleanString("source_url");if(url.startsWith("https://")) OndaStore.context.startActivity(Intent(Intent.ACTION_VIEW,android.net.Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))}){UiText("Ver no catálogo")}
             if(onCompare!=null)TextButton(onClick=onCompare){UiText("Comparar resultados")}
@@ -586,6 +591,9 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
 
 @Composable fun CollectionsPage(vm: OndaViewModel) {
     val collection by vm.collection.collectAsStateWithLifecycle()
+    val comparison by vm.collectionComparison.collectAsStateWithLifecycle()
+    val busy by vm.busy.collectAsStateWithLifecycle()
+    var syncReload by remember {mutableStateOf(false)}
     val settings by OndaStore.settings.collectAsStateWithLifecycle()
     val adding by vm.addingToQueue.collectAsStateWithLifecycle()
     val actionsAtTop=settings.optBoolean("queue_actions_at_top",true)
@@ -595,10 +603,19 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
     var options by remember {mutableStateOf(OndaStore.collectionOptions())}
     LaunchedEffect(options) {OndaStore.saveCollectionOptions(options)}
     var listOnly by remember {mutableStateOf(false)}
+    val folderPicker=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) {tree->
+        if(tree!=null) {
+            runCatching {OndaStore.context.contentResolver.takePersistableUriPermission(tree,android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)}
+            vm.compareCollectionLocal(tree,url,options,syncReload)
+        }
+    }
     val import=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) {uri->if(uri!=null) vm.importLocal(uri,"playlist") {vm.importCollection(it.absolutePath)}}
     var exported by remember {mutableStateOf("")}
     val export=rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) {uri->if(uri!=null) OndaStore.context.contentResolver.openOutputStream(uri)?.use {it.write(exported.toByteArray())}}
     val tracks=remember(collection) {collection.optJSONArray("tracks")?.objects() ?: emptyList()}
+    val syncItems=remember(comparison) {comparison?.optJSONArray("items")?.objects()?.associateBy {it.optInt("index")} ?: emptyMap()}
+    val missingTracks=remember(tracks,comparison) {tracks.filterIndexed {index,_->syncItems[index]?.optString("state")=="missing"}}
+    val syncBySource=remember(tracks,comparison) {tracks.mapIndexed {index,record->record.optString("source_url") to syncItems[index]}.toMap()}
     val searchIndex=remember(tracks) {tracks.map {it to (it.optString("title")+" "+it.stringList("artists")).lowercase(java.util.Locale.ROOT)}}
     var settledFilter by remember {mutableStateOf(filter)}
     LaunchedEffect(filter) {delay(150);settledFilter=filter}
@@ -629,6 +646,13 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
             TextButton(onClick={import.launch(arrayOf("text/*","application/octet-stream","application/vnd.ms-excel"))}){UiText("Importar arquivo")}
             TextButton(onClick={listOnly=true}){UiText("Ver lista")}
         }}
+        item {Row(Modifier.horizontalScroll(rememberScrollState())) {
+            TextButton(onClick={syncReload=false;folderPicker.launch(null)},enabled=tracks.isNotEmpty() && !busy && !adding){UiText("Conferir arquivos locais")}
+            TextButton(onClick={syncReload=true;folderPicker.launch(null)},enabled=url.isNotBlank() && !busy && !adding){UiText("Atualizar playlist baixada")}
+            TextButton(onClick={vm.queueCollection(missingTracks,options,collection.optString("folder_title",collection.optString("title","Playlist")),false);vm.collectionComparison.value=null},enabled=missingTracks.isNotEmpty() && !busy && !adding){UiText("Adicionar ausentes à fila")}
+        }}
+        comparison?.let {report->item {Text(collectionSyncSummary(report),style=MaterialTheme.typography.bodySmall)}}
+        if(busy)item {LinearProgressIndicator(Modifier.fillMaxWidth())}
         item {FormatOptions(options,changed={options=it})}
         if(collection.optString("title").isNotBlank()) item {
             Card(Modifier.fillMaxWidth().testTag("collection-card"),colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.background)) {
@@ -654,7 +678,11 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
         if(adding)item {LinearProgressIndicator(Modifier.fillMaxWidth())}
         items(visible,contentType={"collection_track"}) {record->Row(Modifier.fillMaxWidth().heightIn(min=48.dp).toggleable(value=record.optString("source_url") in selected,role=Role.Checkbox,onValueChange={checked->val id=record.optString("source_url");selected=if(checked) selected+id else selected-id}).a11yState(if(record.optString("source_url") in selected) "Selecionado" else "Não selecionado"),verticalAlignment=Alignment.CenterVertically) {
             Checkbox(record.optString("source_url") in selected,null,modifier=Modifier.padding(end=LayoutSpacing.checkboxLabel))
-            Column(Modifier.weight(1f)) {Text(record.optString("title"));Text(record.stringList("artists"),style=MaterialTheme.typography.bodySmall);record.optJSONObject("youtube_match")?.let {Text(it.optString("title"),color=MaterialTheme.colorScheme.primary,style=MaterialTheme.typography.bodySmall)}}
+            Column(Modifier.weight(1f)) {Text(record.optString("title"));Text(record.stringList("artists"),style=MaterialTheme.typography.bodySmall);record.optJSONObject("youtube_match")?.let {Text(it.optString("title"),color=MaterialTheme.colorScheme.primary,style=MaterialTheme.typography.bodySmall)};syncBySource[record.optString("source_url")]?.let {state->
+                UiText(collectionSyncState(state.optString("state")),style=MaterialTheme.typography.bodySmall)
+                UiText(state.optString("reason"),style=MaterialTheme.typography.bodySmall)
+                state.optJSONArray("paths")?.optString(0)?.takeIf {it.isNotBlank()}?.let {Text(it,style=MaterialTheme.typography.bodySmall)}
+            }}
         }}
         if(!actionsAtTop)item {collectionActions()}
         item {Row {for(format in listOf("txt","m3u")) TextButton(onClick={vm.operation("export_list",JSONObject().put("tracks",JSONArray(tracks)).put("format",format)){exported=it.getString("text");export.launch("${collection.optString("title","Playlist")}.$format")}}){UiText("Exportar ${format.uppercase()}")}}}

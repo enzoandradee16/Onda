@@ -93,10 +93,14 @@ def render(config):
             if bitrate not in (96, 128, 192, 256, 320):
                 raise ValueError("Bitrate inválido.")
             command += ["-b:a", str(bitrate) + "k"]
+        from performance import thread_args,priority_flags
+        command[1:1]=thread_args(config)
+        command+=thread_args(config)
         command += ["-progress", "pipe:1", "-nostats", str(temporary)]
         # Error output in a temporary file avoids stderr/stdout pipe deadlock.
         with tempfile.TemporaryFile() as errors:
             child_options = process_options()
+            if os.name=="nt":child_options["creationflags"]=child_options.get("creationflags",0)|priority_flags(config)
             child_options.pop("start_new_session", None)
             with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=errors, text=True, **child_options) as process:
                 for line in process.stdout:

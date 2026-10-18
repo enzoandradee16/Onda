@@ -17,12 +17,17 @@ class EffectiveDownloadTests(unittest.TestCase):
         for host in ['instagram.com','www.tiktok.com','vm.tiktok.com','kw.ai','www.kwai.com']:
             self.assertTrue(automatic_social({'url':'https://'+host+'/x','social_best_quality':True}))
     def test_simple_video_catalog_and_photo_quality(self):
-        for url,mode,quality in [('https://youtube.com/watch?v=x','video',None),('https://open.spotify.com/track/x','mp3','320 kbps')]:
+        for url,mode,quality in [('https://youtube.com/watch?v=x','mp4',None),('https://open.spotify.com/track/x','mp3','320 kbps')]:
             result=effective_download({'url':url,'mode':'mp4','simple_download_ui':True,'height':480,'fps':24})
             self.assertEqual(result['mode'],mode);self.assertIsNone(result['height']);self.assertIsNone(result['fps']);self.assertEqual(result['audio_quality'],quality)
         self.assertEqual(effective_download({'url':'https://open.spotify.com/track/x','mode':'photos','simple_download_ui':True})['mode'],'mp3')
         result=effective_download({'url':'https://example.com/image.jpg','mode':'photos','simple_download_ui':True})
         self.assertEqual(result['image_options'],{'format':'Original','width':0,'height':0,'keep_ratio':True})
+    def test_simplified_respects_settings_format(self):
+        for mode,quality in [('mp3','320 kbps'),('m4a','256 kbps'),('flac',None)]:
+            result=effective_download({'url':'https://open.spotify.com/track/x','mode':'mp3','simple_download_mode':mode,'simple_download_ui':True})
+            self.assertEqual(result['mode'],mode)
+            self.assertEqual(result['audio_quality'],quality)
     def test_legacy_jobs_and_operations_unchanged(self):
         for config in [{'mode':'mp3','url':'https://tiktok.com/x'}, {'_operation':'video_convert','simple_download_ui':True,'social_best_quality':True,'mode':'mp4','height':480}]:
             self.assertEqual(effective_download(config),config)
@@ -45,7 +50,7 @@ class SimpleUiTests(unittest.TestCase):
         from app import App
         from preferences import PreferenceStore
         with tempfile.TemporaryDirectory() as folder,patch.dict(os.environ,{'LOCALAPPDATA':folder}):
-            app=App(show_welcome=False);app.update()
+            app=App(show_welcome=False);app.clipboard_watch.shutdown();app.update()
             try:
                 self.assertFalse(app.simple_download_ui.get());self.assertTrue(app.social_best_quality.get())
                 saved_mode=app.mode.get();saved_height=app.height.get();saved_spacing=app.interface_spacing.get()

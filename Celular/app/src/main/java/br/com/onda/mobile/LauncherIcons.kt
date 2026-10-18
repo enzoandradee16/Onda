@@ -73,7 +73,7 @@ internal object LauncherIcons {
     private val taskIcons=WeakHashMap<Activity,String>()
 
     internal fun aliasFor(context:Context,settings:JSONObject):ComponentName {
-        val mode=when(settings.optString("theme")) {"Claro"->"Light";"Escuro"->"Dark";"Preto puro"->"Black";else->"System"}
+        val mode=when(settings.optString("theme")) {"Claro"->"Light";"Escuro","Alto contraste"->"Dark";"Preto puro"->"Black";else->"System"}
         val color=colors[settings.optString("accent")] ?: "Aqua"
         return ComponentName(context.packageName,"${context.packageName}.Launcher$mode$color")
     }

@@ -38,29 +38,92 @@ class KeyboardShortcuts:
         self.app=app
         self.window=None
         self.tag="OndaShortcuts"+str(id(self))
-        bindings={
-            '<Control-l>':'links','<Control-j>':'queue','<Control-h>':'history',
-            '<Control-a>':'select-all','<Control-f>':'search','<Control-Return>':'download',
-            '<Control-KP_Enter>':'download','<Control-Shift-Return>':'add',
-            '<Control-Shift-KP_Enter>':'add','<F5>':'start','<Shift-F5>':'stop',
-            '<Control-r>':'retry','<Alt-Up>':'up','<Alt-Down>':'down',
-            '<Alt-Home>':'prioritize','<Alt-v>':'view','<Control-Shift-Delete>':'clear',
-            '<Control-o>':'folder','<Control-comma>':'settings','<Control-m>':'metadata',
-            '<Control-Shift-l>':'log','<Control-Shift-e>':'failures','<F1>':'help',
-            '<Control-Tab>':'next','<Control-Shift-Tab>':'previous',
-            '<Control-ISO_Left_Tab>':'previous',
-            '<Control-Up>':'scroll-up','<Control-Down>':'scroll-down',
-        }
-        bindings.update({f'<Control-Key-{number}>':f'tab:{number-1}' for number in range(1,10)})
-        for sequence,action in bindings.items():
-            callback=lambda event,key=action:self.dispatch(key,event)
-            app.bind_class(self.tag,sequence,callback)
-            # Windows Caps Lock and Shift can change a letter's keysym.
-            letter=sequence.rsplit('-',1)[-1][:-1]
-            if len(letter)==1 and letter.isalpha():
-                app.bind_class(self.tag,sequence[:-2]+letter.upper()+'>',callback)
+        self.bound=[]
+        self.commands=[]
+        self.rebind()
+        app.shortcut_keys.trace_add('write',lambda *_:self.rebind())
         self.attach(app)
         app.bind('<Map>',lambda event:self.attach(event.widget,descend=False),add='+')
+
+    def rebind(self):
+        from shortcut_options import effective_bindings
+        for sequence in self.bound:self.app.unbind_class(self.tag,sequence)
+        for command in self.commands:self.app.deletecommand(command)
+        self.bound=[];self.commands=[]
+        for sequence,action in effective_bindings(self.app.shortcut_keys.get()).items():
+            callback=lambda event,key=action:self.dispatch(key,event)
+            variants=[sequence]
+            letter=sequence.rsplit('-',1)[-1][:-1]
+            if len(letter)==1 and letter.isalpha():variants.append(sequence[:-2]+letter.upper()+'>')
+            for variant in variants:
+                self.commands.append(self.app.bind_class(self.tag,variant,callback))
+                self.bound.append(variant)
+        if self.window is not None and self.window.winfo_exists():self.fill_reference()
+
+    def set_shortcut(self,action,sequence):
+        import json
+        from shortcut_options import load_overrides,validate_overrides
+        values=load_overrides(self.app.shortcut_keys.get())
+        values[action]=sequence
+        self.app.shortcut_keys.set(json.dumps(validate_overrides(values)))
+
+    def fill_reference(self):
+        from shortcut_options import PRIMARY,load_overrides,display_shortcut
+        table=self.reference_tree
+        selected=table.selection()
+        table.delete(*table.get_children())
+        values=load_overrides(self.app.shortcut_keys.get())
+        for action,default in PRIMARY.items():
+            table.insert('','end',iid=action,values=(display_shortcut(values.get(action,default)),self.action_label(action)))
+        for i,(key,label) in enumerate(SHORTCUTS[-4:]):
+            table.insert('','end',iid='fixed:'+str(i),values=(tr(key),tr(label)))
+        if selected and table.exists(selected[0]):table.selection_set(selected[0])
+
+    @staticmethod
+    def action_label(action):
+        indexes={'next':1,'previous':1,'scroll-up':2,'scroll-down':2,'select-all':3,
+                 'links':4,'queue':5,'history':6,'search':7,'download':8,'add':9,'start':10,
+                 'stop':11,'retry':12,'up':13,'down':13,'prioritize':14,'view':15,'clear':16,
+                 'folder':17,'settings':18,'metadata':19,'log':20,'failures':21,'help':22}
+        if action.startswith('tab:'):return tr('Abrir aba pela posição atual')+' '+str(int(action[4:])+1)
+        label=tr(SHORTCUTS[indexes[action]][1])
+        return label+({'previous':' (←)','next':' (→)','scroll-up':' (↑)','scroll-down':' (↓)','up':' (↑)','down':' (↓)'}.get(action,''))
+
+    def edit_selected(self):
+        from shortcut_options import PRIMARY,canonical,display_shortcut
+        from tkinter import messagebox
+        selected=self.reference_tree.selection()
+        if not selected or selected[0] not in PRIMARY:return
+        action=selected[0]
+        dialog=tk.Toplevel(self.window);dialog.title(tr('Alterar atalho'));dialog.transient(self.window)
+        body=ttk.Frame(dialog,padding=18);body.pack(fill='both',expand=True)
+        ttk.Label(body,text=tr('Pressione a nova combinação de teclas.'),wraplength=420).pack(anchor='w')
+        text=tk.StringVar();candidate=['']
+        field=ttk.Entry(body,textvariable=text,state='readonly',width=40);field.pack(fill='x',pady=12)
+        def capture(event):
+            if event.keysym in ('Control_L','Control_R','Shift_L','Shift_R','Alt_L','Alt_R'):return 'break'
+            modifiers=[]
+            if event.state&4:modifiers.append('Control')
+            if event.state&(8|0x20000):modifiers.append('Alt')
+            if event.state&1:modifiers.append('Shift')
+            try:
+                candidate[0]=canonical('<'+'-'.join(modifiers+[event.keysym])+'>')
+                text.set(display_shortcut(candidate[0]))
+            except ValueError as error:
+                candidate[0]='';text.set(tr(str(error)))
+            return 'break'
+        field.bind('<KeyPress>',capture)
+        def save(sequence=None):
+            if sequence is None and not candidate[0]:return
+            try:self.set_shortcut(action,candidate[0] if sequence is None else sequence)
+            except ValueError as error:messagebox.showerror(tr('Atalhos'),tr(str(error)),parent=dialog);return
+            dialog.destroy()
+        row=ttk.Frame(body);row.pack(fill='x')
+        ttk.Button(row,text=tr('Salvar'),command=save).pack(side='left')
+        ttk.Button(row,text=tr('Desativar'),command=lambda:save('')).pack(side='left',padx=6)
+        ttk.Button(row,text=tr('Restaurar padrão'),command=lambda:save(PRIMARY[action])).pack(side='left')
+        ttk.Button(row,text=tr('Cancelar'),command=dialog.destroy).pack(side='left',padx=6)
+        dialog.grab_set();field.focus_set()
 
     def attach(self,widget,*,descend=True):
         # Consume explicit shortcut chords before generic widget keys (e.g. Delete).
@@ -166,15 +229,20 @@ class KeyboardShortcuts:
         window.geometry('780x590');window.minsize(620,420)
         body=ttk.Frame(window,padding=18);body.pack(fill='both',expand=True)
         ttk.Label(body,text=tr('Atalhos de teclado'),font=('Segoe UI',16,'bold')).pack(anchor='w')
-        ttk.Label(body,text=tr('Os controles da fila respeitam a aba ativa e os campos de texto.'),wraplength=720,style='Muted.TLabel').pack(anchor='w',pady=(6,12))
+        ttk.Label(body,text=tr('Os controles da fila respeitam a aba ativa e os campos de texto.')+'\n'+tr('Selecione uma ação e clique em Alterar atalho. Atalhos de edição de texto permanecem fixos.'),wraplength=720,style='Muted.TLabel').pack(anchor='w',pady=(6,12))
         panel=ttk.Frame(body);panel.pack(fill='both',expand=True)
         ttk.Style(window).configure('Shortcuts.Treeview',rowheight=30)
         table=ttk.Treeview(panel,columns=('key','action'),show='headings',style='Shortcuts.Treeview',selectmode='browse')
         table.heading('key',text=tr('Atalho'));table.heading('action',text=tr('Ação'))
         table.column('key',width=225,minwidth=190,stretch=False);table.column('action',width=475,minwidth=260)
-        for key,label in SHORTCUTS:table.insert('', 'end',values=(tr(key),tr(label)))
+        self.reference_tree=table
+        self.fill_reference()
+        table.bind('<Double-1>',lambda event:self.edit_selected())
         table.pack(side='left',fill='both',expand=True)
         scroll=ttk.Scrollbar(panel,command=table.yview);scroll.pack(side='right',fill='y');table.configure(yscrollcommand=scroll.set)
+        controls=ttk.Frame(body);controls.pack(fill='x',pady=(12,0))
+        ttk.Button(controls,text=tr('Alterar atalho'),command=self.edit_selected).pack(side='left')
+        ttk.Button(controls,text=tr('Restaurar atalhos padrão'),command=lambda:self.app.shortcut_keys.set('{}')).pack(side='left',padx=8)
         ttk.Button(body,text=tr('Fechar'),command=window.destroy).pack(anchor='e',pady=(12,0))
         window.bind('<Escape>',lambda event:window.destroy())
         window.bind('<F1>',lambda event:'break')

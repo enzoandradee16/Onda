@@ -306,6 +306,10 @@ def render_preview(config):
 
 
 def perform(action, config):
+    if action == 'collection_compare':
+        from playlist_sync import compare_collection
+        return compare_collection(config['tracks'],config['inventory'],config.get('queued',[]),config.get('source',''),config['database'])
+
     if action == "clipboard_link":
         from clipboard_links import recognize_link
         return recognize_link(config.get("text")) or {}

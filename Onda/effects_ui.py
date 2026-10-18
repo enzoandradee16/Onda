@@ -306,6 +306,8 @@ class EffectsPane(ttk.Frame):
         quality = self.app.mp3_quality.get() if suffix == ".mp3" else self.app.m4a_quality.get()
         config = {"source": str(source.resolve()), "output": output, "speed": speed, "reverb": reverb, "keep_pitch": self.keep_pitch.get(),
                   "ffmpeg": self.app.ffmpeg.get(), "replace": replace, "bitrate": int(quality.split()[0])}
+        from performance import snapshot
+        config.update(snapshot(self.app))
         threading.Thread(target=self.render, args=(config,), daemon=True).start()
 
     def render(self, config):
@@ -317,10 +319,13 @@ class EffectsPane(ttk.Frame):
             python = Path(sys.executable)
             if python.name.lower() == "pythonw.exe":
                 python = python.with_name("python.exe")
+            from performance import priority_flags
+            child_options=process_options()
+            if os.name=="nt":child_options["creationflags"]=child_options.get("creationflags",0)|priority_flags(config)
             with self.process_lock:
                 process = subprocess.Popen([str(python), "-u", str(Path(__file__).with_name("effects_worker.py"))],
                     stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                    text=True, encoding="utf-8", **process_options())
+                    text=True, encoding="utf-8", **child_options)
                 self.process = process
             if self.cancelled.is_set():
                 stop_process(process)

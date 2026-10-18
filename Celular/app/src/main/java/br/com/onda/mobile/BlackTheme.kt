@@ -22,3 +22,18 @@ internal fun pureBlackSurfaces(base:ColorScheme,separators:Boolean):ColorScheme 
 internal fun ondaDialogContainerColor():Color =
     if(androidx.compose.material3.MaterialTheme.colorScheme.background==Color.Black) Color.Black
     else androidx.compose.material3.AlertDialogDefaults.containerColor
+
+// Explicit foreground/container pairs keep text, selection and outlines legible.
+internal fun highContrastScheme():ColorScheme = androidx.compose.material3.darkColorScheme(
+    primary=Color.Yellow,onPrimary=Color.Black,primaryContainer=Color(0xFF003366),onPrimaryContainer=Color.White,
+    secondary=Color.Yellow,onSecondary=Color.Black,secondaryContainer=Color(0xFF003366),onSecondaryContainer=Color.White,
+    tertiary=Color.Cyan,onTertiary=Color.Black,tertiaryContainer=Color(0xFF003366),onTertiaryContainer=Color.White,
+    background=Color.Black,onBackground=Color.White,surface=Color.Black,onSurface=Color.White,
+    surfaceVariant=Color(0xFF202020),onSurfaceVariant=Color.White,
+    surfaceDim=Color.Black,surfaceBright=Color(0xFF202020),surfaceTint=Color.Transparent,
+    surfaceContainerLowest=Color.Black,surfaceContainerLow=Color.Black,surfaceContainer=Color.Black,
+    surfaceContainerHigh=Color(0xFF202020),surfaceContainerHighest=Color(0xFF202020),
+    outline=Color.White,outlineVariant=Color.White,
+    error=Color(0xFFFFB3B3),onError=Color.Black,errorContainer=Color(0xFF660000),onErrorContainer=Color.White,
+    inverseSurface=Color.White,inverseOnSurface=Color.Black,inversePrimary=Color(0xFF003366)
+)

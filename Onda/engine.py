@@ -87,6 +87,10 @@ def build_options(config: dict) -> dict:
         "js_runtimes": {"deno": {}, "node": {}},
         "match_filter": reject_live,
     }
+    from performance import thread_args
+    conversion_args=thread_args(config)
+    if conversion_args:
+        options["postprocessor_args"]={"ffmpeg_i":conversion_args,"ffmpeg_o":conversion_args}
     if config.get("ffmpeg"):
         options["ffmpeg_location"] = config["ffmpeg"]
     if config.get("cookies_file"):

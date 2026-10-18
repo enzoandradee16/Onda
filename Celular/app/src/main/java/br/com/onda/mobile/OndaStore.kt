@@ -43,6 +43,7 @@ object OndaStore {
     val active = MutableStateFlow("")
     val selectAll = kotlinx.coroutines.flow.MutableSharedFlow<Unit>(extraBufferCapacity=1)
     private val questions = java.util.ArrayDeque<Question>()
+    private val cancelledDuplicateBatches=linkedSetOf<String>()
     private var batchDepth=0
     private val batchItems=mutableListOf<DownloadItem>()
     private val batchDuplicateKeys=hashSetOf<QueueDuplicateKey>()
@@ -153,6 +154,14 @@ object OndaStore {
         items.value = queue
         if(queue.isEmpty())queueTiming.reset()
     }
+    @Synchronized fun comparisonHistory():JSONArray {
+        val rows=JSONArray()
+        database.readableDatabase.rawQuery("SELECT h.uri,h.title,COALESCE(s.source,'') FROM history h LEFT JOIN history_sources s ON s.history_id=h.id ORDER BY h.id DESC",null).use {cursor->
+            while(cursor.moveToNext())rows.put(JSONObject().put("path",cursor.getString(0)).put("title",cursor.getString(1)).put("source_url",cursor.getString(2)))
+        }
+        return rows
+    }
+
     @Synchronized private fun refreshHistory() {
         val past = mutableListOf<HistoryItem>()
         database.readableDatabase.rawQuery("SELECT h.id,h.title,h.uri,h.mode,h.size,COALESCE(m.platform,''),COALESCE(s.source,'') FROM history h LEFT JOIN history_metadata_platform m ON m.history_id=h.id LEFT JOIN history_sources s ON s.history_id=h.id ORDER BY h.id DESC LIMIT 3000",null).use { cursor ->
@@ -166,11 +175,13 @@ object OndaStore {
         extra?.keys()?.forEach { config.put(it,extra.get(it)) }
         config.put("auto_select_media",settings.value.optBoolean("auto_select_media",true))
         config.put("simple_download_ui",settings.value.optBoolean("simple_download_ui",false)).put("social_best_quality",settings.value.optBoolean("social_best_quality",true))
+        config.put("simple_download_mode",settings.value.optString("mode","mp3"))
         config=effectiveDownloadOptions(config)
         val duplicateKey=queueDuplicateKey(config)
         val queuedDuplicate=if(batchDepth>0) duplicateKey!=null && duplicateKey in batchDuplicateKeys else items.value.any {it.state!="Erro" && duplicateJob(it.config,config)}
         val duplicate=config.optBoolean("detect_duplicates",true) && config.optString("_operation").isBlank() && (
             queuedDuplicate || (!config.optBoolean("playlist") && config.optString("playlist_title").isBlank() && database.readableDatabase.rawQuery("SELECT 1 FROM history_sources WHERE source=? AND lower(mode)=lower(?) LIMIT 1",arrayOf(jobSource(config),config.optString("mode"))).use {it.moveToFirst()}))
+        if(duplicate && config.optString("_duplicate_batch",id) in cancelledDuplicateBatches)return ""
         val state=if(duplicate) "Duplicata" else "Pendente"
         // Secrets are injected at execution and never stored in the queue database.
         config.remove("spotify_client_secret")
@@ -285,6 +296,17 @@ object OndaStore {
     @Synchronized fun ask(identity: String, event: JSONObject, callback: ((JSONObject)->Unit)?=null) {
         val value = Question(identity,event,callback)
         if(question.value==null) question.value = value else questions.add(value)
+    }
+    @Synchronized fun cancelAllDuplicates() {
+        val duplicates=items.value.filter {it.state=="Duplicata"}
+        duplicates.forEach {cancelledDuplicateBatches.add(it.config.optString("_duplicate_batch",it.id))}
+        while(cancelledDuplicateBatches.size>64)cancelledDuplicateBatches.remove(cancelledDuplicateBatches.first())
+        val ids=duplicates.map {it.id}.toSet()
+        duplicateStarts.removeAll(ids)
+        questions.removeIf {it.event.optString("type")=="choose_queue_duplicate"}
+        remove(ids)
+        if(question.value?.event?.optString("type")=="choose_queue_duplicate")
+            question.value=if(questions.isEmpty()) null else questions.removeFirst()
     }
     @Synchronized fun answer(value: JSONObject) {
         question.value?.let { if(it.callback!=null) it.callback.invoke(value) else MobileEngine.reply(it.identity,value) }

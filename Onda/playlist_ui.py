@@ -61,6 +61,8 @@ class PlaylistPane(ttk.Frame):
         self.spotify_button.pack(side="left")
         self.list_button = ttk.Button(tools, text=tr("Ver lista"), command=self.show_list, state="disabled")
         self.list_button.pack(side="right")
+        from playlist_sync_ui import controls as sync_controls
+        sync_controls(self,row)
         ttk.Label(self, textvariable=display_var(self.status), style="Muted.TLabel", wraplength=790, anchor="center", justify="center").grid(row=2, column=0, sticky="ew", pady=(0, 12))
         formats = ttk.Frame(self)
         formats.grid(row=3, column=0, sticky="ew", pady=(0, 12))
@@ -157,12 +159,13 @@ class PlaylistPane(ttk.Frame):
 
     def set_busy(self, value):
         self.busy = value
-        for button in (self.load_button, self.check_button, self.add_button, self.download_now_button, self.import_button, self.spotify_button):
+        for button in (self.load_button, self.check_button, self.add_button, self.download_now_button, self.import_button, self.spotify_button,*self.sync_buttons):
             button.configure(state="disabled" if value else "normal")
+        self.sync_buttons[-1].configure(state="normal" if not value and self.sync_result and self.sync_result["counts"]["missing"] else "disabled")
         self.export_button.configure(state="normal" if self.records and not value else "disabled")
         self.list_button.configure(state="normal" if self.records and not value else "disabled")
 
-    def load(self, start_download=False):
+    def load(self, start_download=False, sync_folder=None):
         if self.busy:
             return
         if self.spotify_window is not None and self.spotify_window.winfo_exists():
@@ -181,6 +184,8 @@ class PlaylistPane(ttk.Frame):
             try:
                 result=load_playlist(url, client, limit=limit, account=self.spotify_account, cancelled=lambda: self.closed)
                 result["_clipboard_download"]=start_download
+                result["_collection_url"]=url
+                result["_sync_folder"]=sync_folder
                 self.events.put((generation, "loaded", result))
             except Exception as exc:
                 self.events.put((generation, "error", str(exc)))
@@ -253,6 +258,8 @@ class PlaylistPane(ttk.Frame):
                 temporary.unlink(missing_ok=True)
 
     def display(self, result):
+        self.sync_result=None
+        self.collection_url=result.get("_collection_url","")
         self.playlist_title = result.get("title") or "Playlist"
         self.playlist_folder_title = result.get("folder_title") or self.playlist_title
         self.cover_generation += 1
@@ -295,7 +302,10 @@ class PlaylistPane(ttk.Frame):
                     self.table.selection_set(self.table.get_children())
                     self.filter_text.set("")
                     self.filter_records()
-                    self.status.set(f"{result['title']} · {len(self.records)} itens. {result['note']}")
+                    self.status.set(f"{result['title']} · {len(self.records)} itens. {result['note']}") 
+                    if result.get('_sync_folder'):
+                        from playlist_sync_ui import start as start_comparison
+                        self.after_idle(lambda:start_comparison(self,result['_sync_folder']))
                     if self.list_window is not None and self.list_window.winfo_exists():
                         self.list_window.refresh(self)
                     self.set_busy(False)
@@ -445,6 +455,9 @@ class PlaylistPane(ttk.Frame):
             elif kind == "error":
                 self.status.set(value)
                 self.set_busy(False)
+            elif kind == "local_comparison":
+                from playlist_sync_ui import show as show_comparison
+                show_comparison(self,value)
             elif kind == "match" and self.table.exists(value[0]):
                 self.table.set(value[0], "match", value[1])
             elif kind == "checked":

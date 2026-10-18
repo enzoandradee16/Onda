@@ -40,6 +40,8 @@ class App(UiMixin, tk.Tk):
         from window_position import install_window_centering
         install_window_centering(self)
         self.title(tr("Onda • Vídeo, áudio & fotos"))
+        from window_icons import apply_window_icon
+        apply_window_icon(self)
         self.geometry("980x780")
         self.minsize(840, 720)
         self.configure(bg=BG)
@@ -59,6 +61,9 @@ class App(UiMixin, tk.Tk):
         self.process = None
         self.process_lock = threading.Lock()
         self.cancelled = threading.Event()
+        from performance import DEFAULTS as PERFORMANCE_DEFAULTS
+        for key,value in PERFORMANCE_DEFAULTS.items():setattr(self,key,tk.StringVar(value=value))
+        self.shortcut_keys = tk.StringVar(value='{}')
         self.theme_mode = tk.StringVar(value='Seguir o sistema')
         self.theme_accent = tk.StringVar(value='Verde-Água')
         from interface_fonts import DEFAULT_FONT
@@ -125,8 +130,8 @@ class App(UiMixin, tk.Tk):
         from advanced_options import DEFAULTS
         for key,value in DEFAULTS.items():
             setattr(self,key,tk.BooleanVar(value=value) if type(value) is bool else tk.StringVar(value=value))
-        self.preference_fields = {name: getattr(self, name) for name in ("language", "queue_card_size", "queue_view", "history_card_size", "pure_black_separators", "history_view", "theme_mode", "theme_accent", "interface_font", "interface_font_size", "interface_spacing", "notice_duration", "effects_keep_pitch", "image_format", "image_size", "image_width", "image_height", "image_keep_ratio", "tab_order", "hidden_tabs", "playlist_mode", "playlist_height", "playlist_fps", "playlist_mp3_quality", "playlist_m4a_quality", "mode", "height", "fps", "catalog_provider", "folder", "ffmpeg", "playlist", "playlist_limit", "mp3_quality", "m4a_quality", "review_metadata", "auto_match", "background_preview", "effects_preview_duration", "search_preview_duration", "organization", "filename_template", "duplicates")}
-        self.preference_fields.update({key:getattr(self,key) for key in DEFAULTS})
+        self.preference_fields = {name: getattr(self, name) for name in ("shortcut_keys", "language", "queue_card_size", "queue_view", "history_card_size", "pure_black_separators", "history_view", "theme_mode", "theme_accent", "interface_font", "interface_font_size", "interface_spacing", "notice_duration", "effects_keep_pitch", "image_format", "image_size", "image_width", "image_height", "image_keep_ratio", "tab_order", "hidden_tabs", "playlist_mode", "playlist_height", "playlist_fps", "playlist_mp3_quality", "playlist_m4a_quality", "mode", "height", "fps", "catalog_provider", "folder", "ffmpeg", "playlist", "playlist_limit", "mp3_quality", "m4a_quality", "review_metadata", "auto_match", "background_preview", "effects_preview_duration", "search_preview_duration", "organization", "filename_template", "duplicates")}
+        self.preference_fields.update({key:getattr(self,key) for key in (*DEFAULTS,*PERFORMANCE_DEFAULTS)})
         self.preference_defaults = {name: variable.get() for name, variable in self.preference_fields.items()}
         self.preference_defaults["language"] = "pt-BR"
         for name, value in {**(preferences or {}), **self.preference_store.load_display()}.items():
@@ -240,7 +245,13 @@ class App(UiMixin, tk.Tk):
 
     def downloads_limit_changed(self, *_):
         if self.running:
-            self.after_idle(self.parallel.fill)
+            callback=getattr(self,"_queue_fill_after",None)
+            if callback is not None:self.after_cancel(callback)
+            self._queue_fill_after=self.after_idle(self.refresh_parallel_queue)
+
+    def refresh_parallel_queue(self):
+        self._queue_fill_after=None
+        self.parallel.fill()
 
     def schedule_preferences(self, *_):
         if self._preference_after is not None:
@@ -330,7 +341,7 @@ class App(UiMixin, tk.Tk):
                     "folder": str(Path(self.folder.get()).expanduser().resolve()),
                     "playlist": self.playlist.get(), "playlist_limit": int(self.playlist_limit.get()),
                     "state": "Na fila", "review_metadata": self.review_metadata.get(),
-                    "auto_select_media":self.auto_select_media.get(), "simple_download_ui":self.simple_download_ui.get(), "social_best_quality":self.social_best_quality.get(),
+                    "simple_download_mode":MODES[self.mode.get()], "auto_select_media":self.auto_select_media.get(), "simple_download_ui":self.simple_download_ui.get(), "social_best_quality":self.social_best_quality.get(),
                     "normalize_volume": self.normalize_volume.get(), "resume_downloads": self.resume_downloads.get(),
                     "filename_template": self.filename_template.get(), "detect_duplicates": self.detect_duplicates.get(),
                     "organization": self.organization.get(), "duplicate_policy": DUPLICATES[self.duplicates.get()]}
@@ -526,7 +537,7 @@ class App(UiMixin, tk.Tk):
             messagebox.showerror(tr("FFmpeg necessário"), tr("Selecione a pasta de FFmpeg e ffprobe em Configurações. Consulte Ajuda se necessário."))
             return
         self._schedule_paused=False
-        if self.parallel.workers:
+        if self.parallel.workers or self.parallel.memory_wait is not None:
             if self.running:self.parallel.extend(scope)
             else:self.status.set("Aguarde os downloads cancelados pararem antes de iniciar novamente.")
             return
@@ -566,6 +577,8 @@ class App(UiMixin, tk.Tk):
                   "cookies_file": self.download_cookies(self.jobs[pending].get("url","")),
                   "spotify_client_id": self.spotify_client_id.get(),
                   "spotify_client_secret": self.spotify_client_secret.get()}
+        from performance import snapshot
+        config.update(snapshot(self))
         threading.Thread(target=self.supervise, args=(pending, config), daemon=True).start()
 
     def supervise(self, item, config):
@@ -581,7 +594,8 @@ class App(UiMixin, tk.Tk):
                         text=True, encoding="utf-8", errors="replace", bufsize=1,
                         env={**os.environ, "PYTHONIOENCODING": "utf-8"})
             if os.name == "nt":
-                args["creationflags"] = subprocess.CREATE_NO_WINDOW
+                from performance import priority_flags
+                args["creationflags"] = subprocess.CREATE_NO_WINDOW | priority_flags(config)
             else:
                 args["start_new_session"] = True
             with self.process_lock:
@@ -810,7 +824,7 @@ class App(UiMixin, tk.Tk):
         self.log.configure(state="disabled")
 
     def cancel(self):
-        if self.parallel.workers:
+        if self.parallel.workers or self.parallel.memory_wait is not None:
             self.parallel.stop();return
         self.dismiss_version_picker()
         self.running = False
@@ -971,6 +985,8 @@ class App(UiMixin, tk.Tk):
             webbrowser.open((BASE / "README.md").as_uri())
 
     def destroy(self):
+        if hasattr(self,"parallel") and self.parallel.memory_wait is not None:
+            self.after_cancel(self.parallel.memory_wait);self.parallel.memory_wait=None
         if hasattr(self,"clipboard_watch"):self.clipboard_watch.shutdown()
         if hasattr(self,"status_notice"):self.status_notice.shutdown()
         if hasattr(self, "history_page"):
@@ -984,7 +1000,7 @@ class App(UiMixin, tk.Tk):
         for name in ("effects_page", "playlist_page", "images_page", "metadata_page", "converter_page"):
             if hasattr(self, name):
                 getattr(self, name).shutdown()
-        for name in ("_poll_after", "_preference_after", "_welcome_after", "_schedule_after", "_update_check_after", "_resume_after"):
+        for name in ("_queue_fill_after", "_poll_after", "_preference_after", "_welcome_after", "_schedule_after", "_update_check_after", "_resume_after"):
             callback = getattr(self, name, None)
             if callback is not None:
                 try:

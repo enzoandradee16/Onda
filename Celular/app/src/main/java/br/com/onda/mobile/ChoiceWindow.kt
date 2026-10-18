@@ -85,7 +85,7 @@ import org.json.JSONObject
                         val allSelected=allIds.isNotEmpty() && selected.containsAll(allIds)
                         TextButton(onClick={selected=if(allSelected) emptySet() else allIds}){UiText(if(allSelected) "Desmarcar todas" else "Selecionar todas")}
                     }
-                    candidates.forEach {candidate->
+                    candidates.filterNot {kind=="choose_version" && it.opt("id")?.toString() in rejectedIds}.forEach {candidate->
                         val id=if(kind=="choose_catalog") candidate.optString("source_url") else candidate.opt("id")?.toString().orEmpty()
                         val video=candidate.optString("kind") in listOf("video","Vídeo") || candidate.optString("type")=="video"
                         ElevatedCard(Modifier.fillMaxWidth().clickable {selected=if(kind=="choose_media") if(id in selected) selected-id else selected+id else setOf(id)}) {
@@ -110,6 +110,7 @@ import org.json.JSONObject
                                     if(!candidate.optBoolean("has_audio")) UiText("A plataforma não disponibilizou a música desta foto.",style=MaterialTheme.typography.bodySmall)
                                 }
                                 if(kind=="choose_version") TextButton(onClick={
+                                    selected=setOf(id)
                                     val url=candidate.optString("source_url","https://www.youtube.com/watch?v=$id")
                                     if(record.optString("_audio_provider")=="Monochrome" || event.optString("audio_provider")=="Monochrome") vm.preview(url) else vm.previewYouTube(url)
                                 }){UiText("Ouvir prévia")}
@@ -121,7 +122,13 @@ import org.json.JSONObject
             if(kind=="choose_version") {
                 PlayerControls(vm)
                 Toggle("Lembrar esta escolha após verificar novamente",rememberChoice){rememberChoice=it}
-                TextButton(onClick={rejectedIds=rejectedIds+selected;selected=emptySet()}){UiText("Versão errada")}
+                TextButton(enabled=selected.isNotEmpty(),onClick={
+                    vm.stopPreview()
+                    rejectedIds=rejectedIds+selected;selected=emptySet()
+                }){UiText("Versão errada")}
+                if(selected.isEmpty()) UiText("Selecione uma versão da lista antes de marcar como errada.",style=MaterialTheme.typography.bodySmall)
+                if(candidates.isNotEmpty() && candidates.all {it.opt("id")?.toString() in rejectedIds})
+                    UiText("Todas as versões foram rejeitadas. Use Desfazer para restaurar a lista.",style=MaterialTheme.typography.bodySmall)
                 TextButton(onClick={clearChoices=true;rejectedIds=emptySet()}){UiText("Desfazer escolhas e rejeições salvas")}
                 if(rejectedIds.isNotEmpty()) UiText("Versões marcadas como erradas: ${rejectedIds.size}",style=MaterialTheme.typography.bodySmall)
             }
@@ -141,5 +148,8 @@ import org.json.JSONObject
             else->JSONObject().put("selected_id",selected.first()).put("remember_choice",rememberChoice).put("clear_choices",clearChoices).put("rejected_ids",JSONArray((rejectedIds-selected).toList()))
         }
         OndaStore.answer(reply)
-    }){UiText(when(kind){"choose_queue_duplicate"->"Adicionar novamente";"choose_flac"->"Selecionar FLAC baixado";"choose_version"->"Baixar esta versão";"choose_catalog"->"Usar estes metadados";"review_metadata"->"Confirmar e baixar";else->"Confirmar"})}},dismissButton={TextButton(onClick=cancel){UiText(if(kind=="review_metadata") "Cancelar download" else "Cancelar")}})
+    }){UiText(when(kind){"choose_queue_duplicate"->"Adicionar novamente";"choose_flac"->"Selecionar FLAC baixado";"choose_version"->"Baixar esta versão";"choose_catalog"->"Usar estes metadados";"review_metadata"->"Confirmar e baixar";else->"Confirmar"})}},dismissButton={Row {
+        if(kind=="choose_queue_duplicate") TextButton(onClick={OndaStore.cancelAllDuplicates()}){UiText("Cancelar todas")}
+        TextButton(onClick=cancel){UiText(if(kind=="review_metadata") "Cancelar download" else "Cancelar")}
+    }})
 }

@@ -18,7 +18,10 @@ def effective_download(config):
         result['image_options']={'format':'Original','width':0,'height':0,'keep_ratio':True}
     elif result.get('simple_download_ui') is True:
         from metadata import is_streaming_link
-        if result.get('mode')=='photos' and not is_streaming_link(result.get('url','')):result['image_options']={'format':'Original','width':0,'height':0,'keep_ratio':True}
-        else:result['mode']='mp3' if is_streaming_link(result.get('url','')) else 'video'
-        result.update(height=None,fps=None,audio_quality='320 kbps' if result['mode']=='mp3' else None)
+        mode=result.get('mode')
+        if mode!='photos':mode=result.get('simple_download_mode',mode)
+        if is_streaming_link(result.get('url','')) and mode in ('photos','social','video','mp4','original'):
+            mode='m4a' if mode=='original' else 'mp3'
+        result.update(mode=mode,height=None,fps=None,audio_quality={'mp3':'320 kbps','m4a':'256 kbps'}.get(mode))
+        if mode=='photos':result['image_options']={'format':'Original','width':0,'height':0,'keep_ratio':True}
     return result

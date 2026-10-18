@@ -5,7 +5,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 
 GROUPS = {'Geral': {'clipboard_links':'Reconhecer links copiados automaticamente','language': 'Idioma', 'notice_duration': 'Duração dos avisos', 'notice_animation':'Animar avisos', 'remember_settings': 'Lembrar configurações'},
- 'Aparência': {'interface_spacing': 'Espaçamento da interface',
+ 'Aparência': {'shortcut_keys':'Personalizar atalhos de teclado','interface_spacing': 'Espaçamento da interface',
                'history_card_size': 'Tamanho dos cards do histórico',
                'pure_black_separators': 'Separações no Preto puro',
                'history_view': 'Exibição do histórico',
@@ -55,6 +55,8 @@ GROUPS = {'Geral': {'clipboard_links':'Reconhecer links copiados automaticamente
            'search_preview_duration': 'Duração da prévia nas pesquisas'},
  'Contas': {'social_cookies': 'Arquivo de cookies desta sessão','youtube_cookies':'Sessão do YouTube'},
  'Ferramentas': {'check_updates': 'Verificar atualizações do ONDA', 'ffmpeg': 'Pasta do FFmpeg'}}
+
+GROUPS['Desempenho']={'conversion_threads':'Threads por conversão','worker_priority':'Prioridade das tarefas','memory_reserve':'Aguardar quando a RAM livre ficar abaixo de'}
 
 
 def apply_defaults(app, names):

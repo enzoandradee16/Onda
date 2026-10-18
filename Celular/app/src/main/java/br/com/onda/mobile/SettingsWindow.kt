@@ -113,7 +113,7 @@ val categories=linkedMapOf(
                         SettingsDivider()
                         UiText("Tema e cores",style=MaterialTheme.typography.titleMedium)
                         SettingsDivider()
-                        Select("Modo de aparência",settings.optString("theme"),listOf("Seguir o sistema","Escuro","Preto puro","Claro")){put("theme",it)}
+                        Select("Modo de aparência",settings.optString("theme"),listOf("Seguir o sistema","Escuro","Preto puro","Claro","Alto contraste")){put("theme",it)}
                         Toggle("Mostrar bordas e separações no Preto puro",settings.optBoolean("pure_black_separators",false)){put("pure_black_separators",it)}
                         SettingsDivider()
                         Select("Cor de destaque",settings.optString("accent"),accents.keys.toList()){put("accent",it)}
@@ -236,7 +236,7 @@ val categories=linkedMapOf(
                         AppUpdateControls(vm)
                         SettingsDivider()
                         UiText("Ferramentas e atualizações",style=MaterialTheme.typography.titleMedium)
-                        UiText("Python, FFmpeg, FFprobe e QuickJS acompanham esta versão Android de desenvolvimento. Não é necessário instalar Termux.")
+                        UiText("Python, FFmpeg, FFprobe e QuickJS já estão incluídos no aplicativo. Não é necessário instalar Termux.")
                         Button(onClick={vm.operation("update",JSONObject(),dialog=true)}){UiText("Atualizar ferramentas")}
                         SettingsDivider()
                         OutlinedButton(onClick={vm.operation("self_test",JSONObject(),dialog=true){vm.showNotice("Verificar ferramentas","Ferramentas verificadas: ${it.optString("yt_dlp")}")}}){UiText("Verificar ferramentas")}

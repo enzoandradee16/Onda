@@ -55,6 +55,10 @@ class UiMixin:
                   foreground=[("disabled", colors["muted"]), ("!disabled", colors["accent_text"])])
         style.configure("TEntry", fieldbackground=INPUT, foreground=TEXT, insertcolor=TEXT,
                         padding=max(6,pad(8)), borderwidth=0)
+        style.configure("TSpinbox",fieldbackground=INPUT,background=INPUT,foreground=TEXT,
+                        insertcolor=TEXT,arrowcolor=MUTED,selectbackground=colors['selected'],selectforeground=TEXT)
+        style.map("TSpinbox",fieldbackground=[('disabled',SURFACE),('readonly',INPUT)],
+                  foreground=[('disabled',MUTED),('!disabled',TEXT)])
         style.configure("TCombobox", fieldbackground=INPUT, background=INPUT, arrowcolor=MUTED,
                         foreground=TEXT, padding=(pad(10), max(6,pad(7))), borderwidth=0)
         style.map("TCombobox", fieldbackground=[("readonly", INPUT)],
@@ -84,6 +88,18 @@ class UiMixin:
         style.configure('TLabelframe', background=BG, bordercolor=LINE)
         style.configure('TLabelframe.Label', background=BG, foreground=TEXT)
         self.option_add('*TCombobox*Listbox.selectForeground', TEXT)
+        high=colors['mode']=='Alto contraste'
+        for name in ('TButton','TEntry','TCombobox','TSpinbox','Treeview','TNotebook.Tab'):
+            style.configure(name,borderwidth=2 if high else (1 if name=='TSpinbox' else 0),relief='solid' if high else 'flat')
+            style.map(name,bordercolor=[('focus',ACCENT)] if high else [])
+        style.configure('TButton',focusthickness=2 if high else 0,focuscolor=TEXT)
+        style.map('TNotebook.Tab',relief=[('selected','sunken')] if high else [])
+        if high:
+            style.map('Accent.TButton',background=[('disabled',SURFACE),('active',colors['accent_hover'])],
+                      foreground=[('disabled',colors['disabled']),('!disabled',colors['accent_text'])])
+        style.configure('TCheckbutton',indicatorbackground=INPUT if high else '#dcdad5',indicatorforeground=TEXT if high else '#000000')
+        style.map('TCheckbutton',indicatorbackground=[('selected',ACCENT)] if high else [],
+                  indicatorforeground=[('selected',BG)] if high else [])
 
     def _layout(self):
         self.configure(bg=BG)
@@ -387,7 +403,7 @@ class UiMixin:
         categories = {}
         self.settings_categories = {}
         from settings_layout import CATEGORIES
-        for title in CATEGORIES:
+        for title in (*CATEGORIES,'Desempenho'):
             page = SettingsCategory(self.settings_pages, BG)
             self.settings_pages.add(page, text=tr(title))
             self.settings_categories[str(page)] = page
@@ -395,6 +411,8 @@ class UiMixin:
         self.settings_window.bind("<MouseWheel>",
                                   lambda event: self.settings_categories[self.settings_pages.select()].wheel(event))
 
+        from performance import controls as performance_controls
+        performance_controls(self,categories['Desempenho'])
         appearance = categories['Aparência']
         from appearance import THEME_MODES, ACCENTS
         ttk.Label(appearance, text=tr('Tema e cores'), font=('Segoe UI', 13, 'bold')).pack(anchor='w', pady=(0, 12))
@@ -426,6 +444,7 @@ class UiMixin:
             TranslatedCombobox(appearance,textvariable=var,values=values,state="readonly",width=28).pack(anchor="w")
         ttk.Checkbutton(appearance,text=tr('Simplificar controles de download'),variable=self.simple_download_ui).pack(anchor='w',pady=(12,0))
         ttk.Label(appearance,text=tr('Oculta formato e qualidade nas abas de download e usa a maior qualidade disponível. Não altera o espaçamento nem as abas visíveis.'),wraplength=480,style='Muted.TLabel').pack(anchor='w',pady=(4,10))
+        ttk.Button(appearance,text=tr('Personalizar atalhos de teclado'),command=self.show_shortcuts).pack(anchor='w',pady=(12,0))
         from settings_common_ui import tab_order_controls
         tab_order_controls(self,appearance)
         general = categories["Geral"]

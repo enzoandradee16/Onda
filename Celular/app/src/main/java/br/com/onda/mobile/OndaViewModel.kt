@@ -64,6 +64,8 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
     val effectsSource=MutableStateFlow("")
     val searchResults=MutableStateFlow<List<JSONObject>>(emptyList())
     val collection=MutableStateFlow(JSONObject())
+    val collectionComparison=MutableStateFlow<JSONObject?>(null)
+    private var collectionSyncJob:Job?=null
     val busy=MutableStateFlow(false)
     val status=MutableStateFlow("")
     val addingToQueue=MutableStateFlow(false)
@@ -202,7 +204,7 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
         options.put("ui_messages",callbackMessages)
         operation("spotify_connect",options,dialog=true)
     }
-    fun cancel() { OndaStore.dismissQuestions(queryId.value);MobileEngine.cancel(queryId.value) }
+    fun cancel() { collectionSyncJob?.cancel();OndaStore.dismissQuestions(queryId.value);MobileEngine.cancel(queryId.value) }
     private var searchRevision=0
     fun search(query: String, provider: String, refresh: Boolean=false) {
         if(busy.value)return
@@ -215,10 +217,40 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
     fun loadCollection(url: String, options: JSONObject, startDownload:Boolean=false) = operation("collection",OndaStore.config(options).put("url",url)) {
-        collection.value=it
+        collectionComparison.value=null
+        collection.value=it.put("_collection_url",url)
         if(startDownload)queueCollection(it.optJSONArray("tracks")?.objects() ?: emptyList(),options,it.optString("folder_title",it.optString("title","Playlist")),true)
     }
-    fun importCollection(path: String) = operation("import",OndaStore.config().put("path",path).put("extension",path.substringAfterLast('.'))) { collection.value=it }
+    fun compareCollectionLocal(tree:Uri,url:String,options:JSONObject,reload:Boolean) {
+        if(busy.value || addingToQueue.value)return
+        busy.value=true;collectionComparison.value=null
+        val id="collection-sync-"+java.util.UUID.randomUUID()
+        queryId.value=id;status.value="Conferindo arquivos locais…"
+        val current=collection.value
+        val queued=JSONArray(OndaStore.items.value.filter {it.state!="Concluído"}.map {JSONObject(it.config.toString()).put("state",it.state)})
+        collectionSyncJob=viewModelScope.launch {
+            try {
+                val snapshot=withContext(Dispatchers.IO) {
+                    val loaded=if(reload)MobileEngine.call(getApplication(),id,"collection",OndaStore.config(options).put("url",url),EventCallback {}) else JSONObject(current.toString())
+                    require(!loaded.has("error")) {loaded.optString("error")}
+                    if(reload)loaded.put("_collection_url",url)
+                    require((loaded.optJSONArray("tracks")?.length() ?: 0)>0) {"Carregue um álbum ou playlist"}
+                    val scopeContext=coroutineContext
+                    val inventory=playlistInventory(getApplication(),tree,OndaStore.comparisonHistory()) {scopeContext.ensureActive()}
+                    val payload=JSONObject().put("tracks",loaded.getJSONArray("tracks")).put("inventory",inventory).put("queued",queued)
+                        .put("source",loaded.optString("_collection_url")).put("database",getApplication<Application>().getDatabasePath("onda.sqlite3").absolutePath)
+                    val report=MobileEngine.call(getApplication(),id,"collection_compare",payload,EventCallback {})
+                    require(!report.has("error")) {report.optString("error")}
+                    loaded to report
+                }
+                collection.value=snapshot.first;collectionComparison.value=snapshot.second
+                status.value=collectionSyncSummary(snapshot.second)
+            } catch(error:CancellationException) {status.value="Conferência cancelada.";throw error}
+            catch(error:Exception) {showNotice("Conferir arquivos locais",error.message ?: "Não foi possível conferir os arquivos.")}
+            finally {busy.value=false;queryId.value="";collectionSyncJob=null}
+        }
+    }
+    fun importCollection(path: String) = operation("import",OndaStore.config().put("path",path).put("extension",path.substringAfterLast('.'))) { collectionComparison.value=null;collection.value=it }
     fun importLocal(uri: Uri, category: String, dialog: Boolean=false, finished: (java.io.File)->Unit) {
         status.value="Importando arquivo…"
         viewModelScope.launch {
@@ -309,12 +341,12 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
     fun enqueueLinks(urls:List<String>,now:Boolean) {
         if(addingToQueue.value || urls.isEmpty())return
         addingToQueue.value=true
-        val options=JSONObject(OndaStore.settings.value.toString())
+        val options=JSONObject(OndaStore.settings.value.toString()).put("_duplicate_batch",UUID.randomUUID().toString())
         viewModelScope.launch {
             val ids=mutableListOf<String>()
             try {
                 for(chunk in urls.chunked(100)) {
-                    ids+=withContext(Dispatchers.IO) {OndaStore.enqueueBatch {chunk.map {OndaStore.enqueue(it,options=options,extra=JSONObject().put("_immediate",now))}}}
+                    ids+=withContext(Dispatchers.IO) {OndaStore.enqueueBatch {chunk.map {OndaStore.enqueue(it,options=options,extra=JSONObject().put("_immediate",now))}.filter {it.isNotBlank()}}}
                     status.value="${ids.size} de ${urls.size} itens adicionados à fila";yield()
                 }
                 if(now && ids.isNotEmpty()) {DownloadService.batch(getApplication(),ids);queueNavigation.value=true}
@@ -327,12 +359,13 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
     fun queueCollection(rows:List<JSONObject>,options:JSONObject,group:String,now:Boolean) {
         if(addingToQueue.value || rows.isEmpty())return
         addingToQueue.value=true
+        val batchOptions=JSONObject(options.toString()).put("_duplicate_batch",UUID.randomUUID().toString())
         viewModelScope.launch {
             val ids=mutableListOf<String>()
             try {
                 // Bounded transactions publish progress without one refresh per song.
                 for(chunk in rows.chunked(100)) {
-                    ids+=withContext(Dispatchers.IO) {OndaStore.enqueueBatch {chunk.map {queueTrack(it,options,group,immediate=now)}}}
+                    ids+=withContext(Dispatchers.IO) {OndaStore.enqueueBatch {chunk.map {queueTrack(it,batchOptions,group,immediate=now)}.filter {it.isNotBlank()}}}
                     status.value="${ids.size} de ${rows.size} itens adicionados à fila"
                     yield()
                 }
