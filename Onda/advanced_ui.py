@@ -80,7 +80,7 @@ def tick(app):
         valid=valid_time(options['schedule_start']) and valid_time(options['schedule_stop']) and options['schedule_start']!=options['schedule_stop']
         if not valid:app.status.set('Agendamento: informe horários diferentes no formato HH:MM.')
         elif schedule_allowed(options):
-            if not app.active and any(job['state']=='Na fila' for job in app.jobs.values()):app._schedule_paused=False;app.start()
+            if not app.active and any(job['state']=='Na fila' for job in app.jobs.values()):app._schedule_paused=False;app.start(scheduled=True)
         elif app.active:
             app._schedule_paused=True;app.cancel()
     app._schedule_after=app.after(15000,lambda:tick(app))

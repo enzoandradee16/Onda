@@ -60,6 +60,7 @@ class QueueFilter:
                 self.view.column(column,**{k:tree.column(column,k) for k in ('width','minwidth','stretch','anchor')})
             for tag in ('Concluído','Falhou','Cancelado'):self.view.tag_configure(tag,foreground=tree.tag_configure(tag).get('foreground') or '#91a0b3')
             self.view.bind('<<TreeviewSelect>>',self.select)
+            if hasattr(app,'queue_control'):app.queue_control.bind_drag(self.view,tree=self.view)
             for key in ('<Delete>','<BackSpace>'):self.view.bind(key,lambda _:app.remove())
             from list_context import ListContext,queue_actions
             ListContext(self.view,lambda:queue_actions(app),self.select)

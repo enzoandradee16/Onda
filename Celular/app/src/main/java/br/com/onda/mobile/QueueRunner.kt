@@ -15,6 +15,7 @@ object DownloadRuntime {
 }
 
 suspend fun runDownloads(context:Context,only:String?=null,batch:Set<String>?=null,scheduled:Boolean=false,requestsOnly:Boolean=false,notify:(String,Int?)->Unit):Boolean=coroutineScope {
+    if(scheduled && queueSpace(OndaStore.items.value).low) {notify("Espaço possivelmente insuficiente",null);return@coroutineScope false}
     if(!DownloadRuntime.running.compareAndSet(false,true)) return@coroutineScope false
     DownloadRuntime.stopped=false;OndaStore.queueTiming.setRunning(true);OndaStore.running.value=true
     val tasks=mutableMapOf<String,Job>()
@@ -31,7 +32,7 @@ suspend fun runDownloads(context:Context,only:String?=null,batch:Set<String>?=nu
                 val item=OndaStore.items.value.firstOrNull {it.state=="Pendente" && it.id !in DownloadRuntime.ids && selection.accepts(it.id)} ?: break
                 attempted.add(item.id)
                 DownloadRuntime.ids.add(item.id);OndaStore.active.value=DownloadRuntime.ids.firstOrNull().orEmpty()
-                OndaStore.update(item.id,"Baixando")
+                OndaStore.update(item.id,"Baixando",activity="Consultando a plataforma…")
                 tasks[item.id]=launch(Dispatchers.IO) {
                     try {
                         val config=applyVersionSelection(OndaStore.executionConfig(item.config),OndaStore.settings.value).put("spotify_client_secret",SecureVault.get("spotify-api") ?: "").put("_identity",item.id)
@@ -42,16 +43,18 @@ suspend fun runDownloads(context:Context,only:String?=null,batch:Set<String>?=nu
                             when(event.optString("type")) {
                                 "progress"->{val total=event.optDouble("total",0.0);val percent=if(total>0)(event.optDouble("downloaded")/total*100).toFloat().coerceIn(0f,100f) else 0f
                                     val finished=event.optString("status")=="finished"
-                                    if(progressGate.allow(finished)) OndaStore.update(item.id,"Baixando",percent,event.optString("title"))
+                                    if(progressGate.allow(finished)) OndaStore.update(item.id,"Baixando",percent,event.optString("title"),if(finished) "Preparando o arquivo…" else "Baixando arquivo…")
                                     if(notificationGate.allow(finished)) notify("${DownloadRuntime.ids.size} em andamento · ${item.title}",percent.toInt())}
+                                "stage"->OndaStore.update(item.id,"Baixando",message=event.optString("message"),activity=event.optString("message"))
+                                "processing"->OndaStore.update(item.id,"Baixando",activity="Convertendo arquivo…")
                                 "file"->if(!event.optBoolean("skipped")) {val uri=OndaStore.publish(event.getString("path"),OndaStore.publicationConfig(config,event),event.optString("mode"));OndaStore.log("Salvo: $uri")}
                                 "done"->{
                                     if(event.has("path")) OndaStore.publish(event.getString("path"),OndaStore.publicationConfig(config,event),event.getString("path").substringAfterLast('.'))
-                                    OndaStore.update(item.id,"Baixando",100f,"Arquivo salvo; finalizando a execução…")
+                                    OndaStore.update(item.id,"Baixando",100f,"Arquivo salvo; finalizando a execução…",activity="Finalizando arquivo…")
                                 }
                                 "error"->{failed=true;OndaStore.update(item.id,"Erro",message=event.optString("message"));OndaStore.log(event.optString("message"))}
-                                "choose_flac","choose_version","choose_catalog","choose_duplicate","choose_media","review_metadata"->{OndaStore.update(item.id,"Aguardando escolha");OndaStore.ask(item.id,event);notify("Abra o ONDA para confirmar sua escolha",null)}
-                                "estimate"->{val size=event.optDouble("size",0.0)/1048576;if(size>0)OndaStore.update(item.id,"Baixando",message="Tamanho estimado: ≈ %.1f MB".format(size))}
+                                "choose_flac","choose_version","choose_catalog","choose_duplicate","choose_media","review_metadata"->{OndaStore.update(item.id,"Aguardando escolha",activity="Aguardando sua escolha");OndaStore.ask(item.id,event);notify("Abra o ONDA para confirmar sua escolha",null)}
+                                "estimate"->{if(!event.optBoolean("playlist"))OndaStore.queueEstimate(item.id,event.optLong("size"));val size=event.optDouble("size",0.0)/1048576;if(size>0)OndaStore.update(item.id,"Baixando",message="Tamanho estimado: ≈ %.1f MB".format(size))}
                                 else->{val message=event.optString("message");if(message.isNotBlank()){OndaStore.log(message);OndaStore.update(item.id,"Baixando",message=message)}}
                             }
                         })

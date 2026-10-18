@@ -64,6 +64,9 @@ class QueueCards(ttk.Frame):
                     widget.bind('<Button-1>',lambda _,k=key:self.select(k,k not in self.app.tree.selection()))
                 for widget in card.winfo_children():
                     for event in ('<Delete>','<BackSpace>'):widget.bind(event,lambda _:self.remove_selected())
+                if hasattr(self.app,'queue_control'):
+                    handle=ttk.Label(card,text='↕',style='CardMuted.TLabel',cursor='fleur');handle.grid(row=0,column=3,padx=6)
+                    self.app.queue_control.bind_drag(handle,key=key)
                 self.app.tree._list_context.card(card,key)
                 self.rows[key]=(card,selected,title,details,source,None)
             if len(keys)>self.limit:ttk.Button(self,text=tr('Mostrar mais'),command=self.more).grid(row=len(self.rows),column=0,pady=6)

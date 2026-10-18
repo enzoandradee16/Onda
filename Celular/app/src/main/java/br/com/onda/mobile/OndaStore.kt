@@ -16,7 +16,7 @@ import org.json.JSONObject
 import java.io.File
 import java.util.UUID
 
-data class DownloadItem(val id: String, val title: String, val config: JSONObject, val state: String = "Pendente", val progress: Float = 0f, val message: String = "")
+data class DownloadItem(val id: String, val title: String, val config: JSONObject, val state: String = "Pendente", val progress: Float = 0f, val message: String = "", val activity:String="")
 data class HistoryItem(val id: Long, val title: String, val uri: String, val mode: String, val size: Long, val metadataPlatform:String="",val source:String="")
 data class Question(val identity: String, val event: JSONObject, val callback: ((JSONObject)->Unit)?=null)
 
@@ -148,7 +148,7 @@ object OndaStore {
             while(cursor.moveToNext()) {
                 val id=cursor.getString(0)
                 val old=previous[id]
-                queue += DownloadItem(id,cursor.getString(1),JSONObject(cursor.getString(2)),cursor.getString(3),old?.progress ?: 0f,old?.message ?: "")
+                queue += DownloadItem(id,cursor.getString(1),JSONObject(cursor.getString(2)),cursor.getString(3),old?.progress ?: 0f,old?.message ?: "",old?.activity ?: "")
             }
         }
         items.value = queue
@@ -210,12 +210,12 @@ object OndaStore {
         if(items.value.any {it.id==id && it.state=="Duplicata"}) {duplicateStarts.add(id);return true}
         return false
     }
-    @Synchronized fun update(id: String, state: String, progress: Float? = null, message: String? = null) {
+    @Synchronized fun update(id: String, state: String, progress: Float? = null, message: String? = null, activity:String?=null) {
         val previous = items.value.firstOrNull { it.id == id } ?: return
-        if(previous.state==state && (progress==null || progress==previous.progress) && (message==null || message==previous.message)) return
+        if(previous.state==state && (progress==null || progress==previous.progress) && (message==null || message==previous.message) && (activity==null || activity==previous.activity)) return
         if(previous.state != state) database.writableDatabase.execSQL("UPDATE queue SET state=? WHERE id=?",arrayOf(state,id))
         if(previous.state!="Concluído" && state=="Concluído")queueTiming.recordCompletion()
-        items.value = items.value.map { if(it.id==id) it.copy(state=state,progress=progress ?: it.progress,message=message ?: it.message) else it }
+        items.value = items.value.map { if(it.id==id) it.copy(state=state,progress=progress ?: it.progress,message=message ?: it.message,activity=if(state in listOf("Baixando","Aguardando escolha"))activity ?: it.activity else "") else it }
     }
     @Synchronized fun rename(id: String, title: String) {
         if(title.isBlank() || items.value.firstOrNull {it.id==id}?.title==title) return
@@ -282,15 +282,43 @@ object OndaStore {
         retry(setOf(id))
         DownloadService.start(context,only=id)
     }
-    @Synchronized fun move(id:String,direction:Int) {
-        val order=items.value.toMutableList();val index=order.indexOfFirst {it.id==id}
-        if(index<0 || id==active.value || id in DownloadRuntime.ids)return
-        val target=if(direction==0)0 else (index+direction).coerceIn(0,order.lastIndex)
-        val item=order.removeAt(index);order.add(target,item)
+    @Synchronized fun reorderPending(ids:List<String>) {
+        val next=pendingOrder(items.value,ids) ?: return
         val db=database.writableDatabase;db.beginTransaction()
-        try {order.forEachIndexed {position,entry->db.execSQL("INSERT OR REPLACE INTO queue_order VALUES(?,?)",arrayOf<Any>(entry.id,position))};db.setTransactionSuccessful()}
+        try {next.forEachIndexed {position,item->db.execSQL("INSERT OR REPLACE INTO queue_order VALUES(?,?)",arrayOf<Any>(item.id,position))};db.setTransactionSuccessful()}
         finally {db.endTransaction()}
-        items.value=order
+        items.value=next
+    }
+    @Synchronized fun sortPending(order:String) {
+        val original=mutableListOf<String>()
+        database.readableDatabase.rawQuery("SELECT id FROM queue ORDER BY rowid",null).use {cursor->while(cursor.moveToNext())original+=cursor.getString(0)}
+        reorderPending(orderedPending(items.value,order,original))
+    }
+    @Synchronized fun movePendingBefore(id:String,target:String) {
+        val pending=items.value.filter {it.state=="Pendente" && it.id !in DownloadRuntime.ids}.map {it.id}.toMutableList()
+        val from=pending.indexOf(id);val to=pending.indexOf(target)
+        if(from<0 || to<0 || from==to)return
+        pending.removeAt(from);pending.add(to,id);reorderPending(pending)
+    }
+    @Synchronized fun queueEstimate(id:String,size:Long) {
+        if(size<=0)return
+        val item=items.value.firstOrNull {it.id==id} ?: return
+        val config=JSONObject(item.config.toString()).put("_queue_estimate",size)
+        database.writableDatabase.execSQL("UPDATE queue SET config=? WHERE id=?",arrayOf(config.toString(),id))
+        items.value=items.value.map {if(it.id==id)it.copy(config=config) else it}
+    }
+    fun confirmQueueSpace(ids:Set<String>?,proceed:()->Unit):Boolean {
+        val report=queueSpace(items.value.filter {it.state=="Pendente" && (ids==null || it.id in ids)})
+        if(!report.low)return true
+        ask("queue-space-"+UUID.randomUUID(),JSONObject().put("type","choose_queue_space").put("message",report.text(settings.value.optString("language","pt-BR")))) {reply->if(!reply.optBoolean("cancel"))proceed()}
+        return false
+    }
+    @Synchronized fun move(id:String,direction:Int) {
+        val pending=items.value.filter {it.state=="Pendente" && it.id !in DownloadRuntime.ids}.map {it.id}
+        val index=pending.indexOf(id)
+        if(index<0)return
+        val target=if(direction==0)0 else (index+direction).coerceIn(0,pending.lastIndex)
+        movePendingBefore(id,pending[target])
     }
     @Synchronized fun log(message: String) { messages.value = (messages.value + message).takeLast(120) }
     @Synchronized fun ask(identity: String, event: JSONObject, callback: ((JSONObject)->Unit)?=null) {

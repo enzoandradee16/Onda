@@ -2,6 +2,9 @@
 
 ## Em desenvolvimento
 
+- Fila no PC e Android: atividade por item, motivos de espera, ordenação de pendentes e reordenação por arrastar, com setas e persistência.
+- Estimativa de espaço da fila, margem para temporários, indicação de tamanhos desconhecidos e aviso de possível falta de armazenamento antes de iniciar.
+
 - Letra sincronizada LRC opcional, desligada por padrão, na reprodução local de PC e Android.
 - Conversão em lote de áudio e vídeo para os formatos disponíveis no conversor nas duas versões, preservando originais e tratando falhas por arquivo.
 - PC: arrastar arquivos para o conversor, editor ou efeitos e arrastar links para adicionar à fila após confirmação.

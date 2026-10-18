@@ -267,6 +267,8 @@ class UiMixin:
 
         from queue_cards import QueueCards
         self.queue_cards=QueueCards(table,self,scroll)
+        from queue_control import QueueControl
+        self.queue_control=QueueControl(self,queue_header)
         self.queue_cards.refresh()
 
         progress = ttk.Frame(main)
@@ -346,6 +348,7 @@ class UiMixin:
             self.urls.edit_modified(False)
 
     def refresh_queue(self):
+        if hasattr(self,'queue_control'):self.queue_control.refresh()
         if hasattr(self,"queue_cards"):self.queue_cards.refresh()
         count = len(self.jobs)
         self.clear_queue_button.configure(state="normal" if count else "disabled")

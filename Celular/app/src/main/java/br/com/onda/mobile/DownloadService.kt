@@ -61,8 +61,8 @@ class DownloadService:Service() {
     override fun onTimeout(startId:Int,fgsType:Int) {DownloadRuntime.stop();stopForeground(STOP_FOREGROUND_REMOVE);stopSelf()}
     override fun onDestroy() {if(worker!=null)DownloadRuntime.stop();if(lock?.isHeld==true)lock?.release();scope.cancel();super.onDestroy()}
     companion object {
-        fun start(context:Context,only:String?=null) {if(only!=null && OndaStore.deferDuplicateStart(only))return;context.startForegroundService(Intent(context,DownloadService::class.java).putExtra("only",only))}
-        fun batch(context:Context,ids:List<String>) {val ready=ids.filterNot {OndaStore.deferDuplicateStart(it)};if(ready.isEmpty())return;val request=DownloadBatchFiles.intent(context,ready);try {context.startForegroundService(request)} catch(error:Exception) {DownloadBatchFiles.discard(context,request);throw error}}
+        fun start(context:Context,only:String?=null,spaceChecked:Boolean=false) {if(!spaceChecked && !OndaStore.confirmQueueSpace(only?.let {setOf(it)}) {start(context,only,true)})return;if(only!=null && OndaStore.deferDuplicateStart(only))return;context.startForegroundService(Intent(context,DownloadService::class.java).putExtra("only",only))}
+        fun batch(context:Context,ids:List<String>,spaceChecked:Boolean=false) {if(!spaceChecked && !OndaStore.confirmQueueSpace(ids.toSet()) {batch(context,ids,true)})return;val ready=ids.filterNot {OndaStore.deferDuplicateStart(it)};if(ready.isEmpty())return;val request=DownloadBatchFiles.intent(context,ready);try {context.startForegroundService(request)} catch(error:Exception) {DownloadBatchFiles.discard(context,request);throw error}}
         fun stop(context:Context) {DownloadRuntime.stop();if(OndaStore.running.value)context.startService(Intent(context,DownloadService::class.java).setAction("stop"))}
     }
 }

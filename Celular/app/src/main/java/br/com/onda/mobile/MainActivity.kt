@@ -478,6 +478,8 @@ internal fun displayReleaseDate(value:String):String {
     val small=cardSize=="Pequeno"
     val cardPadding=if(!complete)4.dp else if(small)6.dp else if(cardSize=="Médio")10.dp else LayoutSpacing.section
     val queue by OndaStore.items.collectAsStateWithLifecycle()
+    val queueListState=androidx.compose.foundation.lazy.rememberLazyListState()
+    var queueOrder by rememberSaveable {mutableStateOf(queueOrders.first())}
     var query by rememberSaveable {mutableStateOf("")}
     var stateFilter by rememberSaveable {mutableStateOf("Todos")}
     val visible=remember(queue,query,stateFilter) {queue.filter {queueMatches(it.title,it.state,it.config,query,stateFilter)}}
@@ -487,6 +489,9 @@ internal fun displayReleaseDate(value:String):String {
     var clockTick by remember {mutableLongStateOf(0L)}
     val clockOwner=LocalLifecycleOwner.current
     LaunchedEffect(clockOwner) {clockOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {while(true) {clockTick++;delay(1000)}}}
+    var space by remember {mutableStateOf<QueueSpace?>(null)}
+    LaunchedEffect(clockTick,queue.size) {space=kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO){queueSpace(queue,true)}}
+    val connected=remember(clockTick) {queueConnected()}
     val queueTimes=remember(queue,running,clockTick) {OndaStore.queueTiming.snapshot(queue.size-completed,queue.isNotEmpty())}
     val remainingTime=queueTimes.remaining?.let {if(it==0L) "00:00" else "≈ "+queueDuration(it)} ?: if(running)translateUi("Calculando…",LocalUiLanguage.current) else "—"
     val adding by vm.addingToQueue.collectAsStateWithLifecycle()
@@ -508,13 +513,19 @@ internal fun displayReleaseDate(value:String):String {
             }
         }
     }
-    NavigableList(Modifier.fillMaxSize().padding(horizontal=LayoutSpacing.inset),navigationId="queue") {
+    NavigableList(Modifier.fillMaxSize().padding(horizontal=LayoutSpacing.inset),navigationId="queue",state=queueListState) {
         item {PageTitle("Fila de downloads","Acompanhe, organize e gerencie seus downloads.")}
         item {OutlinedTextField(query,{query=it},label={UiText("Buscar na fila")},singleLine=true,modifier=Modifier.fillMaxWidth().testTag("queue-search"))}
         item {Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
             Select("Estado",stateFilter,queueFilters,Modifier.weight(1f)){stateFilter=it}
             TextButton(onClick={query="";stateFilter="Todos"}){UiText("Limpar filtros")}
         }}
+        item {Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+            Select("Ordenar pendentes",queueOrder,queueOrders,Modifier.weight(1f)){queueOrder=it}
+            TextButton(onClick={OndaStore.sortPending(queueOrder)}){UiText("Aplicar")}
+        }}
+        item {Text(space?.text(LocalUiLanguage.current) ?: translateUi("Calculando…",LocalUiLanguage.current),style=MaterialTheme.typography.bodySmall)}
+        if(space?.low==true)item {UiText("Espaço possivelmente insuficiente",color=MaterialTheme.colorScheme.error)}
         item {UiText("Exibindo ${visible.size} de ${queue.size} itens.",style=MaterialTheme.typography.bodySmall)}
         if(visible.isEmpty() && queue.isNotEmpty())item {UiText("Nenhum item corresponde aos filtros.")}
         item {Row(Modifier.horizontalScroll(rememberScrollState())) {
@@ -535,13 +546,14 @@ internal fun displayReleaseDate(value:String):String {
             ElevatedCard(cardModifier.a11yState(if(immediate) item.state else if(item.id in selected) "Selecionado" else "Não selecionado").testTag("queue-card-${item.id}")) {
             Column(Modifier.padding(cardPadding),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.text)) {
                 Row(verticalAlignment=Alignment.CenterVertically) {
+                    if(item.state=="Pendente")QueueDragHandle(item,queueListState)
                     if(!immediate) Checkbox(item.id in selected,null,modifier=Modifier.padding(end=LayoutSpacing.checkboxLabel))
                     if(complete)QueueTrackInformation(item,cardSize,Modifier.weight(1f))
                     else Text(item.title,Modifier.weight(1f),maxLines=1,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis,style=MaterialTheme.typography.bodyMedium)
                 }
                 if((complete || item.id in selected) && item.state !in listOf("Baixando","Aguardando escolha")) Row {
-                    TextButton(onClick={OndaStore.move(item.id,-1)}){AccessibleSymbol("↑","Mover ${item.title} para cima")}
-                    TextButton(onClick={OndaStore.move(item.id,1)}){AccessibleSymbol("↓","Mover ${item.title} para baixo")}
+                    TextButton(enabled=item.state=="Pendente",onClick={OndaStore.move(item.id,-1)}){AccessibleSymbol("↑","Mover ${item.title} para cima")}
+                    TextButton(enabled=item.state=="Pendente",onClick={OndaStore.move(item.id,1)}){AccessibleSymbol("↓","Mover ${item.title} para baixo")}
                     TextButton(onClick={OndaStore.move(item.id,0)}){UiText("Próximo")}
                     if(immediate) TextButton(onClick={OndaStore.remove(setOf(item.id))},enabled=item.id!=active && item.state !in listOf("Baixando","Aguardando escolha")){UiText("Remover")}
                 }
@@ -551,6 +563,7 @@ internal fun displayReleaseDate(value:String):String {
                 }
                 MetadataPlatformBadge(item.config.optJSONObject("catalog_record") ?: item.config.optJSONObject("queue_info"))
                 UiText("${item.config.optString("mode").uppercase()} · ${item.state}",style=MaterialTheme.typography.labelMedium)
+                UiText(queueActivity(item,running,settings,connected),style=MaterialTheme.typography.bodySmall)
                 if(item.state in listOf("Baixando","Aguardando escolha")) LinearProgressIndicator(progress={item.progress/100},modifier=Modifier.fillMaxWidth().padding(vertical=6.dp))
                 if(item.message.isNotBlank() && (complete || item.state=="Erro")) UiText(item.message,style=MaterialTheme.typography.bodySmall,maxLines=if(small)1 else 3)
             }

@@ -66,3 +66,6 @@ htmlcov/
 # Metadados locais de outros sistemas
 .DS_Store
 ._*
+
+# Planejamento mantido apenas localmente
+/ROADMAP.md

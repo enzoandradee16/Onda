@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 import sqlite3
 
-JOB_FIELDS = {"failure_original_url", "last_error", "filename_template", "detect_duplicates", "work_id", "normalize_volume", "resume_downloads", "url", "mode", "height", "fps", "audio_quality", "folder", "playlist", "playlist_limit", "state", "streaming",
+JOB_FIELDS = {"queue_original", "_queue_estimate", "failure_original_url", "last_error", "filename_template", "detect_duplicates", "work_id", "normalize_volume", "resume_downloads", "url", "mode", "height", "fps", "audio_quality", "folder", "playlist", "playlist_limit", "state", "streaming",
               "selected_catalog_url", "review_metadata", "organization", "duplicate_policy", "confirm_version", "playlist_title", "image_options", "catalog_record", "display_name", "queue_info"}
 
 

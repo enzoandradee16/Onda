@@ -408,6 +408,8 @@ class App(UiMixin, tk.Tk):
                 existing[key] = None
             format_name = {"photos": "FOTOS", "social": "POST"}.get(job["mode"], job["mode"].upper()) + (" " + job["audio_quality"].split()[0] if job["audio_quality"] else "")
             item = self.tree.insert("", "end", values=(job.get("display_name") or url, format_name, tr("A consultar"), tr(job["state"])), tags=(job["state"],))
+            self._queue_original=max(getattr(self,'_queue_original',0),job.get('queue_original',0))+1
+            job.setdefault('queue_original',self._queue_original)
             self.jobs[item] = job
             from metadata_badges import apply_tree_badge
             apply_tree_badge(self.tree,item,job.get("catalog_record") or job.get("queue_info") or {})
@@ -525,12 +527,13 @@ class App(UiMixin, tk.Tk):
         if self.jobs[item].get("state") != "Concluído" and state == "Concluído":
             self.queue_timing.record_completion()
         self.jobs[item]["state"] = state
+        if state!='Em andamento':self.jobs[item].pop('_queue_activity',None)
         self.tree.set(item, "status", tr(state))
         self.tree.item(item, tags=(state,))
         self.refresh_queue()
         self.persist_queue()
 
-    def start(self, only_item=None, *, only_items=None):
+    def start(self, only_item=None, *, only_items=None, scheduled=False):
         if self.updating:
             self.status.set("Aguarde a atualização do yt-dlp terminar.")
             return
@@ -544,6 +547,7 @@ class App(UiMixin, tk.Tk):
                for item, job in self.jobs.items() if scope is None or item in scope) and not binaries(self.ffmpeg.get().strip()):
             messagebox.showerror(tr("FFmpeg necessário"), tr("Selecione a pasta de FFmpeg e ffprobe em Configurações. Consulte Ajuda se necessário."))
             return
+        if hasattr(self,'queue_control') and not self.queue_control.confirm(scope,scheduled=scheduled):return
         self._schedule_paused=False
         if self.parallel.workers or self.parallel.memory_wait is not None:
             if self.running:self.parallel.extend(scope)
@@ -688,6 +692,9 @@ class App(UiMixin, tk.Tk):
                     self.tree.set(item, 'name', event['title'])
                     titles_changed = True
                 continue
+            if item in self.jobs:
+                from queue_control import observe
+                observe(self,item,event)
             if kind=='error' and item in self.jobs:
                 self.jobs[item]['last_error']=event.get('message','')
             if item in self.parallel.workers:
@@ -818,6 +825,7 @@ class App(UiMixin, tk.Tk):
                 self.next_job()
         if titles_changed:
             self.persist_queue()
+        if hasattr(self,'queue_control'):self.queue_control.refresh()
         self.refresh_queue_timing()
         self._poll_after = self.after(100, self.poll_events)
 
