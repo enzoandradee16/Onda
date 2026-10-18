@@ -36,7 +36,7 @@ class ParallelQueue:
                 if not can_start(app):
                     memory_blocked=True;break
                 self.workers.add(item);self.attempted.add(item);app.active=item
-                app.jobs[item].pop('last_error',None)
+                app.jobs[item].pop('last_error',None);app.jobs[item].pop('_queue_percent',None)
                 app.jobs[item]['saved_sizes']={};app.set_state(item,'Em andamento')
                 config={**app.jobs[item],'_cleanup_work':True,'auto_metadata':app.auto_metadata.get(),'auto_match':app.auto_match.get(),'confirm_version':app.confirm_version.get() if hasattr(app,'confirm_version') else False,'ffmpeg':app.ffmpeg.get().strip(),
                         'cookies_file':app.download_cookies(app.jobs[item].get('url','')) if hasattr(app,'download_cookies') else app.social_cookies.get().strip(),'spotify_client_id':app.spotify_client_id.get(),
@@ -61,6 +61,7 @@ class ParallelQueue:
             if not self.reported:
                 self.reported=True
                 if not interrupted and not app.closing:
+                    if hasattr(app,'daily'):app.daily.finished(self.attempted.copy())
                     show=getattr(app,'show_failures',None)
                     if show:show(self.attempted.copy())
             if app.closing and not app.effects_page.busy:app.destroy()

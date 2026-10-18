@@ -96,6 +96,7 @@ class DesktopMediaTests(unittest.TestCase):
                 point=target.callbacks[6].argtypes[3]()
                 effect=w.DWORD(1)
                 self.assertEqual(target.callbacks[6](None,c.byref(data),0,point,c.byref(effect)),0)
+                if target.timer:target.root.after_cancel(target.timer);target.timer=None
                 target.poll();self.assertEqual(received,[{'text':text}]);self.assertEqual(effect.value,1)
                 file=Path(root)/'dropped.wav';file.touch()
                 import struct

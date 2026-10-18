@@ -15,7 +15,8 @@
       "Avisos",
       "Exportar e importar",
       "Restaurar configurações",
-      "Reconhecer links copiados automaticamente"
+      "Reconhecer links copiados automaticamente",
+      "Ao fechar o ONDA"
     ],
     "Aparência": [
       "Tema e cores",
@@ -35,7 +36,10 @@
       "Metadados e versão",
       "Fila e agendamento",
       "Baixar mídias sociais automaticamente na maior qualidade",
-      "Selecionar todas as mídias ao abrir a publicação"
+      "Selecionar todas as mídias ao abrir a publicação",
+      "Somente Wi-Fi",
+      "Ação ao terminar a fila",
+      "Notificações"
     ],
     "Imagens": [
       "Formato",

@@ -32,6 +32,8 @@ def download_policy_controls(app,parent):
     for key,label in (('schedule_start','Começar · HH:MM'),('schedule_stop','Parar · HH:MM')):
         panel=ttk.Frame(hours);panel.pack(side='left',padx=(0,16));ttk.Label(panel,text=tr(label)).pack(anchor='w');ttk.Entry(panel,textvariable=getattr(app,key),width=12).pack()
     ttk.Label(parent,text=tr('O PC precisa estar ligado e o ONDA aberto. A janela pode atravessar a meia-noite.'),wraplength=460,style='Muted.TLabel').pack(anchor='w')
+    from daily_desktop import settings_controls
+    settings_controls(app,parent)
 
 def preference_transfer_controls(app,parent):
     ttk.Separator(parent).pack(fill='x',pady=12)

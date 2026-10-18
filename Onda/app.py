@@ -127,7 +127,7 @@ class App(UiMixin, tk.Tk):
         self.language = tk.StringVar(value=self.preference_store.load_language())
         self.remember_settings = tk.BooleanVar(value=self.preference_store.remember_enabled())
         self.preference_status = tk.StringVar(value="Salvamento automático ativado." if self.remember_settings.get() else "Desmarcado: opções só para esta sessão.")
-        from advanced_options import DEFAULTS
+        from advanced_options import PC_DEFAULTS as DEFAULTS
         for key,value in DEFAULTS.items():
             setattr(self,key,tk.BooleanVar(value=value) if type(value) is bool else tk.StringVar(value=value))
         self.preference_fields = {name: getattr(self, name) for name in ("shortcut_keys", "language", "queue_card_size", "queue_view", "history_card_size", "pure_black_separators", "history_view", "theme_mode", "theme_accent", "interface_font", "interface_font_size", "interface_spacing", "notice_duration", "effects_keep_pitch", "image_format", "image_size", "image_width", "image_height", "image_keep_ratio", "tab_order", "hidden_tabs", "playlist_mode", "playlist_height", "playlist_fps", "playlist_mp3_quality", "playlist_m4a_quality", "mode", "height", "fps", "catalog_provider", "folder", "ffmpeg", "playlist", "playlist_limit", "mp3_quality", "m4a_quality", "review_metadata", "auto_match", "background_preview", "effects_preview_duration", "search_preview_duration", "organization", "filename_template", "duplicates")}
@@ -205,6 +205,8 @@ class App(UiMixin, tk.Tk):
         self._poll_after = self.after(100, self.poll_events)
         self._welcome_after = None
         self.welcome_window = None
+        from daily_desktop import DailyDesktop
+        self.daily=DailyDesktop(self)
         if show_welcome:
             self.bind("<Map>", self._first_map, add="+")
 
@@ -246,7 +248,7 @@ class App(UiMixin, tk.Tk):
             messagebox.showinfo(tr("Reiniciar"),tr("Termine as operações em andamento antes de reiniciar o ONDA."),parent=self)
             return
         self.restart_requested=True
-        self.close()
+        self.close(force_exit=True)
 
     def mode_changed(self, _=None):
         self.update_quality_selector()
@@ -1003,6 +1005,7 @@ class App(UiMixin, tk.Tk):
     def destroy(self):
         if hasattr(self,"parallel") and self.parallel.memory_wait is not None:
             self.after_cancel(self.parallel.memory_wait);self.parallel.memory_wait=None
+        if hasattr(self,'daily'):self.daily.close()
         if getattr(self,'drop_target',None):self.drop_target.shutdown()
         if hasattr(self,"clipboard_watch"):self.clipboard_watch.shutdown()
         if hasattr(self,"status_notice"):self.status_notice.shutdown()
@@ -1028,7 +1031,11 @@ class App(UiMixin, tk.Tk):
         if hasattr(self,"queue_cards"):self.queue_cards.shutdown()
         super().destroy()
 
-    def close(self):
+    def close(self,force_exit=False):
+        if not force_exit and self.close_behavior.get()=='Minimizar para a bandeja':
+            self.persist_preferences();self.persist_queue()
+            if not self.daily.hide():messagebox.showerror(tr('Bandeja do sistema'),tr('Não foi possível minimizar para a bandeja. Altere Ao fechar o ONDA para Encerrar.'),parent=self)
+            return
         if self.converter_page.busy:
             messagebox.showinfo(tr("Conversor"),tr("Cancele ou aguarde a conversão antes de fechar o ONDA."),parent=self)
             return

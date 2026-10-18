@@ -2,8 +2,13 @@
 from datetime import datetime
 import re
 
-DEFAULTS={'synced_lyrics':False,'clipboard_links':True,'auto_select_media':True,'simple_download_ui':False,'social_best_quality':True,'concurrent_downloads':'1','detect_duplicates':True,'auto_metadata':False,'resume_downloads':True,'resume_queue':False,'normalize_volume':False,
+DEFAULTS={'finish_action':'Notificação','close_behavior':'Encerrar','taskbar_progress':True,'wifi_only':False,'wifi_loss':'Pausar downloads','notification_controls':True,'synced_lyrics':False,'clipboard_links':True,'auto_select_media':True,'simple_download_ui':False,'social_best_quality':True,'concurrent_downloads':'1','detect_duplicates':True,'auto_metadata':False,'resume_downloads':True,'resume_queue':False,'normalize_volume':False,
           'schedule_enabled':False,'schedule_start':'22:00','schedule_stop':'07:00','check_updates':True,'notice_animation':True,'queue_actions_at_top':True,'confirm_version':False}
+
+ANDROID_ONLY=frozenset(('wifi_only','wifi_loss','notification_controls'))
+PC_DEFAULTS={key:value for key,value in DEFAULTS.items() if key not in ANDROID_ONLY}
+
+DAILY_CHOICES={'finish_action':('Nenhuma','Som','Notificação','Som e notificação','Desligar PC'),'close_behavior':('Encerrar','Minimizar para a bandeja'),'wifi_loss':('Pausar downloads','Concluir downloads ativos')}
 
 def valid_time(value):return isinstance(value,str) and re.fullmatch(r'(?:[01]\d|2[0-3]):[0-5]\d',value) is not None
 
@@ -19,6 +24,7 @@ def clean_advanced(options):
     for key,default in DEFAULTS.items():
         value=options.get(key)
         if type(default) is bool and type(value) is bool:result[key]=value
+        elif key in DAILY_CHOICES and value in DAILY_CHOICES[key]:result[key]=value
         elif key=='concurrent_downloads' and str(value) in tuple(str(n) for n in range(1,16)):result[key]=str(value)
         elif key in ('schedule_start','schedule_stop') and valid_time(value):result[key]=value
     return result

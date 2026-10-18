@@ -451,20 +451,23 @@ class UiMixin:
         from settings_common_ui import tab_order_controls
         tab_order_controls(self,appearance)
         general = categories["Geral"]
-        ttk.Checkbutton(general,text=tr("Reconhecer links copiados automaticamente"),variable=self.clipboard_links).pack(anchor="w",pady=(0,8))
-        ttk.Label(general, text=tr("Preferências"), font=("Segoe UI", 13, "bold")).pack(anchor="w", pady=(0, 12))
-        ttk.Label(general, text=tr("Idioma")).pack(anchor="w")
-        TranslatedCombobox(general, textvariable=self.language, values=("pt-BR", "es", "en"), state="readonly", width=24).pack(anchor="w", pady=(4, 6))
-        ttk.Label(general, text=tr("Reinicie o ONDA para aplicar o idioma."), style="Muted.TLabel").pack(anchor="w", pady=(0, 12))
-        self.restart_slot=ttk.Frame(general)
-        self.restart_slot.pack(anchor="w")
-        self.restart_button=ttk.Button(self.restart_slot,text=tr("Reiniciar"),command=self.restart_app)
         self.remember_checkbox = ttk.Checkbutton(general, text=tr("Lembrar configurações"), variable=self.remember_settings,
                                                 command=self.toggle_remember_settings)
         self.remember_checkbox.pack(anchor="w")
         ttk.Label(general, textvariable=display_var(self.preference_status), style="Muted.TLabel", wraplength=480).pack(anchor="w", pady=(6, 12))
         ttk.Label(general, text=tr("Ative para recuperar suas opções ao abrir o aplicativo novamente."),
                   style="Muted.TLabel", wraplength=480).pack(anchor="w")
+
+        ttk.Checkbutton(general,text=tr("Reconhecer links copiados automaticamente"),variable=self.clipboard_links).pack(anchor="w",pady=(0,8))
+        ttk.Label(general, text=tr("Preferências"), font=("Segoe UI", 13, "bold")).pack(anchor="w", pady=(0, 12))
+        ttk.Label(general, text=tr("Idioma")).pack(anchor="w")
+        TranslatedCombobox(general, textvariable=self.language, values=("pt-BR", "es", "en"), state="readonly", width=24).pack(anchor="w", pady=(4, 6))
+        ttk.Label(general, text=tr("Reinicie o ONDA para aplicar o idioma."), style="Muted.TLabel").pack(anchor="w", pady=(0, 12))
+        from daily_desktop import close_controls
+        close_controls(self,general)
+        self.restart_slot=ttk.Frame(general)
+        self.restart_slot.pack(anchor="w")
+        self.restart_button=ttk.Button(self.restart_slot,text=tr("Reiniciar"),command=self.restart_app)
 
         ttk.Checkbutton(general,text=tr("Animar avisos"),variable=self.notice_animation).pack(anchor="w",pady=(10,0))
         from status_notice import NOTICE_DURATIONS

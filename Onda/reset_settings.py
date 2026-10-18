@@ -4,7 +4,7 @@ from i18n_tk import display_var
 import tkinter as tk
 from tkinter import ttk, messagebox
 
-GROUPS = {'Geral': {'clipboard_links':'Reconhecer links copiados automaticamente','language': 'Idioma', 'notice_duration': 'Duração dos avisos', 'notice_animation':'Animar avisos', 'remember_settings': 'Lembrar configurações'},
+GROUPS = {'Geral': {'close_behavior':'Ao fechar o ONDA','clipboard_links':'Reconhecer links copiados automaticamente','language': 'Idioma', 'notice_duration': 'Duração dos avisos', 'notice_animation':'Animar avisos', 'remember_settings': 'Lembrar configurações'},
  'Aparência': {'shortcut_keys':'Personalizar atalhos de teclado','interface_spacing': 'Espaçamento da interface',
                'history_card_size': 'Tamanho dos cards do histórico',
                'pure_black_separators': 'Separações no Preto puro',
@@ -16,7 +16,7 @@ GROUPS = {'Geral': {'clipboard_links':'Reconhecer links copiados automaticamente
                'queue_view': 'Exibição da fila', 'queue_actions_at_top':'Mostrar ações antes das listas',
                'queue_card_size': 'Tamanho dos cards da fila',
                'simple_download_ui':'Simplificar controles de download', 'hidden_tabs': 'Mostrar ou ocultar abas', 'tab_order': 'Ordem das abas'},
- 'Downloads': {'auto_select_media':'Selecionar todas as mídias ao abrir a publicação','social_best_quality':'Baixar mídias sociais automaticamente na maior qualidade', 'concurrent_downloads': 'Downloads simultâneos',
+ 'Downloads': {'finish_action':'Ação ao terminar a fila','taskbar_progress':'Mostrar progresso na barra de tarefas','auto_select_media':'Selecionar todas as mídias ao abrir a publicação','social_best_quality':'Baixar mídias sociais automaticamente na maior qualidade', 'concurrent_downloads': 'Downloads simultâneos',
                'resume_downloads': 'Retomar arquivos interrompidos',
                'resume_queue': 'Retomar fila ao abrir',
                'normalize_volume': 'Normalizar volume',

@@ -88,8 +88,9 @@ internal fun queueConnected():Boolean {
     val network=manager.activeNetwork ?: return false
     return manager.getNetworkCapabilities(network)?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)==true
 }
-internal fun queueActivity(item:DownloadItem,running:Boolean,settings:JSONObject,connected:Boolean):String=when(item.state) {
+internal fun queueActivity(item:DownloadItem,running:Boolean,settings:JSONObject,connected:Boolean,paused:String=""):String=when(item.state) {
     "Pendente"->when {
+        paused.isNotBlank()->paused
         settings.optBoolean("schedule_enabled") && !scheduleAllowed(settings)->"Aguardando horário"
         !connected->"Sem conexão"
         running->"Aguardando vaga"

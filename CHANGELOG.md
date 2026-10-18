@@ -2,6 +2,10 @@
 
 ## Em desenvolvimento
 
+- Android: modo Somente Wi-Fi com política ao perder a rede e retomada; controles opcionais de pausar/retomar, parar e abrir a fila na notificação, ativados por padrão.
+- PC: minimizar para a bandeja, restaurar/sair pelo menu e progresso agregado na barra de tarefas.
+- Ação ao terminar a fila nas duas versões: som, notificação, ambos ou nenhuma. PC também oferece desligamento confirmado e contagem regressiva cancelável.
+
 - Fila no PC e Android: atividade por item, motivos de espera, ordenação de pendentes e reordenação por arrastar, com setas e persistência.
 - Estimativa de espaço da fila, margem para temporários, indicação de tamanhos desconhecidos e aviso de possível falta de armazenamento antes de iniciar.
 

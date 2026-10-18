@@ -64,8 +64,8 @@ class PreferenceStore:
             return {}
         from shortcut_options import load_overrides
         result_shortcuts=json.dumps(load_overrides(data.get("shortcut_keys","{}")))
-        from advanced_options import clean_advanced
-        result = clean_advanced(data)
+        from advanced_options import clean_advanced,PC_DEFAULTS
+        result = {key:value for key,value in clean_advanced(data).items() if key in PC_DEFAULTS}
         from performance import clean as clean_performance
         result.update(clean_performance(data))
         if "shortcut_keys" in data:result["shortcut_keys"]=result_shortcuts

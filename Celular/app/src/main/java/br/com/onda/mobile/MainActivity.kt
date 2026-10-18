@@ -63,6 +63,7 @@ class MainActivity : ComponentActivity() {
         return super.dispatchKeyEvent(event)
     }
     private fun receive(intent: Intent?) {
+        if(intent?.getBooleanExtra("open_queue",false)==true) {model.queueNavigation.value=true;intent.removeExtra("open_queue")}
         if(intent?.action==Intent.ACTION_SEND) OndaStore.sharedLink.value=intent.getStringExtra(Intent.EXTRA_TEXT) ?: ""
     }
 }
@@ -495,6 +496,7 @@ internal fun displayReleaseDate(value:String):String {
     val queueTimes=remember(queue,running,clockTick) {OndaStore.queueTiming.snapshot(queue.size-completed,queue.isNotEmpty())}
     val remainingTime=queueTimes.remaining?.let {if(it==0L) "00:00" else "≈ "+queueDuration(it)} ?: if(running)translateUi("Calculando…",LocalUiLanguage.current) else "—"
     val adding by vm.addingToQueue.collectAsStateWithLifecycle()
+    val pauseReason by OndaStore.queuePause.collectAsStateWithLifecycle()
     val actionsAtTop=settings.optBoolean("queue_actions_at_top",true)
     val logs by OndaStore.messages.collectAsStateWithLifecycle()
     var selected by remember {mutableStateOf(setOf<String>())}
@@ -506,6 +508,7 @@ internal fun displayReleaseDate(value:String):String {
             Button(onClick={DownloadService.start(OndaStore.context)},enabled=queue.any {it.state=="Pendente"},
                 modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)){UiText("Baixar fila")}
             Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(LayoutSpacing.section),verticalAlignment=Alignment.CenterVertically) {
+                if(running)TextButton(onClick={DownloadService.control(OndaStore.context,if(DownloadRuntime.paused)"resume" else "pause")},modifier=Modifier.weight(1f).heightIn(min=48.dp)){UiText(if(DownloadRuntime.paused)"Retomar fila" else "Pausar fila")}
                 OutlinedButton(onClick={DownloadService.stop(OndaStore.context)},enabled=running,
                     modifier=Modifier.weight(1f).heightIn(min=48.dp)){UiText("Parar")}
                 TextButton(onClick={showLogs=!showLogs},
@@ -563,7 +566,7 @@ internal fun displayReleaseDate(value:String):String {
                 }
                 MetadataPlatformBadge(item.config.optJSONObject("catalog_record") ?: item.config.optJSONObject("queue_info"))
                 UiText("${item.config.optString("mode").uppercase()} · ${item.state}",style=MaterialTheme.typography.labelMedium)
-                UiText(queueActivity(item,running,settings,connected),style=MaterialTheme.typography.bodySmall)
+                UiText(queueActivity(item,running,settings,connected,pauseReason),style=MaterialTheme.typography.bodySmall)
                 if(item.state in listOf("Baixando","Aguardando escolha")) LinearProgressIndicator(progress={item.progress/100},modifier=Modifier.fillMaxWidth().padding(vertical=6.dp))
                 if(item.message.isNotBlank() && (complete || item.state=="Erro")) UiText(item.message,style=MaterialTheme.typography.bodySmall,maxLines=if(small)1 else 3)
             }

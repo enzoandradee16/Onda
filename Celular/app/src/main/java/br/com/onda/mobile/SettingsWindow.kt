@@ -24,9 +24,9 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 val categories=linkedMapOf(
-    "Geral" to listOf("clipboard_links","language","remember","notice_duration","notice_animation"),
+    "Geral" to listOf("remember","clipboard_links","language","notice_duration","notice_animation"),
     "Aparência" to listOf("simple_download_ui","queue_actions_at_top","queue_view","queue_card_size","history_card_size","pure_black_separators","history_view","theme","accent","tab_order","hidden_tabs","interface_font","interface_font_size","interface_spacing"),
-    "Downloads" to listOf("auto_select_media","social_best_quality","detect_duplicates","filename_template","concurrent_downloads","resume_downloads","resume_queue","normalize_volume","schedule_enabled","schedule_start","schedule_stop","mode","audio_quality","height","fps","playlist_limit","link_playlist","organization","duplicate_policy","output_uri","auto_metadata","auto_match","confirm_version","review_metadata"),
+    "Downloads" to listOf("wifi_only","wifi_loss","finish_action","notification_controls","auto_select_media","social_best_quality","detect_duplicates","filename_template","concurrent_downloads","resume_downloads","resume_queue","normalize_volume","schedule_enabled","schedule_start","schedule_stop","mode","audio_quality","height","fps","playlist_limit","link_playlist","organization","duplicate_policy","output_uri","auto_metadata","auto_match","confirm_version","review_metadata"),
     "Imagens" to listOf("image_format","image_size","image_width","image_height","keep_ratio"),
     "Áudio" to listOf("search_preview","effects_preview","keep_preview","synced_lyrics"),
     "Contas" to listOf("spotify_client_id","cookies_file","youtube_cookies_file"),
@@ -90,12 +90,12 @@ val categories=linkedMapOf(
             Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(top=LayoutSpacing.controls),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
                 when(names[page]) {
                     "Geral"->{
+                        Toggle("Lembrar configurações",settings.optBoolean("remember",true)){put("remember",it)}
+                        UiText("Ative para recuperar suas opções ao abrir o aplicativo novamente.",style=MaterialTheme.typography.bodySmall)
+                        SettingsDivider()
                         Toggle("Reconhecer links copiados automaticamente",settings.optBoolean("clipboard_links",true)){put("clipboard_links",it)}
                         UiText("Preferências",style=MaterialTheme.typography.titleMedium)
                         Select("Idioma",settings.optString("language","pt-BR"),UI_LANGUAGES){put("language",it)}
-                        SettingsDivider()
-                        Toggle("Lembrar configurações",settings.optBoolean("remember",true)){put("remember",it)}
-                        UiText("Ative para recuperar suas opções ao abrir o aplicativo novamente.",style=MaterialTheme.typography.bodySmall)
                         SettingsDivider()
                         Toggle("Animar avisos",settings.optBoolean("notice_animation",true)){put("notice_animation",it)}
                         Select("Duração dos avisos",settings.optString("notice_duration","Após 3 segundos"),noticeDurations.keys.toList()){put("notice_duration",it)}
@@ -190,6 +190,7 @@ val categories=linkedMapOf(
                         Toggle("Revisar metadados antes de baixar",settings.optBoolean("review_metadata")){put("review_metadata",it)}
                         UiText("Spotify, Deezer e Apple Music fornecem metadados; o áudio correspondente é obtido do YouTube.",style=MaterialTheme.typography.bodySmall)
                         AdvancedDownloadOptions(settings,::put)
+                        DailyDownloadControls(settings){key,value->put(key,value)}
                     }
                     "Imagens"->ImageOptions(settings,OndaStore::saveSettings,separated=true)
                     "Áudio"->{

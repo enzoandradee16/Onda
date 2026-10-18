@@ -83,6 +83,7 @@ def observe(app,key,event):
     elif kind=='done':job['_queue_activity']='Finalizando arquivo…'
     elif kind=='processing':job['_queue_activity']='Convertendo arquivo…'
     elif kind=='progress':
+        job['_queue_percent']=min(100,event.get('downloaded',0)/event['total']*100) if positive(event.get('total')) else 0
         if event.get('status')=='finished':job['_queue_activity']='Preparando o arquivo…'
         else:
             percent=event.get('downloaded',0)/event['total']*100 if positive(event.get('total')) else None

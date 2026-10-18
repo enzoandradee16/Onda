@@ -37,6 +37,7 @@ object OndaStore {
     val question = MutableStateFlow<Question?>(null)
     val messages = MutableStateFlow<List<String>>(emptyList())
     val running = MutableStateFlow(false)
+    val queuePause=MutableStateFlow("")
     val failureSummary=MutableStateFlow<List<String>?>(null)
     internal val queueTiming=QueueTiming()
     val sharedLink = MutableStateFlow("")
@@ -86,7 +87,7 @@ object OndaStore {
         database.writableDatabase.execSQL("UPDATE queue SET state='Erro' WHERE state='Duplicata'")
         refresh()
     }
-    fun defaults() = JSONObject().put("clipboard_links",true).put("auto_select_media",true).put("simple_download_ui",false).put("social_best_quality",true).put("language","pt-BR").put("mode","mp3").put("audio_quality","320 kbps").put("height",1080).put("fps",JSONObject.NULL)
+    fun defaults() = JSONObject().put("wifi_only",false).put("wifi_loss","Pausar downloads").put("notification_controls",true).put("finish_action","Notificação").put("clipboard_links",true).put("auto_select_media",true).put("simple_download_ui",false).put("social_best_quality",true).put("language","pt-BR").put("mode","mp3").put("audio_quality","320 kbps").put("height",1080).put("fps",JSONObject.NULL)
         .put("queue_actions_at_top",true).put("queue_view","Completa").put("queue_card_size","Grande").put("pure_black_separators",false).put("history_card_size","Grande").put("history_view","Compacto").put("playlist_limit",2000).put("link_playlist",false).put("auto_metadata",false).put("auto_match",false).put("confirm_version",false).put("review_metadata",false)
         .put("detect_duplicates",true).put("filename_template","Original").put("duplicate_policy","ask").put("organization","Pasta de destino").put("interface_font",DEFAULT_INTERFACE_FONT).put("interface_font_size","100%").put("interface_spacing","Padrão").put("theme","Seguir o sistema").put("accent","Verde-Água")
         .put("concurrent_downloads","1").put("resume_downloads",true).put("resume_queue",false).put("normalize_volume",false)
@@ -97,6 +98,8 @@ object OndaStore {
         .put("tab_order",JSONArray(listOf("Pesquisar","Links e fila","Fila","Imagens","Conversor de vídeos","Playlists / Álbuns","Histórico","Efeitos","Metadados")))
         .put("output_uri", "").put("cookies_file", "").put("youtube_cookies_file", "").put("spotify_client_id", "")
     fun normalizeAppearance(value:JSONObject) {
+        if(value.optString("finish_action") !in finishActions)value.put("finish_action","Notificação")
+        if(value.optString("wifi_loss") !in wifiLossActions)value.put("wifi_loss","Pausar downloads")
         if(value.optString("image_size")=="Original" && (value.optInt("image_width")>0 || value.optInt("image_height")>0))value.put("image_size","Personalizado")
         value.put("interface_spacing",normalizedSpacing(value.optString("interface_spacing","Padrão")))
         if(value.optString("queue_view") !in listOf("Compacto","Completa"))value.put("queue_view","Completa")
@@ -118,8 +121,10 @@ object OndaStore {
     private val displayFields=listOf("queue_view","queue_card_size","history_view","history_card_size")
     @Synchronized fun saveSettings(value: JSONObject) {
         normalizeAppearance(value)
-        val scheduleChanged=listOf("schedule_enabled","schedule_start","schedule_stop").any {settings.value.opt(it)!=value.opt(it)}
+        val scheduleChanged=listOf("schedule_enabled","schedule_start","schedule_stop","wifi_only").any {settings.value.opt(it)!=value.opt(it)}
+        val controlsChanged=settings.value.optBoolean("notification_controls",true)!=value.optBoolean("notification_controls",true)
         settings.value = JSONObject(value.toString())
+        if(controlsChanged && DownloadRuntime.running.get())refreshDownloadNotification(context)
         if(scheduleChanged)DownloadSchedule.configure(context,value)
         val persisted = if (value.optBoolean("remember",true)) value else defaults().put("remember",false).put("language",value.optString("language","pt-BR"))
         context.getSharedPreferences("preferences",0).edit().putString("settings",persisted.toString()).putString("display",JSONObject().apply { displayFields.forEach { key -> put(key,value.get(key)) } }.toString()).apply()
