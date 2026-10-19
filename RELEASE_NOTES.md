@@ -1,18 +1,13 @@
-# ONDA 1.1.6
+# ONDA 1.1.7
 
-- Configurações reorganizadas por frequência de uso no PC e Android, com ajustes principais primeiro e manutenção/restauração ao final. Preferências salvas preservadas.
-- Fila: indicador de atividade e espera, ordenação, reordenação por arrastar e estimativa de espaço necessário.
-- Android: modo Somente Wi-Fi, política ao perder a rede e controles opcionais de pausar/retomar, parar e abrir a fila na notificação.
-- PC: minimizar para a bandeja, ícone acompanhando o tema, menu de ações e progresso na barra de tarefas.
-- Ação ao terminar: nenhuma, som, notificação ou ambos; no PC, desligamento com confirmação e contagem cancelável.
-- Conversor de áudio/vídeo em lote, seleção por tipo de arquivo e controles adequados ao formato; prévia após selecionar arquivo no PC.
-- Letra sincronizada LRC opcional na reprodução local; PC aceita arquivos e links arrastados com confirmação.
-- Conferência de playlists com arquivos locais e histórico para adicionar somente faixas novas ou ausentes.
-- Alto contraste, atalhos personalizáveis e controles de desempenho no PC, com threads limitadas à CPU detectada.
-- Datas de lançamento mais visíveis, consulta complementar no Deezer e formatação das datas do Apple Music.
-- Ajustes nos cartões de metadados, comparação de resultados, duplicatas, formato no modo simplificado e Lembrar configurações no início de Geral.
-- Distribuição Android em dois APKs: ARM64 para aparelhos compatíveis e x86_64 para emuladores compatíveis. O atualizador da nova versão respeita a arquitetura instalada.
+- Jukebox Infinito no PC e Android, dentro de Reprodução e efeitos: arquivos locais, pesquisa e links com escolha explícita da música, análise em cache e saltos entre trechos compatíveis.
+- Melhor continuidade dos loops, comparação da energia de 4 e 8 beats e saltos pouco frequentes em Mais fiel. A qualidade das transições depende da faixa.
+- Grafo mostra o trajeto reproduzido; marcador sincronizado com o áudio e pulsação nas batidas estimadas. Melhor contraste nos temas escuros do Android.
+- Equalizador paramétrico de 10 bandas exclusivo do Jukebox, controles verticais, frequência, ganho, Q, pré-amplificação e sete presets compartilhados. Ajustes preservados com Lembrar configurações.
+- Android: reprodução opcional em segundo plano e notificação de mídia com capa, título e artista quando disponíveis. PC: integração com controles de mídia do Windows.
+- Melhorias de desempenho na fila, histórico, detecção de duplicatas, gravação das preferências de áudio e processamento PCM. Remoção de imports e estado sem uso.
+- PC: correção do ícone na abertura, capa maior e ajuste do slider de volume no Jukebox.
 
-Windows 10/11 x64: portátil e instalador 1.1.6.0, sem assinatura Authenticode. Android 8+: versão 1.1.6, código 24, assinada com a mesma chave de produção. Escolha apenas o APK da arquitetura do dispositivo.
+Windows 10/11 x64: portátil e instalador 1.1.7.0, sem assinatura Authenticode. Android 8+: versão 1.1.7, código 25, assinada com a mesma chave de produção. APKs separados para ARM64 e x86_64.
 
-Atualizadores Android antigos podem selecionar o APK ARM64: em emuladores, use o arquivo x86_64 desta release manualmente. Serviços externos podem exigir sessão e disponibilidade; as verificações de identidade das músicas permanecem ativas.
+O Jukebox usa análise local independente; não é uma integração com o serviço Eternal Jukebox. Sem trechos compatíveis, a faixa se repete normalmente. Serviços online podem exigir sessão e disponibilidade. Este rascunho não está publicado.

@@ -857,7 +857,7 @@
   "Alterar": "Cambiar",
   "Capa · imagem inteira, sem cortes": "Portada · imagen completa, sin recortes",
   "Mostrar mais": "Mostrar más",
-  "Preset": "Ajuste preestablecido",
+  "Preset": "Preajuste",
   "Sim": "Sí",
   "Spotify e metadados": "Spotify y metadatos",
   "Suas playlists completas": "Tus listas de reproducción completas",
@@ -1696,5 +1696,12 @@
   "Frequência (Hz)": "Frecuencia (Hz)",
   "Ganho (dB)": "Ganancia (dB)",
   "Q menor: banda mais larga. Reduza a pré-amplificação ao aumentar os ganhos.": "Q menor: banda más ancha. Reduce la preamplificación al aumentar las ganancias.",
-  "Equalizador do Jukebox": "Ecualizador del Jukebox"
+  "Equalizador do Jukebox": "Ecualizador del Jukebox",
+  "Plano": "Plano",
+  "Graves reforçados": "Graves reforzados",
+  "Agudos reforçados": "Agudos reforzados",
+  "Vocais": "Voces",
+  "Eletrônica": "Electrónica",
+  "Suave": "Suave",
+  "Personalizado": "Personalizado"
 }

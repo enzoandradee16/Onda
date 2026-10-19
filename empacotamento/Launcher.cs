@@ -6,9 +6,9 @@ using System.Windows.Forms;
 
 [assembly: AssemblyTitle("Onda")]
 [assembly: AssemblyProduct("Onda")]
-[assembly: AssemblyVersion("1.1.6.0")]
-[assembly: AssemblyFileVersion("1.1.6.0")]
-[assembly: AssemblyInformationalVersion("1.1.6")]
+[assembly: AssemblyVersion("1.1.7.0")]
+[assembly: AssemblyFileVersion("1.1.7.0")]
+[assembly: AssemblyInformationalVersion("1.1.7")]
 
 internal static class Launcher {
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]

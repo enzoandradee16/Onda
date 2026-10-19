@@ -25,6 +25,12 @@ private val equalizerFrequencies=listOf(31.25f,62.5f,125f,250f,500f,1000f,2000f,
     val frequencies=remember {mutableStateListOf<Float>().apply {equalizerFrequencies.forEachIndexed {i,f->add(original.optJSONArray("bands")?.optJSONObject(i)?.optDouble("frequency",f.toDouble())?.toFloat()?.takeIf {it.isFinite()}?.coerceIn(20f,20000f) ?: f)}}}
     val gains=remember {mutableStateListOf<Float>().apply {equalizerFrequencies.indices.forEach {i->add(original.optJSONArray("bands")?.optJSONObject(i)?.optDouble("gain",0.0)?.toFloat()?.takeIf {it.isFinite()}?.coerceIn(-12f,12f) ?: 0f)}}}
     val widths=remember {mutableStateListOf<Float>().apply {equalizerFrequencies.indices.forEach {i->add(original.optJSONArray("bands")?.optJSONObject(i)?.optDouble("q",1.4)?.toFloat()?.takeIf {it.isFinite()}?.coerceIn(.1f,10f) ?: 1.4f)}}}
+    val presets=remember {JSONArray(OndaStore.context.assets.open("equalizer_presets.json").bufferedReader().use {it.readText()}).let {a->(0 until a.length()).map {a.getJSONObject(it)}}}
+    val selectedPreset=presets.firstOrNull {row->
+        abs(preamp-row.getDouble("preamp").toFloat())<.01f && equalizerFrequencies.indices.all {i->
+            abs(gains[i]-row.getJSONArray("gains").getDouble(i).toFloat())<.01f && abs(frequencies[i]-equalizerFrequencies[i])<.01f && abs(widths[i]-1.4f)<.01f
+        }
+    }?.getString("name") ?: "Personalizado"
     var expanded by remember {mutableIntStateOf(-1)}
     fun save() {
         val value=JSONObject().put("enabled",enabled).put("preamp",preamp).put("bands",JSONArray().apply {
@@ -36,6 +42,13 @@ private val equalizerFrequencies=listOf(31.25f,62.5f,125f,250f,500f,1000f,2000f,
     AlertDialog(onDismissRequest={close()},title={UiText("Equalizador")},text={
         Column(Modifier.fillMaxWidth().heightIn(max=510.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(8.dp)) {
             Toggle("Ativar equalizador",enabled){enabled=it;save()}
+            Select("Preset",selectedPreset,presets.map {it.getString("name")}+"Personalizado") {name->
+                presets.firstOrNull {it.getString("name")==name}?.let {row->
+                    enabled=true;preamp=row.getDouble("preamp").toFloat()
+                    equalizerFrequencies.forEachIndexed {i,f->frequencies[i]=f;gains[i]=row.getJSONArray("gains").getDouble(i).toFloat();widths[i]=1.4f}
+                    save()
+                }
+            }
             UiText(translateUi("Pré-amplificação")+" · %.1f dB".format(preamp))
             RoundSlider(preamp,{preamp=it},valueRange=-24f..0f,onValueChangeFinished={save()})
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(4.dp)) {

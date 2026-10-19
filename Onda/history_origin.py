@@ -1,6 +1,6 @@
 """Resolve recorded download identities into browser links, never local commands."""
 import re
-from urllib.parse import urlsplit,quote
+from urllib.parse import urlsplit
 
 def history_origin(value):
     value=str(value or '').strip()

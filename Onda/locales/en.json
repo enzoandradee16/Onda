@@ -1696,5 +1696,12 @@
   "Frequência (Hz)": "Frequency (Hz)",
   "Ganho (dB)": "Gain (dB)",
   "Q menor: banda mais larga. Reduza a pré-amplificação ao aumentar os ganhos.": "Lower Q: wider band. Lower the preamp when boosting bands.",
-  "Equalizador do Jukebox": "Jukebox equalizer"
+  "Equalizador do Jukebox": "Jukebox equalizer",
+  "Plano": "Flat",
+  "Graves reforçados": "Bass boost",
+  "Agudos reforçados": "Treble boost",
+  "Vocais": "Vocals",
+  "Eletrônica": "Electronic",
+  "Suave": "Soft",
+  "Personalizado": "Custom"
 }

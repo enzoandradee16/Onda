@@ -34,6 +34,8 @@ def readable_bytes(value):
         number /= 1024
 
 
+from download_defaults import effective_download
+
 class App(UiMixin, tk.Tk):
     def __init__(self, *, show_welcome=True):
         super().__init__()
@@ -380,7 +382,6 @@ class App(UiMixin, tk.Tk):
             job.update(item_overrides)
             if restored_jobs is not None:
                 for flag in ('simple_download_ui','social_best_quality'):job[flag]=item_overrides.get(flag,False)
-            from download_defaults import effective_download
             job = effective_download(job)
             if job["mode"] in ("photos", "social") and streaming:
                 invalid.append(line)
@@ -397,7 +398,6 @@ class App(UiMixin, tk.Tk):
                     self.write_log("Link de streaming: formato automático " + job["mode"].upper() + " para áudio com tags e capa.")
             job["audio_quality"] = item_overrides.get("audio_quality") or (item_overrides.get("mp3_quality", self.mp3_quality.get()) if job["mode"] == "mp3" else (item_overrides.get("m4a_quality", self.m4a_quality.get()) if job["mode"] == "m4a" else None))
             job["fps"] = item_overrides.get("fps", FPS_OPTIONS[self.fps.get()]) if job["mode"] in ("video", "mp4") else None
-            from download_defaults import effective_download
             job = effective_download(job)
             key = (url, job["mode"], job["folder"], job["height"], job["playlist"], job["audio_quality"], job["fps"], job.get("selected_catalog_url"), job.get("playlist_title"), job.get("playlist_limit", 1000) if job["playlist"] else None, json.dumps(job.get("image_options"), sort_keys=True))
             identity=queue_duplicate_key(job) if detecting else None

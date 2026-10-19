@@ -70,6 +70,39 @@ def _features(samples):
     energy=math.sqrt(sum(v*v for v in samples)/512)/32768
     return norm(chroma)+norm(bands),energy
 
+def energy_matched_links(neighbors,levels):
+    """Match the surrounding phrase, not just a potentially loud first beat."""
+    n=len(levels)
+    def rms(rows):return math.sqrt(sum(v*v for v in rows)/max(1,len(rows)))
+    before={span:[rms(levels[max(0,i-span+1):i+1]) for i in range(n)] for span in (4,8)}
+    after={span:[rms(levels[j:min(n,j+span)]) for j in range(n)] for span in (4,8)}
+    def compatible(i,j):
+        for span in (4,8):
+            a,b=before[span][i],after[span][j]
+            if min(a,b)<.004 or min(a,b)/max(a,b)<.72:return False
+        return True
+    return [[j for j in row if compatible(i,j)] for i,row in enumerate(neighbors)]
+
+def pcm_energy_levels(sound,beats):
+    levels=[]
+    for start,end in zip(beats,beats[1:]):
+        first,last=round(start*RATE),round(end*RATE);sound.setpos(min(first,sound.getnframes()))
+        data=array('h',sound.readframes(max(0,last-first)))
+        if os.sys.byteorder!='little':data.byteswap()
+        # Sample both channels across the beat; bounded startup work, no extra decoder.
+        squares=[data[k]**2+data[k+1]**2 for k in range(0,len(data)-1,CHANNELS*32)]
+        levels.append(math.sqrt(sum(squares)/max(1,2*len(squares)))/32768)
+    return levels
+
+def refine_energy(model,sound=None):
+    levels=model.get('energy_levels')
+    n=len(model['neighbors'])
+    valid=isinstance(levels,list) and len(levels)==n and all(type(v) in (int,float) and math.isfinite(v) and 0<=v<=1 for v in levels)
+    if not valid:
+        if sound is None:return model
+        levels=pcm_energy_levels(sound,model['beats'])
+    return dict(model,energy_levels=levels,neighbors=energy_matched_links(model['neighbors'],levels))
+
 def analyse_wave(path,cancelled=lambda:False,progress=lambda _:None):
     """Bounded, low-rate spectral analysis; silence never creates arbitrary jumps."""
     features=[];energies=[]
@@ -133,7 +166,8 @@ def analyse_wave(path,cancelled=lambda:False,progress=lambda _:None):
             timbre=sum(a[k]*b[k] for k in range(12,20))/(math.sqrt(sum(v*v for v in a[12:])*sum(v*v for v in b[12:])) or 1)
             if chroma>=.94 and timbre>=.94:ranked.append((.65*chroma+.35*timbre,j))
         neighbors[i]=[j for _,j in sorted(ranked,reverse=True)[:5]]
-    return {'version':VERSION,'duration':duration,'bpm':round(60/period,1),'beat_confidence':round(confidence,3),'beats':beats,'neighbors':neighbors,'links':sum(map(len,neighbors))}
+    neighbors=energy_matched_links(neighbors,levels)
+    return {'version':VERSION,'duration':duration,'bpm':round(60/period,1),'beat_confidence':round(confidence,3),'beats':beats,'energy_levels':levels,'neighbors':neighbors,'links':sum(map(len,neighbors))}
 
 def cache_root():
     from cache_cleanup import root_path
@@ -155,6 +189,13 @@ def prepare(source,folder='',cancelled=lambda:False,progress=lambda _:None):
                 model=json.loads(graph.read_text());validate_model(model)
                 with wave.open(str(pcm),'rb') as sound:
                     if sound.getframerate()!=RATE or sound.getnchannels()!=CHANNELS or sound.getsampwidth()!=2 or abs(sound.getnframes()/RATE-model['duration'])>.1:raise ValueError('Cache de áudio inválido.')
+                    refined=refine_energy(model,sound)
+                if refined!=model:
+                    model=refined;model['links']=sum(map(len,model['neighbors']))
+                    staging=base/(uuid.uuid4().hex+'.json')
+                    try:
+                        staging.write_text(json.dumps(model),encoding='utf-8');os.replace(staging,graph)
+                    finally:staging.unlink(missing_ok=True)
                 return dict(model,cache=str(base),title=source.stem,source=str(source),cached=True)
             except (ValueError,KeyError,TypeError,wave.Error,EOFError):
                 graph.unlink(missing_ok=True)
@@ -192,6 +233,7 @@ class Session:
         if self.base.parent!=cache_root().resolve():raise ValueError('Cache inválido.')
         self.model=json.loads((self.base/'analysis.json').read_text());validate_model(self.model)
         self.sound=wave.open(str(self.base/'audio.wav'),'rb')
+        self.model=refine_energy(self.model,self.sound)
         from jukebox_equalizer import Equalizer
         self.equalizer=Equalizer(RATE)
         self.index=0;self.since_jump=0;self.jumps=0;self.random=random.Random(seed);self.closed=False;self.fade_in=0
@@ -214,12 +256,14 @@ class Session:
         i=self.index;beats=self.model['beats'];n=len(beats)-1
         next_index=(i+1)%n
         options=self.model['neighbors'][i]
-        if not normal and variation>0:
+        if not normal:
             looping=self.loop_end is not None and i<=self.loop_end
             if looping:options=[j for j in options if j<=self.loop_end]
             returning=looping and i==self.loop_end
             if returning:options=[j for j in options if j<i-4]
-            if options and (returning or self.since_jump>=4 and self.random.random()<variation/100*.35):
+            # Most faithful still loops: low probability, with a bounded wait for an eligible edge.
+            probability=.05+.30*variation/100
+            if options and (returning or self.since_jump>=4 and (self.since_jump>=32 or self.random.random()<probability)):
                 # Prefer unexplored destinations, keeping all choices inside the validated graph.
                 candidates=([j for j in options if j not in self.recent]
                             or [j for j in options if j not in self.recent[-1:]] or options)

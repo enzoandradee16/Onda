@@ -7,7 +7,7 @@ import tkinter as tk
 from tkinter import ttk,filedialog
 from i18n import tr
 from i18n_tk import TranslatedCombobox
-from video_converter import FORMATS,QUALITIES,RESOLUTIONS,convert_video,ConversionCancelled,VIDEO_BITRATES,AUDIO_BITRATES,FRAME_RATES,AUDIO_MODES,AUDIO_FORMATS,OUTPUT_FORMATS
+from video_converter import QUALITIES,RESOLUTIONS,convert_video,ConversionCancelled,VIDEO_BITRATES,AUDIO_BITRATES,FRAME_RATES,AUDIO_MODES,AUDIO_FORMATS,OUTPUT_FORMATS
 
 class ConverterPane(ttk.Frame):
     def __init__(self,parent,app):

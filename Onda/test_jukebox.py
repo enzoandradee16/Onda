@@ -30,14 +30,49 @@ class JukeboxTests(unittest.TestCase):
         model['beats'][-1]=1201
         with self.assertRaises(ValueError):jukebox.validate_model(model)
 
-    def test_normal_and_zero_variation_preserve_all_samples(self):
-        for variation,normal in [(0,False),(100,True)]:
+    def test_normal_mode_preserves_all_samples(self):
+        for variation,normal in [(0,True),(100,True)]:
             player=jukebox.Session(self.base,seed=1)
             try:
                 parts=[player.chunk(variation,0,100,normal) for _ in range(32)]
                 with wave.open(str(self.base/'audio.wav'),'rb') as original:self.assertEqual(b''.join(p['pcm'] for p in parts),original.readframes(original.getnframes()))
                 self.assertEqual(player.index,0);self.assertEqual(player.jumps,0);self.assertAlmostEqual(sum(p['seconds'] for p in parts),8)
             finally:player.close()
+    def test_energy_filter_rejects_calm_phrase_after_a_loud_first_beat(self):
+        levels=[.3]*32
+        levels[21:28]=[.04]*7
+        neighbors=[[] for _ in levels];neighbors[12]=[4,20]
+        filtered=jukebox.energy_matched_links(neighbors,levels)
+        self.assertEqual(filtered[12],[4])
+    def test_energy_filter_preserves_similar_energy_phrases(self):
+        levels=[.3]*32;levels[20:28]=[.26]*8
+        neighbors=[[] for _ in levels];neighbors[12]=[20]
+        self.assertEqual(jukebox.energy_matched_links(neighbors,levels),neighbors)
+    def test_session_does_not_force_energy_mismatched_jump(self):
+        model=dict(self.model,energy_levels=[.3]*32)
+        model['energy_levels'][20:28]=[.03]*8
+        (self.base/'analysis.json').write_text(json.dumps(model))
+        player=jukebox.Session(self.base)
+        player.random=SimpleNamespace(random=lambda:0,choice=lambda rows:rows[0])
+        try:
+            player.seek(4);player.since_jump=32
+            part=player.chunk(100,0,100)
+            self.assertFalse(part['jumped']);self.assertEqual(part['next'],5)
+        finally:player.close()
+    def test_cached_analysis_gets_energy_refinement_without_decoding_again(self):
+        import hashlib,shutil
+        source=self.base/'audio.wav'
+        digest=hashlib.sha256(str(jukebox.VERSION).encode()+source.read_bytes()).hexdigest()
+        base=jukebox.cache_root()/digest;base.mkdir()
+        shutil.copy2(source,base/'audio.wav')
+        (base/'analysis.json').write_text(json.dumps(self.model))
+        result=jukebox.prepare(source)
+        self.assertTrue(result['cached'])
+        self.assertEqual(len(result['energy_levels']),32)
+        saved=json.loads((base/'analysis.json').read_text())
+        self.assertEqual(saved['energy_levels'],result['energy_levels'])
+        self.assertEqual(saved['links'],sum(map(len,saved['neighbors'])))
+
     def test_jump_uses_only_graph_neighbors_and_honors_spacing(self):
         player=jukebox.Session(self.base);player.random=SimpleNamespace(random=lambda:0,choice=lambda rows:rows[0])
         try:
@@ -61,6 +96,45 @@ class JukeboxTests(unittest.TestCase):
             for part in parts:
                 if part['jumped']:self.assertIn(part['next'],model['neighbors'][part['index']])
         finally:player.close()
+    def test_most_faithful_keeps_safe_return_and_normal_mode_disables_it(self):
+        model=dict(self.model,neighbors=[[] for _ in range(32)])
+        model['neighbors'][4]=[20];model['neighbors'][27]=[8]
+        (self.base/'analysis.json').write_text(json.dumps(model))
+        player=jukebox.Session(self.base,seed=1);player.random=SimpleNamespace(random=lambda:1,choice=lambda rows:rows[0])
+        try:
+            parts=[player.chunk(0,0,100) for _ in range(80)]
+            jumps=[part for part in parts if part['jumped']]
+            self.assertGreaterEqual(len(jumps),3)
+            self.assertTrue(all(part['index']==27 and part['next']==8 for part in jumps))
+            self.assertTrue(all(part['index']<=27 for part in parts))
+        finally:player.close()
+        for variation in (0,100):
+            player=jukebox.Session(self.base,seed=1)
+            try:
+                parts=[player.chunk(variation,0,100,True) for _ in range(32)]
+                self.assertEqual([part['index'] for part in parts],list(range(32)))
+                self.assertFalse(any(part['jumped'] for part in parts))
+                self.assertEqual(player.index,0)
+            finally:player.close()
+
+    def test_most_faithful_has_occasional_compatible_jumps(self):
+        player=jukebox.Session(self.base)
+        player.random=SimpleNamespace(random=lambda:0,choice=lambda rows:rows[0])
+        try:
+            parts=[player.chunk(0,0,100) for _ in range(5)]
+            self.assertTrue(parts[-1]['jumped'])
+            self.assertEqual(parts[-1]['next'],20)
+            self.assertIn(parts[-1]['next'],self.model['neighbors'][4])
+        finally:player.close()
+    def test_most_faithful_bounds_wait_when_compatible_edge_is_available(self):
+        player=jukebox.Session(self.base)
+        player.random=SimpleNamespace(random=lambda:1,choice=lambda rows:rows[0])
+        try:
+            player.index=4;player.since_jump=32
+            part=player.chunk(0,0,100)
+            self.assertTrue(part['jumped']);self.assertEqual(part['next'],20)
+        finally:player.close()
+
     def test_missing_backward_matches_repeat_safely_and_normal_mode_reaches_end(self):
         model=dict(self.model,neighbors=[[] for _ in range(32)])
         (self.base/'analysis.json').write_text(json.dumps(model))
@@ -153,6 +227,31 @@ class JukeboxTests(unittest.TestCase):
         self.assertFalse(backend._jukebox_sessions)
         self.assertIn('error',call('jukebox_chunk',session='player'))
 
+    def test_windows_progress_uses_device_clock_and_handles_byte_units(self):
+        from jukebox_audio import PcmOutput,WaveTime
+        import ctypes
+        class Function:
+            def __init__(self,callback):self.callback=callback
+            def __call__(self,*args):return self.callback(*args)
+        position={'unit':2,'value':4410,'error':0}
+        def opened(*args):args[0]._obj.value=1;return 0
+        def clock(handle,ptr,size):
+            self.assertEqual(size,ctypes.sizeof(WaveTime))
+            ptr._obj.type=position['unit'];ptr._obj.data[0]=position['value'];return position['error']
+        api=SimpleNamespace(waveOutOpen=Function(opened),waveOutGetPosition=Function(clock),**{
+            name:Function(lambda *args:0) for name in ('waveOutPrepareHeader','waveOutWrite','waveOutUnprepareHeader','waveOutPause','waveOutRestart','waveOutReset','waveOutClose')})
+        updates=[]
+        with patch('jukebox_audio.c.WinDLL',return_value=api):
+            output=PcmOutput(progress=updates.append)
+            try:
+                output.notify();self.assertEqual(updates,[4410])
+                output.last_notify=0;output.notify();self.assertEqual(updates,[4410])
+                position.update(unit=4,value=35280);output.last_notify=0;output.notify()
+                self.assertEqual(updates,[4410,8820])
+                position['error']=1;output.last_notify=0;output.notify()
+                self.assertEqual(updates,[4410,8820])
+            finally:output.close()
+
     def test_windows_output_bounds_and_releases_buffers(self):
         from jukebox_audio import PcmOutput
         class Function:
@@ -182,7 +281,9 @@ class JukeboxUiTests(unittest.TestCase):
             for index in range(64):pane.current=index;pane.draw()
             self.assertEqual(items,pane.canvas.find_all())
             pane.variation.set(0);pane.update_params()
-            self.assertFalse(pane.canvas.find_withtag('jump-link'))
+            self.assertTrue(pane.canvas.find_withtag('jump-link'))
+            pane.toggle_normal();self.assertFalse(pane.canvas.find_withtag('jump-link'))
+            pane.toggle_normal()
             pane.variation.set(100);pane.update_params()
             self.assertTrue(pane.canvas.find_withtag('jump-link'))
             pane.flow=[(0,1),(1,13)];pane.current=13;pane.draw()
@@ -192,6 +293,12 @@ class JukeboxUiTests(unittest.TestCase):
             pane.variation.set(0);pane.update_params()
             self.assertEqual(pane.flow,[(0,1),(1,13)])
             self.assertEqual(len(pane.canvas.find_withtag('flow')),2)
+            pane.marker_position=13.5;pane.beat_phase=.5;pane.playing=True;pane.draw()
+            x1,y1,x2,y2=pane.canvas.coords(pane._graph_marker)
+            w,h=pane._graph_key[1:3];radius=min(w,h)*.39;angle=13.5/64*2*math.pi-math.pi/2
+            self.assertAlmostEqual((x1+x2)/2,w/2+math.cos(angle)*radius)
+            self.assertAlmostEqual((y1+y2)/2,h/2+math.sin(angle)*radius)
+            self.assertAlmostEqual((x2-x1)/2,6.25)
             pane.shutdown()
         finally:root.destroy()
 

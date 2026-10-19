@@ -13,7 +13,7 @@ class JukeboxPane(ttk.Frame):
         super().__init__(parent);self.app=app;self.use_file=use_file
         self.source='';self.model=None;self.records=[];self.events=queue.Queue();self.generation=0;self.closed=False
         self.cancelled=threading.Event();self.paused=threading.Event();self.computing=False;self.playing=False
-        self.params=(45,35,80,False);self.current=0;self.flow=[];self.photo=None;self.seeks=queue.SimpleQueue()
+        self.params=(45,35,80,False);self.current=0;self.marker_position=None;self.beat_phase=0.;self.flow=[];self.photo=None;self.seeks=queue.SimpleQueue()
         self.query=tk.StringVar();self.status=tk.StringVar(value='Abra um arquivo ou pesquise uma música para começar.')
         self.artist=tk.StringVar();self.album=tk.StringVar();self.title=tk.StringVar(value='Escolha sua música.');self.stats=tk.StringVar(value='Tempo ouvido: 0:00 · Saltos: 0')
         self.variation=tk.DoubleVar(value=45);self.smooth=tk.DoubleVar(value=35);self.volume=tk.DoubleVar(value=80)
@@ -145,7 +145,7 @@ class JukeboxPane(ttk.Frame):
         if abs(math.hypot(dx,dy)-radius)>18:return
         n=len(self.model['neighbors'])
         self.current=round(((math.atan2(dy,dx)+math.pi/2)%(2*math.pi))/(2*math.pi)*n)%n
-        self.flow=[];self.seeks.put(self.current);self.draw()
+        self.flow=[];self.marker_position=float(self.current);self.beat_phase=0.;self.seeks.put(self.current);self.draw()
 
     def set_track_info(self,record):
         self.title.set(record.get('media_title') or record['title'])
@@ -173,7 +173,18 @@ class JukeboxPane(ttk.Frame):
             session=output=None
             try:
                 from jukebox_audio import PcmOutput
-                session=Session(cache);session.seek(initial);output=PcmOutput();timeline=deque();submitted=0
+                session=Session(cache);session.seek(initial);timeline=deque();submitted=0;heard_jumps=0
+                def progress(played):
+                    nonlocal heard_jumps
+                    edges=[];index=initial
+                    while timeline and timeline[0][0]<=played:
+                        _,heard=timeline.popleft();edges.append((heard['index'],heard['next']));heard_jumps=heard['jumps'];index=heard['next']
+                    phase=0.
+                    if timeline:
+                        end,part=timeline[0];frames=len(part['pcm'])//4;index=part['index']
+                        phase=max(0.,min(1.,(played-(end-frames))/max(1,frames)))
+                    self.events.put((generation,'position',dict(index=index,phase=phase,edges=edges,elapsed=played/RATE,jumps=heard_jumps)))
+                output=PcmOutput(progress=progress)
                 while not cancel.is_set():
                     target=None
                     while not self.seeks.empty():target=self.seeks.get()
@@ -181,9 +192,6 @@ class JukeboxPane(ttk.Frame):
                     part=session.chunk(*self.params,equalizer=self.equalizer)
                     submitted+=len(part['pcm'])//4;timeline.append((submitted,part))
                     output.write(part['pcm'],cancel.is_set,self.paused.is_set)
-                    while timeline and timeline[0][0]<=output.played:
-                        _,heard=timeline.popleft()
-                        self.events.put((generation,'position',dict(index=heard['next'],edge=(heard['index'],heard['next']),elapsed=output.played/RATE,jumps=heard['jumps'])))
             except Cancelled:pass
             except Exception as error:self.events.put((generation,'error',{'message':str(error)}))
             finally:
@@ -195,7 +203,7 @@ class JukeboxPane(ttk.Frame):
         self.stop_preview();self.status.set('Reprodução encerrada.')
     def stop_preview(self):
         self.generation+=1;self.cancelled.set();self.paused.clear();self.playing=False;self.computing=False
-        self.play_button.configure(text=tr('Reproduzir'),state='normal' if self.model else 'disabled');self.bar.grid_remove();self.current=0;self.flow=[]
+        self.play_button.configure(text=tr('Reproduzir'),state='normal' if self.model else 'disabled');self.bar.grid_remove();self.current=0;self.marker_position=None;self.beat_phase=0.;self.flow=[]
     cancel=stop_preview
     def draw(self):
         if self.closed:return
@@ -211,8 +219,8 @@ class JukeboxPane(ttk.Frame):
             angle=index/n*2*math.pi-math.pi/2;return cx+math.cos(angle)*radius,cy+math.sin(angle)*radius
         from appearance import blend
         variation,smooth,_,normal=self.params
-        strength=0 if normal else max(0,min(1,variation/100))
-        ink=blend(bg,accent,.05+.10*strength) if colors.get('mode')!='Alto contraste' else accent
+        strength=0 if normal else .15+.85*max(0,min(1,variation/100))
+        ink=blend(bg,accent,.18+.22*strength) if colors.get('mode')!='Alto contraste' else accent
         if self.model:
             links=[(i,j) for i,row in enumerate(self.model['neighbors']) for j in row]
             # Visual density represents jump frequency, without inventing new connections.
@@ -221,7 +229,6 @@ class JukeboxPane(ttk.Frame):
             for i,j in visible:
                 a,b=point(i),point(j);canvas.create_line(*a,cx,cy,*b,smooth=True,fill=ink,width=1+smooth/100,tags='jump-link')
         step=max(1,n//150)
-        self._graph_links=visible if self.model else []
         for i in range(0,n,step):
             x,y=point(i);self._graph_nodes[i]=canvas.create_oval(x-3,y-3,x+3,y+3,fill=muted,outline='')
         self._graph_marker=canvas.create_oval(0,0,12,12,fill=accent,outline=bg)
@@ -230,9 +237,11 @@ class JukeboxPane(ttk.Frame):
         # Playback moves only the marker and changed node colors, not the entire graph.
         canvas=self.canvas;key=self._graph_key;w,h=key[1:3];accent,muted=key[4:6]
         n=len(self.model['neighbors']) if self.model else 64
-        angle=self.current/n*2*math.pi-math.pi/2;radius=min(w,h)*.39
+        position=self.current if self.marker_position is None else self.marker_position
+        angle=position/n*2*math.pi-math.pi/2;radius=min(w,h)*.39
         x,y=w/2+math.cos(angle)*radius,h/2+math.sin(angle)*radius
-        canvas.coords(self._graph_marker,x-6,y-6,x+6,y+6)
+        pulse=6+2*(1-self.beat_phase)**3 if self.playing else 6
+        canvas.coords(self._graph_marker,x-pulse,y-pulse,x+pulse,y+pulse)
         hot={self.current}
         for index in self._graph_hot-hot:
             if index in self._graph_nodes:canvas.itemconfigure(self._graph_nodes[index],fill=muted)
@@ -244,13 +253,13 @@ class JukeboxPane(ttk.Frame):
         self._flow_key=flow_key;canvas.delete('flow')
         from appearance import blend
         for k,(start,end) in enumerate(self.flow):
-            ink=blend(key[3],accent,.25+.75*(k+1)/len(self.flow))
+            ink=blend(key[3],accent,.75+.25*(k+1)/len(self.flow))
             if end==(start+1)%n:
-                canvas.create_arc(w/2-radius,h/2-radius,w/2+radius,h/2+radius,start=90-start/n*360,extent=-360/n,style='arc',outline=ink,width=3,tags='flow')
+                canvas.create_arc(w/2-radius,h/2-radius,w/2+radius,h/2+radius,start=90-start/n*360,extent=-360/n,style='arc',outline=ink,width=4,tags='flow')
             else:
                 def point(i):
                     angle=i/n*2*math.pi-math.pi/2;return w/2+math.cos(angle)*radius,h/2+math.sin(angle)*radius
-                canvas.create_line(*point(start),w/2,h/2,*point(end),smooth=True,fill=ink,width=2.5,arrow='last',tags='flow')
+                canvas.create_line(*point(start),w/2,h/2,*point(end),smooth=True,fill=ink,width=3.5,arrow='last',arrowshape=(12,15,5),tags='flow')
         canvas.tag_raise(self._graph_marker)
 
     def poll(self):
@@ -274,13 +283,15 @@ class JukeboxPane(ttk.Frame):
                     if result.get('_cover'):
                         from PIL import Image,ImageTk
                         with Image.open(io.BytesIO(result['_cover'])) as picture:
-                            picture.thumbnail((64,64));self.photo=ImageTk.PhotoImage(picture,master=self)
+                            picture.thumbnail((88,88));self.photo=ImageTk.PhotoImage(picture,master=self)
                         self.cover.configure(image=self.photo,text='')
                     self.status.set('Análise concluída.' if result['links'] else 'Sem saltos compatíveis: a faixa será repetida normalmente.');self.bar.configure(value=100);self.play_button.configure(state='normal');redraw=True
             elif kind=='idle':self.computing=False
             elif kind=='position':
-                self.current=value['index']
-                if 'edge' in value:self.flow=(self.flow+[value['edge']])[-24:]
+                self.current=value['index'];self.beat_phase=value.get('phase',0.);self.marker_position=self.current+self.beat_phase
+                edges=value.get('edges',[])
+                if 'edge' in value:edges=edges+[value['edge']]
+                self.flow=(self.flow+edges)[-24:]
                 minutes,seconds=divmod(int(value['elapsed']),60);self.stats.set(tr('Tempo ouvido: {time} · Saltos: {count}').replace('{time}',f'{minutes}:{seconds:02}').replace('{count}',str(value['jumps'])));redraw=True
             elif kind=='error':self.bar.grid_remove();self.status.set(value['message']);self.playing=False;self.play_button.configure(text=tr('Reproduzir'))
             elif kind=='stopped':self.playing=False;self.play_button.configure(text=tr('Reproduzir'))
@@ -290,7 +301,7 @@ class JukeboxPane(ttk.Frame):
             redraw=True
         if redraw and self.winfo_ismapped():self.draw()
         self.sync_media()
-        self.timer=self.after(80 if self.winfo_ismapped() or self.busy else 500,self.poll)
+        self.timer=self.after(40 if self.playing and self.winfo_ismapped() else 80 if self.winfo_ismapped() or self.busy else 500,self.poll)
     def sync_media(self):
         if self.playing and self.media_controls is None and not self.media_failed:
             try:

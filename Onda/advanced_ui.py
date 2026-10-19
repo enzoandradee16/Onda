@@ -73,7 +73,7 @@ def transfer(app,importing):
 def check_update(app,manual=False):
     from advanced_options import release_update
     def worker():
-        try:result=release_update('windows','1.1.6')
+        try:result=release_update('windows','1.1.7')
         except Exception:result={'available':False,'message':'Não foi possível verificar atualizações. Confira sua conexão.'}
         app.events.put((None,{'type':'app_update','result':result,'manual':manual}))
     threading.Thread(target=worker,daemon=True).start()

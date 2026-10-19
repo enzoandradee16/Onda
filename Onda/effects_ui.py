@@ -3,6 +3,7 @@ from i18n import tr
 from i18n_tk import TranslatedCombobox, display_var
 import json
 import math
+import os
 from pathlib import Path
 import queue
 import subprocess

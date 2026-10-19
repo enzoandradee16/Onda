@@ -23,6 +23,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.dp
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -37,7 +40,7 @@ import org.json.JSONObject
 import java.util.UUID
 import kotlin.math.*
 
-internal data class JukeboxState(val title:String="Escolha sua música.",val message:String="Abra um arquivo ou pesquise uma música para começar.",val model:JSONObject?=null,val records:List<JSONObject> = emptyList(),val busy:Boolean=false,val playing:Boolean=false,val paused:Boolean=false,val index:Int=0,val flow:List<Pair<Int,Int>> = emptyList(),val elapsed:Double=0.0,val jumps:Int=0)
+internal data class JukeboxState(val title:String="Escolha sua música.",val message:String="Abra um arquivo ou pesquise uma música para começar.",val model:JSONObject?=null,val records:List<JSONObject> = emptyList(),val busy:Boolean=false,val playing:Boolean=false,val paused:Boolean=false,val index:Int=0,val phase:Float=0f,val flow:List<Pair<Int,Int>> = emptyList(),val elapsed:Double=0.0,val jumps:Int=0)
 
 internal class JukeboxController(private val context:Context,private val scope:CoroutineScope,var stopOtherAudio:()->Unit) {
     val state=MutableStateFlow(JukeboxState())
@@ -48,7 +51,7 @@ internal class JukeboxController(private val context:Context,private val scope:C
     fun seek(index:Int) {
         val n=state.value.model?.optJSONArray("neighbors")?.length() ?: return
         if(index !in 0 until n || state.value.busy)return
-        pendingSeek.set(index);state.update {it.copy(index=index,flow=emptyList())}
+        pendingSeek.set(index);state.update {it.copy(index=index,phase=0f,flow=emptyList())}
     }
     private var task:Job?=null
     private var identity=""
@@ -98,7 +101,7 @@ internal class JukeboxController(private val context:Context,private val scope:C
         if(!java.io.File(model.optString("cache"),"analysis.json").isFile){state.value=state.value.copy(model=null,message="O cache foi limpo. Abra ou pesquise a música novamente.");return}
         val initial=state.value.index
         stopOtherAudio();stop();pendingSeek.set(initial);val own=++revision;val id="jukebox-play-"+UUID.randomUUID();identity=id
-        state.value=state.value.copy(model=model,playing=true,paused=false,message="Reproduzindo…",elapsed=0.0,jumps=0,flow=emptyList())
+        state.value=state.value.copy(model=model,playing=true,paused=false,message="Reproduzindo…",elapsed=0.0,jumps=0,phase=0f,flow=emptyList())
         try {ContextCompat.startForegroundService(context,Intent(context,JukeboxService::class.java))}
         catch(e:Exception){state.update {it.copy(playing=false,message=e.message ?: "Não foi possível reproduzir.")};return}
         if(audio.requestAudioFocus(focus)!=AudioManager.AUDIOFOCUS_REQUEST_GRANTED){state.value=state.value.copy(playing=false,message="A saída de áudio está ocupada.");return}
@@ -115,7 +118,20 @@ internal class JukeboxController(private val context:Context,private val scope:C
                     if(own!=revision || !isActive)throw CancellationException()
                     track=output;output.play()
                 }
-                val timeline=java.util.ArrayDeque<Pair<Long,JSONObject>>();var submitted=0L
+                val timeline=java.util.ArrayDeque<Pair<Long,JSONObject>>();var submitted=0L;var lastProgress=0L
+                fun progress() {
+                    val now=android.os.SystemClock.elapsedRealtime()
+                    if(now-lastProgress<40 || own!=revision)return
+                    lastProgress=now
+                    val played=output.playbackHeadPosition.toLong() and 0xffffffffL
+                    val heard=buildList {while(timeline.isNotEmpty() && timeline.first.first<=played)add(timeline.removeFirst().second)}
+                    val part=timeline.peekFirst();val frames=part?.second?.optDouble("seconds")?.times(44100) ?: 1.0
+                    val phase=if(part==null)0f else ((played-(part.first-frames))/frames).toFloat().coerceIn(0f,1f)
+                    state.update {current->if(own==revision)current.copy(
+                        index=part?.second?.optInt("index") ?: heard.lastOrNull()?.optInt("next") ?: current.index,phase=phase,
+                        flow=if(heard.isEmpty())current.flow else (current.flow+heard.map {it.optInt("index") to it.optInt("next")}).takeLast(24),
+                        jumps=heard.lastOrNull()?.optInt("jumps") ?: current.jumps,elapsed=played/44100.0) else current}
+                }
                 while(isActive && own==revision) {
                     if(state.value.paused)state.first {!it.paused}
                     ensureActive()
@@ -123,7 +139,7 @@ internal class JukeboxController(private val context:Context,private val scope:C
                     val seek=pendingSeek.getAndSet(-1)
                     if(seek>=0){output.pause();output.flush();submitted=0L;timeline.clear();output.play();config.put("seek",seek)}
                     val part=call("jukebox_chunk",config,id)
-                    val data=Base64.decode(part.getString("pcm"),Base64.NO_WRAP);var offset=0
+                    val data=Base64.decode(part.getString("pcm"),Base64.NO_WRAP);part.remove("pcm");var offset=0
                     submitted+=data.size/4;timeline.addLast(submitted to part)
                     while(offset<data.size && isActive && own==revision) {
                         if(state.value.paused)state.first {!it.paused}
@@ -131,12 +147,9 @@ internal class JukeboxController(private val context:Context,private val scope:C
                         val count=output.write(data,offset,min(4096,data.size-offset),AudioTrack.WRITE_NON_BLOCKING)
                         require(count>=0){"A saída de áudio foi interrompida."}
                         if(count==0)delay(5) else offset+=count
+                        progress()
                     }
-                    val played=output.playbackHeadPosition.toLong() and 0xffffffffL
-                    val heard=buildList {while(timeline.isNotEmpty() && timeline.first.first<=played)add(timeline.removeFirst().second)}
-                    if(own==revision && heard.isNotEmpty())state.update {current->
-                        if(own==revision)current.copy(index=heard.last().optInt("next"),flow=(current.flow+heard.map {it.optInt("index") to it.optInt("next")}).takeLast(24),jumps=heard.last().optInt("jumps"),elapsed=played/44100.0) else current
-                    }
+                    progress()
                 }
             } catch(e:CancellationException){throw e} catch(e:Exception){if(own==revision)state.value=state.value.copy(message=e.message ?: "Não foi possível reproduzir.")}
             finally {
@@ -151,7 +164,7 @@ internal class JukeboxController(private val context:Context,private val scope:C
         if(identity.isNotBlank())MobileEngine.cancel(identity)
         task?.cancel();task=null;runCatching {track?.pause();track?.flush()};track=null
         releaseNoisy();audio.abandonAudioFocusRequest(focus)
-        state.value=state.value.copy(busy=false,playing=false,paused=false,index=0,flow=emptyList(),message=if(state.value.playing||state.value.busy)"Reprodução encerrada." else state.value.message)
+        state.value=state.value.copy(busy=false,playing=false,paused=false,index=0,phase=0f,flow=emptyList(),message=if(state.value.playing||state.value.busy)"Reprodução encerrada." else state.value.message)
     }
     fun close()=stop()
 }
@@ -188,7 +201,10 @@ internal class JukeboxController(private val context:Context,private val scope:C
     LaunchedEffect(variation,smooth,normal) {controller.variation=variation;controller.smooth=smooth;controller.normal=normal}
     val chooser=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) {uri->if(uri!=null)vm.importLocal(uri,"audio") {file->controller.prepare(file.absolutePath)}}
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(LayoutSpacing.inset),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
-        OutlinedButton(onClick={chooser.launch(arrayOf("audio/*"))},enabled=!state.busy){UiText("Abrir arquivo")}
+        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
+            OutlinedButton(onClick={chooser.launch(arrayOf("audio/*"))},enabled=!state.busy,modifier=Modifier.weight(1f)){UiText("Abrir arquivo")}
+            Button(onClick={showEqualizer=true},modifier=Modifier.weight(1f)){UiText("Equalizador")}
+        }
         OutlinedTextField(query,{query=it},label={UiText("Pesquise uma música ou cole um link")},singleLine=true,modifier=Modifier.fillMaxWidth())
         Button(onClick={controller.search(query)},enabled=query.isNotBlank()&&!state.busy){UiText("Pesquisar")}
         if(state.busy){LinearProgressIndicator(Modifier.fillMaxWidth());TextButton(onClick=controller::stop){UiText("Cancelar")}}
@@ -212,9 +228,8 @@ internal class JukeboxController(private val context:Context,private val scope:C
                 state.model?.optString("album")?.takeIf {it.isNotBlank()}?.let {UiText(it,style=MaterialTheme.typography.bodySmall)}
             }
         }
-        Button(onClick={showEqualizer=true}){UiText("Equalizador")}
         UiText(if(state.paused)"Pausado." else state.message,style=MaterialTheme.typography.bodySmall)
-        JukeboxGraph(state.model,state.index,state.flow,variation,smooth,normal,controller::seek)
+        JukeboxGraph(state.model,state.index,state.phase,state.playing,state.flow,variation,smooth,normal,controller::seek)
         UiText("Como a música se transforma",style=MaterialTheme.typography.titleMedium)
         UiText("Variação")
         RoundSlider(variation,{variation=it;controller.variation=it},valueRange=0f..100f)
@@ -232,8 +247,9 @@ internal class JukeboxController(private val context:Context,private val scope:C
     }
 }
 
-@Composable private fun JukeboxGraph(model:JSONObject?,current:Int,flow:List<Pair<Int,Int>>,variation:Float,smooth:Float,normal:Boolean,onSeek:(Int)->Unit) {
+@Composable private fun JukeboxGraph(model:JSONObject?,current:Int,phase:Float,playing:Boolean,flow:List<Pair<Int,Int>>,variation:Float,smooth:Float,normal:Boolean,onSeek:(Int)->Unit) {
     val colors=MaterialTheme.colorScheme;val rows=model?.optJSONArray("neighbors");val n=max(1,rows?.length() ?: 64)
+    val graphColors=jukeboxGraphColors(colors)
     val visible=remember(model,variation,normal){jukeboxVisibleLinks(model,variation,normal)}
     Box(Modifier.fillMaxWidth().height(300.dp),contentAlignment=androidx.compose.ui.Alignment.Center) {
         Canvas(Modifier.fillMaxSize().pointerInput(n,model) {
@@ -249,26 +265,26 @@ internal class JukeboxController(private val context:Context,private val scope:C
             }
         }) {
             val radius=min(size.width,size.height)*.42f
-            fun point(index:Int):Offset {val angle=index.toDouble()/n*2*PI-PI/2;return center+Offset((cos(angle)*radius).toFloat(),(sin(angle)*radius).toFloat())}
+            fun point(index:Double):Offset {val angle=index/n*2*PI-PI/2;return center+Offset((cos(angle)*radius).toFloat(),(sin(angle)*radius).toFloat())}
             val strength=if(normal)0f else (variation/100).coerceIn(0f,1f)
             for((i,j) in visible) {
-                val a=point(i);val b=point(j)
-                drawPath(Path().apply {moveTo(a.x,a.y);quadraticTo(center.x,center.y,b.x,b.y)},colors.primary.copy(alpha=.05f+.10f*strength),style=androidx.compose.ui.graphics.drawscope.Stroke(1f+smooth/100))
+                val a=point(i.toDouble());val b=point(j.toDouble())
+                drawPath(Path().apply {moveTo(a.x,a.y);quadraticTo(center.x,center.y,b.x,b.y)},graphColors.second.copy(alpha=.7f+.3f*strength),style=androidx.compose.ui.graphics.drawscope.Stroke((1f+smooth/100).dp.toPx()))
             }
             for((k,edge) in flow.withIndex()) {
-                val (i,j)=edge;val ink=colors.primary.copy(alpha=.25f+.75f*(k+1)/flow.size)
+                val (i,j)=edge;val ink=colors.primary.copy(alpha=.75f+.25f*(k+1)/flow.size)
                 if(j==(i+1)%n) {
-                    drawArc(ink,i.toFloat()/n*360-90,360f/n,false,topLeft=center-Offset(radius,radius),size=androidx.compose.ui.geometry.Size(radius*2,radius*2),style=androidx.compose.ui.graphics.drawscope.Stroke(3.dp.toPx()))
+                    drawArc(ink,i.toFloat()/n*360-90,360f/n,false,topLeft=center-Offset(radius,radius),size=androidx.compose.ui.geometry.Size(radius*2,radius*2),style=androidx.compose.ui.graphics.drawscope.Stroke(4.dp.toPx()))
                 } else {
-                    val a=point(i);val b=point(j)
-                    drawPath(Path().apply {moveTo(a.x,a.y);quadraticTo(center.x,center.y,b.x,b.y)},ink,style=androidx.compose.ui.graphics.drawscope.Stroke(2.dp.toPx()))
+                    val a=point(i.toDouble());val b=point(j.toDouble())
+                    drawPath(Path().apply {moveTo(a.x,a.y);quadraticTo(center.x,center.y,b.x,b.y)},ink,style=androidx.compose.ui.graphics.drawscope.Stroke(3.dp.toPx()))
                     val delta=b-center;val length=hypot(delta.x,delta.y);val unit=delta/length
-                    val back=b-unit*10.dp.toPx();val side=Offset(-unit.y,unit.x)*4.dp.toPx()
-                    drawLine(ink,back+side,b,2.dp.toPx());drawLine(ink,back-side,b,2.dp.toPx())
+                    val back=b-unit*12.dp.toPx();val side=Offset(-unit.y,unit.x)*5.dp.toPx()
+                    drawLine(ink,back+side,b,3.dp.toPx());drawLine(ink,back-side,b,3.dp.toPx())
                 }
             }
-            for(i in 0 until n step max(1,n/150))drawCircle(if(i==current)colors.primary else colors.outline,3.dp.toPx(),point(i))
-            drawCircle(colors.primary,6.dp.toPx(),point(current.coerceIn(0,n-1)))
+            for(i in 0 until n step max(1,n/150))drawCircle(if(i==current)colors.primary else graphColors.first,3.dp.toPx(),point(i.toDouble()))
+            drawCircle(colors.primary,(if(playing)6+2*(1-phase).pow(3) else 6f).dp.toPx(),point(current.coerceIn(0,n-1)+phase.toDouble()))
         }
 
     }
@@ -276,8 +292,17 @@ internal class JukeboxController(private val context:Context,private val scope:C
 
 internal fun jukeboxVisibleLinks(model:JSONObject?,variation:Float,normal:Boolean):List<Pair<Int,Int>> {
     val rows=model?.optJSONArray("neighbors") ?: return emptyList()
-    val limit=if(normal)0 else ceil(90*(variation/100).coerceIn(0f,1f)).toInt()
+    val limit=if(normal)0 else ceil(90*(.15f+.85f*(variation/100).coerceIn(0f,1f))).toInt()
     if(limit==0)return emptyList()
     val links=buildList {for(i in 0 until rows.length()){val row=rows.optJSONArray(i) ?: continue;for(k in 0 until row.length())add(i to row.getInt(k))}}
     return links.filterIndexed {index,_->index % max(1,links.size/limit)==0}.take(limit)
+}
+
+// Graph geometry must remain visible when pure-black mode hides UI separators.
+internal fun jukeboxGraphColors(colors:ColorScheme):Pair<Color,Color> {
+    val dark=colors.surface.luminance()<.25f
+    val ring=lerp(colors.surface,colors.onSurface,if(dark).68f else .55f)
+    val accent=lerp(colors.primary,colors.onSurface,if(dark).15f else 0f)
+    val links=lerp(colors.surface,accent,if(dark).7f else .4f)
+    return ring to links
 }

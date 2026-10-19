@@ -3,6 +3,8 @@ from array import array
 import json
 import math
 import sys
+from pathlib import Path
+from functools import lru_cache
 
 FREQUENCIES=(31.25,62.5,125,250,500,1000,2000,4000,8000,16000)
 
@@ -25,6 +27,17 @@ def clean(value=None):
         result.append({'frequency':number(band.get('frequency'),f,20,20000),
                        'gain':number(band.get('gain'),0,-12,12),'q':number(band.get('q'),1.4,.1,10)})
     return {'enabled':value.get('enabled') is True,'preamp':number(value.get('preamp'),-6,-24,0),'bands':result}
+
+@lru_cache(maxsize=1)
+def presets():
+    rows=json.loads((Path(__file__).parent/'settings_schema/equalizer_presets.json').read_text(encoding='utf-8'))
+    return {row['name']:clean({'enabled':True,'preamp':row['preamp'],'bands':[{'gain':gain} for gain in row['gains']]}) for row in rows}
+
+def preset_name(value):
+    value=clean(value)
+    for name,preset in presets().items():
+        if abs(value['preamp']-preset['preamp'])<.01 and all(abs(band[key]-reference[key])<.01 for band,reference in zip(value['bands'],preset['bands']) for key in ('frequency','gain','q')):return name
+    return 'Personalizado'
 
 class Equalizer:
     def __init__(self,rate=44100):
@@ -71,6 +84,6 @@ class Equalizer:
                 x=samples[i];y=b0*x+l1;l1=b1*x-a1*y+l2;l2=b2*x-a2*y;samples[i]=y
                 x=samples[i+1];y=b0*x+r1;r1=b1*x-a1*y+r2;r2=b2*x-a2*y;samples[i+1]=y
             state[:]=l1,l2,r1,r2
-        out=array('h',(max(-32768,min(32767,round(x))) for x in samples))
+        out=array('h',(32767 if x>32767 else -32768 if x<-32768 else round(x) for x in samples))
         if sys.byteorder!='little':out.byteswap()
         return out.tobytes()

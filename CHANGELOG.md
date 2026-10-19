@@ -1,12 +1,14 @@
 # Histórico de versões
 
-## Em desenvolvimento
+## 1.1.7 — 2026-10-19
 
-- Jukebox: grafo reativo no Android, opção de reprodução em segundo plano com notificação e controles de mídia; integração com teclas de mídia no Windows.
-
-- Reprodução e efeitos: modos Efeitos e Jukebox infinito na mesma aba, preservando as identidades e a ordem das abas.
-- Jukebox PC/Android: arquivo local ou busca/link com seleção explícita, análise em cache, grafo circular, variação, transições, volume, pausa e reprodução normal. Análise independente e local; a naturalidade depende da faixa.
-
+- Jukebox Infinito no PC e Android, dentro de Reprodução e efeitos: arquivos locais, pesquisa e links com escolha explícita da música, análise em cache e saltos entre trechos compatíveis.
+- Melhor continuidade dos loops, comparação da energia de 4 e 8 beats e saltos pouco frequentes em Mais fiel. A qualidade das transições depende da faixa.
+- Grafo mostra o trajeto reproduzido; marcador sincronizado com o áudio e pulsação nas batidas estimadas. Melhor contraste nos temas escuros do Android.
+- Equalizador paramétrico de 10 bandas exclusivo do Jukebox, controles verticais, frequência, ganho, Q, pré-amplificação e sete presets compartilhados. Ajustes preservados com Lembrar configurações.
+- Android: reprodução opcional em segundo plano e notificação de mídia com capa, título e artista quando disponíveis. PC: integração com controles de mídia do Windows.
+- Melhorias de desempenho na fila, histórico, detecção de duplicatas, gravação das preferências de áudio e processamento PCM. Remoção de imports e estado sem uso.
+- PC: correção do ícone na abertura, capa maior e ajuste do slider de volume no Jukebox.
 
 ## 1.1.6 — 2026-10-18
 

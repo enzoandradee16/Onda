@@ -11,14 +11,20 @@ class WaveFormat(c.Structure):
 class WaveHeader(c.Structure):
     _fields_=[('data',c.c_void_p),('length',w.DWORD),('recorded',w.DWORD),('user',c.c_size_t),('flags',w.DWORD),('loops',w.DWORD),('next',c.c_void_p),('reserved',c.c_size_t)]
 
+class WaveTime(c.Structure):
+    _fields_=[('type',w.DWORD),('data',w.DWORD*2)]
+
 class PcmOutput:
-    def __init__(self):
-        self.api=c.WinDLL('winmm');self.handle=w.HANDLE();self.buffers=deque();self.played=0;self.paused=False
+    def __init__(self,progress=None):
+        self.api=c.WinDLL('winmm');self.handle=w.HANDLE();self.buffers=deque();self.played=0;self.paused=False;self.progress=progress;self.last_notify=0;self.last_frame=-1
         self.api.waveOutOpen.argtypes=[c.POINTER(w.HANDLE),w.UINT,c.POINTER(WaveFormat),c.c_size_t,c.c_size_t,w.DWORD]
         self.api.waveOutOpen.restype=w.UINT
         for name in ('waveOutPrepareHeader','waveOutWrite','waveOutUnprepareHeader'):
             getattr(self.api,name).argtypes=[w.HANDLE,c.POINTER(WaveHeader),w.UINT]
         for name in ('waveOutPause','waveOutRestart','waveOutReset','waveOutClose'):getattr(self.api,name).argtypes=[w.HANDLE]
+        if progress:
+            self.api.waveOutGetPosition.argtypes=[w.HANDLE,c.POINTER(WaveTime),w.UINT]
+            self.api.waveOutGetPosition.restype=w.UINT
         fmt=WaveFormat(1,CHANNELS,RATE,RATE*CHANNELS*2,CHANNELS*2,16,0)
         self._check(self.api.waveOutOpen(c.byref(self.handle),0xffffffff,c.byref(fmt),0,0,0))
     @staticmethod
@@ -29,7 +35,19 @@ class PcmOutput:
         value=paused()
         if value!=self.paused:
             self._check((self.api.waveOutPause if value else self.api.waveOutRestart)(self.handle));self.paused=value
+        self.notify()
         return value
+    def notify(self):
+        if self.progress is None:return
+        now=time.monotonic()
+        if now-self.last_notify<.04:return
+        self.last_notify=now
+        position=WaveTime();position.type=2  # TIME_SAMPLES: samples actually played by the device.
+        code=self.api.waveOutGetPosition(self.handle,c.byref(position),c.sizeof(position))
+        frames=position.data[0] if not code and position.type==2 else position.data[0]//(CHANNELS*2) if not code and position.type==4 else self.played
+        frames=max(self.last_frame,frames)
+        if frames!=self.last_frame:
+            self.last_frame=frames;self.progress(frames)
     def _drain(self,cancelled,paused):
         while self.buffers:
             self.control(cancelled,paused)

@@ -15,7 +15,7 @@ from tkinter import ttk
 from urllib.parse import urlsplit
 import webbrowser
 
-from engine import MP3_QUALITIES, M4A_QUALITIES
+from engine import MODES, MP3_QUALITIES, M4A_QUALITIES
 from metadata import MetadataClient, is_streaming_link, display_release_date
 from catalog_match import CatalogChoiceRequired
 from size_estimate import estimate_size

@@ -1,6 +1,6 @@
 # ONDA — uso e desenvolvimento
 
-O [README principal](../README.md) apresenta o aplicativo e os pacotes 1.1.6 para Windows e Android.
+O [README principal](../README.md) apresenta o aplicativo e os pacotes 1.1.7 para Windows e Android.
 
 ## Executar o código-fonte
 

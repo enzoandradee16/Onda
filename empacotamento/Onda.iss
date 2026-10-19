@@ -8,9 +8,9 @@
 AppId={{C522DFD9-6BF4-4FE0-9CE4-5D3C5C88E470}
 AppName=Onda
 AppMutex=Local\Onda.Desktop.C522DFD9-6BF4-4FE0-9CE4-5D3C5C88E470.Mutex
-UninstallDisplayName=Onda 1.1.6
-AppVersion=1.1.6
-VersionInfoVersion=1.1.6.0
+UninstallDisplayName=Onda 1.1.7
+AppVersion=1.1.7
+VersionInfoVersion=1.1.7.0
 AppPublisher=Onda
 DefaultDirName={localappdata}\Programs\Onda
 DefaultGroupName=Onda

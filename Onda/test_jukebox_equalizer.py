@@ -43,6 +43,14 @@ class EqualizerTests(unittest.TestCase):
         expected=a.process(raw)
         actual=b''.join(b.process(raw[i:i+4096]) for i in range(0,len(raw),4096))
         self.assertEqual(expected,actual)
+    def test_pcm_conversion_matches_original_rounding_and_saturation(self):
+        import random
+        rng=random.Random(7);samples=array('h',[rng.randint(-32768,32767) for _ in range(10000)])
+        for gain in (.25,.75,1.75,4):
+            eq=Equalizer();eq.gain=gain
+            expected=array('h',(max(-32768,min(32767,round(x*gain))) for x in samples))
+            self.assertEqual(eq.process(samples.tobytes()),expected.tobytes())
+
     def test_preamp_and_overflow_are_bounded(self):
         eq=Equalizer();eq.configure({'enabled':True,'preamp':-12})
         raw=tone();self.assertAlmostEqual(rms(eq.process(raw))/rms(raw),10**(-12/20),delta=.002)
@@ -60,6 +68,17 @@ class EqualizerTests(unittest.TestCase):
         result=clean({'enabled':1,'preamp':99,'bands':[{'frequency':1,'gain':99,'q':99}]})
         self.assertFalse(result['enabled']);self.assertEqual(result['preamp'],0)
         self.assertEqual(result['bands'][0],{'frequency':20,'gain':12,'q':10})
+    def test_presets_have_ten_valid_bands_and_can_be_identified(self):
+        from jukebox_equalizer import presets,preset_name,FREQUENCIES
+        rows=presets();self.assertEqual(len(rows),7)
+        for name,value in rows.items():
+            self.assertEqual(clean(value),value)
+            self.assertTrue(value['enabled'])
+            self.assertEqual([b['frequency'] for b in value['bands']],list(FREQUENCIES))
+            self.assertEqual(preset_name(value),name)
+        custom=clean(rows['Rock']);custom['bands'][0]['q']=3
+        self.assertEqual(preset_name(custom),'Personalizado')
+
     def test_preferences_roundtrip(self):
         from preferences import PreferenceStore
         with tempfile.TemporaryDirectory() as folder:
@@ -78,8 +97,16 @@ class EqualizerTests(unittest.TestCase):
                 self.assertEqual(str(slider.cget('orient')),'vertical')
                 self.assertEqual(float(slider.cget('from')),12)
                 self.assertEqual(float(slider.cget('to')),-12)
+            from jukebox_equalizer import presets,preset_name
+            from i18n import tr
+            dialog.preset_var.set(tr('Rock'));dialog.apply_preset()
+            self.assertEqual(clean(root.jukebox_equalizer.get()),presets()['Rock'])
+            self.assertTrue(dialog.enabled.get())
+            dialog.finish();dialog=EqualizerWindow(root)
+            self.assertEqual(dialog.preset_var.get(),tr('Rock'))
             dialog.enabled.set(True);f,g,q=dialog.bands[2];f.set('300');g.set(4);q.set('2,5');dialog.save()
             value=clean(root.jukebox_equalizer.get());self.assertTrue(value['enabled'])
+            self.assertEqual(dialog.preset_var.get(),tr('Personalizado'))
             self.assertEqual(value['bands'][2],{'frequency':300,'gain':4,'q':2.5})
             dialog.finish();dialog=EqualizerWindow(root)
             self.assertEqual(dialog.bands[2][1].get(),4);dialog.reset()
