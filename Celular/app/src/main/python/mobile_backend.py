@@ -305,7 +305,39 @@ def render_preview(config):
         raise
 
 
+_jukebox_sessions = {}
+_jukebox_lock = threading.RLock()
+
+def jukebox_action(action, config):
+    import jukebox,base64
+    cancel = _local.state['cancel'].is_set
+    if action=='jukebox_prepare':
+        progress=lambda value:emit('progress',percent=value)
+        if config.get('source'):
+            return jukebox.prepare(config['source'],config.get('ffmpeg',''),cancel,progress)
+        return jukebox.fetch_audio(config,config.get('record'),cancel,progress)
+    identity=config['session']
+    with _jukebox_lock:
+        if action=='jukebox_close':
+            session=_jukebox_sessions.pop(identity,None)
+            if session:session.close()
+            return {}
+        if action=='jukebox_open':
+            previous=_jukebox_sessions.pop(identity,None)
+            if previous:previous.close()
+            if len(_jukebox_sessions)>=2:raise ValueError('Encerre a reprodução anterior antes de continuar.')
+            _jukebox_sessions[identity]=jukebox.Session(config['cache'])
+            return {}
+        session=_jukebox_sessions.get(identity)
+        if session is None:raise ValueError('Reprodução encerrada.')
+        if 'seek' in config:session.seek(config['seek'])
+        part=session.chunk(config.get('variation',45),config.get('smooth',35),config.get('volume',80),config.get('normal',False))
+        part['pcm']=base64.b64encode(part['pcm']).decode('ascii')
+        return part
+
 def perform(action, config):
+    if action in ('jukebox_prepare','jukebox_open','jukebox_chunk','jukebox_close'):
+        return jukebox_action(action,config)
     if action == 'collection_compare':
         from playlist_sync import compare_collection
         return compare_collection(config['tracks'],config['inventory'],config.get('queued',[]),config.get('source',''),config['database'])

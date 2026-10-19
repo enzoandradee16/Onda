@@ -29,7 +29,7 @@ PRESETS = {
 
 
 class EffectsPane(ttk.Frame):
-    def __init__(self, parent, app):
+    def __init__(self, parent, app, heading=True):
         super().__init__(parent, padding=(0, 12, 0, 0))
         self.app = app
         self.source = tk.StringVar()
@@ -60,8 +60,9 @@ class EffectsPane(ttk.Frame):
         self.render_temp = None
         self.output_folder = None
         self.columnconfigure(0, weight=1)
-        ttk.Label(self, text=tr("Slowed · Sped Up · Reverb"), font=("Segoe UI", 23, "bold"), anchor="center").grid(row=0, column=0, sticky="ew")
-        ttk.Label(self, text=tr("Desacelere ou acelere sua música. Adicione reverb se quiser."), style="Muted.TLabel", anchor="center").grid(row=1, column=0, sticky="ew", pady=(5, 12))
+        if heading:
+            ttk.Label(self, text=tr("Slowed · Sped Up · Reverb"), font=("Segoe UI", 23, "bold"), anchor="center").grid(row=0, column=0, sticky="ew")
+            ttk.Label(self, text=tr("Desacelere ou acelere sua música. Adicione reverb se quiser."), style="Muted.TLabel", anchor="center").grid(row=1, column=0, sticky="ew", pady=(5, 12))
         file_row = ttk.Frame(self)
         file_row.grid(row=2, column=0, sticky="ew")
         ttk.Entry(file_row, textvariable=self.source).pack(side="left", fill="x", expand=True)

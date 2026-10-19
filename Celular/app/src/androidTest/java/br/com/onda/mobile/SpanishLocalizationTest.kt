@@ -64,7 +64,7 @@ class SpanishLocalizationTest {
                 "Links e fila" to "Del enlace a tu biblioteca.",
                 "Imagens" to "Descarga, convierte y cambia el tamaño sin recortar la imagen.",
                 "Playlists / Álbuns" to "Tus álbumes y listas de reproducción en la biblioteca.",
-                "Efeitos" to "Ralentiza o acelera tu música. Añade reverberación si quieres.",
+                "Efeitos" to "Tu música, de una nueva forma.",
                 "Metadados" to "Edita los metadatos de tu canción.",
                 "Histórico" to "Tu biblioteca de descargas.")
             pages.forEach {(page,heading)->

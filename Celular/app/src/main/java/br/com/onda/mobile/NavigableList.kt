@@ -20,7 +20,7 @@ import kotlinx.coroutines.launch
         if(count>30) Surface(Modifier.align(Alignment.BottomCenter).fillMaxWidth(),tonalElevation=4.dp) {
             Row(Modifier.padding(horizontal=4.dp),verticalAlignment=Alignment.CenterVertically) {
                 TextButton(onClick={scope.launch {state.scrollToItem(0)}},modifier=Modifier.testTag("$navigationId-first")){AccessibleSymbol("↑","Início")}
-                Slider(value=dragging ?: state.firstVisibleItemIndex.toFloat()/((count-1).coerceAtLeast(1)),onValueChange={dragging=it},onValueChangeFinished={val position=dragging ?: 0f;dragging=null;scope.launch {state.scrollToItem((position*(count-1)).toInt().coerceIn(0,(count-1).coerceAtLeast(0))) }},modifier=Modifier.weight(1f).a11yLabel("Posição na lista").testTag("$navigationId-position"))
+                RoundSlider(value=dragging ?: state.firstVisibleItemIndex.toFloat()/((count-1).coerceAtLeast(1)),onValueChange={dragging=it},onValueChangeFinished={val position=dragging ?: 0f;dragging=null;scope.launch {state.scrollToItem((position*(count-1)).toInt().coerceIn(0,(count-1).coerceAtLeast(0))) }},modifier=Modifier.weight(1f).a11yLabel("Posição na lista").testTag("$navigationId-position"))
                 TextButton(onClick={scope.launch {state.scrollToItem((count-1).coerceAtLeast(0))}},modifier=Modifier.testTag("$navigationId-last")){AccessibleSymbol("↓","Fim")}
             }
         }

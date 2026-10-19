@@ -1,7 +1,5 @@
 """Small function icons rendered from shapes; no external assets are required."""
 import math
-import os
-from pathlib import Path
 
 
 def icon_kind(title):
@@ -75,20 +73,10 @@ def apply_window_icon(window, colors=None):
         manager=getattr(window._root(),"theme_manager",None)
         colors=getattr(manager,"colors",None) or {}
     root=window is window._root()
-    base=Path(__file__).resolve().parent.parent
-    paths=[Path(os.environ['ONDA_PACKAGED_ROOT'])/'onda.ico'] if os.environ.get('ONDA_PACKAGED_ROOT') else []
-    paths += [base/'onda.ico',base/'Portatil/onda.ico']
-    branded=next((path for path in paths if path.is_file()),None) if root else None
-    key=('onda',str(branded)) if branded else (kind,colors.get("accent"),colors.get("text"),colors.get("bg"))
+    key=(kind,colors.get("accent"),colors.get("text"),colors.get("bg"))
     if getattr(window,"_function_icon_key",None)==key:return
     from PIL import ImageTk
-    if branded:
-        from PIL import Image
-        with Image.open(branded) as source:
-            original=source.convert('RGBA')
-        icons=[ImageTk.PhotoImage(original.resize((size,size),Image.Resampling.LANCZOS),master=window) for size in (16,32,48)]
-    else:
-        icons = [ImageTk.PhotoImage(draw_icon(kind, size, colors), master=window) for size in (16, 32, 48)]
+    icons = [ImageTk.PhotoImage(draw_icon(kind, size, colors), master=window) for size in (16, 32, 48)]
     window.iconphoto(root, *icons)
     window._function_icons = icons  # Tk only stores the image names; keep Python references.
     window._function_icon_kind = kind

@@ -78,6 +78,7 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
     val player=ExoPlayer.Builder(application).build()
     val previewUrl=MutableStateFlow("")
     val previewActive=MutableStateFlow(false)
+    internal val jukebox=JukeboxController(application,viewModelScope){stopPreview(false)}
     init {player.addListener(object: androidx.media3.common.Player.Listener {
         override fun onEvents(player: androidx.media3.common.Player, events: androidx.media3.common.Player.Events) {
             previewActive.value=player.playWhenReady && player.playbackState in listOf(androidx.media3.common.Player.STATE_BUFFERING,androidx.media3.common.Player.STATE_READY)
@@ -340,12 +341,13 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
     fun preview(url: String, seconds: Int=25, startSeconds: Int=0, effects:Boolean=false) {
         if(!effects) {effectsPreviewEnabled.value=false;effectRevision++;if(effectRenderId.isNotBlank()) MobileEngine.cancel(effectRenderId)}
         previewFromDialog=false
+        jukebox.stop()
         previewUrl.value=url
         previewLimit?.cancel()
         player.setMediaItem(MediaItem.fromUri(url),startSeconds.coerceAtLeast(0)*1000L); player.prepare(); player.play()
         previewLimit=viewModelScope.launch { delay(seconds*1000L); player.pause();effectsPreviewEnabled.value=false }
     }
-    fun stopPreview() { effectsPreviewEnabled.value=false;effectRevision++;if(effectRenderId.isNotBlank()) MobileEngine.cancel(effectRenderId);previewLimit?.cancel(); player.stop();previewActive.value=false;previewUrl.value="" }
+    fun stopPreview(stopJukebox:Boolean=true) { if(stopJukebox)jukebox.stop(); effectsPreviewEnabled.value=false;effectRevision++;if(effectRenderId.isNotBlank()) MobileEngine.cancel(effectRenderId);previewLimit?.cancel(); player.stop();previewActive.value=false;previewUrl.value="" }
     @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
     fun previewYouTube(url: String) {
         stopPreview();previewFromDialog=true;previewUrl.value=url
@@ -411,5 +413,5 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
             finally {addingToQueue.value=false}
         }
     }
-    override fun onCleared() { stopPreview();cancel();effectRequests.close(); player.release(); super.onCleared() }
+    override fun onCleared() { jukebox.close();stopPreview();cancel();effectRequests.close(); player.release(); super.onCleared() }
 }

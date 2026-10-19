@@ -1,5 +1,11 @@
 # Histórico de versões
 
+## Em desenvolvimento
+
+- Reprodução e efeitos: modos Efeitos e Jukebox infinito na mesma aba, preservando as identidades e a ordem das abas.
+- Jukebox PC/Android: arquivo local ou busca/link com seleção explícita, análise em cache, grafo circular, variação, transições, volume, pausa e reprodução normal. Análise independente e local; a naturalidade depende da faixa.
+
+
 ## 1.1.6 — 2026-10-18
 
 - Configurações reorganizadas por frequência de uso no PC e Android: opções principais primeiro e manutenção/restauração ao final, sem mudar preferências salvas.

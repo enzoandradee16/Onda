@@ -24,6 +24,25 @@ class NavigationTest {
     }
     @get:Rule(order=1) val compose=createAndroidComposeRule<MainActivity>()
 
+    @Test fun jukeboxSharesEffectsTabAndRequiresSelectionForLinks() {
+        compose.waitForIdle()
+        if(compose.onAllNodesWithText("Agora não").fetchSemanticsNodes().isNotEmpty())compose.onNodeWithText("Agora não").performClick()
+        compose.onNodeWithTag("open-menu").performClick()
+        compose.onNodeWithTag("tab-Efeitos").performScrollTo().performClick()
+        compose.onNodeWithText("Jukebox infinito").performClick()
+        compose.onNodeWithText("Abrir arquivo").assertIsDisplayed()
+        compose.onNodeWithText("Reproduzir").performScrollTo().assertIsNotEnabled()
+        val vm=androidx.lifecycle.ViewModelProvider(compose.activity)[OndaViewModel::class.java]
+        compose.runOnIdle {vm.jukebox.search("https://www.youtube.com/watch?v=abcdefghijk")}
+        compose.runOnIdle {
+            assertEquals(1,vm.jukebox.state.value.records.size)
+            assertFalse(vm.jukebox.state.value.busy)
+            assertFalse(vm.jukebox.state.value.playing)
+        }
+        compose.onNodeWithText("Efeitos",useUnmergedTree=true).performClick()
+        compose.onNodeWithText("Clássico").assertExists()
+    }
+
     @Test fun spotifyConnectAppearsOnlyForSpotifyAndValidatesClientId() {
         compose.waitForIdle()
         if(compose.onAllNodesWithText("Agora não").fetchSemanticsNodes().isNotEmpty()) compose.onNodeWithText("Agora não").performClick()
@@ -118,7 +137,7 @@ class NavigationTest {
             "Imagens" to "Baixe, converta e ajuste o tamanho sem cortar a imagem.",
             "Playlists / Álbuns" to "Seus álbuns e playlists na biblioteca.",
             "Histórico" to "Sua biblioteca de downloads.",
-            "Efeitos" to "Desacelere ou acelere sua música. Adicione reverb se quiser.")
+            "Efeitos" to "Sua música, de um novo jeito.")
         pages.forEach {(tab,content)->
             compose.onNodeWithTag("open-menu").performClick()
             compose.onNodeWithTag("tab-$tab").performScrollTo().performClick()

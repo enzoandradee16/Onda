@@ -38,7 +38,14 @@ class UiMixin:
         style.configure("HistorySelectedMuted.TLabel", background=colors["selected"], foreground=MUTED)
         style.configure("TNotebook", background=BG, borderwidth=0)
         style.configure("TNotebook.Tab", background=SURFACE, foreground=MUTED, padding=(pad(8), max(8,pad(9))))
-        style.map("TNotebook.Tab", background=[("selected", INPUT)], foreground=[("selected", ACCENT)])
+        # Clam maps its own short padding for selected tabs; override it explicitly.
+        for tab_style,horizontal,vertical in (
+                ('TNotebook.Tab',pad(8),max(8,pad(9))),
+                ('Settings.TNotebook.Tab',10,8),
+                ('Playback.TNotebook.Tab',14,8)):
+            style.configure(tab_style,padding=(horizontal,vertical))
+            style.map(tab_style,background=[('selected',INPUT)],foreground=[('disabled',colors['disabled']),('selected',ACCENT)],
+                      padding=[('selected',(horizontal,vertical+3,horizontal,vertical))])
         style.configure("TLabel", background=BG)
         style.configure("Muted.TLabel", foreground=MUTED)
         style.configure("Card.TLabel", background=SURFACE)
@@ -82,7 +89,8 @@ class UiMixin:
         self.option_add("*TCombobox*Listbox.foreground", TEXT)
         self.option_add("*TCombobox*Listbox.selectBackground", colors["selected"])
 
-        style.configure('Horizontal.TScale', background=BG, troughcolor=LINE, sliderrelief='flat')
+        from slider_style import configure_sliders
+        configure_sliders(self,colors,scale)
         style.configure('TRadiobutton', background=BG, foreground=TEXT)
         style.map('TRadiobutton', background=[('active', BG)])
         style.configure('TLabelframe', background=BG, bordercolor=LINE)
@@ -93,7 +101,7 @@ class UiMixin:
             style.configure(name,borderwidth=2 if high else (1 if name=='TSpinbox' else 0),relief='solid' if high else 'flat')
             style.map(name,bordercolor=[('focus',ACCENT)] if high else [])
         style.configure('TButton',focusthickness=2 if high else 0,focuscolor=TEXT)
-        style.map('TNotebook.Tab',relief=[('selected','sunken')] if high else [])
+        style.map('TNotebook.Tab',relief=[('selected','raised')] if high else [])
         if high:
             style.map('Accent.TButton',background=[('disabled',SURFACE),('active',colors['accent_hover'])],
                       foreground=[('disabled',colors['disabled']),('!disabled',colors['accent_text'])])
@@ -131,14 +139,14 @@ class UiMixin:
         self.pages.add(self.catalog_page, text=tr("Pesquisar músicas"))
         self.pages.add(self.download_page, text=tr("Links"))
         self.pages.add(self.queue_page, text=tr("Fila"))
-        self.effects_page = LazyPane(self.pages, self, "effects_ui", "EffectsPane")
+        self.effects_page = LazyPane(self.pages, self, "playback_ui", "PlaybackPane")
         self.playlist_page = LazyPane(self.pages, self, "playlist_ui", "PlaylistPane")
         self.history_page = LazyPane(self.pages, self, "history_ui", "HistoryPane")
         self.images_page = LazyPane(self.pages, self, "images_ui", "ImagesPane")
         self.pages.add(self.images_page, text=tr("Imagens"))
         self.pages.add(self.playlist_page, text=tr("Álbuns e playlists"))
         self.pages.add(self.history_page, text=tr("Histórico"))
-        self.pages.add(self.effects_page, text=tr("Slowed / Sped Up"))
+        self.pages.add(self.effects_page, text=tr("Reprodução e efeitos"))
         self.metadata_page = LazyPane(self.pages, self, "audio_editor_ui", "MetadataPane")
         self.pages.add(self.metadata_page, text=tr("Editar metadados"))
         self.converter_page = LazyPane(self.pages, self, "converter_ui", "ConverterPane")

@@ -17,14 +17,15 @@ def cache_files(root):
     import re
     root=Path(root)
     if linked(root):return
-    for folder in ('extractor-cache','image-preview'):
+    for folder in ('extractor-cache','image-preview','jukebox'):
         base=root/folder
         if linked(base):continue
         for directory,dirs,files in os.walk(base,followlinks=False):
-            dirs[:]=[name for name in dirs if not linked(Path(directory)/name)]
+            from jukebox import cache_in_use
+            dirs[:]=[name for name in dirs if not name.startswith('jukebox-download-') and not linked(Path(directory)/name)]
             for name in files:
                 path=Path(directory)/name
-                if not linked(path) and path.resolve().is_relative_to(base.resolve()):yield path
+                if not linked(path) and path.resolve().is_relative_to(base.resolve()) and not cache_in_use(path):yield path
     for path in root.glob('preview-*.mp3'):
         if re.fullmatch(r'preview-(?:default|[0-9a-f-]+)\.mp3',path.name) and not linked(path) and path.is_file():yield path
 

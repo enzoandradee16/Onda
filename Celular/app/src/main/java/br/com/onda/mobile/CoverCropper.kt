@@ -139,7 +139,7 @@ internal fun saveCoverCrop(bitmap:Bitmap,zoom:Float,offset:Offset,destination:Fi
                         }
                     }
                     UiText("Zoom",style=MaterialTheme.typography.labelMedium)
-                    Slider(value=zoom,onValueChange={zoom=it;val offset=coverOffset(image,zoom,Offset(x,y));x=offset.x;y=offset.y},valueRange=1f..4f,enabled=!saving,modifier=Modifier.a11yLabel("Zoom da capa","${(zoom*100).toInt()}%"))
+                    RoundSlider(value=zoom,onValueChange={zoom=it;val offset=coverOffset(image,zoom,Offset(x,y));x=offset.x;y=offset.y},valueRange=1f..4f,enabled=!saving,modifier=Modifier.a11yLabel("Zoom da capa","${(zoom*100).toInt()}%"))
                 }
                 if(error.isNotBlank())UiText(error,color=MaterialTheme.colorScheme.error)
                 if(saving)LinearProgressIndicator(Modifier.fillMaxWidth())

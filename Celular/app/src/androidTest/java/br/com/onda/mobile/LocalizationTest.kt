@@ -59,7 +59,7 @@ class LocalizationTest {
                 "Links e fila" to "From a link to your library.",
                 "Imagens" to "Download, convert and resize without cropping the image.",
                 "Playlists / Álbuns" to "Your albums and playlists in your library.",
-                "Efeitos" to "Slow down or speed up your music. Add reverb if you like.",
+                "Efeitos" to "Your music, in a new way.",
                 "Histórico" to "Your download library.")
             pages.forEach {(page,heading)->
                 compose.onNodeWithTag("open-menu").performClick()
