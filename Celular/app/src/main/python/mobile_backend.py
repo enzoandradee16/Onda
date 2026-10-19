@@ -314,7 +314,18 @@ def jukebox_action(action, config):
     if action=='jukebox_prepare':
         progress=lambda value:emit('progress',percent=value)
         if config.get('source'):
-            return jukebox.prepare(config['source'],config.get('ffmpeg',''),cancel,progress)
+            model=jukebox.prepare(config['source'],config.get('ffmpeg',''),cancel,progress)
+            from audio_library import read_audio,cover_preview
+            import re
+            stem=Path(config['source']).stem
+            clean=re.sub(r'^audio-[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}-','',stem,flags=re.IGNORECASE)
+            model['media_title']=clean;model['title']=clean
+            try:
+                tags=read_audio(config['source']);model['media_title']=tags.get('title') if tags.get('title') and tags.get('title')!=stem else clean;model['media_artist']=', '.join(tags.get('artists',[]));model['album']=tags.get('album') or ''
+                model['title']=model['media_title']
+                model['media_cover']=cover_preview(config['source'])
+            except (ValueError,OSError):pass
+            return model
         return jukebox.fetch_audio(config,config.get('record'),cancel,progress)
     identity=config['session']
     with _jukebox_lock:

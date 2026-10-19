@@ -146,6 +146,8 @@ class CatalogPane(ttk.Frame):
         self.poll_id = self.after(100, self.poll)
 
     def resize(self, event):
+        if getattr(self,'_wrap_width',None)==event.width:return
+        self._wrap_width=event.width
         width = max(300, event.width - 210)
         self.title_label.configure(wraplength=width)
         self.info_label.configure(wraplength=width)
@@ -439,7 +441,7 @@ class CatalogPane(ttk.Frame):
             self.player = None
             self.preview_button.configure(text=tr("Ouvir prévia"))
             self.status.set("Prévia concluída." if code == 0 else "Não foi possível reproduzir a prévia desta faixa.")
-        self.poll_id = self.after(100, self.poll)
+        self.poll_id = self.after(100 if self.winfo_ismapped() or self.player is not None or self.search_button.cget('text')==tr('Cancelar') else 500, self.poll)
 
     def cancel_catalog(self):
         self.generation += 1

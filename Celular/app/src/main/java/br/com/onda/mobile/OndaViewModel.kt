@@ -78,7 +78,7 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
     val player=ExoPlayer.Builder(application).build()
     val previewUrl=MutableStateFlow("")
     val previewActive=MutableStateFlow(false)
-    internal val jukebox=JukeboxController(application,viewModelScope){stopPreview(false)}
+    internal val jukebox=JukeboxRuntime.get(application).also {it.stopOtherAudio={stopPreview(false)}}
     init {player.addListener(object: androidx.media3.common.Player.Listener {
         override fun onEvents(player: androidx.media3.common.Player, events: androidx.media3.common.Player.Events) {
             previewActive.value=player.playWhenReady && player.playbackState in listOf(androidx.media3.common.Player.STATE_BUFFERING,androidx.media3.common.Player.STATE_READY)
@@ -413,5 +413,5 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
             finally {addingToQueue.value=false}
         }
     }
-    override fun onCleared() { jukebox.close();stopPreview();cancel();effectRequests.close(); player.release(); super.onCleared() }
+    override fun onCleared() { if(!OndaStore.settings.value.optBoolean("jukebox_background"))jukebox.close();jukebox.stopOtherAudio={};stopPreview(false);cancel();effectRequests.close(); player.release(); super.onCleared() }
 }

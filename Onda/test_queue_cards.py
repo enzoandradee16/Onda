@@ -12,6 +12,23 @@ class QueueCardsTests(unittest.TestCase):
         self.app.destroy();self.env.stop();self.folder.cleanup()
         from i18n import set_language
         set_language('pt-BR')
+    def test_scroll_callbacks_are_reused_across_queue_refreshes(self):
+        app=self.app
+        app.queue_view.set('Compacto');app.queue_cards.refresh()
+        def count():return len(app.tk.splitlist(app.tk.call('info','commands')))
+        before=count()
+        for _ in range(100):app.queue_cards.refresh()
+        self.assertEqual(count(),before)
+        app.queue_filter.query.set('missing');app.queue_cards.refresh()
+        for _ in range(3):
+            app.queue_filter.query.set('');app.queue_cards.refresh()
+            app.queue_filter.query.set('missing');app.queue_cards.refresh()
+        before=count()
+        for _ in range(20):
+            app.queue_filter.query.set('');app.queue_cards.refresh()
+            app.queue_filter.query.set('missing');app.queue_cards.refresh()
+        self.assertEqual(count(),before)
+
     def test_search_and_state_filters_leave_execution_model_intact(self):
         app=self.app
         first=app.add(lines=['https://example.com/a'],overrides={'display_name':'Antônio - Colette','queue_info':{'artists':['Piero Piccioni'],'album':'Cinema'}})[0]

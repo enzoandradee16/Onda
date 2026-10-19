@@ -14,7 +14,7 @@ class JukeboxPane(ttk.Frame):
         self.cancelled=threading.Event();self.paused=threading.Event();self.computing=False;self.playing=False
         self.params=(45,35,80,False);self.current=0;self.photo=None;self.seeks=queue.SimpleQueue()
         self.query=tk.StringVar();self.status=tk.StringVar(value='Abra um arquivo ou pesquise uma música para começar.')
-        self.title=tk.StringVar(value='Escolha sua música.');self.stats=tk.StringVar(value='Tempo ouvido: 0:00 · Saltos: 0')
+        self.artist=tk.StringVar();self.album=tk.StringVar();self.title=tk.StringVar(value='Escolha sua música.');self.stats=tk.StringVar(value='Tempo ouvido: 0:00 · Saltos: 0')
         self.variation=tk.DoubleVar(value=45);self.smooth=tk.DoubleVar(value=35);self.volume=tk.DoubleVar(value=80)
         self.columnconfigure(0,weight=1)
         search=ttk.Frame(self);search.grid(row=0,column=0,sticky='ew',pady=(8,10));search.columnconfigure(1,weight=1)
@@ -26,9 +26,13 @@ class JukeboxPane(ttk.Frame):
         self.results.heading('title',text=tr('Música'));self.results.heading('artist',text=tr('Artista'));self.results.bind('<Double-1>',lambda _:self.load_selected())
         self.load=ttk.Button(self,text=tr('Usar música selecionada'),command=self.load_selected)
         strip=ttk.Frame(self,style='Card.TFrame',padding=10);strip.grid(row=4,column=0,sticky='ew',pady=(10,8));strip.columnconfigure(1,weight=1)
-        self.cover=ttk.Label(strip,text='♪',font=('Segoe UI',28),style='Card.TLabel');self.cover.grid(row=0,column=0,rowspan=2,padx=(0,12))
+        self.cover=ttk.Label(strip,text='♪',font=('Segoe UI',28),style='Card.TLabel');self.cover.grid(row=0,column=0,rowspan=4,padx=(0,12))
         ttk.Label(strip,textvariable=self.title,style='Card.TLabel',font=('Segoe UI',12,'bold'),wraplength=650).grid(row=0,column=1,sticky='w')
-        ttk.Label(strip,textvariable=display_var(self.status),style='CardMuted.TLabel',wraplength=650).grid(row=1,column=1,sticky='w')
+        self.artist_label=ttk.Label(strip,textvariable=self.artist,style='CardMuted.TLabel',wraplength=650)
+        self.artist_label.grid(row=1,column=1,sticky='w',pady=(3,0));self.artist_label.grid_remove()
+        self.album_label=ttk.Label(strip,textvariable=self.album,style='CardMuted.TLabel',wraplength=650)
+        self.album_label.grid(row=2,column=1,sticky='w',pady=(3,0));self.album_label.grid_remove()
+        ttk.Label(strip,textvariable=display_var(self.status),style='CardMuted.TLabel',wraplength=650).grid(row=3,column=1,sticky='w',pady=(3,0))
         self.body=ttk.Frame(self);self.body.grid(row=5,column=0,sticky='nsew');self.body.columnconfigure(0,weight=1);self.body.columnconfigure(1,weight=1)
         self.canvas=tk.Canvas(self.body,width=320,height=320,highlightthickness=0);self.canvas.grid(row=0,column=0,sticky='nsew',padx=(0,10));self.canvas.bind('<Configure>',lambda _:self.draw());self.canvas.bind('<Button-1>',self.seek_point)
         self.controls=ttk.Frame(self.body,style='Card.TFrame',padding=14);self.controls.grid(row=0,column=1,sticky='nsew')
@@ -47,12 +51,15 @@ class JukeboxPane(ttk.Frame):
         ttk.Label(actions,text=tr('Volume')).pack(side='left',padx=(12,4));ttk.Scale(actions,from_=0,to=100,variable=self.volume,command=lambda _:self.update_params()).pack(side='left',fill='x',expand=True)
         ttk.Label(self,textvariable=display_var(self.stats),style='Muted.TLabel').grid(row=7,column=0,sticky='w')
         self.bar=ttk.Progressbar(self,maximum=100);self.bar.grid(row=8,column=0,sticky='ew',pady=6);self.bar.grid_remove()
-        self.body.bind('<Configure>',self.layout);self.timer=self.after(80,self.poll);self.last_colors=None
+        self.body.bind('<Configure>',self.layout);self.timer=self.after(80,self.poll);self.last_colors=None;self.media_controls=None;self.media_failed=False
     @property
     def busy(self):return self.computing or self.playing
     def layout(self,event):
         width=min(event.width,max(1,self.winfo_toplevel().winfo_width()-64))
-        if width<max(660,self.controls.winfo_reqwidth()+330):self.controls.grid(row=1,column=0,columnspan=2,sticky='ew');self.canvas.grid(row=0,column=0,columnspan=2,sticky='ew')
+        stacked=width<max(660,self.controls.winfo_reqwidth()+330)
+        if getattr(self,'_stacked',None)==stacked:return
+        self._stacked=stacked
+        if stacked:self.controls.grid(row=1,column=0,columnspan=2,sticky='ew');self.canvas.grid(row=0,column=0,columnspan=2,sticky='ew')
         else:self.controls.grid(row=0,column=1,columnspan=1,sticky='nsew');self.canvas.grid(row=0,column=0,columnspan=1,sticky='nsew')
     def config(self):
         return {'ffmpeg':self.app.ffmpeg.get(),'cookies_file':self.app.youtube_cookies.get(),'spotify_client_id':self.app.spotify_client_id.get(),'spotify_client_secret':self.app.spotify_client_secret.get(),'youtube_cookies_file':self.app.youtube_cookies.get()}
@@ -64,6 +71,7 @@ class JukeboxPane(ttk.Frame):
         self.results.grid_remove();self.load.grid_remove()
         self.stop_preview();self.source=str(path);self.model=None;self.title.set(Path(path).stem);self.analyse()
     def task(self,function):
+        self.artist.set('');self.album.set('');self.artist_label.grid_remove();self.album_label.grid_remove()
         self.stop_preview();self.generation+=1;generation=self.generation;cancel=threading.Event();self.cancelled=cancel;self.computing=True;self.model=None;self.play_button.configure(state='disabled');self.bar.grid();self.bar.configure(value=0);self.stats.set('Tempo ouvido: 0:00 · Saltos: 0')
         def emit(kind,**values):self.events.put((generation,kind,values))
         def worker():
@@ -84,6 +92,10 @@ class JukeboxPane(ttk.Frame):
             import base64
             cover=cover_preview(source)
             if cover:result['_cover']=base64.b64decode(cover)
+            from audio_library import read_audio
+            try:
+                tags=read_audio(source);result['media_title']=tags.get('title','');result['media_artist']=', '.join(tags.get('artists',[]));result['album']=tags.get('album') or ''
+            except (ValueError,OSError):pass
             return result
         self.task(analyse)
     def search(self):
@@ -124,6 +136,12 @@ class JukeboxPane(ttk.Frame):
         n=len(self.model['neighbors'])
         self.current=round(((math.atan2(dy,dx)+math.pi/2)%(2*math.pi))/(2*math.pi)*n)%n
         self.seeks.put(self.current);self.draw()
+
+    def set_track_info(self,record):
+        self.title.set(record.get('media_title') or record['title'])
+        for variable,label,key in ((self.artist,self.artist_label,'media_artist'),(self.album,self.album_label,'album')):
+            text=record.get(key) or '';variable.set(text)
+            label.grid() if text else label.grid_remove()
 
     def update_params(self):
         self.params=(self.variation.get(),self.smooth.get(),self.volume.get(),self.params[3])
@@ -169,7 +187,12 @@ class JukeboxPane(ttk.Frame):
     def draw(self):
         if self.closed:return
         colors=getattr(self.app.theme_manager,'colors',None) or {};bg=colors.get('surface',colors.get('bg','#ffffff'));accent=colors.get('accent','#bd2738');muted=colors.get('muted','#8b9bae');text=colors.get('text','#17202e')
-        canvas=self.canvas;canvas.configure(bg=bg);canvas.delete('all');w,h=max(200,canvas.winfo_width()),max(200,canvas.winfo_height());cx,cy=w/2,h/2;radius=min(w,h)*.39
+        canvas=self.canvas;w,h=max(200,canvas.winfo_width()),max(200,canvas.winfo_height());cx,cy=w/2,h/2;radius=min(w,h)*.39
+        key=(id(self.model),w,h,bg,accent,muted,text,self.params[0],self.params[1],self.params[3])
+        if getattr(self,'_graph_key',None)==key:
+            self.move_marker();return
+        self._graph_key=key;self._graph_nodes={};self._graph_hot=set()
+        canvas.configure(bg=bg);canvas.delete('all')
         n=len(self.model['neighbors']) if self.model else 64
         def point(index):
             angle=index/n*2*math.pi-math.pi/2;return cx+math.cos(angle)*radius,cy+math.sin(angle)*radius
@@ -185,15 +208,31 @@ class JukeboxPane(ttk.Frame):
             for i,j in visible:
                 a,b=point(i),point(j);canvas.create_line(*a,cx,cy,*b,smooth=True,fill=ink,width=1+smooth/100,tags='jump-link')
         step=max(1,n//150)
-        hot={j for i,j in visible if i==self.current} if self.model else set()
+        self._graph_links=visible if self.model else []
         for i in range(0,n,step):
-            x,y=point(i);size=3 if i!=self.current else 7;canvas.create_oval(x-size,y-size,x+size,y+size,fill=accent if i==self.current or i in hot else muted,outline='')
-        x,y=point(self.current);canvas.create_oval(x-6,y-6,x+6,y+6,fill=accent,outline=bg)
+            x,y=point(i);self._graph_nodes[i]=canvas.create_oval(x-3,y-3,x+3,y+3,fill=muted,outline='')
+        self._graph_marker=canvas.create_oval(0,0,12,12,fill=accent,outline=bg)
         mask=radius*.38
         canvas.create_oval(cx-mask,cy-mask,cx+mask,cy+mask,fill=bg,outline='')
         canvas.create_text(cx,cy-12,text=tr('Jukebox infinito'),fill=text,font=('Segoe UI',13,'bold'));canvas.create_text(cx,cy+24,text='∞',fill=accent,font=('Segoe UI',30))
+        self.move_marker()
+    def move_marker(self):
+        # Playback moves only the marker and changed node colors, not the entire graph.
+        canvas=self.canvas;key=self._graph_key;w,h=key[1:3];accent,muted=key[4:6]
+        n=len(self.model['neighbors']) if self.model else 64
+        angle=self.current/n*2*math.pi-math.pi/2;radius=min(w,h)*.39
+        x,y=w/2+math.cos(angle)*radius,h/2+math.sin(angle)*radius
+        canvas.coords(self._graph_marker,x-6,y-6,x+6,y+6)
+        hot={j for i,j in self._graph_links if i==self.current}|{self.current}
+        for index in self._graph_hot-hot:
+            if index in self._graph_nodes:canvas.itemconfigure(self._graph_nodes[index],fill=muted)
+        for index in hot-self._graph_hot:
+            if index in self._graph_nodes:canvas.itemconfigure(self._graph_nodes[index],fill=accent)
+        self._graph_hot=hot
+
     def poll(self):
         if self.closed:return
+        redraw=False
         for _ in range(50):
             try:generation,kind,value=self.events.get_nowait()
             except queue.Empty:break
@@ -207,23 +246,47 @@ class JukeboxPane(ttk.Frame):
                     if self.records:self.results.grid(row=2,column=0,sticky='ew',pady=6);self.load.grid(row=3,column=0,sticky='w');self.status.set('Escolha uma música nos resultados.')
                     else:self.status.set('Nenhuma música encontrada.')
                 else:
-                    self.model=result;self.source=result['source'];self.title.set(result['title']);
+                    self.model=result;self.source=result['source'];self.set_track_info(result)
                     self.photo=None;self.cover.configure(image='',text='♪')
                     if result.get('_cover'):
                         from PIL import Image,ImageTk
                         with Image.open(io.BytesIO(result['_cover'])) as picture:
                             picture.thumbnail((64,64));self.photo=ImageTk.PhotoImage(picture,master=self)
                         self.cover.configure(image=self.photo,text='')
-                    self.status.set('Análise concluída.' if result['links'] else 'Sem saltos compatíveis: a faixa será repetida normalmente.');self.bar.configure(value=100);self.play_button.configure(state='normal');self.draw()
+                    self.status.set('Análise concluída.' if result['links'] else 'Sem saltos compatíveis: a faixa será repetida normalmente.');self.bar.configure(value=100);self.play_button.configure(state='normal');redraw=True
             elif kind=='idle':self.computing=False
-            elif kind=='position':self.current=value['index'];minutes,seconds=divmod(int(value['elapsed']),60);self.stats.set(tr('Tempo ouvido: {time} · Saltos: {count}').replace('{time}',f'{minutes}:{seconds:02}').replace('{count}',str(value['jumps'])));self.draw()
+            elif kind=='position':self.current=value['index'];minutes,seconds=divmod(int(value['elapsed']),60);self.stats.set(tr('Tempo ouvido: {time} · Saltos: {count}').replace('{time}',f'{minutes}:{seconds:02}').replace('{count}',str(value['jumps'])));redraw=True
             elif kind=='error':self.bar.grid_remove();self.status.set(value['message']);self.playing=False;self.play_button.configure(text=tr('Reproduzir'))
             elif kind=='stopped':self.playing=False;self.play_button.configure(text=tr('Reproduzir'))
         colors=self.app.theme_manager.colors
         if colors!=self.last_colors:
             self.last_colors=colors
-            self.draw()
-        self.timer=self.after(80,self.poll)
+            redraw=True
+        if redraw and self.winfo_ismapped():self.draw()
+        self.sync_media()
+        self.timer=self.after(80 if self.winfo_ismapped() or self.busy else 500,self.poll)
+    def sync_media(self):
+        if self.playing and self.media_controls is None and not self.media_failed:
+            try:
+                from windows_media import MediaControls
+                self.media_controls=MediaControls(self.app)
+            except (OSError,AttributeError) as error:
+                self.media_failed=True
+                if hasattr(self.app,'write_log'):self.app.write_log(str(error))
+        if self.media_controls is None:return
+        for _ in range(8):
+            try:button=self.media_controls.events.get_nowait()
+            except queue.Empty:break
+            if button==0 and self.playing and self.paused.is_set():self.play_pause()
+            elif button==1 and self.playing and not self.paused.is_set():self.play_pause()
+            elif button==2 and self.playing:self.stop()
+        model=self.model or {}
+        try:self.media_controls.update(model.get('media_title') or self.title.get(),model.get('media_artist') or tr('Jukebox infinito'),self.playing,self.paused.is_set())
+        except OSError as error:
+            self.media_controls.close();self.media_controls=None;self.media_failed=True
+            if hasattr(self.app,'write_log'):self.app.write_log(str(error))
+
     def shutdown(self):
         self.closed=True;self.stop_preview()
+        if self.media_controls:self.media_controls.close();self.media_controls=None
         if self.timer:self.after_cancel(self.timer);self.timer=None

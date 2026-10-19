@@ -53,6 +53,7 @@ class MainActivity : ComponentActivity() {
         receive(intent)
         setContent { OndaApp(model) }
     }
+    override fun onStop() {super.onStop();if(!OndaStore.settings.value.optBoolean("jukebox_background"))model.jukebox.pause()}
     override fun onNewIntent(intent: Intent) { super.onNewIntent(intent); setIntent(intent); receive(intent) }
     // Public Activity override; AndroidX's bridge carries an internal annotation.
     @android.annotation.SuppressLint("RestrictedApi")
@@ -163,7 +164,7 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
     LaunchedEffect(Unit) { if(Build.VERSION.SDK_INT>=33) permission.launch(Manifest.permission.POST_NOTIFICATIONS) }
     LaunchedEffect(shared) { if(shared.isNotBlank()) tab="Links e fila" }
     LaunchedEffect(effectsSource) {if(effectsSource.isNotBlank()) tab="Efeitos"}
-    LaunchedEffect(tab) { if(!settings.optBoolean("keep_preview")) vm.stopPreview() }
+    LaunchedEffect(tab) { if(!settings.optBoolean("keep_preview")) vm.stopPreview(!settings.optBoolean("jukebox_background")) }
     val typography=remember(settings.optString("interface_font"),settings.optString("interface_font_size")) {interfaceTypography(settings.optString("interface_font",DEFAULT_INTERFACE_FONT),settings.optString("interface_font_size","100%"))}
     LocalizedTheme(language=settings.optString("language","pt-BR"),colorScheme=scheme,typography=typography,spacing=settings.optString("interface_spacing","Padrão")) {
         ModalNavigationDrawer(drawerState=drawer,drawerContent={ModalDrawerSheet(Modifier.width(300.dp)) {

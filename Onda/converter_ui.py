@@ -50,12 +50,15 @@ class ConverterPane(ttk.Frame):
         ttk.Label(self,textvariable=self.status,wraplength=680).pack(anchor='w')
         self.timer=self.after(100,self.poll)
     def layout_options(self,event=None):
+        width=event.width if event else max(1,self.options_grid.winfo_width())
+        columns=3 if width>=650 else 2 if width>=420 else 1
+        key=(columns,self.format.get(),tr('Bitrate de áudio'))
+        if getattr(self,'_options_layout_key',None)==key:return
+        self._options_layout_key=key
         self.audio_caption.configure(text=tr('Qualidade do áudio (kbps)' if self.format.get() in AUDIO_FORMATS else 'Bitrate de áudio'))
         for label in getattr(self,'video_help',[]):
             if self.format.get() in AUDIO_FORMATS:label.pack_forget()
             elif not label.winfo_manager():label.pack(anchor='w',pady=6,before=self.start_button.master)
-        width=event.width if event else 900
-        columns=3 if width>=650 else 2 if width>=420 else 1
         for index in range(3):self.options_grid.columnconfigure(index,weight=1 if index<columns else 0)
         cells=[self.option_cells[i] for i in (0,4)] if self.format.get() in AUDIO_FORMATS else self.option_cells
         for cell in self.option_cells:cell.grid_remove()
@@ -117,7 +120,7 @@ class ConverterPane(ttk.Frame):
                 self.busy=False;self.choose_button.configure(state='normal');self.batch_button.configure(state='normal');self.start_button.configure(state='normal');self.cancel_button.configure(state='disabled')
                 for combo in self.options:combo.configure(state='readonly')
                 self.status.set((data['message'] if 'results' in data else tr('Vídeo convertido: {path}').replace('{path}',data['path'])) if kind=='finished' else tr(data['message']))
-        if not self.closed:self.timer=self.after(100,self.poll)
+        if not self.closed:self.timer=self.after(100 if self.winfo_ismapped() or self.busy else 500,self.poll)
     def cancel(self):self.cancelled.set()
     def shutdown(self):
         self.closed=True;self.cancel()

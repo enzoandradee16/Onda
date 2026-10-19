@@ -393,7 +393,7 @@ class UiMixin:
         self.settings_window.withdraw()
         self.settings_window.title(tr("Onda • Configurações"))
         self.settings_window.configure(bg=BG)
-        self.settings_window.geometry("650x640")
+        self.settings_window.geometry("700x680")
         self.settings_window.minsize(600, 620)
         self.settings_window.protocol("WM_DELETE_WINDOW", self.settings_window.withdraw)
         body = ttk.Frame(self.settings_window, padding=20)

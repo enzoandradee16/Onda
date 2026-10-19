@@ -463,7 +463,7 @@ class PlaylistPane(ttk.Frame):
             elif kind == "checked":
                 self.status.set("Consulta concluída. A seleção de versões segue as configurações de Downloads.")
                 self.set_busy(False)
-        self.poll_id = self.after(100, self.poll)
+        self.poll_id = self.after(100 if self.winfo_ismapped() or self.busy else 500, self.poll)
 
     def shutdown(self):
         if self.closed:

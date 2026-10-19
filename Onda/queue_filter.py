@@ -17,7 +17,7 @@ def matches(job,title,query,state):
 class QueueFilter:
     def __init__(self,app,parent):
         self.app=app;self.query=tk.StringVar();self.state=tk.StringVar(value='Todos');self.summary=tk.StringVar()
-        self.keys=None;self.checked=0;self.signature=None;self.view=None;self.syncing=False
+        self.keys=None;self.checked=0;self.signature=None;self.view=None;self.syncing=False;self._scroll_commands={};self._scroll_target=None
         row=ttk.Frame(parent);row.pack(fill='x',pady=(8,0));row.columnconfigure(1,weight=1)
         ttk.Label(row,text=tr('Buscar na fila')).grid(row=0,column=0,padx=(0,8))
         self.entry=ttk.Entry(row,textvariable=self.query);self.entry.grid(row=0,column=1,sticky='ew')
@@ -38,7 +38,7 @@ class QueueFilter:
         keys=all_keys if not query.strip() and state=='Todos' else tuple(k for k in all_keys if matches(self.app.jobs.get(k,{}),tree.set(k,'name') if query.strip() else '',query,state))
         self.keys=keys;self.checked=now
         text=tr('Exibindo {visible} de {total} itens.').replace('{visible}',str(len(keys))).replace('{total}',str(len(all_keys)))
-        self.summary.set(text)
+        if self.summary.get()!=text:self.summary.set(text)
         selected=tuple(k for k in tree.selection() if k in keys)
         if selected!=tree.selection():tree.selection_set(selected)
         return keys
@@ -48,7 +48,7 @@ class QueueFilter:
         if not filtered:
             if self.view:self.view.pack_forget()
             if not tree.winfo_manager():tree.pack(side='left',fill='both',expand=True)
-            scroll.configure(command=tree.yview);tree.configure(yscrollcommand=scroll.set)
+            self.connect_scroll(tree,scroll)
             if not scroll.winfo_manager():scroll.pack(side='right',fill='y')
             self.visible_keys();return
         tree.pack_forget()
@@ -75,9 +75,19 @@ class QueueFilter:
                 self.view.move(key,'',index)
         selected=tuple(k for k in tree.selection() if k in keys)
         if self.view.selection()!=selected:self.view.selection_set(selected)
-        self.view.configure(yscrollcommand=scroll.set);scroll.configure(command=self.view.yview)
+        self.connect_scroll(self.view,scroll)
         if not self.view.winfo_manager():self.view.pack(side='left',fill='both',expand=True)
         if not scroll.winfo_manager():scroll.pack(side='right',fill='y')
+    def connect_scroll(self,tree,scroll):
+        # Re-registering bound Python methods every poll leaks Tcl commands.
+        key=(str(tree),str(scroll))
+        if key==self._scroll_target:return
+        if key not in self._scroll_commands:
+            self._scroll_commands[key]=(scroll.register(tree.yview),tree.register(scroll.set))
+        command,yscroll=self._scroll_commands[key]
+        scroll.configure(command=command);tree.configure(yscrollcommand=yscroll)
+        self._scroll_target=key
+
     def select(self,*_):
         if self.view and self.view.selection()!=self.app.tree.selection():
             self.app.tree.selection_set(self.view.selection());self.app.refresh_queue()

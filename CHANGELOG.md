@@ -2,6 +2,8 @@
 
 ## Em desenvolvimento
 
+- Jukebox: grafo reativo no Android, opção de reprodução em segundo plano com notificação e controles de mídia; integração com teclas de mídia no Windows.
+
 - Reprodução e efeitos: modos Efeitos e Jukebox infinito na mesma aba, preservando as identidades e a ordem das abas.
 - Jukebox PC/Android: arquivo local ou busca/link com seleção explícita, análise em cache, grafo circular, variação, transições, volume, pausa e reprodução normal. Análise independente e local; a naturalidade depende da faixa.
 
@@ -131,6 +133,8 @@ Primeira versão oficial para Windows e Android.
 - Preparação de versões e pacotes de pré-release.
 
 ## Em desenvolvimento
+
+- Jukebox: grafo reativo no Android, opção de reprodução em segundo plano com notificação e controles de mídia; integração com teclas de mídia no Windows.
 
 - Busca adicional de aliases no MusicBrainz após falha da busca normal, com confirmação por gravação e identidade do artista, cache local com expiração, rejeição de homônimos e limite de consultas compartilhado entre downloads.
 

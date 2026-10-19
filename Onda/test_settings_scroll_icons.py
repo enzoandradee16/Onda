@@ -35,13 +35,11 @@ class SettingsScrollUiTests(unittest.TestCase):
             app.clipboard_watch.shutdown()
             try:
                 self.assertEqual(app._function_icon_key[0],"onda")
-                self.assertTrue(app._function_icon_key[1].endswith("onda.ico"))
-                brand=app._function_icon_key
                 for mode in ("Escuro","Preto puro","Claro"):
                     app.theme_mode.set(mode)
                     app.update()
-                    self.assertEqual(app._function_icon_key,brand)
                     colors=app.theme_manager.colors
+                    self.assertEqual(app._function_icon_key,("onda",colors["accent"],colors["text"],colors["bg"]))
                     self.assertEqual(ttk.Style(app).lookup("TSpinbox","foreground"),colors["text"])
                     self.assertEqual(ttk.Style(app).lookup("TSpinbox","fieldbackground"),colors["input"])
             finally:app.destroy()

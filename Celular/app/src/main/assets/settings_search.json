@@ -503,5 +503,10 @@
     "category": "Geral",
     "label": "Reconhecer links copiados automaticamente",
     "keywords": "clipboard área transferência links copiados confirmação"
+  },
+  {
+    "category": "Áudio",
+    "label": "Continuar Jukebox em outras abas e em segundo plano",
+    "keywords": "Jukebox música infinito reprodução fundo notificação mídia"
   }
 ]

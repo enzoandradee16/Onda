@@ -660,7 +660,7 @@ class App(UiMixin, tk.Tk):
             self.bar.configure(mode="determinate", value=value)
 
     def poll_events(self):
-        if hasattr(self,"queue_cards"):self.queue_cards.refresh()
+        if hasattr(self,"queue_cards") and self.queue_page.winfo_ismapped():self.queue_cards.refresh()
         titles_changed = False
         for _ in range(150):
             try:
@@ -1053,6 +1053,8 @@ class App(UiMixin, tk.Tk):
                 self.cancel()
             if self.effects_page.busy:
                 self.effects_page.cancel()
+            if not self.active and not self.effects_page.busy:
+                self.destroy()
         else:
             self.destroy()
 

@@ -35,7 +35,7 @@ class SettingsCategory(ttk.Frame):
             self.canvas.itemconfigure(self.content_window, width=event.width)
         available = max(100, event.width - 32)
         for child in self.content.winfo_children():
-            if isinstance(child, ttk.Label):
+            if isinstance(child, ttk.Label) and int(str(child.cget('wraplength')) or '0') != available:
                 child.configure(wraplength=available)
         self.update_region()
 

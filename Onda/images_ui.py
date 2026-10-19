@@ -183,7 +183,7 @@ class ImagesPane(ttk.Frame):
         except queue.Empty:
             pass
         if not self.closed:
-            self._poll=self.after(100,self.poll)
+            self._poll=self.after(100 if self.winfo_ismapped() or self.busy else 500,self.poll)
 
     def shutdown(self):
         self.closed=True

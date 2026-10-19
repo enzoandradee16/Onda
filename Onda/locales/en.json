@@ -1664,7 +1664,7 @@
   "Sem saltos compatíveis: a faixa será repetida normalmente.": "No compatible jumps: the track will repeat normally.",
   "Reproduzindo…": "Playing…",
   "Pausado.": "Paused.",
-  "Use uma música entre 3 segundos e 15 minutos.": "Use a song between 3 seconds and 15 minutes long.",
+  "Use uma música entre 3 segundos e 20 minutos.": "Use a song between 3 seconds and 20 minutes long.",
   "Escolha um arquivo de áudio válido.": "Choose a valid audio file.",
   "A análise demorou demais. Escolha uma faixa menor.": "Analysis took too long. Choose a shorter track.",
   "Não foi possível preparar o áudio. Confira o arquivo e o FFmpeg.": "Could not prepare audio. Check the file and FFmpeg.",
@@ -1680,7 +1680,13 @@
   "Não foi possível abrir a saída de áudio.": "Could not open audio output.",
   "A saída de áudio foi interrompida.": "Audio output was interrupted.",
   "Encerre a reprodução anterior antes de continuar.": "Stop previous playback before continuing.",
-  "Use uma faixa de até 15 minutos.": "Use a track up to 15 minutes long.",
+  "Use uma faixa de até 20 minutos.": "Use a track up to 20 minutes long.",
   "O cache foi limpo. Abra ou pesquise a música novamente.": "The cache was cleared. Open or search for the song again.",
-  "O YouTube pediu verificação. Importe cookies válidos em Configurações → Contas → Importar cookies do YouTube e tente novamente. Você também pode abrir um arquivo local.": "YouTube requested verification. Import valid cookies in Settings → Accounts → Import YouTube cookies and try again. You can also open a local file."
+  "O YouTube pediu verificação. Importe cookies válidos em Configurações → Contas → Importar cookies do YouTube e tente novamente. Você também pode abrir um arquivo local.": "YouTube requested verification. Import valid cookies in Settings → Accounts → Import YouTube cookies and try again. You can also open a local file.",
+  "Continuar Jukebox em outras abas e em segundo plano": "Keep Jukebox playing in other tabs and in the background",
+  "Volume": "Volume",
+  "Trecho inválido.": "Invalid segment.",
+  "Aplicar": "Apply",
+  "Retomar": "Resume",
+  "Salvar": "Save"
 }

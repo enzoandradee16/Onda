@@ -28,7 +28,7 @@ val categories=linkedMapOf(
     "Aparência" to listOf("simple_download_ui","queue_actions_at_top","queue_view","queue_card_size","history_card_size","pure_black_separators","history_view","theme","accent","tab_order","hidden_tabs","interface_font","interface_font_size","interface_spacing"),
     "Downloads" to listOf("wifi_only","wifi_loss","finish_action","notification_controls","auto_select_media","social_best_quality","detect_duplicates","filename_template","concurrent_downloads","resume_downloads","resume_queue","normalize_volume","schedule_enabled","schedule_start","schedule_stop","mode","audio_quality","height","fps","playlist_limit","link_playlist","organization","duplicate_policy","output_uri","auto_metadata","auto_match","confirm_version","review_metadata"),
     "Imagens" to listOf("image_format","image_size","image_width","image_height","keep_ratio"),
-    "Áudio" to listOf("search_preview","effects_preview","keep_preview","synced_lyrics"),
+    "Áudio" to listOf("search_preview","effects_preview","keep_preview","jukebox_background","synced_lyrics"),
     "Contas" to listOf("spotify_client_id","cookies_file","youtube_cookies_file"),
     "Ferramentas" to listOf("check_updates"))
 
@@ -197,6 +197,7 @@ val categories=linkedMapOf(
                     "Áudio"->{
                         UiText("Reprodução e prévias",style=MaterialTheme.typography.titleMedium)
                         Toggle("Continuar prévia dos efeitos em outras abas",settings.optBoolean("keep_preview")){put("keep_preview",it)}
+                        Toggle("Continuar Jukebox em outras abas e em segundo plano",settings.optBoolean("jukebox_background")){put("jukebox_background",it)}
                         Toggle("Mostrar letra sincronizada (LRC)",settings.optBoolean("synced_lyrics")){put("synced_lyrics",it)}
                         SettingsDivider()
                         UiText("Duração das prévias",style=MaterialTheme.typography.titleSmall)

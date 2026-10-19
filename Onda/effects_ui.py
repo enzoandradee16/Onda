@@ -446,7 +446,7 @@ class EffectsPane(ttk.Frame):
                 if self.app.closing and not self.app.active:
                     self.app.destroy()
                     return
-        self.poll_id = self.after(100, self.poll)
+        self.poll_id = self.after(100 if self.winfo_ismapped() or self.busy or self.preview_active else 500, self.poll)
 
     def cancel(self):
         self.cancelled.set()

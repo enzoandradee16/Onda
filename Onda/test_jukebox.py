@@ -24,6 +24,12 @@ class JukeboxTests(unittest.TestCase):
         model={'version':1,'duration':8,'bpm':120,'beats':[i*.25 for i in range(33)],'neighbors':[[] for _ in range(32)],'links':1}
         model['neighbors'][4]=[20];(self.base/'analysis.json').write_text(json.dumps(model));self.model=model
     def tearDown(self):self.env.stop();self.temp.cleanup()
+    def test_twenty_minute_analysis_is_accepted_but_longer_is_rejected(self):
+        model=dict(self.model,duration=1200,beats=[i*.5 for i in range(2401)],neighbors=[[] for _ in range(2400)])
+        jukebox.validate_model(model)
+        model['beats'][-1]=1201
+        with self.assertRaises(ValueError):jukebox.validate_model(model)
+
     def test_normal_and_zero_variation_preserve_all_samples(self):
         for variation,normal in [(0,False),(100,True)]:
             player=jukebox.Session(self.base,seed=1)
@@ -134,6 +140,54 @@ class JukeboxTests(unittest.TestCase):
 
 @unittest.skipUnless(os.environ.get('ONDA_UI_TESTS'),'Tk integration')
 class JukeboxUiTests(unittest.TestCase):
+    def test_playback_reuses_graph_items_but_controls_refresh_connections(self):
+        import tkinter as tk
+        from jukebox_ui import JukeboxPane
+        root=tk.Tk();root.withdraw()
+        try:
+            pane=JukeboxPane(root,SimpleNamespace(theme_manager=SimpleNamespace(colors={})),lambda *a:None)
+            pane.model={'neighbors':[[(i+12)%64] for i in range(64)]}
+            pane.draw();items=pane.canvas.find_all()
+            for index in range(64):pane.current=index;pane.draw()
+            self.assertEqual(items,pane.canvas.find_all())
+            pane.variation.set(0);pane.update_params()
+            self.assertFalse(pane.canvas.find_withtag('jump-link'))
+            pane.variation.set(100);pane.update_params()
+            self.assertTrue(pane.canvas.find_withtag('jump-link'))
+            pane.shutdown()
+        finally:root.destroy()
+
+    def test_windows_media_commands_control_existing_jukebox(self):
+        import tkinter as tk,queue
+        from jukebox_ui import JukeboxPane
+        root=tk.Tk();root.withdraw()
+        try:
+            pane=JukeboxPane(root,SimpleNamespace(theme_manager=SimpleNamespace(colors={})),lambda *a:None)
+            media=SimpleNamespace(events=queue.SimpleQueue(),update=lambda *a:None,close=lambda:None)
+            pane.media_controls=media;pane.playing=True
+            media.events.put(1);pane.sync_media();self.assertTrue(pane.paused.is_set())
+            media.events.put(0);pane.sync_media();self.assertFalse(pane.paused.is_set())
+            media.events.put(2);pane.sync_media();self.assertFalse(pane.playing)
+            pane.shutdown()
+        finally:root.destroy()
+
+    def test_one_close_stops_jukebox_and_exits_but_export_waits(self):
+        from app import App
+        with tempfile.TemporaryDirectory() as folder,patch.dict(os.environ,{'LOCALAPPDATA':folder}):
+            from preferences import PreferenceStore
+            PreferenceStore().save({'check_updates':False,'clipboard_links':False})
+            app=App(show_welcome=False);app.withdraw()
+            try:
+                pane=app.effects_page.ensure_ready();app.close_behavior.set('Encerrar')
+                pane.effects.busy=True
+                with patch.object(app,'destroy') as destroy:
+                    app.close();destroy.assert_not_called()
+                pane.effects.busy=False;pane.jukebox.playing=True
+                with patch.object(app,'destroy') as destroy:
+                    app.close();destroy.assert_called_once()
+                self.assertFalse(pane.jukebox.playing)
+            finally:app.destroy()
+
     def test_shared_tab_preserves_identity_and_effects_controls(self):
         with tempfile.TemporaryDirectory() as folder,patch.dict(os.environ,{'LOCALAPPDATA':folder}):
             from preferences import PreferenceStore

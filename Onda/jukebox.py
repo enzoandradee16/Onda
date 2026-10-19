@@ -8,7 +8,7 @@ from pathlib import Path
 import cmath, hashlib, json, math, os, random, subprocess, threading, time, uuid, wave
 
 RATE, CHANNELS, VERSION = 44100, 2, 1
-MAX_SECONDS = 900
+MAX_SECONDS = 1200
 _active=Counter()
 _active_lock=threading.Lock()
 
@@ -76,7 +76,7 @@ def analyse_wave(path,cancelled=lambda:False,progress=lambda _:None):
     with wave.open(str(path),'rb') as sound:
         if sound.getframerate()!=8000 or sound.getnchannels()!=1:raise ValueError('Áudio de análise inválido.')
         count=sound.getnframes();duration=count/8000
-        if not 3<=duration<=MAX_SECONDS+.1:raise ValueError('Use uma música entre 3 segundos e 15 minutos.')
+        if not 3<=duration<=MAX_SECONDS+.1:raise ValueError('Use uma música entre 3 segundos e 20 minutos.')
         for offset in range(0,max(0,count-512),256):
             if offset%16384==0:check(cancelled);progress(min(85,int(offset/max(1,count)*85)))
             sound.setpos(offset);data=array('h',sound.readframes(512))
@@ -161,7 +161,7 @@ def prepare(source,folder='',cancelled=lambda:False,progress=lambda _:None):
         ffprobe=executable('ffprobe',folder)
         result=subprocess.run([ffprobe,'-v','error','-show_entries','format=duration','-of','json',str(source)],capture_output=True,timeout=20,**__import__('audio_tools').process_options())
         duration=float(json.loads(result.stdout)['format']['duration'])
-        if not math.isfinite(duration) or not 3<=duration<=MAX_SECONDS:raise ValueError('Use uma música entre 3 segundos e 15 minutos.')
+        if not math.isfinite(duration) or not 3<=duration<=MAX_SECONDS:raise ValueError('Use uma música entre 3 segundos e 20 minutos.')
         ffmpeg=executable('ffmpeg',folder);token=uuid.uuid4().hex
         temp=base/(token+'.wav');mono=base/(token+'-mono.wav')
         try:
@@ -292,7 +292,7 @@ def fetch_audio(config,record=None,cancelled=lambda:False,progress=lambda _:None
         progress(int(data.get('downloaded_bytes',0)/total*100) if total else 0)
     # Never write a cache download to the user's music folders, history or queue.
     with tempfile.TemporaryDirectory(prefix='jukebox-download-',dir=root) as temporary:
-        options.update(outtmpl=str(Path(temporary)/'audio.%(ext)s'),noplaylist=True,playlistend=1,max_filesize=128*1024*1024,logger=logger,progress_hooks=[hook],match_filter=lambda info,**_: 'Use uma faixa de até 15 minutos.' if info.get('is_live') or (info.get('duration') or 0)>MAX_SECONDS else None)
+        options.update(outtmpl=str(Path(temporary)/'audio.%(ext)s'),noplaylist=True,playlistend=1,max_filesize=128*1024*1024,logger=logger,progress_hooks=[hook],match_filter=lambda info,**_: 'Use uma faixa de até 20 minutos.' if info.get('is_live') or (info.get('duration') or 0)>MAX_SECONDS else None)
         options.pop('postprocessors',None)
         def configure(ydl):
             if logger.youtube_cookiejar is not None:
@@ -306,4 +306,5 @@ def fetch_audio(config,record=None,cancelled=lambda:False,progress=lambda _:None
     if record:
         model['title']=' — '.join(filter(None,[', '.join(record.get('artists',[])),record.get('title')]))
         model['cover_url']=record.get('cover_url') or '';model['album']=record.get('album') or ''
+        model['media_title']=record.get('title') or '';model['media_artist']=', '.join(record.get('artists',[]))
     return model

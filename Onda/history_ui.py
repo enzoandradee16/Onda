@@ -251,7 +251,7 @@ class HistoryPane(ttk.Frame):
                     image.thumbnail((side,side))
                     cover._history_image=ImageTk.PhotoImage(image.copy(),master=cover)
                 cover.configure(image=cover._history_image,text=tr(""),width=0)
-        if not self._closed:self._poll_id=self.after(100,self.poll_cards)
+        if not self._closed:self._poll_id=self.after(100 if self.winfo_ismapped() else 500,self.poll_cards)
 
     def current(self):
         selected = self.table.selection()
