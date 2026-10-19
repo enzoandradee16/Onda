@@ -192,7 +192,13 @@ class Session:
         if self.base.parent!=cache_root().resolve():raise ValueError('Cache inválido.')
         self.model=json.loads((self.base/'analysis.json').read_text());validate_model(self.model)
         self.sound=wave.open(str(self.base/'audio.wav'),'rb')
+        from jukebox_equalizer import Equalizer
+        self.equalizer=Equalizer(RATE)
         self.index=0;self.since_jump=0;self.jumps=0;self.random=random.Random(seed);self.closed=False;self.fade_in=0
+        n=len(self.model['neighbors']);self.visits=[0]*n;self.recent=[]
+        # Keep an established backward match before the ending. Cached analyses remain valid.
+        self.loop_end=next((i for i in range(min(n-1,int(n*.95)),max(3,n//4)-1,-1)
+                            if any(j<i-4 for j in self.model['neighbors'][i])),None)
         with _active_lock:_active[str(self.base)]+=1
     def _read(self,start,count):
         start=max(0,min(start,self.sound.getnframes()));self.sound.setpos(start)
@@ -202,17 +208,33 @@ class Session:
         if type(index)!=int or not 0<=index<len(self.model['neighbors']):raise ValueError('Trecho inválido.')
         self.index=index;self.since_jump=0;self.fade_in=round(RATE*.008)
 
-    def chunk(self,variation=45,smooth=35,volume=80,normal=False):
+    def chunk(self,variation=45,smooth=35,volume=80,normal=False,equalizer=None):
         if self.closed:raise ValueError('Reprodução encerrada.')
         variation=max(0,min(100,float(variation)));smooth=max(0,min(100,float(smooth)));volume=max(0,min(100,float(volume)))
         i=self.index;beats=self.model['beats'];n=len(beats)-1
         next_index=(i+1)%n
         options=self.model['neighbors'][i]
-        if not normal and options and self.since_jump>=4 and self.random.random()<variation/100*.35:next_index=self.random.choice(options)
+        if not normal and variation>0:
+            looping=self.loop_end is not None and i<=self.loop_end
+            if looping:options=[j for j in options if j<=self.loop_end]
+            returning=looping and i==self.loop_end
+            if returning:options=[j for j in options if j<i-4]
+            if options and (returning or self.since_jump>=4 and self.random.random()<variation/100*.35):
+                # Prefer unexplored destinations, keeping all choices inside the validated graph.
+                candidates=([j for j in options if j not in self.recent]
+                            or [j for j in options if j not in self.recent[-1:]] or options)
+                least=min(self.visits[j] for j in candidates)
+                next_index=self.random.choice([j for j in candidates if self.visits[j]==least])
+        self.visits[i]+=1
         jumped=next_index!=(i+1)%n
+        if jumped:self.recent=(self.recent+[next_index])[-8:]
         start,end=round(beats[i]*RATE),round(beats[i+1]*RATE)
-        data=array('h');data.frombytes(self._read(start,end-start))
-        if os.sys.byteorder!='little':data.byteswap()
+        raw=self._read(start,end-start)
+        processing=bool(self.fade_in or volume!=100 or smooth and (next_index==0 or jumped))
+        if processing:
+            data=array('h');data.frombytes(raw)
+            if os.sys.byteorder!='little':data.byteswap()
+        else:data=raw
         if self.fade_in:
             count=min(self.fade_in,len(data)//CHANNELS)
             for frame in range(count):
@@ -239,8 +261,10 @@ class Session:
         gain=volume/100
         if gain!=1:data=array('h',(round(sample*gain) for sample in data))
         self.index=next_index;self.since_jump=0 if jumped else self.since_jump+1;self.jumps+=int(jumped)
-        if os.sys.byteorder!='little':data.byteswap()
-        return {'pcm':data.tobytes(),'index':i,'next':next_index,'jumped':jumped,'jumps':self.jumps,'seconds':len(data)/(RATE*CHANNELS)}
+        if processing and os.sys.byteorder!='little':data.byteswap()
+        self.equalizer.configure(equalizer)
+        pcm=self.equalizer.process(data.tobytes() if processing else data)
+        return {'pcm':pcm,'index':i,'next':next_index,'jumped':jumped,'jumps':self.jumps,'seconds':len(raw)/(RATE*CHANNELS*2)}
     def close(self):
         if not self.closed:
             self.closed=True;self.sound.close()

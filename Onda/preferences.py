@@ -62,12 +62,14 @@ class PreferenceStore:
     def clean(data):
         if not isinstance(data, dict):
             return {}
+        from jukebox_equalizer import clean as clean_equalizer
         from shortcut_options import load_overrides
         result_shortcuts=json.dumps(load_overrides(data.get("shortcut_keys","{}")))
         from advanced_options import clean_advanced,PC_DEFAULTS
         result = {key:value for key,value in clean_advanced(data).items() if key in PC_DEFAULTS}
         from performance import clean as clean_performance
         result.update(clean_performance(data))
+        if "jukebox_equalizer" in data:result["jukebox_equalizer"]=json.dumps(clean_equalizer(data["jukebox_equalizer"]))
         if "shortcut_keys" in data:result["shortcut_keys"]=result_shortcuts
         if data.get("language") in ("pt-BR", "es", "en"):
             result["language"] = data["language"]

@@ -130,8 +130,10 @@ class App(UiMixin, tk.Tk):
         from advanced_options import PC_DEFAULTS as DEFAULTS
         for key,value in DEFAULTS.items():
             setattr(self,key,tk.BooleanVar(value=value) if type(value) is bool else tk.StringVar(value=value))
+        self.jukebox_equalizer=tk.StringVar(value="{}")
         self.preference_fields = {name: getattr(self, name) for name in ("shortcut_keys", "language", "queue_card_size", "queue_view", "history_card_size", "pure_black_separators", "history_view", "theme_mode", "theme_accent", "interface_font", "interface_font_size", "interface_spacing", "notice_duration", "effects_keep_pitch", "image_format", "image_size", "image_width", "image_height", "image_keep_ratio", "tab_order", "hidden_tabs", "playlist_mode", "playlist_height", "playlist_fps", "playlist_mp3_quality", "playlist_m4a_quality", "mode", "height", "fps", "catalog_provider", "folder", "ffmpeg", "playlist", "playlist_limit", "mp3_quality", "m4a_quality", "review_metadata", "auto_match", "background_preview", "effects_preview_duration", "search_preview_duration", "organization", "filename_template", "duplicates")}
         self.preference_fields.update({key:getattr(self,key) for key in (*DEFAULTS,*PERFORMANCE_DEFAULTS)})
+        self.preference_fields["jukebox_equalizer"]=self.jukebox_equalizer
         self.preference_defaults = {name: variable.get() for name, variable in self.preference_fields.items()}
         self.preference_defaults["language"] = "pt-BR"
         for name, value in {**(preferences or {}), **self.preference_store.load_display()}.items():
@@ -355,6 +357,14 @@ class App(UiMixin, tk.Tk):
                     "normalize_volume": self.normalize_volume.get(), "resume_downloads": self.resume_downloads.get(),
                     "filename_template": self.filename_template.get(), "detect_duplicates": self.detect_duplicates.get(),
                     "organization": self.organization.get(), "duplicate_policy": DUPLICATES[self.duplicates.get()]}
+        from duplicate_links import queue_duplicate_key
+        detecting=restored_jobs is None and self.detect_duplicates.get()
+        duplicate_index={}
+        if detecting:
+            for item,previous in self.jobs.items():
+                if previous.get('state') in ('Na fila','Em andamento','Concluído'):
+                    identity=queue_duplicate_key(previous)
+                    if identity is not None:duplicate_index.setdefault(identity,[]).append(item)
         duplicate_decision = None
         for index, line in enumerate(lines):
             item_overrides = restored_jobs[index] if restored_jobs is not None else overrides
@@ -390,9 +400,9 @@ class App(UiMixin, tk.Tk):
             from download_defaults import effective_download
             job = effective_download(job)
             key = (url, job["mode"], job["folder"], job["height"], job["playlist"], job["audio_quality"], job["fps"], job.get("selected_catalog_url"), job.get("playlist_title"), job.get("playlist_limit", 1000) if job["playlist"] else None, json.dumps(job.get("image_options"), sort_keys=True))
-            if restored_jobs is None and self.detect_duplicates.get():
-                from duplicate_links import duplicate_job
-                repeated = next((item for item, previous in self.jobs.items() if previous.get("state") in ("Na fila", "Em andamento", "Concluído") and duplicate_job(previous, job)), None)
+            identity=queue_duplicate_key(job) if detecting else None
+            if detecting:
+                repeated=next((item for item in duplicate_index.get(identity,()) if self.jobs.get(item,{}).get('state') in ('Na fila','Em andamento','Concluído')),None) if identity is not None else None
                 history_match = self.library.find_duplicate(job.get("selected_catalog_url") or url, job["mode"]) if not job.get("playlist") and not job.get("playlist_title") else None
                 if repeated is not None or history_match:
                     if reuse_existing and repeated is not None and self.jobs[repeated]["state"] in ("Na fila", "Em andamento"):
@@ -413,6 +423,8 @@ class App(UiMixin, tk.Tk):
             self._queue_original=max(getattr(self,'_queue_original',0),job.get('queue_original',0))+1
             job.setdefault('queue_original',self._queue_original)
             self.jobs[item] = job
+            if identity is not None and job.get('state') in ('Na fila','Em andamento','Concluído'):
+                duplicate_index.setdefault(identity,[]).append(item)
             from metadata_badges import apply_tree_badge
             apply_tree_badge(self.tree,item,job.get("catalog_record") or job.get("queue_info") or {})
             added.append(item)

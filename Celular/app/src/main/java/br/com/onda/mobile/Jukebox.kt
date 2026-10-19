@@ -32,11 +32,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.first
 import org.json.JSONObject
 import java.util.UUID
 import kotlin.math.*
 
-internal data class JukeboxState(val title:String="Escolha sua música.",val message:String="Abra um arquivo ou pesquise uma música para começar.",val model:JSONObject?=null,val records:List<JSONObject> = emptyList(),val busy:Boolean=false,val playing:Boolean=false,val paused:Boolean=false,val index:Int=0,val elapsed:Double=0.0,val jumps:Int=0)
+internal data class JukeboxState(val title:String="Escolha sua música.",val message:String="Abra um arquivo ou pesquise uma música para começar.",val model:JSONObject?=null,val records:List<JSONObject> = emptyList(),val busy:Boolean=false,val playing:Boolean=false,val paused:Boolean=false,val index:Int=0,val flow:List<Pair<Int,Int>> = emptyList(),val elapsed:Double=0.0,val jumps:Int=0)
 
 internal class JukeboxController(private val context:Context,private val scope:CoroutineScope,var stopOtherAudio:()->Unit) {
     val state=MutableStateFlow(JukeboxState())
@@ -47,7 +48,7 @@ internal class JukeboxController(private val context:Context,private val scope:C
     fun seek(index:Int) {
         val n=state.value.model?.optJSONArray("neighbors")?.length() ?: return
         if(index !in 0 until n || state.value.busy)return
-        pendingSeek.set(index);state.update {it.copy(index=index)}
+        pendingSeek.set(index);state.update {it.copy(index=index,flow=emptyList())}
     }
     private var task:Job?=null
     private var identity=""
@@ -97,7 +98,7 @@ internal class JukeboxController(private val context:Context,private val scope:C
         if(!java.io.File(model.optString("cache"),"analysis.json").isFile){state.value=state.value.copy(model=null,message="O cache foi limpo. Abra ou pesquise a música novamente.");return}
         val initial=state.value.index
         stopOtherAudio();stop();pendingSeek.set(initial);val own=++revision;val id="jukebox-play-"+UUID.randomUUID();identity=id
-        state.value=state.value.copy(model=model,playing=true,paused=false,message="Reproduzindo…",elapsed=0.0,jumps=0)
+        state.value=state.value.copy(model=model,playing=true,paused=false,message="Reproduzindo…",elapsed=0.0,jumps=0,flow=emptyList())
         try {ContextCompat.startForegroundService(context,Intent(context,JukeboxService::class.java))}
         catch(e:Exception){state.update {it.copy(playing=false,message=e.message ?: "Não foi possível reproduzir.")};return}
         if(audio.requestAudioFocus(focus)!=AudioManager.AUDIOFOCUS_REQUEST_GRANTED){state.value=state.value.copy(playing=false,message="A saída de áudio está ocupada.");return}
@@ -114,22 +115,28 @@ internal class JukeboxController(private val context:Context,private val scope:C
                     if(own!=revision || !isActive)throw CancellationException()
                     track=output;output.play()
                 }
+                val timeline=java.util.ArrayDeque<Pair<Long,JSONObject>>();var submitted=0L
                 while(isActive && own==revision) {
-                    while(state.value.paused && isActive)delay(20)
+                    if(state.value.paused)state.first {!it.paused}
                     ensureActive()
-                    val config=JSONObject().put("session",id).put("variation",variation).put("smooth",smooth).put("volume",100).put("normal",normal)
+                    val config=JSONObject().put("equalizer",OndaStore.settings.value.optJSONObject("jukebox_equalizer")).put("session",id).put("variation",variation).put("smooth",smooth).put("volume",100).put("normal",normal)
                     val seek=pendingSeek.getAndSet(-1)
-                    if(seek>=0){output.pause();output.flush();output.play();config.put("seek",seek)}
+                    if(seek>=0){output.pause();output.flush();submitted=0L;timeline.clear();output.play();config.put("seek",seek)}
                     val part=call("jukebox_chunk",config,id)
                     val data=Base64.decode(part.getString("pcm"),Base64.NO_WRAP);var offset=0
+                    submitted+=data.size/4;timeline.addLast(submitted to part)
                     while(offset<data.size && isActive && own==revision) {
-                        while(state.value.paused && isActive)delay(20)
+                        if(state.value.paused)state.first {!it.paused}
                         ensureActive()
                         val count=output.write(data,offset,min(4096,data.size-offset),AudioTrack.WRITE_NON_BLOCKING)
                         require(count>=0){"A saída de áudio foi interrompida."}
                         if(count==0)delay(5) else offset+=count
                     }
-                    if(own==revision)state.update {current->if(own==revision)current.copy(index=part.optInt("index"),jumps=part.optInt("jumps"),elapsed=(output.playbackHeadPosition.toLong() and 0xffffffffL)/44100.0) else current}
+                    val played=output.playbackHeadPosition.toLong() and 0xffffffffL
+                    val heard=buildList {while(timeline.isNotEmpty() && timeline.first.first<=played)add(timeline.removeFirst().second)}
+                    if(own==revision && heard.isNotEmpty())state.update {current->
+                        if(own==revision)current.copy(index=heard.last().optInt("next"),flow=(current.flow+heard.map {it.optInt("index") to it.optInt("next")}).takeLast(24),jumps=heard.last().optInt("jumps"),elapsed=played/44100.0) else current
+                    }
                 }
             } catch(e:CancellationException){throw e} catch(e:Exception){if(own==revision)state.value=state.value.copy(message=e.message ?: "Não foi possível reproduzir.")}
             finally {
@@ -144,7 +151,7 @@ internal class JukeboxController(private val context:Context,private val scope:C
         if(identity.isNotBlank())MobileEngine.cancel(identity)
         task?.cancel();task=null;runCatching {track?.pause();track?.flush()};track=null
         releaseNoisy();audio.abandonAudioFocusRequest(focus)
-        state.value=state.value.copy(busy=false,playing=false,paused=false,index=0,message=if(state.value.playing||state.value.busy)"Reprodução encerrada." else state.value.message)
+        state.value=state.value.copy(busy=false,playing=false,paused=false,index=0,flow=emptyList(),message=if(state.value.playing||state.value.busy)"Reprodução encerrada." else state.value.message)
     }
     fun close()=stop()
 }
@@ -172,6 +179,8 @@ internal class JukeboxController(private val context:Context,private val scope:C
 
 @Composable private fun JukeboxPage(vm:OndaViewModel) {
     val controller=vm.jukebox;val state by controller.state.collectAsStateWithLifecycle()
+    var showEqualizer by rememberSaveable {mutableStateOf(false)}
+    if(showEqualizer)JukeboxEqualizerDialog {showEqualizer=false}
     var query by rememberSaveable {mutableStateOf("")}
     var variation by rememberSaveable {mutableFloatStateOf(controller.variation)}
     var smooth by rememberSaveable {mutableFloatStateOf(controller.smooth)}
@@ -203,8 +212,9 @@ internal class JukeboxController(private val context:Context,private val scope:C
                 state.model?.optString("album")?.takeIf {it.isNotBlank()}?.let {UiText(it,style=MaterialTheme.typography.bodySmall)}
             }
         }
+        Button(onClick={showEqualizer=true}){UiText("Equalizador")}
         UiText(if(state.paused)"Pausado." else state.message,style=MaterialTheme.typography.bodySmall)
-        JukeboxGraph(state.model,state.index,variation,smooth,normal,controller::seek)
+        JukeboxGraph(state.model,state.index,state.flow,variation,smooth,normal,controller::seek)
         UiText("Como a música se transforma",style=MaterialTheme.typography.titleMedium)
         UiText("Variação")
         RoundSlider(variation,{variation=it;controller.variation=it},valueRange=0f..100f)
@@ -222,7 +232,7 @@ internal class JukeboxController(private val context:Context,private val scope:C
     }
 }
 
-@Composable private fun JukeboxGraph(model:JSONObject?,current:Int,variation:Float,smooth:Float,normal:Boolean,onSeek:(Int)->Unit) {
+@Composable private fun JukeboxGraph(model:JSONObject?,current:Int,flow:List<Pair<Int,Int>>,variation:Float,smooth:Float,normal:Boolean,onSeek:(Int)->Unit) {
     val colors=MaterialTheme.colorScheme;val rows=model?.optJSONArray("neighbors");val n=max(1,rows?.length() ?: 64)
     val visible=remember(model,variation,normal){jukeboxVisibleLinks(model,variation,normal)}
     Box(Modifier.fillMaxWidth().height(300.dp),contentAlignment=androidx.compose.ui.Alignment.Center) {
@@ -243,13 +253,24 @@ internal class JukeboxController(private val context:Context,private val scope:C
             val strength=if(normal)0f else (variation/100).coerceIn(0f,1f)
             for((i,j) in visible) {
                 val a=point(i);val b=point(j)
-                drawPath(Path().apply {moveTo(a.x,a.y);quadraticTo(center.x,center.y,b.x,b.y)},colors.primary.copy(alpha=.15f+.55f*strength),style=androidx.compose.ui.graphics.drawscope.Stroke(1f+smooth/100))
+                drawPath(Path().apply {moveTo(a.x,a.y);quadraticTo(center.x,center.y,b.x,b.y)},colors.primary.copy(alpha=.05f+.10f*strength),style=androidx.compose.ui.graphics.drawscope.Stroke(1f+smooth/100))
             }
-            val hot=visible.filter {it.first==current}.map {it.second}.toSet()
-            for(i in 0 until n step max(1,n/150))drawCircle(if(i in hot)colors.primary else colors.outline,3.dp.toPx(),point(i))
+            for((k,edge) in flow.withIndex()) {
+                val (i,j)=edge;val ink=colors.primary.copy(alpha=.25f+.75f*(k+1)/flow.size)
+                if(j==(i+1)%n) {
+                    drawArc(ink,i.toFloat()/n*360-90,360f/n,false,topLeft=center-Offset(radius,radius),size=androidx.compose.ui.geometry.Size(radius*2,radius*2),style=androidx.compose.ui.graphics.drawscope.Stroke(3.dp.toPx()))
+                } else {
+                    val a=point(i);val b=point(j)
+                    drawPath(Path().apply {moveTo(a.x,a.y);quadraticTo(center.x,center.y,b.x,b.y)},ink,style=androidx.compose.ui.graphics.drawscope.Stroke(2.dp.toPx()))
+                    val delta=b-center;val length=hypot(delta.x,delta.y);val unit=delta/length
+                    val back=b-unit*10.dp.toPx();val side=Offset(-unit.y,unit.x)*4.dp.toPx()
+                    drawLine(ink,back+side,b,2.dp.toPx());drawLine(ink,back-side,b,2.dp.toPx())
+                }
+            }
+            for(i in 0 until n step max(1,n/150))drawCircle(if(i==current)colors.primary else colors.outline,3.dp.toPx(),point(i))
             drawCircle(colors.primary,6.dp.toPx(),point(current.coerceIn(0,n-1)))
         }
-        Column(horizontalAlignment=androidx.compose.ui.Alignment.CenterHorizontally){UiText("Jukebox infinito",style=MaterialTheme.typography.titleMedium);Text("∞",style=MaterialTheme.typography.headlineLarge,color=colors.primary)}
+
     }
 }
 

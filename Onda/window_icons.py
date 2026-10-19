@@ -4,7 +4,7 @@ import math
 
 def icon_kind(title):
     title = title.casefold()
-    for phrase, kind in (("ajustar capa", "crop"), ("preparar áudio e vídeo", "download"), ("flac pelo navegador", "download"), ("editar áudio", "metadata"), ("lista da playlist", "metadata"), ("conectar spotify", "metadata"), ("boas-vindas", "help"), ("configurações", "settings"), ("detalhes dos downloads", "log"),
+    for phrase, kind in (("equalizador", "settings"), ("equalizer", "settings"), ("ecualizador", "settings"), ("ajustar capa", "crop"), ("preparar áudio e vídeo", "download"), ("flac pelo navegador", "download"), ("editar áudio", "metadata"), ("lista da playlist", "metadata"), ("conectar spotify", "metadata"), ("boas-vindas", "help"), ("configurações", "settings"), ("detalhes dos downloads", "log"),
                          ("sobre o onda", "help"), ("metadados", "metadata"),
                          ("revisar antes", "metadata"), ("escolha a versão", "version"),
                          ("escolha o formato", "download"), ("fotos e vídeos", "media"),
@@ -67,14 +67,17 @@ def draw_icon(kind, size, colors=None):
     return image.resize((size, size), Image.Resampling.LANCZOS)
 
 
-def apply_window_icon(window, colors=None):
+def apply_window_icon(window, colors=None, *, force=False):
     kind = icon_kind(window.title()) or "onda"
     if colors is None:
         manager=getattr(window._root(),"theme_manager",None)
         colors=getattr(manager,"colors",None) or {}
     root=window is window._root()
     key=(kind,colors.get("accent"),colors.get("text"),colors.get("bg"))
-    if getattr(window,"_function_icon_key",None)==key:return
+    if getattr(window,"_function_icon_key",None)==key:
+        if force:
+            window.iconphoto(root, *window._function_icons)
+        return
     from PIL import ImageTk
     icons = [ImageTk.PhotoImage(draw_icon(kind, size, colors), master=window) for size in (16, 32, 48)]
     window.iconphoto(root, *icons)

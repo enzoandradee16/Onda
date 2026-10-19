@@ -49,7 +49,7 @@ GROUPS = {'Geral': {'close_behavior':'Ao fechar o ONDA','clipboard_links':'Recon
              'image_width': 'Largura personalizada',
              'image_height': 'Altura personalizada',
              'image_keep_ratio': 'Manter proporção'},
- 'Áudio': {'synced_lyrics':'Mostrar letra sincronizada (LRC)','effects_keep_pitch': 'Manter tom nos efeitos',
+ 'Áudio': {'jukebox_equalizer':'Equalizador do Jukebox','synced_lyrics':'Mostrar letra sincronizada (LRC)','effects_keep_pitch': 'Manter tom nos efeitos',
            'background_preview': 'Continuar prévia em outras abas',
            'effects_preview_duration': 'Duração da prévia dos efeitos',
            'search_preview_duration': 'Duração da prévia nas pesquisas'},

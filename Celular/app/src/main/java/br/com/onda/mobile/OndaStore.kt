@@ -92,7 +92,7 @@ object OndaStore {
         .put("detect_duplicates",true).put("filename_template","Original").put("duplicate_policy","ask").put("organization","Pasta de destino").put("interface_font",DEFAULT_INTERFACE_FONT).put("interface_font_size","100%").put("interface_spacing","Padrão").put("theme","Seguir o sistema").put("accent","Verde-Água")
         .put("concurrent_downloads","1").put("resume_downloads",true).put("resume_queue",false).put("normalize_volume",false)
         .put("schedule_enabled",false).put("schedule_start","22:00").put("schedule_stop","07:00").put("check_updates",true).put("notice_duration","Após 3 segundos").put("notice_animation",true)
-        .put("jukebox_background",false).put("synced_lyrics",false).put("search_preview",25).put("effects_preview",25).put("keep_preview",false).put("remember",true)
+        .put("jukebox_equalizer",JSONObject()).put("jukebox_background",false).put("synced_lyrics",false).put("search_preview",25).put("effects_preview",25).put("keep_preview",false).put("remember",true)
         .put("image_format","Original").put("image_size","Original").put("image_width",0).put("image_height",0).put("keep_ratio",true)
         .put("hidden_tabs",JSONArray())
         .put("tab_order",JSONArray(listOf("Pesquisar","Links e fila","Fila","Imagens","Conversor de vídeos","Playlists / Álbuns","Histórico","Efeitos","Metadados")))
@@ -443,7 +443,10 @@ object OndaStore {
         val metadata=config.optJSONObject("catalog_record") ?: config.optJSONObject("queue_info")
         val platform=metadata?.cleanString("platform").orEmpty()
         if(platform.isNotBlank())database.writableDatabase.execSQL("INSERT OR REPLACE INTO history_metadata_platform(history_id,platform) VALUES(?,?)",arrayOf<Any>(historyId,platform))
-        synchronized(this) {refreshHistory()}
+        synchronized(this) {
+            history.value=insertHistoryRow(history.value,HistoryItem(historyId,file.name,uri.toString(),mode,file.length(),platform,
+                if(config.optString("url").isNotBlank() && config.optString("_operation").isBlank())jobSource(config) else ""))
+        }
         // MediaStore/SAF now owns the exported copy. Keep custom inputs and the
         // Android 8/9 FileProvider source, which still backs the published URI.
         val staging=File(context.getExternalFilesDir(null),"Onda Downloads").canonicalFile.toPath()

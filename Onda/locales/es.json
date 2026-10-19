@@ -1688,5 +1688,13 @@
   "Trecho inválido.": "Fragmento no válido.",
   "Aplicar": "Aplicar",
   "Retomar": "Reanudar",
-  "Salvar": "Guardar"
+  "Salvar": "Guardar",
+  "Equalizador": "Ecualizador",
+  "Ativar equalizador": "Activar ecualizador",
+  "Pré-amplificação": "Preamplificación",
+  "Banda": "Banda",
+  "Frequência (Hz)": "Frecuencia (Hz)",
+  "Ganho (dB)": "Ganancia (dB)",
+  "Q menor: banda mais larga. Reduza a pré-amplificação ao aumentar os ganhos.": "Q menor: banda más ancha. Reduce la preamplificación al aumentar las ganancias.",
+  "Equalizador do Jukebox": "Ecualizador del Jukebox"
 }

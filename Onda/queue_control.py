@@ -40,7 +40,7 @@ def replace_pending(keys,jobs,pending):
     iterator=iter(pending)
     return [next(iterator) if jobs[key].get('state')=='Na fila' else key for key in keys]
 
-def storage_report(jobs,limit=1):
+def storage_report(jobs,limit=1,*,check_space=True):
     groups={};unknown=0;total=0
     for job in jobs:
         size=estimated_bytes(job)
@@ -53,6 +53,7 @@ def storage_report(jobs,limit=1):
     for group in groups.values():
         need=sum(group['sizes'])+2*sum(sorted(group['sizes'],reverse=True)[:max(1,limit)])
         required+=need
+        if not check_space:continue
         folder=group['folder']
         while not folder.exists() and folder.parent!=folder:folder=folder.parent
         try:low=low or shutil.disk_usage(folder).free<need
@@ -161,8 +162,9 @@ class QueueControl:
             if self.statuses.get(key)!=text:self.app.tree.set(key,'status',text);self.statuses[key]=text
         self.statuses={key:value for key,value in self.statuses.items() if key in self.app.jobs}
         jobs=[job for job in self.app.jobs.values() if job['state'] in ('Na fila','Em andamento')]
-        report=storage_report(jobs,int(self.app.concurrent_downloads.get()))
-        self.space.set(summary(*report[:3]))
+        report=storage_report(jobs,int(self.app.concurrent_downloads.get()),check_space=False)
+        text=summary(*report[:3])
+        if self.space.get()!=text:self.space.set(text)
 
     def confirm(self,scope,scheduled=False):
         jobs=[job for key,job in self.app.jobs.items() if job['state']=='Na fila' and (scope is None or key in scope)]

@@ -342,7 +342,7 @@ def jukebox_action(action, config):
         session=_jukebox_sessions.get(identity)
         if session is None:raise ValueError('Reprodução encerrada.')
         if 'seek' in config:session.seek(config['seek'])
-        part=session.chunk(config.get('variation',45),config.get('smooth',35),config.get('volume',80),config.get('normal',False))
+        part=session.chunk(config.get('variation',45),config.get('smooth',35),config.get('volume',80),config.get('normal',False),config.get('equalizer'))
         part['pcm']=base64.b64encode(part['pcm']).decode('ascii')
         return part
 

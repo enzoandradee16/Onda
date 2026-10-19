@@ -25,6 +25,15 @@ class QueuePolicyTests(unittest.TestCase):
         self.assertIsNone(estimated_bytes(dict(job('list',10000),playlist=True)))
         self.assertIsNone(estimated_bytes(dict(job('flac',10000),mode='flac')))
 
+    def test_display_estimate_skips_disk_io_but_keeps_same_sizes(self):
+        jobs=[job('one',10000),job('two',20000),job('unknown')]
+        with patch('queue_control.shutil.disk_usage',return_value=SimpleNamespace(free=10**12)) as disk:
+            normal=storage_report(jobs,2)
+            self.assertTrue(disk.called);disk.reset_mock()
+            display=storage_report(jobs,2,check_space=False)
+            disk.assert_not_called()
+        self.assertEqual(display[:3],normal[:3])
+
     def test_activity_records_each_workers_events(self):
         app=SimpleNamespace(jobs={'a':job('A',state='Em andamento'),'b':job('B',state='Em andamento')},tree=SimpleNamespace(set=lambda *args:None),parallel=SimpleNamespace(memory_wait=None))
         observe(app,'a',{'type':'stage','message':'Consultando metadados da música…'})

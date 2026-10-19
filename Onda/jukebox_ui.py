@@ -1,5 +1,6 @@
 """Desktop Jukebox workspace, reusing catalog search and the shared PCM engine."""
 import io,math,queue,threading
+from collections import deque
 from pathlib import Path
 import tkinter as tk
 from tkinter import ttk,filedialog
@@ -12,7 +13,7 @@ class JukeboxPane(ttk.Frame):
         super().__init__(parent);self.app=app;self.use_file=use_file
         self.source='';self.model=None;self.records=[];self.events=queue.Queue();self.generation=0;self.closed=False
         self.cancelled=threading.Event();self.paused=threading.Event();self.computing=False;self.playing=False
-        self.params=(45,35,80,False);self.current=0;self.photo=None;self.seeks=queue.SimpleQueue()
+        self.params=(45,35,80,False);self.current=0;self.flow=[];self.photo=None;self.seeks=queue.SimpleQueue()
         self.query=tk.StringVar();self.status=tk.StringVar(value='Abra um arquivo ou pesquise uma música para começar.')
         self.artist=tk.StringVar();self.album=tk.StringVar();self.title=tk.StringVar(value='Escolha sua música.');self.stats=tk.StringVar(value='Tempo ouvido: 0:00 · Saltos: 0')
         self.variation=tk.DoubleVar(value=45);self.smooth=tk.DoubleVar(value=35);self.volume=tk.DoubleVar(value=80)
@@ -25,6 +26,9 @@ class JukeboxPane(ttk.Frame):
         self.results=ttk.Treeview(self,columns=('title','artist'),show='headings',height=4,selectmode='browse')
         self.results.heading('title',text=tr('Música'));self.results.heading('artist',text=tr('Artista'));self.results.bind('<Double-1>',lambda _:self.load_selected())
         self.load=ttk.Button(self,text=tr('Usar música selecionada'),command=self.load_selected)
+        from jukebox_equalizer import clean as clean_equalizer
+        self.equalizer=clean_equalizer(app.jukebox_equalizer.get())
+        app.jukebox_equalizer.trace_add("write",lambda *_:setattr(self,"equalizer",clean_equalizer(app.jukebox_equalizer.get())))
         strip=ttk.Frame(self,style='Card.TFrame',padding=10);strip.grid(row=4,column=0,sticky='ew',pady=(10,8));strip.columnconfigure(1,weight=1)
         self.cover=ttk.Label(strip,text='♪',font=('Segoe UI',28),style='Card.TLabel');self.cover.grid(row=0,column=0,rowspan=4,padx=(0,12))
         ttk.Label(strip,textvariable=self.title,style='Card.TLabel',font=('Segoe UI',12,'bold'),wraplength=650).grid(row=0,column=1,sticky='w')
@@ -33,6 +37,7 @@ class JukeboxPane(ttk.Frame):
         self.album_label=ttk.Label(strip,textvariable=self.album,style='CardMuted.TLabel',wraplength=650)
         self.album_label.grid(row=2,column=1,sticky='w',pady=(3,0));self.album_label.grid_remove()
         ttk.Label(strip,textvariable=display_var(self.status),style='CardMuted.TLabel',wraplength=650).grid(row=3,column=1,sticky='w',pady=(3,0))
+        ttk.Button(strip,text=tr('Equalizador'),style='Accent.TButton',command=self.open_equalizer).grid(row=3,column=2,sticky='e',padx=(12,0))
         self.body=ttk.Frame(self);self.body.grid(row=5,column=0,sticky='nsew');self.body.columnconfigure(0,weight=1);self.body.columnconfigure(1,weight=1)
         self.canvas=tk.Canvas(self.body,width=320,height=320,highlightthickness=0);self.canvas.grid(row=0,column=0,sticky='nsew',padx=(0,10));self.canvas.bind('<Configure>',lambda _:self.draw());self.canvas.bind('<Button-1>',self.seek_point)
         self.controls=ttk.Frame(self.body,style='Card.TFrame',padding=14);self.controls.grid(row=0,column=1,sticky='nsew')
@@ -48,10 +53,15 @@ class JukeboxPane(ttk.Frame):
         self.play_button=ttk.Button(actions,text=tr('Reproduzir'),style='Accent.TButton',command=self.play_pause,state='disabled');self.play_button.pack(side='left')
         ttk.Button(actions,text=tr('Parar'),command=self.stop).pack(side='left',padx=8)
         self.normal=ttk.Button(actions,text=tr('Reprodução normal'),command=self.toggle_normal);self.normal.pack(side='left')
-        ttk.Label(actions,text=tr('Volume')).pack(side='left',padx=(12,4));ttk.Scale(actions,from_=0,to=100,variable=self.volume,command=lambda _:self.update_params()).pack(side='left',fill='x',expand=True)
+        ttk.Label(actions,text=tr('Volume')).pack(side='left',padx=(12,4));ttk.Scale(actions,from_=0,to=100,variable=self.volume,command=lambda _:self.update_params()).pack(side='left',fill='x',expand=True,padx=(0,14))
         ttk.Label(self,textvariable=display_var(self.stats),style='Muted.TLabel').grid(row=7,column=0,sticky='w')
         self.bar=ttk.Progressbar(self,maximum=100);self.bar.grid(row=8,column=0,sticky='ew',pady=6);self.bar.grid_remove()
         self.body.bind('<Configure>',self.layout);self.timer=self.after(80,self.poll);self.last_colors=None;self.media_controls=None;self.media_failed=False
+    def open_equalizer(self):
+        from jukebox_equalizer_ui import EqualizerWindow
+        window=getattr(self,"equalizer_window",None)
+        if window is not None and window.winfo_exists():window.lift();return
+        self.equalizer_window=EqualizerWindow(self.app)
     @property
     def busy(self):return self.computing or self.playing
     def layout(self,event):
@@ -135,7 +145,7 @@ class JukeboxPane(ttk.Frame):
         if abs(math.hypot(dx,dy)-radius)>18:return
         n=len(self.model['neighbors'])
         self.current=round(((math.atan2(dy,dx)+math.pi/2)%(2*math.pi))/(2*math.pi)*n)%n
-        self.seeks.put(self.current);self.draw()
+        self.flow=[];self.seeks.put(self.current);self.draw()
 
     def set_track_info(self,record):
         self.title.set(record.get('media_title') or record['title'])
@@ -158,19 +168,22 @@ class JukeboxPane(ttk.Frame):
             self.model=None;self.play_button.configure(state='disabled');self.status.set('O cache foi limpo. Abra ou pesquise a música novamente.');return
         self.app.catalog_page.stop_preview();self.app.metadata_page.stop_preview()
         self.cancelled=threading.Event();cancel=self.cancelled;self.paused.clear();self.playing=True;self.stats.set('Tempo ouvido: 0:00 · Saltos: 0');self.play_button.configure(text=tr('Pausar'));self.status.set('Reproduzindo…');generation=self.generation;cache=self.model['cache']
-        initial=self.current;self.seeks=queue.SimpleQueue()
+        initial=self.current;self.flow=[];self.seeks=queue.SimpleQueue()
         def worker():
             session=output=None
             try:
                 from jukebox_audio import PcmOutput
-                session=Session(cache);session.seek(initial);output=PcmOutput()
+                session=Session(cache);session.seek(initial);output=PcmOutput();timeline=deque();submitted=0
                 while not cancel.is_set():
                     target=None
                     while not self.seeks.empty():target=self.seeks.get()
                     if target is not None:session.seek(target)
-                    part=session.chunk(*self.params)
+                    part=session.chunk(*self.params,equalizer=self.equalizer)
+                    submitted+=len(part['pcm'])//4;timeline.append((submitted,part))
                     output.write(part['pcm'],cancel.is_set,self.paused.is_set)
-                    self.events.put((generation,'position',dict(index=part['index'],elapsed=output.played/RATE,jumps=part['jumps'])))
+                    while timeline and timeline[0][0]<=output.played:
+                        _,heard=timeline.popleft()
+                        self.events.put((generation,'position',dict(index=heard['next'],edge=(heard['index'],heard['next']),elapsed=output.played/RATE,jumps=heard['jumps'])))
             except Cancelled:pass
             except Exception as error:self.events.put((generation,'error',{'message':str(error)}))
             finally:
@@ -182,7 +195,7 @@ class JukeboxPane(ttk.Frame):
         self.stop_preview();self.status.set('Reprodução encerrada.')
     def stop_preview(self):
         self.generation+=1;self.cancelled.set();self.paused.clear();self.playing=False;self.computing=False
-        self.play_button.configure(text=tr('Reproduzir'),state='normal' if self.model else 'disabled');self.bar.grid_remove();self.current=0
+        self.play_button.configure(text=tr('Reproduzir'),state='normal' if self.model else 'disabled');self.bar.grid_remove();self.current=0;self.flow=[]
     cancel=stop_preview
     def draw(self):
         if self.closed:return
@@ -191,7 +204,7 @@ class JukeboxPane(ttk.Frame):
         key=(id(self.model),w,h,bg,accent,muted,text,self.params[0],self.params[1],self.params[3])
         if getattr(self,'_graph_key',None)==key:
             self.move_marker();return
-        self._graph_key=key;self._graph_nodes={};self._graph_hot=set()
+        self._graph_key=key;self._graph_nodes={};self._graph_hot=set();self._flow_key=None
         canvas.configure(bg=bg);canvas.delete('all')
         n=len(self.model['neighbors']) if self.model else 64
         def point(index):
@@ -199,7 +212,7 @@ class JukeboxPane(ttk.Frame):
         from appearance import blend
         variation,smooth,_,normal=self.params
         strength=0 if normal else max(0,min(1,variation/100))
-        ink=blend(bg,accent,.15+.55*strength) if colors.get('mode')!='Alto contraste' else accent
+        ink=blend(bg,accent,.05+.10*strength) if colors.get('mode')!='Alto contraste' else accent
         if self.model:
             links=[(i,j) for i,row in enumerate(self.model['neighbors']) for j in row]
             # Visual density represents jump frequency, without inventing new connections.
@@ -212,9 +225,6 @@ class JukeboxPane(ttk.Frame):
         for i in range(0,n,step):
             x,y=point(i);self._graph_nodes[i]=canvas.create_oval(x-3,y-3,x+3,y+3,fill=muted,outline='')
         self._graph_marker=canvas.create_oval(0,0,12,12,fill=accent,outline=bg)
-        mask=radius*.38
-        canvas.create_oval(cx-mask,cy-mask,cx+mask,cy+mask,fill=bg,outline='')
-        canvas.create_text(cx,cy-12,text=tr('Jukebox infinito'),fill=text,font=('Segoe UI',13,'bold'));canvas.create_text(cx,cy+24,text='∞',fill=accent,font=('Segoe UI',30))
         self.move_marker()
     def move_marker(self):
         # Playback moves only the marker and changed node colors, not the entire graph.
@@ -223,12 +233,25 @@ class JukeboxPane(ttk.Frame):
         angle=self.current/n*2*math.pi-math.pi/2;radius=min(w,h)*.39
         x,y=w/2+math.cos(angle)*radius,h/2+math.sin(angle)*radius
         canvas.coords(self._graph_marker,x-6,y-6,x+6,y+6)
-        hot={j for i,j in self._graph_links if i==self.current}|{self.current}
+        hot={self.current}
         for index in self._graph_hot-hot:
             if index in self._graph_nodes:canvas.itemconfigure(self._graph_nodes[index],fill=muted)
         for index in hot-self._graph_hot:
             if index in self._graph_nodes:canvas.itemconfigure(self._graph_nodes[index],fill=accent)
         self._graph_hot=hot
+        flow_key=tuple(self.flow)
+        if self._flow_key==flow_key:return
+        self._flow_key=flow_key;canvas.delete('flow')
+        from appearance import blend
+        for k,(start,end) in enumerate(self.flow):
+            ink=blend(key[3],accent,.25+.75*(k+1)/len(self.flow))
+            if end==(start+1)%n:
+                canvas.create_arc(w/2-radius,h/2-radius,w/2+radius,h/2+radius,start=90-start/n*360,extent=-360/n,style='arc',outline=ink,width=3,tags='flow')
+            else:
+                def point(i):
+                    angle=i/n*2*math.pi-math.pi/2;return w/2+math.cos(angle)*radius,h/2+math.sin(angle)*radius
+                canvas.create_line(*point(start),w/2,h/2,*point(end),smooth=True,fill=ink,width=2.5,arrow='last',tags='flow')
+        canvas.tag_raise(self._graph_marker)
 
     def poll(self):
         if self.closed:return
@@ -255,7 +278,10 @@ class JukeboxPane(ttk.Frame):
                         self.cover.configure(image=self.photo,text='')
                     self.status.set('Análise concluída.' if result['links'] else 'Sem saltos compatíveis: a faixa será repetida normalmente.');self.bar.configure(value=100);self.play_button.configure(state='normal');redraw=True
             elif kind=='idle':self.computing=False
-            elif kind=='position':self.current=value['index'];minutes,seconds=divmod(int(value['elapsed']),60);self.stats.set(tr('Tempo ouvido: {time} · Saltos: {count}').replace('{time}',f'{minutes}:{seconds:02}').replace('{count}',str(value['jumps'])));redraw=True
+            elif kind=='position':
+                self.current=value['index']
+                if 'edge' in value:self.flow=(self.flow+[value['edge']])[-24:]
+                minutes,seconds=divmod(int(value['elapsed']),60);self.stats.set(tr('Tempo ouvido: {time} · Saltos: {count}').replace('{time}',f'{minutes}:{seconds:02}').replace('{count}',str(value['jumps'])));redraw=True
             elif kind=='error':self.bar.grid_remove();self.status.set(value['message']);self.playing=False;self.play_button.configure(text=tr('Reproduzir'))
             elif kind=='stopped':self.playing=False;self.play_button.configure(text=tr('Reproduzir'))
         colors=self.app.theme_manager.colors

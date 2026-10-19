@@ -46,6 +46,32 @@ class JukeboxTests(unittest.TestCase):
             self.assertEqual(len(part['pcm']),(round(1.25*jukebox.RATE)-round(jukebox.RATE))*4)
             self.assertLessEqual(max(map(abs,array('h',part['pcm']))),32767)
         finally:player.close()
+    def test_infinite_mode_returns_before_ending_even_without_random_jump(self):
+        model=dict(self.model,neighbors=[[] for _ in range(32)])
+        model['neighbors'][27]=[8,12]
+        (self.base/'analysis.json').write_text(json.dumps(model))
+        player=jukebox.Session(self.base);player.random=SimpleNamespace(random=lambda:1,choice=lambda rows:rows[0])
+        try:
+            parts=[player.chunk(45,35,100) for _ in range(120)]
+            self.assertTrue(all(part['pcm'] for part in parts))
+            self.assertGreater(sum(part['seconds'] for part in parts),self.model['duration']*3)
+            self.assertTrue(all(part['index']<=27 for part in parts))
+            self.assertTrue(any(part['next']==8 and part['jumped'] for part in parts))
+            self.assertTrue(any(part['next']==12 and part['jumped'] for part in parts))
+            for part in parts:
+                if part['jumped']:self.assertIn(part['next'],model['neighbors'][part['index']])
+        finally:player.close()
+    def test_missing_backward_matches_repeat_safely_and_normal_mode_reaches_end(self):
+        model=dict(self.model,neighbors=[[] for _ in range(32)])
+        (self.base/'analysis.json').write_text(json.dumps(model))
+        player=jukebox.Session(self.base)
+        try:
+            self.assertIsNone(player.loop_end)
+            parts=[player.chunk(100,35,100) for _ in range(96)]
+            self.assertEqual(sum(part['next']==0 for part in parts),3)
+            self.assertFalse(any(part['jumped'] for part in parts))
+        finally:player.close()
+
     def test_manual_seek_plays_selected_beat_without_counting_jump(self):
         player=jukebox.Session(self.base)
         try:
@@ -118,6 +144,11 @@ class JukeboxTests(unittest.TestCase):
         try:
             part=call('jukebox_chunk',session='player',variation=0,volume=100)
             self.assertTrue(base64.b64decode(part['pcm']));self.assertEqual(part['index'],0)
+            filtered=call('jukebox_chunk',session='player',variation=0,volume=100,seek=0,equalizer={'enabled':True,'preamp':-12})
+            before=array('h',base64.b64decode(part['pcm']))[-10000:]
+            after=array('h',base64.b64decode(filtered['pcm']))[-10000:]
+            ratio=math.sqrt(sum(x*x for x in after)/sum(x*x for x in before))
+            self.assertAlmostEqual(ratio,10**(-12/20),delta=.002)
         finally:call('jukebox_close',session='player')
         self.assertFalse(backend._jukebox_sessions)
         self.assertIn('error',call('jukebox_chunk',session='player'))
@@ -145,7 +176,7 @@ class JukeboxUiTests(unittest.TestCase):
         from jukebox_ui import JukeboxPane
         root=tk.Tk();root.withdraw()
         try:
-            pane=JukeboxPane(root,SimpleNamespace(theme_manager=SimpleNamespace(colors={})),lambda *a:None)
+            pane=JukeboxPane(root,SimpleNamespace(theme_manager=SimpleNamespace(colors={}),jukebox_equalizer=tk.StringVar(value="{}")),lambda *a:None)
             pane.model={'neighbors':[[(i+12)%64] for i in range(64)]}
             pane.draw();items=pane.canvas.find_all()
             for index in range(64):pane.current=index;pane.draw()
@@ -154,6 +185,13 @@ class JukeboxUiTests(unittest.TestCase):
             self.assertFalse(pane.canvas.find_withtag('jump-link'))
             pane.variation.set(100);pane.update_params()
             self.assertTrue(pane.canvas.find_withtag('jump-link'))
+            pane.flow=[(0,1),(1,13)];pane.current=13;pane.draw()
+            flow=pane.canvas.find_withtag('flow');self.assertEqual(len(flow),2)
+            self.assertEqual(pane.canvas.itemcget(flow[-1],'arrow'),'last')
+            self.assertFalse(any(pane.canvas.type(item)=='text' for item in pane.canvas.find_all()))
+            pane.variation.set(0);pane.update_params()
+            self.assertEqual(pane.flow,[(0,1),(1,13)])
+            self.assertEqual(len(pane.canvas.find_withtag('flow')),2)
             pane.shutdown()
         finally:root.destroy()
 
@@ -162,7 +200,7 @@ class JukeboxUiTests(unittest.TestCase):
         from jukebox_ui import JukeboxPane
         root=tk.Tk();root.withdraw()
         try:
-            pane=JukeboxPane(root,SimpleNamespace(theme_manager=SimpleNamespace(colors={})),lambda *a:None)
+            pane=JukeboxPane(root,SimpleNamespace(theme_manager=SimpleNamespace(colors={}),jukebox_equalizer=tk.StringVar(value="{}")),lambda *a:None)
             media=SimpleNamespace(events=queue.SimpleQueue(),update=lambda *a:None,close=lambda:None)
             pane.media_controls=media;pane.playing=True
             media.events.put(1);pane.sync_media();self.assertTrue(pane.paused.is_set())

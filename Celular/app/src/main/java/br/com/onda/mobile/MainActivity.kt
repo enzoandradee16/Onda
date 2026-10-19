@@ -484,7 +484,8 @@ internal fun displayReleaseDate(value:String):String {
     var queueOrder by rememberSaveable {mutableStateOf(queueOrders.first())}
     var query by rememberSaveable {mutableStateOf("")}
     var stateFilter by rememberSaveable {mutableStateOf("Todos")}
-    val visible=remember(queue,query,stateFilter) {queue.filter {queueMatches(it.title,it.state,it.config,query,stateFilter)}}
+    val matcher=remember(query,stateFilter) {QueueMatcher(query,stateFilter)}
+    val visible=remember(queue,matcher) {queue.filter {matcher.matches(it.title,it.state,it.config)}}
     val visibleIds=remember(visible) {visible.map {it.id}.toSet()}
     val completed=remember(queue) {queue.count {it.state=="Concluído"}}
     val running by OndaStore.running.collectAsStateWithLifecycle()

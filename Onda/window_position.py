@@ -63,6 +63,6 @@ def install_window_centering(root):
         # Map also fires for labels, tabs and menus; only move actual windows.
         if isinstance(event.widget, (tk.Tk, tk.Toplevel)):
             from window_icons import apply_window_icon
-            apply_window_icon(event.widget)
+            apply_window_icon(event.widget, force=True)
             center_window(event.widget)
     root.bind_all("<Map>", on_map, add="+")

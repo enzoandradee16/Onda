@@ -16,6 +16,15 @@ class LibraryStore:
         with self.connect() as db:
             db.execute("CREATE TABLE IF NOT EXISTS queue (position INTEGER PRIMARY KEY, data TEXT NOT NULL)")
             db.execute("CREATE TABLE IF NOT EXISTS history (id INTEGER PRIMARY KEY, date TEXT, path TEXT, name TEXT, mode TEXT, source TEXT)")
+            columns={row[1] for row in db.execute('PRAGMA table_info(history)')}
+            if 'source_key' not in columns:db.execute('ALTER TABLE history ADD COLUMN source_key TEXT')
+            if 'mode_key' not in columns:db.execute('ALTER TABLE history ADD COLUMN mode_key TEXT')
+            from duplicate_links import source_key
+            cursor=db.execute('SELECT id,source,mode FROM history WHERE source_key IS NULL OR mode_key IS NULL')
+            while batch:=cursor.fetchmany(500):
+                db.executemany('UPDATE history SET source_key=?,mode_key=? WHERE id=?',
+                               ((source_key(source),str(mode or '').lower(),identity) for identity,source,mode in batch))
+            db.execute('CREATE INDEX IF NOT EXISTS history_duplicate_key ON history(source_key,mode_key,id DESC)')
 
     @contextmanager
     def connect(self):
@@ -36,8 +45,12 @@ class LibraryStore:
                 data["state"] = "Na fila"
             rows.append((len(rows), json.dumps(data, ensure_ascii=False)))
         with self.connect() as db:
-            db.execute("DELETE FROM queue")
-            db.executemany("INSERT INTO queue VALUES (?, ?)", rows)
+            previous=dict(db.execute('SELECT position,data FROM queue'))
+            changed=[row for row in rows if previous.get(row[0])!=row[1]]
+            if changed:
+                db.executemany('INSERT INTO queue(position,data) VALUES (?,?) ON CONFLICT(position) DO UPDATE SET data=excluded.data',changed)
+            if any(position>=len(rows) for position in previous):
+                db.execute('DELETE FROM queue WHERE position>=?',(len(rows),))
 
     def load_queue(self):
         with self.connect() as db:
@@ -54,17 +67,18 @@ class LibraryStore:
 
     def add_history(self, path, mode, source=""):
         path = str(Path(path).resolve())
+        from duplicate_links import source_key
         with self.connect() as db:
-            db.execute("INSERT INTO history(date,path,name,mode,source) VALUES (?,?,?,?,?)",
-                       (datetime.now().astimezone().isoformat(timespec="seconds"), path, Path(path).stem, mode, source))
+            db.execute("INSERT INTO history(date,path,name,mode,source,source_key,mode_key) VALUES (?,?,?,?,?,?,?)",
+                       (datetime.now().astimezone().isoformat(timespec="seconds"), path, Path(path).stem, mode, source,source_key(source),str(mode or '').lower()))
 
     def history(self, query=""):
         with self.connect() as db:
             db.row_factory = sqlite3.Row
             if query:
-                cursor = db.execute("SELECT * FROM history WHERE instr(lower(name),lower(?))>0 ORDER BY id DESC LIMIT 1000", (query,))
+                cursor = db.execute("SELECT id,date,path,name,mode,source FROM history WHERE instr(lower(name),lower(?))>0 ORDER BY id DESC LIMIT 1000", (query,))
             else:
-                cursor = db.execute("SELECT * FROM history ORDER BY id DESC LIMIT 1000")
+                cursor = db.execute("SELECT id,date,path,name,mode,source FROM history ORDER BY id DESC LIMIT 1000")
             return [dict(row) for row in cursor]
 
     def find_duplicate(self, source, mode):
@@ -73,8 +87,8 @@ class LibraryStore:
         if not key:
             return None
         with self.connect() as db:
-            rows = db.execute("SELECT path,source FROM history WHERE lower(mode)=lower(?) ORDER BY id DESC", (mode,)).fetchall()
-        return next((path for path, old in rows if source_key(old) == key and Path(path).is_file()), None)
+            rows=db.execute('SELECT path FROM history WHERE source_key=? AND mode_key=? ORDER BY id DESC',(key,str(mode).lower()))
+            return next((path for (path,) in rows if Path(path).is_file()),None)
 
     def comparison_history(self):
         with self.connect() as db:

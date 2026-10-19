@@ -61,3 +61,17 @@ def duplicate_job(first, second):
             and bool(first.get('playlist')) == bool(second.get('playlist'))
             and first.get('playlist_title', '') == second.get('playlist_title', '')
             and all(first.get(key) == second.get(key) for key in ('audio_quality', 'height', 'fps', 'image_options')))
+
+
+def queue_duplicate_key(job):
+    """Hashable equivalent of duplicate_job, built once per queued item in a batch."""
+    if job.get('_operation'):return None
+    source=job_source(job)
+    if not source:return None
+    def freeze(value):
+        if isinstance(value,dict):return ('dict',frozenset((key,freeze(item)) for key,item in value.items()))
+        if isinstance(value,list):return ('list',tuple(map(freeze,value)))
+        if isinstance(value,tuple):return ('tuple',tuple(map(freeze,value)))
+        return value
+    return (source,str(job.get('mode','')).lower(),bool(job.get('playlist')),freeze(job.get('playlist_title','')),
+            *(freeze(job.get(key)) for key in ('audio_quality','height','fps','image_options')))

@@ -1688,5 +1688,13 @@
   "Trecho inválido.": "Invalid segment.",
   "Aplicar": "Apply",
   "Retomar": "Resume",
-  "Salvar": "Save"
+  "Salvar": "Save",
+  "Equalizador": "Equalizer",
+  "Ativar equalizador": "Enable equalizer",
+  "Pré-amplificação": "Preamp",
+  "Banda": "Band",
+  "Frequência (Hz)": "Frequency (Hz)",
+  "Ganho (dB)": "Gain (dB)",
+  "Q menor: banda mais larga. Reduza a pré-amplificação ao aumentar os ganhos.": "Lower Q: wider band. Lower the preamp when boosting bands.",
+  "Equalizador do Jukebox": "Jukebox equalizer"
 }

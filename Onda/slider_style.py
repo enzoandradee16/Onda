@@ -30,3 +30,18 @@ def configure_sliders(root, colors, scale=1):
     track_image.paste(picture)
     style.configure('Horizontal.TScale',background=colors['bg'],troughcolor=track,bordercolor=track,lightcolor=track,darkcolor=track,sliderrelief='flat')
     style.map('Horizontal.TScale',background=[('disabled',colors['bg']),('active',colors['bg'])])
+
+    # Reuse the round thumbs and theme colors for the Jukebox equalizer.
+    vertical_key=('vertical',*key)
+    if vertical_key not in cache:
+        vertical_image=ImageTk.PhotoImage(Image.new('RGBA',(size,512)),master=root)
+        vertical_trough=f'Onda{size}.Vertical.Scale.trough'
+        style.element_create(vertical_trough,'image',vertical_image,border=(0,2,0,2),height=8,sticky='ns')
+        cache[vertical_key]=(vertical_trough,vertical_image)
+    vertical_trough,vertical_image=cache[vertical_key]
+    picture=Image.new('RGBA',(size,512))
+    ImageDraw.Draw(picture).rounded_rectangle(((size-4)//2,0,(size-4)//2+3,511),radius=2,fill=track)
+    vertical_image.paste(picture)
+    style.layout('Vertical.TScale',[(vertical_trough,{'sticky':'ns','children':[(element,{'side':'top','sticky':''})]})])
+    style.configure('Vertical.TScale',background=colors['bg'])
+    style.map('Vertical.TScale',background=[('disabled',colors['bg']),('active',colors['bg'])])

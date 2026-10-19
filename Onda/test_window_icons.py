@@ -25,6 +25,22 @@ class WindowIconTests(unittest.TestCase):
             self.assertIn((0,0,255,255),blue.getdata())
             self.assertNotEqual(red.tobytes(),blue.tobytes())
 
+    def test_map_reapplies_cached_icon_without_redrawing(self):
+        from unittest.mock import Mock, patch
+        from window_icons import apply_window_icon
+        window=Mock()
+        window.title.return_value='Onda'
+        window._root.return_value=window
+        colors={'accent':'#ff0000','text':'#ffffff','bg':'#000000'}
+        window._function_icon_key=('onda','#ff0000','#ffffff','#000000')
+        window._function_icons=[object(),object(),object()]
+        with patch('window_icons.draw_icon') as draw:
+            apply_window_icon(window,colors)
+            window.iconphoto.assert_not_called()
+            apply_window_icon(window,colors,force=True)
+            window.iconphoto.assert_called_once_with(True,*window._function_icons)
+            draw.assert_not_called()
+
     def test_crop_icon_has_all_window_sizes(self):
         self.assertEqual(icon_kind('ONDA • Ajustar capa'),'crop')
         for size in (16,32,48):
