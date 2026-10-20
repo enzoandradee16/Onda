@@ -8,7 +8,7 @@ ComboBox {
         width: control.width
         highlighted: control.highlightedIndex === index
         readonly property bool selected: control.currentIndex === index
-        text: bridge.translate(modelData)
+        text: bridge.translate(String(control.textRole ? modelData[control.textRole] : modelData))
         contentItem: Label { text: option.text; font: option.font; color: option.highlighted || option.selected ? bridge.palette.accent_text : bridge.palette.text; verticalAlignment: Text.AlignVCenter }
         background: Rectangle { color: option.highlighted || option.selected ? bridge.palette.accent : bridge.palette.surface }
     }

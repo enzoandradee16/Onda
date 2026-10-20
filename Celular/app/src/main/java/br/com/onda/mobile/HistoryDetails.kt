@@ -80,7 +80,7 @@ internal fun cachedHistoryDetails(context:Context,item:HistoryItem,revision:Long
             Box(contentAlignment=androidx.compose.ui.Alignment.Center) {UiText("♫",style=MaterialTheme.typography.headlineLarge)}
         }
         Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.details)) {
-            Text(details?.title?.ifBlank {item.title} ?: item.title,style=if(small) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold)
+            Text(songCardTitle(details?.title?.ifBlank {item.title} ?: item.title,details?.artist.orEmpty()),style=if(small) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold)
             Text(details?.artist?.takeIf {it.isNotBlank()} ?: translateUi(if(details==null) "Carregando informações…" else "Artista não informado",LocalUiLanguage.current),style=if(small) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyLarge)
             val translatedLines=details?.lines?.map {line->
                 val split=line.indexOf(": ")

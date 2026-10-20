@@ -26,7 +26,7 @@ Popup {
             RowLayout {
                 Layout.fillWidth: true
                 Text { text: bridge.translate("Preset"); color: bridge.palette.muted; font.pixelSize: Math.round(13*bridge.fontScale) }
-                ComboBox { Layout.fillWidth: true; model: bridge.presetNames; currentIndex: bridge.presetNames.indexOf(bridge.presetName); displayText: bridge.translate(bridge.presetName); onActivated: bridge.applyPreset(model[index]); delegate: ItemDelegate { width: parent.width; text: bridge.translate(modelData) } }
+                ChoiceBox { Layout.fillWidth: true; model: bridge.presetNames; currentIndex: bridge.presetNames.indexOf(bridge.presetName); displayText: bridge.translate(bridge.presetName); onActivated: bridge.applyPreset(model[index]) }
             }
             RowLayout {
                 Layout.fillWidth: true

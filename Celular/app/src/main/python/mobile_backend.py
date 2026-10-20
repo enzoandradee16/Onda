@@ -337,17 +337,20 @@ def jukebox_action(action, config):
             previous=_jukebox_sessions.pop(identity,None)
             if previous:previous.close()
             if len(_jukebox_sessions)>=2:raise ValueError('Encerre a reprodução anterior antes de continuar.')
-            _jukebox_sessions[identity]=jukebox.Session(config['cache'])
+            from jukebox_stream import Stream
+            _jukebox_sessions[identity]=Stream(config['cache'])
             return {}
         session=_jukebox_sessions.get(identity)
         if session is None:raise ValueError('Reprodução encerrada.')
+        if action=='jukebox_switch':
+            session.switch(config['cache'],config.get('seconds',2));return {}
         if 'seek' in config:session.seek(config['seek'])
         part=session.chunk(config.get('variation',45),config.get('smooth',35),config.get('volume',80),config.get('normal',False),config.get('equalizer'))
         part['pcm']=base64.b64encode(part['pcm']).decode('ascii')
         return part
 
 def perform(action, config):
-    if action in ('jukebox_prepare','jukebox_open','jukebox_chunk','jukebox_close'):
+    if action in ('jukebox_prepare','jukebox_open','jukebox_chunk','jukebox_close','jukebox_switch'):
         return jukebox_action(action,config)
     if action == 'collection_compare':
         from playlist_sync import compare_collection

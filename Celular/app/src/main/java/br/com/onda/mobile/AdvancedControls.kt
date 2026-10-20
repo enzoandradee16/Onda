@@ -123,7 +123,7 @@ import java.io.File
     var originalCover by androidx.compose.runtime.saveable.rememberSaveable {mutableStateOf("")}
     var preview by androidx.compose.runtime.saveable.rememberSaveable {mutableStateOf("")}
     val busy by vm.busy.collectAsStateWithLifecycle()
-    val pickLyrics=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()){uri->if(uri!=null)vm.importLocal(uri,"lyrics",dialog=false){lyrics=it.absolutePath}}
+    val pickLyrics=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()){uri->if(uri!=null)vm.importLocal(uri,"lyrics",dialog=true){lyrics=it.absolutePath}}
     val pickCover=rememberImageSourcePicker {uri->vm.importLocal(uri,"cover",dialog=false){if(cover.isNotBlank())File(cover).delete();cover=it.absolutePath}}
     LaunchedEffect(item.uri) {if(!loaded)vm.importLocal(Uri.parse(item.uri),"audio-editor",dialog=false){file->source=file.absolutePath;vm.operation("audio_read",JSONObject().put("source",source),dialog=false){changes=it.getJSONObject("record").apply {if(optString("title")==file.nameWithoutExtension)put("title",item.title.substringBeforeLast('.'))};originalCover=it.optString("cover_preview");loaded=true}}}
     fun config()=OndaStore.config().put("source",source).put("output_name",item.title.substringBeforeLast('.'))
@@ -155,7 +155,7 @@ import java.io.File
                 val text=if(key=="artists")changes.optJSONArray(key)?.let {a->(0 until a.length()).joinToString("; "){a.optString(it)}} ?: "" else changes.optString(key)
                 OutlinedTextField(text,{value->changes=JSONObject(changes.toString()).put(key,if(key=="artists")org.json.JSONArray(value.split(';').map {it.trim()}.filter {it.isNotBlank()}) else value)},label={UiText(label)},singleLine=true,enabled=editing && !busy,modifier=Modifier.fillMaxWidth())
             }
-            TextButton(onClick={pickLyrics.launch(arrayOf("text/plain","application/x-lrc","application/octet-stream"))},enabled=!busy){UiText(if(lyrics.isBlank())"Importar letra · TXT ou LRC" else "Letra selecionada")}
+            TextButton(onClick={pickLyrics.launch(arrayOf("*/*"))},enabled=!busy){UiText(if(lyrics.isBlank())"Importar letra · TXT ou LRC" else "Letra selecionada")}
             Toggle("Normalizar volume (−16 LUFS)",normalize){normalize=it}
             Row {
                 TextButton(onClick={vm.preview(source,20)},enabled=source.isNotBlank() && !busy){UiText("Ouvir original")}

@@ -36,7 +36,7 @@ class DesktopWorkspace(QObject):
         self.jobs=[];self.active={};self.tasks={};self.background_tasks=set();self.generations={};self.callbacks={};self.running=False;self.closing=False;self.paused_all=False;self.schedule_blocked=False;self.clipboard_seen=set();self.syncing=False
         self.lyrics=[];self.last_preview_processed=True;self.preview_kind='';self.preview_source=''
         self.preview_timer=QTimer(self);self.preview_timer.setSingleShot(True);self.preview_timer.setInterval(150);self.preview_timer.timeout.connect(self.play_effects_preview)
-        self.options={'previewActive':False,'previewKind':'','previewSource':'','previewProcessed':False,'metadataFields':{},'lyricText':'','query':'','provider':self.settings.get('catalog_provider','Deezer'),'links':'','linksNotice':'','playlistUrl':'','playlistTitle':'','queueQuery':'','queueState':'Todos','historyQuery':'','silenceResults':[],'trimSilence':False,'converterSources':[],'converterFormat':'MP4','video_quality':'Equilibrada','video_resolution':'Original','video_bitrate':'Automático','audio_bitrate':'192k','video_fps':'Original','video_audio':'Manter áudio','effectsSource':'','effectsRecord':{},'effectsCover':'','speed':85,'reverb':25,'keep_pitch':self.settings.get('effects_keep_pitch',False),'effectFormat':'MP3','position':0,'duration':0,'imageInfo':{},'catalogSearched':False,'imageSource':'','imageUrl':'','imagePreview':'','metadataSources':[],'metadata':{},'cover_path':'','lyrics_path':'','normalize_volume':False,'overwrite_original':False,'comparison':{},'selectedCatalog':-1,'selectedPlaylist':-1,'filterArtist':'','filterAlbum':'','filterVersion':''}
+        self.options={'previewActive':False,'previewKind':'','previewSource':'','previewProcessed':False,'metadataFields':{},'lyricText':'','effectLyricsName':'','query':'','provider':self.settings.get('catalog_provider','Deezer'),'links':'','linksNotice':'','playlistUrl':'','playlistTitle':'','queueQuery':'','queueState':'Todos','historyQuery':'','silenceResults':[],'trimSilence':False,'converterSources':[],'converterFormat':'MP4','video_quality':'Equilibrada','video_resolution':'Original','video_bitrate':'Automático','audio_bitrate':'192k','video_fps':'Original','video_audio':'Manter áudio','effectsSource':'','effectsRecord':{},'effectsCover':'','speed':85,'reverb':25,'keep_pitch':self.settings.get('effects_keep_pitch',False),'effectFormat':'MP3','position':0,'duration':0,'imageInfo':{},'catalogSearched':False,'imageSource':'','imageUrl':'','imagePreview':'','metadataSources':[],'metadata':{},'cover_path':'','lyrics_path':'','normalize_volume':False,'overwrite_original':False,'comparison':{},'selectedCatalog':-1,'selectedPlaylist':-1,'filterArtist':'','filterAlbum':'','filterVersion':''}
         from audio_tools import PreviewPlayer
         self.player=PreviewPlayer();self.tray=None;self.shell=None;self.shortcuts=[];self.tasks_threads=[]
         self.shutdown_timer=QTimer(self);self.shutdown_timer.setSingleShot(True);self.shutdown_timer.setInterval(60000);self.shutdown_timer.timeout.connect(self.perform_shutdown)
@@ -127,6 +127,7 @@ class DesktopWorkspace(QObject):
         if key=='synced_lyrics' and not self.settings[key]:self.options['lyricText']='';self.optionsChanged.emit()
         if key=='effects_keep_pitch':self.setOption('keep_pitch',self.settings[key])
         if key=='background_preview' and not self.settings[key] and self.preview_kind=='effects' and self._page!='effects':self.stop_preview()
+        if key=='jukebox_background' and not self.settings[key] and self._page!='jukebox':self.pause_background_jukebox()
         if key=='language':self.store.save_language(value);self.notify('Reinicie o ONDA para aplicar o idioma.')
         if key=='shortcut_keys':self.bind_shortcuts()
         self.syncing=True
@@ -137,7 +138,7 @@ class DesktopWorkspace(QObject):
     @Slot()
     def from_bridge(self):
         if self.syncing:return
-        for key in ('theme_mode','theme_accent','qt_animations','jukebox_equalizer'):self.settings[key]=self.bridge.preferences.get(key,self.settings.get(key))
+        for key in ('theme_mode','theme_accent','qt_animations','jukebox_equalizer','jukebox_gradual_transition','jukebox_transition_seconds'):self.settings[key]=self.bridge.preferences.get(key,self.settings.get(key))
         self.settingsChanged.emit();self.save_timer.start()
         if self.tray:self.tray.setIcon(QGuiApplication.windowIcon())
     def persist(self):
@@ -146,12 +147,15 @@ class DesktopWorkspace(QObject):
             self.store.save_display(self.settings)
             if self.settings.get('remember_settings'):self.store.save(self.settings)
         except OSError as error:self.notify(error)
+    @Slot()
+    def pause_background_jukebox(self):
+        if not self.settings.get('jukebox_background',True) and self.bridge.state['playing'] and not self.bridge.state['paused']:self.bridge.playPause()
     @Slot(str)
     def selectPage(self,key):
         if key not in PAGES or key in self.hiddenTabs:return
         if key!=self._page:
+            if key!='jukebox':self.pause_background_jukebox()
             if self.preview_kind!='effects' or not self.settings.get('background_preview'):self.stop_preview()
-            if self._page=='jukebox' and not self.settings.get('background_preview'):self.bridge.stop()
         self._page=key;self.changed.emit()
         if key=='history':self.refresh_history()
     @Slot()
@@ -571,7 +575,7 @@ class DesktopWorkspace(QObject):
             if path:self.setSetting(kind,path)
             return
         multiple=kind in ('converter','metadata')
-        filters={'converter':'Mídia (*.mp3 *.m4a *.aac *.flac *.wav *.ogg *.opus *.mp4 *.mkv *.mov *.avi *.webm);;Todos os arquivos (*)','effects':'Áudio (*.mp3 *.m4a *.aac *.flac *.wav *.ogg *.opus)','metadata':'Áudio (*.mp3 *.m4a *.flac *.ogg *.opus *.wav)','image':'Imagens (*.png *.jpg *.jpeg *.webp *.gif *.svg)','cover_path':'Imagens (*.png *.jpg *.jpeg *.webp)','lyrics_path':'Letras (*.lrc *.txt)','youtube_cookies':'Cookies (*.txt)','social_cookies':'Cookies (*.txt)'}
+        filters={'converter':'Mídia (*.mp3 *.m4a *.aac *.flac *.wav *.ogg *.opus *.mp4 *.mkv *.mov *.avi *.webm);;Todos os arquivos (*)','effects':'Áudio (*.mp3 *.m4a *.aac *.flac *.wav *.ogg *.opus)','metadata':'Áudio (*.mp3 *.m4a *.flac *.ogg *.opus *.wav)','image':'Imagens (*.png *.jpg *.jpeg *.webp *.gif *.svg)','cover_path':'Imagens (*.png *.jpg *.jpeg *.webp)','effectLyrics':'Letras sincronizadas (*.lrc *.txt);;Todos os arquivos (*)','lyrics_path':'Letras (*.lrc *.txt)','youtube_cookies':'Cookies (*.txt)','social_cookies':'Cookies (*.txt)'}
         if multiple:paths,_=QFileDialog.getOpenFileNames(None,tr('Escolher arquivo'),'',filters.get(kind,'Todos os arquivos (*)'))
         else:
             path,_=QFileDialog.getOpenFileName(None,tr('Escolher arquivo'),'',filters.get(kind,'Todos os arquivos (*)'));paths=[path] if path else []
@@ -588,7 +592,7 @@ class DesktopWorkspace(QObject):
             self.stop_preview();self.options.update(effectsSource=paths[0],effectsRecord={'title':Path(paths[0]).stem},effectsCover='',position=0,duration=0);self.load_lyrics(str(Path(paths[0]).with_suffix('.lrc')));self.run_task('effects_info',{'source':paths[0]},self.effects_loaded)
         elif kind=='cover_path':
             self.options['cover_path']=paths[0];self.options['metadataCover']=QUrl.fromLocalFile(paths[0]).toString()
-        elif kind=='effectLyrics':self.load_lyrics(paths[0])
+        elif kind=='effectLyrics':self.load_lyrics(paths[0],selected=True)
         elif kind=='metadata':self.options['metadataFields']={};self.options['metadataSources']=paths;self.run_task('audio_read',{'source':paths[0]},self.audio_loaded)
         elif kind=='image':
             self.cancel_task('image_preview');self.options['imageInfo']={};self.options['imageUrl']='';self.options['imageSource']=paths[0];self.options['imagePreview']=QUrl.fromLocalFile(paths[0]).toString();self.run_task('image_info',{'source':paths[0]},lambda result:self.setOption('imageInfo',dict(self.options.get('imageInfo',{}),**result)))
@@ -774,10 +778,20 @@ class DesktopWorkspace(QObject):
                 self.start_queue()
             self.run_task('compare_collection',{'url':self.options['playlistUrl'],'tracks':self.models['playlists'].rows,'history':self.library.comparison_history(),'queued':self.jobs,'database':str(self.library.path)},compared)
         self.run_task('collection',{'url':self.options['playlistUrl']},loaded)
-    def load_lyrics(self,path):
-        from synced_lyrics import read_lrc
-        try:self.lyrics=read_lrc(path) if Path(path).is_file() else []
-        except (ValueError,OSError):self.lyrics=[]
+    def load_lyrics(self,path,selected=False):
+        from synced_lyrics import read_lrc,line_at
+        try:
+            rows=read_lrc(path) if selected or Path(path).is_file() else []
+            if selected and not rows:raise ValueError('Nenhum tempo válido na letra LRC.')
+        except (ValueError,OSError) as error:
+            if selected:
+                self.message.emit(tr('Importar letra LRC'),str(error));return
+            rows=[]
+        self.lyrics=rows
+        self.options['effectLyricsName']=Path(path).name if rows else ''
+        if selected:self.setSetting('synced_lyrics',True)
+        self.options['lyricText']=line_at(rows,self.options['position']) if self.settings.get('synced_lyrics') else ''
+        self.optionsChanged.emit()
     def start_preview(self,source,kind,identity=None,processed=None,**options):
         self.preview_timer.stop();self.cancel_task('normalize_preview');self.preview_kind=kind;self.preview_source=identity or source
         self.player.play(source,self.settings.get('ffmpeg',''),**options)

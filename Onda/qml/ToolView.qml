@@ -63,7 +63,7 @@ ScrollView {
 
             RowLayout { Layout.fillWidth: true
                 Label { text: bridge.translate("Preset"); color: bridge.palette.text }
-                ComboBox { id: effectsPreset; objectName: "effectsPreset"; Layout.preferredWidth: Math.round(240*bridge.fontScale); Layout.maximumWidth: Math.max(80,page.availableWidth-80); model: ["Original","Slowed leve","Slowed intenso","Sped Up leve","Sped Up intenso","Sped Up + Reverb","Só Reverb","Clássico","Atmosférico"]
+                ChoiceBox { id: effectsPreset; objectName: "effectsPreset"; Layout.preferredWidth: Math.round(240*bridge.fontScale); Layout.maximumWidth: Math.max(80,page.availableWidth-80); model: ["Original","Slowed leve","Slowed intenso","Sped Up leve","Sped Up intenso","Sped Up + Reverb","Só Reverb","Clássico","Atmosférico"]
                     delegate: ItemDelegate {
                         id: presetOption
                         width: effectsPreset.width
@@ -82,13 +82,14 @@ ScrollView {
             OndaSlider { Layout.fillWidth: true; value: workspace.values.reverb; onMoved: workspace.setOption("reverb",value) }
             OndaSwitch { text: bridge.translate("Manter tom (pitch) ao alterar a velocidade"); checked: workspace.values.keep_pitch; onToggled: workspace.setOption("keep_pitch",checked) }
             Label { visible: workspace.preferences.synced_lyrics; text: workspace.values.lyricText || ""; color: bridge.palette.accent; font.pixelSize: Math.round(20*bridge.fontScale); Layout.fillWidth: true; wrapMode: Text.Wrap }
-            ActionButton { visible: workspace.preferences.synced_lyrics; text: bridge.translate("Escolher letra"); onClicked: workspace.invoke("pick",{kind:"effectLyrics"}) }
+            ActionButton { text: bridge.translate("Escolher letra"); onClicked: workspace.invoke("pick",{kind:"effectLyrics"}) }
+            Label { visible: !!workspace.values.effectLyricsName; text: workspace.values.effectLyricsName || ""; color: bridge.palette.muted; Layout.fillWidth: true; elide: Text.ElideMiddle }
             Label { text: bridge.translate("Posição na música")+" · "+Math.floor(workspace.values.position)+" / "+Math.floor(workspace.values.duration)+" s"; color: bridge.palette.muted }
             OndaSlider { Layout.fillWidth: true; enabled: workspace.values.duration > 0; from: 0; to: Math.max(1,workspace.values.duration); value: workspace.values.position; onMoved: workspace.setOption("position",value) }
             Flow { Layout.fillWidth: true; spacing: Math.round(8*bridge.spacing)
                 ActionButton { text: bridge.translate(workspace.values.previewActive && workspace.values.previewKind === "effects" && !workspace.values.previewProcessed ? "Parar prévia" : "Ouvir original"); enabled: !!workspace.values.effectsSource; onClicked: workspace.invoke("effects_preview",{processed:false}) }
                 ActionButton { primary: true; text: bridge.translate(workspace.values.previewActive && workspace.values.previewKind === "effects" && workspace.values.previewProcessed ? "Parar prévia" : "Ouvir com efeitos"); enabled: !!workspace.values.effectsSource; onClicked: workspace.invoke("effects_preview",{processed:true}) }
-                ComboBox { model: ["MP3","M4A","FLAC","WAV"]; onActivated: workspace.setOption("effectFormat",currentText) }
+                ChoiceBox { model: ["MP3","M4A","FLAC","WAV"]; onActivated: workspace.setOption("effectFormat",currentText) }
                 TaskButton { idleText: bridge.translate("Exportar música inteira"); enabled: taskRunning || !!workspace.values.effectsSource; operation: "effects_export"; taskNames: ["effects_export"] }
             }
         }

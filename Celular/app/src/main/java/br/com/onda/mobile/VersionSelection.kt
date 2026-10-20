@@ -8,5 +8,5 @@ fun applyVersionSelection(config: JSONObject, settings: JSONObject): JSONObject 
     val automatic = !manual && settings.optBoolean("auto_match", false)
     put("auto_metadata",settings.optBoolean("auto_metadata",false))
     put("auto_match", automatic)
-    put("confirm_version", manual || (!automatic && settings.optBoolean("confirm_version", false)))
+    put("confirm_version", manual)
 }

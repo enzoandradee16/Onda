@@ -35,6 +35,40 @@ class NativeDesktopTests(unittest.TestCase):
     def tone(self,name='source.wav'):
         from test_jukebox import song
         path=self.root/name;song(path);return path
+    def test_selected_lrc_enables_display_and_invalid_file_preserves_lyrics(self):
+        path=self.root/'song.lrc';path.write_text('[00:01.20]Canção',encoding='utf-16')
+        self.ws.options['position']=2
+        self.ws.accept_files('effectLyrics',[str(path)])
+        self.assertTrue(self.ws.settings['synced_lyrics'])
+        self.assertEqual(self.ws.options['lyricText'],'Canção')
+        self.assertEqual(self.ws.options['effectLyricsName'],'song.lrc')
+        notices=[];self.ws.message.connect(lambda title,body:notices.append(body))
+        path.write_text('No timestamps',encoding='utf-8')
+        self.ws.accept_files('effectLyrics',[str(path)])
+        self.assertEqual(self.ws.lyrics,[(1.2,'Canção')]);self.assertTrue(notices)
+
+    def test_retired_confirmation_setting_does_not_override_automatic_choice(self):
+        from preferences import PreferenceStore
+        self.assertFalse(PreferenceStore.clean({'confirm_version':True})['confirm_version'])
+        for automatic in (False,True):
+            self.ws.setSetting('auto_match',automatic)
+            self.assertEqual(self.ws.config()['auto_match'],automatic)
+            self.assertFalse(self.ws.config().get('confirm_version',False))
+        self.assertNotIn('Confirmar a versão do YouTube de cada música antes de baixar',(Path(__file__).parent/'settings_schema/desktop.json').read_text('utf-8'))
+
+    def test_audio_background_controls_are_independent(self):
+        self.ws.selectPage('jukebox');self.bridge.update_state(playing=True,paused=False)
+        self.ws.setSetting('background_preview',False)
+        with patch.object(self.bridge,'playPause') as pause:
+            self.ws.selectPage('catalog');pause.assert_not_called()
+            self.ws.selectPage('jukebox');self.ws.setSetting('jukebox_background',False)
+            self.ws.selectPage('catalog');pause.assert_called_once()
+        self.ws.setSetting('background_preview',True);self.ws.persist()
+        saved=self.store.load()
+        self.assertTrue(saved['background_preview']);self.assertFalse(saved['jukebox_background'])
+        self.ws.setSetting('jukebox_transition_seconds',8)
+        self.assertEqual(self.ws.settings['jukebox_transition_seconds'],8)
+
     def test_settings_persist_preserve_and_disable_remembering(self):
         self.ws.setSetting('theme_accent','Turquesa');self.ws.setSetting('concurrent_downloads','3');self.ws.persist()
         data=self.store.load();self.assertEqual(data['theme_accent'],'Turquesa');self.assertEqual(data['concurrent_downloads'],'3')
@@ -472,11 +506,11 @@ class NativeDesktopTests(unittest.TestCase):
         ids=[job['id'] for job in self.ws.jobs];self.ws.jobs[0]['checked']=True;self.ws.queue_action('up');self.assertFalse(self.ws.undo_history.entries);self.ws.jobs[0]['checked']=False;self.ws.jobs[1]['checked']=True;self.ws.queue_action('up');self.assertNotEqual([job['id'] for job in self.ws.jobs],ids)
         self.ws.invoke('undo_queue',{});self.assertEqual([job['id'] for job in self.ws.jobs],ids)
         self.ws.queue_action('clear');self.assertFalse(self.ws.jobs);self.ws.invoke('undo_queue',{});self.assertEqual([job['id'] for job in self.ws.jobs],ids)
-    def test_search_can_queue_remote_track_for_playback_without_download(self):
+    def test_search_queues_remote_playback_and_requests_early_preparation(self):
         record={'title':'Remote song','artists':['Artist'],'album':'Album','source_url':'https://www.deezer.com/track/1','cover_url':'https://example.com/cover.png','duration_ms':180000}
         self.ws.searched({'tracks':[record]})
-        with patch('qt_jukebox_ui.fetch_audio') as fetch:
-            self.ws.invoke('jukebox_add',{'index':0});fetch.assert_not_called()
+        with patch.object(self.bridge,'prepare_next_queued') as prepare:
+            self.ws.invoke('jukebox_add',{'index':0});prepare.assert_called_once()
         entry=self.bridge.queuedTracks[0];self.assertEqual(entry['kind'],'catalog');self.assertEqual(entry['artist'],'Artist');self.assertEqual(entry['album'],'Album');self.assertEqual(entry['cover'],record['cover_url']);self.assertEqual(entry['duration'],180);self.assertEqual(self.ws.jobs,[])
         self.ws.invoke('catalog_add',{'index':0});row=self.ws.queueModel.rows[0];self.assertEqual(row['track_title'],'Remote song');self.assertEqual(row['track_artist'],'Artist');self.assertEqual(row['track_album'],'Album');self.assertEqual(row['track_cover'],record['cover_url'])
     def test_queue_destination_menu_routes_playback_and_download_separately(self):

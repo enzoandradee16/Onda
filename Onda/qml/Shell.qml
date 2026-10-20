@@ -41,6 +41,8 @@ Pane {
                 Text { visible: workspace.currentPage === "effects" || workspace.currentPage === "jukebox"; text: bridge.translate("Sua música, do seu jeito."); font.pixelSize: Math.round(15*bridge.fontScale); color: bridge.palette.muted }
                 RowLayout {
                     visible: workspace.currentPage === "effects" || workspace.currentPage === "jukebox"; Layout.topMargin: 12; spacing: Math.round(0*bridge.spacing)
+                    objectName: "playbackTabs"
+                    layoutDirection: workspace.preferences.playback_tab_order === "Jukebox infinito primeiro" ? Qt.RightToLeft : Qt.LeftToRight
                     ActionButton { text: bridge.translate("Efeitos"); primary: workspace.currentPage === "effects"; onClicked: workspace.selectPage("effects"); Layout.preferredWidth: 130 }
                     ActionButton { text: bridge.translate("Jukebox infinito"); primary: workspace.currentPage === "jukebox"; onClicked: workspace.selectPage("jukebox"); Layout.preferredWidth: 178 }
                 }
@@ -50,6 +52,79 @@ Pane {
             }
             WorkspaceView { objectName: "workspaceArea"; visible: workspace.currentPage !== "jukebox"; active: visible; Layout.fillWidth: true; Layout.fillHeight: true; Layout.leftMargin: 24; Layout.rightMargin: 24; Layout.bottomMargin: 16 }
             JukeboxView { id: jukebox; visible: workspace.currentPage === "jukebox"; Layout.fillWidth: true; Layout.fillHeight: true; Layout.leftMargin: 24; Layout.rightMargin: 24; volume: volume.value }
+            Card {
+                objectName: "jukeboxMiniPlayer"
+                visible: workspace.currentPage !== "jukebox" && bridge.state.playing
+                Layout.fillWidth: true; Layout.leftMargin: 24; Layout.rightMargin: 24; Layout.bottomMargin: 20
+                implicitHeight: 76
+                MouseArea {
+                    objectName: "openJukeboxFromMiniPlayer"
+                    anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                    Accessible.role: Accessible.Button
+                    Accessible.name: bridge.translate("Jukebox infinito")
+                    onClicked: workspace.selectPage("jukebox")
+                }
+                RowLayout {
+                    anchors.fill: parent; anchors.margins: 10; spacing: 12
+                    Rectangle { Layout.preferredWidth: 54; Layout.preferredHeight: 54; radius: 6; color: bridge.palette.input; clip: true
+                        Image { id: miniCover; anchors.fill: parent; source: bridge.state.cover; fillMode: Image.PreserveAspectCrop; asynchronous: true }
+                        Label { anchors.centerIn: parent; visible: miniCover.status !== Image.Ready; text: "♪"; color: bridge.palette.muted; font.pixelSize: 25 }
+                    }
+                    ColumnLayout {
+                        Layout.fillWidth: true; spacing: 3
+                        Label { Layout.fillWidth: true; text: bridge.state.title; color: bridge.palette.text; elide: Text.ElideRight; font.bold: true }
+                        Label { Layout.fillWidth: true; text: [bridge.state.artist,bridge.state.album].filter(Boolean).join(" · "); color: bridge.palette.muted; elide: Text.ElideRight }
+                    }
+                    ActionButton {
+                        implicitWidth: 44
+                        Accessible.name: bridge.translate(bridge.state.paused ? "Retomar" : "Pausar")
+                        ToolTip.visible: hovered; ToolTip.text: Accessible.name
+                        onClicked: bridge.playPause()
+                        contentItem: Item {
+                            Canvas {
+                                anchors.centerIn: parent; width: 18; height: 18
+                                property bool paused: bridge.state.paused
+                                property color ink: bridge.palette.text
+                                onPausedChanged: requestPaint()
+                                onInkChanged: requestPaint()
+                                onPaint: {
+                                    const ctx=getContext("2d");ctx.reset();ctx.fillStyle=ink
+                                    if(paused) {
+                                        ctx.beginPath();ctx.moveTo(3,2);ctx.lineTo(15,9);ctx.lineTo(3,16);ctx.closePath();ctx.fill()
+                                    } else {
+                                        ctx.fillRect(3,2,4,14);ctx.fillRect(11,2,4,14)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    ActionButton { symbol: "▶|"; Accessible.name: bridge.translate("Próxima música"); ToolTip.visible: hovered; ToolTip.text: Accessible.name; enabled: bridge.playback.current+1<bridge.queuedTracks.length; onClicked: bridge.nextTrack() }
+                    ActionButton { symbol: "■"; Accessible.name: bridge.translate("Parar"); ToolTip.visible: hovered; ToolTip.text: Accessible.name; onClicked: bridge.stop() }
+                    ActionButton {
+                        implicitWidth: 44; Accessible.name: bridge.translate("Equalizador")
+                        ToolTip.visible: hovered; ToolTip.text: Accessible.name
+                        onClicked: miniEqualizer.open()
+                        contentItem: Item {
+                            Canvas {
+                                anchors.centerIn: parent; width: 23; height: 23
+                                property color ink: bridge.palette.text
+                                onInkChanged: requestPaint()
+                                onPaint: {
+                                    const ctx=getContext("2d");ctx.reset();ctx.scale(width/24,height/24)
+                                    ctx.strokeStyle=ink;ctx.fillStyle=ink;ctx.lineWidth=1.7;ctx.lineCap="round"
+                                    const xs=[5,12,19],ys=[8,16,10]
+                                    for(let i=0;i<3;i++) {
+                                        ctx.beginPath();ctx.moveTo(xs[i],3);ctx.lineTo(xs[i],21);ctx.stroke()
+                                        ctx.beginPath();ctx.arc(xs[i],ys[i],2.5,0,Math.PI*2);ctx.fill()
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    ActionButton { text: bridge.translate("Timers"); onClicked: miniTimers.open() }
+                    ActionButton { text: bridge.translate("Fila"); onClicked: {workspace.selectPage("jukebox");jukebox.queueExpanded=true} }
+                }
+            }
             Rectangle {
                 visible: workspace.currentPage === "jukebox"; Layout.fillWidth: true; implicitHeight: 78; color: bridge.palette.surface
                 Rectangle { anchors.top: parent.top; width: parent.width; height: 1; color: bridge.palette.line }
@@ -63,6 +138,7 @@ Pane {
                         onClicked: bridge.playPause()
                     }
                     ActionButton { text: bridge.translate(bridge.state.busy ? "Cancelar" : "Parar"); symbol: "■"; enabled: bridge.state.playing || bridge.state.busy; onClicked: bridge.stop() }
+                    ActionButton { text: bridge.translate("Timers"); onClicked: miniTimers.open() }
                     Text { text: "\uE767"; font.family: "Segoe MDL2 Assets"; font.pixelSize: Math.round(20*bridge.fontScale); color: bridge.palette.text }
                     OndaSlider { id: volume; Layout.fillWidth: true; Layout.maximumWidth: 250; Layout.minimumWidth: 70; value: 80; Accessible.name: bridge.translate("Volume") }
                     Item { Layout.fillWidth: true }
@@ -73,6 +149,14 @@ Pane {
             }
         }
     }
+    Connections {
+        target: app.Window.window
+        function onVisibilityChanged() {
+            if (app.Window.window.visibility === Window.Minimized || app.Window.window.visibility === Window.Hidden) workspace.pause_background_jukebox()
+        }
+    }
+    EqualizerPopup { id: miniEqualizer }
+    TimerPopup { id: miniTimers }
     Popup {
         id: appearance
         objectName: "appearancePopup"
@@ -84,9 +168,9 @@ Pane {
             spacing: Math.round(14*bridge.spacing)
             Text { text: bridge.translate("Aparência"); color: bridge.palette.text; font.pixelSize: Math.round(22*bridge.fontScale); font.weight: Font.DemiBold }
             Label { text: bridge.translate("Modo de aparência"); color: bridge.palette.muted }
-            ComboBox { Layout.fillWidth: true; model: bridge.themes; currentIndex: model.indexOf(bridge.theme); displayText: bridge.translate(bridge.theme); onActivated: bridge.setAppearance(model[index],bridge.accent,bridge.animations); delegate: ItemDelegate { width: parent.width; text: bridge.translate(modelData) } }
+            ChoiceBox { Layout.fillWidth: true; model: bridge.themes; currentIndex: model.indexOf(bridge.theme); displayText: bridge.translate(bridge.theme); onActivated: bridge.setAppearance(model[index],bridge.accent,bridge.animations) }
             Label { text: bridge.translate("Cor de destaque"); color: bridge.palette.muted }
-            ComboBox { Layout.fillWidth: true; model: bridge.accents; currentIndex: model.indexOf(bridge.accent); displayText: bridge.translate(bridge.accent); onActivated: bridge.setAppearance(bridge.theme,model[index],bridge.animations); delegate: ItemDelegate { width: parent.width; text: bridge.translate(modelData) } }
+            ChoiceBox { Layout.fillWidth: true; model: bridge.accents; currentIndex: model.indexOf(bridge.accent); displayText: bridge.translate(bridge.accent); onActivated: bridge.setAppearance(bridge.theme,model[index],bridge.animations) }
             OndaSwitch { text: bridge.translate("Animações da interface"); checked: bridge.animations; onToggled: bridge.setAppearance(bridge.theme,bridge.accent,checked) }
             ActionButton { Layout.alignment: Qt.AlignRight; primary: true; text: bridge.translate("Pronto"); onClicked: appearance.close() }
         }
@@ -113,5 +197,4 @@ Pane {
         function onShortcutsRequested() { shortcuts.open() }
         function onMessage(title,text) { messagePopup.heading=title;messagePopup.body=text;messagePopup.open() }
     }
-    Label { anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom; anchors.leftMargin: 244; anchors.bottomMargin: 2; height: 18; text: workspace.status; color: bridge.palette.muted; font.pixelSize: Math.round(11*bridge.fontScale); elide: Text.ElideRight; visible: workspace.currentPage !== "jukebox" }
 }

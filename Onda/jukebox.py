@@ -9,6 +9,7 @@ import cmath, hashlib, json, math, os, random, subprocess, threading, time, uuid
 
 RATE, CHANNELS, VERSION = 44100, 2, 1
 MAX_SECONDS = 1200
+PHRASE_VERSION = 2
 _active=Counter()
 _active_lock=threading.Lock()
 
@@ -103,6 +104,24 @@ def refine_energy(model,sound=None):
         levels=pcm_energy_levels(sound,model['beats'])
     return dict(model,energy_levels=levels,neighbors=energy_matched_links(model['neighbors'],levels))
 
+def phrase_similarity(descriptors,following,target,span=4):
+    """Compare the expected continuation, including midrange envelope and pitch contour.
+
+    Midrange energy is only a voice-sensitive proxy, not a vocal separator.
+    """
+    n=len(descriptors);scores=[]
+    for offset in range(span):
+        if following+offset>=n or target+offset>=n:break
+        a,b=descriptors[following+offset],descriptors[target+offset]
+        def cosine(left,right):
+            return sum(x*y for x,y in zip(left,right))/(math.sqrt(sum(x*x for x in left)*sum(y*y for y in right)) or 1)
+        pitch=cosine(a[:12],b[:12]);timbre=cosine(a[12:],b[12:])
+        voice_a=sum(a[15:18])/max(1e-9,sum(a[12:]))
+        voice_b=sum(b[15:18])/max(1e-9,sum(b[12:]))
+        if pitch<.90 or timbre<.94 or abs(voice_a-voice_b)>.13:return None
+        scores.append(.6*pitch+.4*timbre)
+    return sum(scores)/len(scores) if len(scores)>=2 else None
+
 def analyse_wave(path,cancelled=lambda:False,progress=lambda _:None):
     """Bounded, low-rate spectral analysis; silence never creates arbitrary jumps."""
     features=[];energies=[]
@@ -164,10 +183,12 @@ def analyse_wave(path,cancelled=lambda:False,progress=lambda _:None):
             a,b=anchor,descriptors[j]
             chroma=sum(a[k]*b[k] for k in range(12))/(math.sqrt(sum(v*v for v in a[:12])*sum(v*v for v in b[:12])) or 1)
             timbre=sum(a[k]*b[k] for k in range(12,20))/(math.sqrt(sum(v*v for v in a[12:])*sum(v*v for v in b[12:])) or 1)
-            if chroma>=.94 and timbre>=.94:ranked.append((.65*chroma+.35*timbre,j))
+            if chroma>=.94 and timbre>=.94:
+                context=phrase_similarity(descriptors,following,j)
+                if context is not None:ranked.append((.35*chroma+.25*timbre+.4*context,j))
         neighbors[i]=[j for _,j in sorted(ranked,reverse=True)[:5]]
     neighbors=energy_matched_links(neighbors,levels)
-    return {'version':VERSION,'duration':duration,'bpm':round(60/period,1),'beat_confidence':round(confidence,3),'beats':beats,'energy_levels':levels,'neighbors':neighbors,'links':sum(map(len,neighbors))}
+    return {'version':VERSION,'phrase_version':PHRASE_VERSION,'duration':duration,'bpm':round(60/period,1),'beat_confidence':round(confidence,3),'beats':beats,'energy_levels':levels,'neighbors':neighbors,'links':sum(map(len,neighbors))}
 
 def cache_root():
     from cache_cleanup import root_path
@@ -187,6 +208,18 @@ def prepare(source,folder='',cancelled=lambda:False,progress=lambda _:None):
         if pcm.is_file() and graph.is_file():
             try:
                 model=json.loads(graph.read_text());validate_model(model)
+                if model.get('phrase_version')!=PHRASE_VERSION:
+                    # Reuse decoded PCM; no network or second source decode.
+                    from audio_tools import executable
+                    mono=base/(uuid.uuid4().hex+'-phrase.wav')
+                    try:
+                        _run([executable('ffmpeg',folder),'-y','-v','error','-i',str(pcm),'-ar','8000','-ac','1',str(mono)],cancelled)
+                        model=analyse_wave(mono,cancelled,progress)
+                        staging=base/(uuid.uuid4().hex+'.json')
+                        try:staging.write_text(json.dumps(model),encoding='utf-8');os.replace(staging,graph)
+                        finally:staging.unlink(missing_ok=True)
+                    finally:mono.unlink(missing_ok=True)
+
                 with wave.open(str(pcm),'rb') as sound:
                     if sound.getframerate()!=RATE or sound.getnchannels()!=CHANNELS or sound.getsampwidth()!=2 or abs(sound.getnframes()/RATE-model['duration'])>.1:raise ValueError('Cache de áudio inválido.')
                     refined=refine_energy(model,sound)
@@ -285,6 +318,7 @@ class Session:
                 for channel in range(CHANNELS):
                     k=frame*CHANNELS+channel;data[k]=round(data[k]*(frame+1)/count)
             self.fade_in=0
+        fade=0
         if next_index==0 and smooth:
             count=min(int(RATE*.08*smooth/100),len(data)//CHANNELS)
             for frame in range(count):
@@ -292,7 +326,7 @@ class Session:
                     k=len(data)-count*CHANNELS+frame*CHANNELS+channel;data[k]=round(data[k]*(1-(frame+1)/count))
             self.fade_in=count
         elif jumped and smooth:
-            fade=min(int(RATE*.08*smooth/100),len(data)//CHANNELS,round(beats[next_index]*RATE))
+            fade=min(int(RATE*.16*smooth/100),len(data)//(CHANNELS*2),round(beats[next_index]*RATE))
             if fade:
                 incoming=array('h');incoming.frombytes(self._read(round(beats[next_index]*RATE)-fade,fade))
                 if os.sys.byteorder!='little':incoming.byteswap()
@@ -308,7 +342,7 @@ class Session:
         if processing and os.sys.byteorder!='little':data.byteswap()
         self.equalizer.configure(equalizer)
         pcm=self.equalizer.process(data.tobytes() if processing else data)
-        return {'pcm':pcm,'index':i,'next':next_index,'jumped':jumped,'jumps':self.jumps,'seconds':len(raw)/(RATE*CHANNELS*2)}
+        return {'pcm':pcm,'index':i,'next':next_index,'jumped':jumped,'jumps':self.jumps,'seconds':len(raw)/(RATE*CHANNELS*2),'transition_seconds':fade/RATE}
     def close(self):
         if not self.closed:
             self.closed=True;self.sound.close()

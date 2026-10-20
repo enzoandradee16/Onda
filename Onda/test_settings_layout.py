@@ -33,7 +33,7 @@ class SettingsLayoutUiTests(unittest.TestCase):
                         self.assertIn(label,labels[category],(category,label))
                         self.assertTrue(any(entry['category']==category and entry['label']==label for entry in android),(category,label))
                 app.confirm_version.set(True)
-                self.assertTrue(app.preference_store.clean({'confirm_version':True})['confirm_version'])
+                self.assertFalse(app.preference_store.clean({'confirm_version':True})['confirm_version'])
                 app.queue_actions_at_top.set(False);self.assertEqual(int(app.queue_actions_frame.grid_info()['row']),6)
                 app.queue_actions_at_top.set(True);self.assertEqual(int(app.queue_actions_frame.grid_info()['row']),2)
                 app.mode.set(next(key for key,value in MODES.items() if value=='mp4'))

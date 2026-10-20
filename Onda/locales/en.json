@@ -1777,5 +1777,11 @@
   "Tamanho dos cards da pesquisa": "Search card size",
   "Tamanho dos cards de álbuns e playlists": "Album and playlist card size",
   "Controles da reprodução": "Playback controls",
-  "Cancelar fila": "Cancel queue"
+  "Cancelar fila": "Cancel queue",
+  "Ordem das abas de reprodução": "Playback tab order",
+  "Efeitos primeiro": "Effects first",
+  "Jukebox infinito primeiro": "Infinite Jukebox first",
+  "Duração da transição entre músicas (segundos)": "Transition duration between songs (seconds)",
+  "De 1 a 10 segundos de sobreposição entre a música atual e a próxima.": "From 1 to 10 seconds of overlap between the current song and the next.",
+  "Tempo de sobreposição entre a música atual e a próxima. Vale para trocas pelo timer e pela fila.": "Overlap duration between songs. Applies to timer and queue changes."
 }

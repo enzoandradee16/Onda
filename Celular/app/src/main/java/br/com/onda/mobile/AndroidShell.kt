@@ -67,6 +67,7 @@ import org.json.JSONObject
             "image"->{path(3f to 3f,21f to 3f,21f to 21f,3f to 21f,close=true);path(3f to 18f,10f to 11f,15f to 16f,18f to 13f,21f to 16f);drawCircle(tint,2*u,Offset(16*u,8*v),style=Stroke(stroke))}
             "convert"->{line(3f,7f,21f,7f);path(17f to 3f,21f to 7f,17f to 11f);line(21f,17f,3f,17f);path(7f to 13f,3f to 17f,7f to 21f)}
             "tag"->path(3f to 12f,12f to 3f,21f to 3f,21f to 12f,12f to 21f,3f to 12f)
+            "timer"->{drawCircle(tint,8*u,Offset(12*u,14*v),style=Stroke(stroke));line(9f,2f,15f,2f);line(12f,2f,12f,6f);line(12f,14f,12f,9f);line(18f,7f,20f,5f)}
             "history"->{drawCircle(tint,9*u,center,style=Stroke(stroke));path(12f to 6f,12f to 12f,17f to 14f)}
             "album"->{path(4f to 6f,20f to 6f,20f to 22f,4f to 22f,close=true);line(7f,2f,17f,2f);drawCircle(tint,4*u,Offset(12*u,14*v),style=Stroke(stroke))}
             "equalizer"->{line(5f,3f,5f,21f);line(12f,3f,12f,21f);line(19f,3f,19f,21f);drawCircle(tint,2.5f*u,Offset(5*u,8*v));drawCircle(tint,2.5f*u,Offset(12*u,16*v));drawCircle(tint,2.5f*u,Offset(19*u,10*v))}
@@ -105,7 +106,7 @@ import org.json.JSONObject
     }
 }
 
-internal fun mainDestinations(tabs:JSONArray)=listOf("Pesquisar","Fila")+(if((0 until tabs.length()).any {tabs.optString(it)=="Efeitos"})listOf("Efeitos") else emptyList())+"Mais"
+internal fun mainDestinations(tabs:JSONArray,order:List<String> = bottomBarDefaults)=bottomBarDestinations(order,(0 until tabs.length()).any {tabs.optString(it)=="Efeitos"})
 
 private val LocalPageSwipeExclusions=staticCompositionLocalOf<MutableMap<Any,LayoutCoordinates>?> {null}
 
@@ -158,26 +159,31 @@ private val LocalPageSwipeExclusions=staticCompositionLocalOf<MutableMap<Any,Lay
 }
 
 @Composable internal fun OndaBottomNavigation(tab:String,tabs:JSONArray,onNavigate:(String)->Unit) {
-    val playbackVisible=(0 until tabs.length()).any {tabs.optString(it)=="Efeitos"}
+    val settings by OndaStore.settings.collectAsStateWithLifecycle()
+    val destinations=mainDestinations(tabs,bottomBarOrder(settings))
     val selected=when(tab){"Pesquisar"->"Pesquisar";"Fila","Links e fila"->"Fila";"Efeitos"->"Efeitos";else->"Mais"}
     NavigationBar(containerColor=MaterialTheme.colorScheme.background,tonalElevation=0.dp) {
-        listOf(Triple("Pesquisar","Pesquisar","search"),Triple("Fila","Downloads","download"),Triple("Efeitos","Reprodução","play"),Triple("Mais","Mais","more")).filter {it.first!="Efeitos" || playbackVisible}.forEach {(key,label,icon)->
+        destinations.forEach {key->
+            val (label,icon)=when(key){"Pesquisar"->"Pesquisar" to "search";"Fila"->"Downloads" to "download";"Efeitos"->"Reprodução" to "play";else->"Mais" to "more"}
             NavigationBarItem(selected=selected==key,onClick={onNavigate(key)},modifier=Modifier.testTag("nav-$key"),icon={OndaIcon(icon,modifier=Modifier.size(23.dp))},label={UiText(label,style=MaterialTheme.typography.labelSmall,maxLines=1)},colors=NavigationBarItemDefaults.colors(indicatorColor=MaterialTheme.colorScheme.primary,selectedIconColor=MaterialTheme.colorScheme.onPrimary,selectedTextColor=MaterialTheme.colorScheme.primary))
         }
     }
 }
 
 @Composable internal fun OndaMiniPlayer(vm:OndaViewModel,onOpen:()->Unit) {
-    val updates=remember(vm){vm.jukebox.state.map {it.copy(index=0,phase=0f,flow=emptyList(),elapsed=0.0,jumps=0)}.distinctUntilChanged()}
+    val updates=remember(vm){vm.jukebox.state.map {it.copy(index=0,phase=0f,flow=emptyList(),elapsed=0.0,jumps=0,nextIndex=-1,jumpBlend=0f)}.distinctUntilChanged()}
     val state by updates.collectAsStateWithLifecycle(initialValue=vm.jukebox.state.value)
     if(state.model==null || !state.playing)return
+    var showEqualizer by rememberSaveable {mutableStateOf(false)}
+    if(showEqualizer)JukeboxEqualizerDialog {showEqualizer=false}
     val model=state.model
     val embedded=model?.optString("media_cover").orEmpty()
     val cover=remember(embedded,model?.optString("cover_url")){if(embedded.isNotBlank())runCatching {android.util.Base64.decode(embedded,android.util.Base64.DEFAULT)}.getOrNull() else model?.optString("cover_url")}
     Surface(Modifier.fillMaxWidth().padding(horizontal=12.dp,vertical=4.dp).testTag("jukebox-miniplayer"),shape=RoundedCornerShape(16.dp),color=MaterialTheme.colorScheme.surfaceContainer) {
-        Row(Modifier.clickable(onClick=onOpen).padding(10.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)) {
+        Row(Modifier.clickable(onClick=onOpen).padding(10.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(4.dp)) {
             AsyncImage(cover,translateUi("Capa do álbum"),Modifier.size(48.dp).clip(RoundedCornerShape(8.dp)),contentScale=ContentScale.Crop)
             Column(Modifier.weight(1f)) {Text(state.title,maxLines=1,overflow=TextOverflow.Ellipsis,style=MaterialTheme.typography.labelLarge);Text(model?.optString("media_artist").orEmpty(),maxLines=1,overflow=TextOverflow.Ellipsis,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)}
+            IconButton(onClick={showEqualizer=true}){OndaIcon("equalizer","Equalizador",Modifier.size(23.dp))}
             IconButton(onClick=vm.jukebox::playPause){OndaIcon(if(state.paused)"play" else "pause",if(state.paused)"Retomar" else "Pausar",Modifier.size(23.dp))}
             IconButton(onClick={val current=vm.jukebox.state.value;val count=current.model?.optJSONArray("neighbors")?.length() ?: 1;vm.jukebox.seek((current.index+1)%count)}){OndaIcon("next","Próximo trecho",Modifier.size(23.dp))}
         }
@@ -260,7 +266,7 @@ private val LocalPageSwipeExclusions=staticCompositionLocalOf<MutableMap<Any,Lay
         Row(Modifier.padding(cardPadding).heightIn(min=if(complete)coverSide else 40.dp),horizontalArrangement=Arrangement.spacedBy(12.dp),verticalAlignment=Alignment.CenterVertically) {
             if(complete)Box(Modifier.size(coverSide).clip(RoundedCornerShape(10.dp)),contentAlignment=Alignment.Center){if(info?.cleanString("cover_url").isNullOrBlank())OndaIcon("album",modifier=Modifier.size(32.dp)) else AsyncImage(info?.cleanString("cover_url"),translateUi("Capa do álbum"),Modifier.fillMaxSize(),contentScale=ContentScale.Crop)}
             Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(5.dp)) {
-                Text(item.title,fontWeight=FontWeight.Medium,maxLines=if(cardSize=="Pequeno")1 else 2,overflow=TextOverflow.Ellipsis,style=if(cardSize=="Pequeno")MaterialTheme.typography.bodyMedium else if(cardSize=="Médio")MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleSmall)
+                Text(songCardTitle(info?.cleanString("title")?.ifBlank {item.title} ?: item.title,artists),fontWeight=FontWeight.Medium,maxLines=if(cardSize=="Pequeno")1 else 2,overflow=TextOverflow.Ellipsis,style=if(cardSize=="Pequeno")MaterialTheme.typography.bodyMedium else if(cardSize=="Médio")MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleSmall)
                 if(complete && artists.isNotBlank())Text(artists,maxLines=1,overflow=TextOverflow.Ellipsis,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
                 if(item.state in listOf("Baixando","Aguardando escolha"))Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)) {
                     LinearProgressIndicator(progress={item.progress/100},modifier=Modifier.weight(1f).height(4.dp),strokeCap=StrokeCap.Round,drawStopIndicator={})

@@ -67,6 +67,7 @@ class PreferenceStore:
         result_shortcuts=json.dumps(load_overrides(data.get("shortcut_keys","{}")))
         from advanced_options import clean_advanced,PC_DEFAULTS
         result = {key:value for key,value in clean_advanced(data).items() if key in PC_DEFAULTS}
+        result["confirm_version"]=False
         from performance import clean as clean_performance
         result.update(clean_performance(data))
         if "jukebox_equalizer" in data:result["jukebox_equalizer"]=json.dumps(clean_equalizer(data["jukebox_equalizer"]))
@@ -104,6 +105,11 @@ class PreferenceStore:
         if valid_font(data.get('interface_font')):
             result['interface_font'] = data['interface_font']
         if type(data.get('notifications_enabled')) is bool:result['notifications_enabled']=data['notifications_enabled']
+        if data.get('playback_tab_order') in ('Efeitos primeiro','Jukebox infinito primeiro'):result['playback_tab_order']=data['playback_tab_order']
+        if 'jukebox_transition_seconds' in data:
+            try:result['jukebox_transition_seconds']=max(1,min(10,int(data['jukebox_transition_seconds'])))
+            except (TypeError,ValueError):pass
+        if type(data.get('jukebox_gradual_transition')) is bool:result['jukebox_gradual_transition']=data['jukebox_gradual_transition']
         if type(data.get('qt_animations')) is bool:result['qt_animations']=data['qt_animations']
         if type(data.get('effects_keep_pitch')) is bool:
             result['effects_keep_pitch'] = data['effects_keep_pitch']
@@ -149,6 +155,8 @@ class PreferenceStore:
             result["review_metadata"] = data["review_metadata"]
         if type(data.get("auto_match")) is bool:
             result["auto_match"] = data["auto_match"]
+        if type(data.get("jukebox_background")) is bool:
+            result["jukebox_background"]=data["jukebox_background"]
         if type(data.get("background_preview")) is bool:
             result["background_preview"] = data["background_preview"]
         from preview_options import PREVIEW_DURATIONS

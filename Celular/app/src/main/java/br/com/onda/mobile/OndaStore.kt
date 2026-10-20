@@ -92,12 +92,15 @@ object OndaStore {
         .put("detect_duplicates",true).put("filename_template","Original").put("duplicate_policy","ask").put("organization","Pasta de destino").put("interface_font",DEFAULT_INTERFACE_FONT).put("interface_font_size","100%").put("interface_spacing","Padrão").put("theme","Seguir o sistema").put("accent","Verde-Água")
         .put("concurrent_downloads","1").put("resume_downloads",true).put("resume_queue",false).put("normalize_volume",false)
         .put("schedule_enabled",false).put("schedule_start","22:00").put("schedule_stop","07:00").put("check_updates",true).put("notice_duration","Após 3 segundos").put("notice_animation",true)
-        .put("jukebox_equalizer",JSONObject()).put("jukebox_background",false).put("synced_lyrics",false).put("search_preview",25).put("effects_preview",25).put("keep_preview",false).put("remember",true)
+        .put("playback_tab_order","Efeitos primeiro").put("jukebox_transition_seconds",2).put("jukebox_gradual_transition",true).put("jukebox_equalizer",JSONObject()).put("jukebox_background",false).put("synced_lyrics",false).put("search_preview",25).put("effects_preview",25).put("keep_preview",false).put("remember",true)
         .put("image_format","Original").put("image_size","Original").put("image_width",0).put("image_height",0).put("keep_ratio",true)
+        .put("bottom_bar_order",JSONArray(bottomBarDefaults))
         .put("hidden_tabs",JSONArray())
         .put("tab_order",JSONArray(listOf("Pesquisar","Links e fila","Fila","Imagens","Conversor de vídeos","Playlists / Álbuns","Histórico","Efeitos","Metadados")))
         .put("output_uri", "").put("cookies_file", "").put("youtube_cookies_file", "").put("spotify_client_id", "")
     fun normalizeAppearance(value:JSONObject) {
+        value.put("jukebox_transition_seconds",value.optInt("jukebox_transition_seconds",2).coerceIn(1,10))
+        if(value.optString("playback_tab_order") !in listOf("Efeitos primeiro","Jukebox infinito primeiro"))value.put("playback_tab_order","Efeitos primeiro")
         if(value.optString("finish_action") !in finishActions)value.put("finish_action","Notificação")
         if(value.optString("wifi_loss") !in wifiLossActions)value.put("wifi_loss","Pausar downloads")
         if(value.optString("image_size")=="Original" && (value.optInt("image_width")>0 || value.optInt("image_height")>0))value.put("image_size","Personalizado")
@@ -114,6 +117,7 @@ object OndaStore {
         if("Conversor de vídeos" !in complete)complete.add(complete.indexOf("Imagens")+1,"Conversor de vídeos")
         value.put("tab_order",JSONArray(complete))
         value.put("hidden_tabs",JSONArray(hiddenTabs(value)))
+        value.put("bottom_bar_order",JSONArray(bottomBarOrder(value)))
         val aliases=mapOf("Menta" to "Verde-Água","Verde-água" to "Verde-Água","Lima" to "Verde-limão","Lavanda" to "Lilás","Pêssego" to "Coral","Prata" to "Cinza")
         aliases[value.optString("accent")]?.let {value.put("accent",it)}
         if(value.optString("theme")=="Sistema") value.put("theme","Seguir o sistema")
@@ -131,6 +135,7 @@ object OndaStore {
         LauncherIcons.sync(context,value)
     }
     fun config(options: JSONObject = settings.value, includeSecrets: Boolean = true): JSONObject = JSONObject(options.toString()).apply {
+        remove("confirm_version")
         if(optString("mode")=="m4a" && optString("audio_quality") !in listOf("256 kbps","192 kbps","128 kbps","96 kbps")) put("audio_quality","256 kbps")
         put("folder", File(context.getExternalFilesDir(null),"Onda Downloads").absolutePath)
         put("ffmpeg", "android-native")

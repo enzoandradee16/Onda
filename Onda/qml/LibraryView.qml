@@ -15,7 +15,7 @@ ColumnLayout {
             onTextEdited: workspace.setOption(page.history ? "historyQuery" : page.catalog ? "query" : "playlistUrl",text)
             onAccepted: if (!page.history && workspace.activity.busy.indexOf(page.catalog ? "search" : "collection") < 0) workspace.invoke(page.catalog ? "search" : "load_playlist",{})
         }
-        ComboBox { visible: page.catalog; model: ["Deezer","Apple / iTunes","Spotify","Todos"]; currentIndex: Math.max(0,model.indexOf(workspace.values.provider)); onActivated: workspace.setOption("provider",currentText) }
+        ChoiceBox { visible: page.catalog; model: ["Deezer","Apple / iTunes","Spotify","Todos"]; currentIndex: Math.max(0,model.indexOf(workspace.values.provider)); onActivated: workspace.setOption("provider",currentText) }
         TaskButton { objectName: "libraryLoadButton"; visible: !page.history; primary: true; idleText: bridge.translate(page.catalog ? "Pesquisar" : "Carregar"); operation: page.catalog ? "search" : "load_playlist"; taskNames: [page.catalog ? "search" : "collection"] }
         TaskButton { visible: page.catalog; idleText: bridge.translate("Atualizar busca"); operation: "search"; parameters: ({refresh:true}) }
     }

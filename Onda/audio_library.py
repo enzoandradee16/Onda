@@ -59,8 +59,10 @@ def lyrics_text(path):
     source=Path(path)
     if source.suffix.lower() not in ('.txt','.lrc') or source.stat().st_size>1024*1024:
         raise ValueError('Escolha uma letra TXT ou LRC de até 1 MB.')
-    try:return source.read_text(encoding='utf-8-sig')
-    except UnicodeDecodeError:return source.read_text(encoding='cp1252')
+    data=source.read_bytes()
+    if data.startswith((b'\xff\xfe',b'\xfe\xff')):return data.decode('utf-16')
+    try:return data.decode('utf-8-sig')
+    except UnicodeDecodeError:return data.decode('cp1252')
 
 def write_audio(source, changes, cover_path='', lyrics=''):
     """Change only selected fields; preserve other tags and embedded artwork."""

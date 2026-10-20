@@ -1777,5 +1777,11 @@
   "Tamanho dos cards da pesquisa": "Tamaño de las tarjetas de búsqueda",
   "Tamanho dos cards de álbuns e playlists": "Tamaño de las tarjetas de álbumes y listas",
   "Controles da reprodução": "Controles de reproducción",
-  "Cancelar fila": "Cancelar cola"
+  "Cancelar fila": "Cancelar cola",
+  "Ordem das abas de reprodução": "Orden de las pestañas de reproducción",
+  "Efeitos primeiro": "Efectos primero",
+  "Jukebox infinito primeiro": "Jukebox infinito primero",
+  "Duração da transição entre músicas (segundos)": "Duración de la transición entre canciones (segundos)",
+  "De 1 a 10 segundos de sobreposição entre a música atual e a próxima.": "De 1 a 10 segundos de superposición entre la canción actual y la siguiente.",
+  "Tempo de sobreposição entre a música atual e a próxima. Vale para trocas pelo timer e pela fila.": "Duración de la superposición entre canciones. Se aplica al temporizador y a la cola."
 }

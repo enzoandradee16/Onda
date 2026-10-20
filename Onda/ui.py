@@ -508,9 +508,7 @@ class UiMixin:
         ttk.Checkbutton(downloads, text=tr("Escolher automaticamente os metadados mais semelhantes"), variable=self.auto_metadata).pack(anchor="w", pady=(0, 6))
         ttk.Label(downloads, text=tr("Seleciona o primeiro resultado de maior similaridade entre os metadados compatíveis, sem abrir a escolha. Sem correspondência compatível, informa o erro. Não altera a escolha da versão de áudio."), style="Muted.TLabel", wraplength=480).pack(anchor="w", fill="x", pady=(0, 12))
         ttk.Checkbutton(downloads, text=tr("Escolher automaticamente a versão mais semelhante no YouTube"), variable=self.auto_match).pack(anchor="w", pady=(0, 6))
-        ttk.Label(downloads, text=tr("Vale para os próximos downloads iniciados, inclusive itens já na fila. Ignora a confirmação de versão; escolhe a maior similaridade entre as versões compatíveis. Se nenhuma for compatível, informa o erro sem abrir uma escolha."), style="Muted.TLabel", wraplength=480).pack(anchor="w", fill="x", pady=(0, 12))
-        ttk.Checkbutton(downloads,text=tr("Confirmar a versão do YouTube de cada música antes de baixar"),variable=self.confirm_version).pack(anchor="w",pady=(0,8))
-        ttk.Label(downloads,text=tr("A confirmação de versão fica desativada enquanto a escolha automática está ligada."),style="Muted.TLabel",wraplength=480).pack(anchor="w",pady=(0,8))
+        ttk.Label(downloads, text=tr("Vale para os próximos downloads iniciados, inclusive itens já na fila. Escolhe a maior similaridade entre as versões compatíveis. Se nenhuma for compatível, informa o erro sem abrir uma escolha."), style="Muted.TLabel", wraplength=480).pack(anchor="w", fill="x", pady=(0, 12))
         ttk.Checkbutton(downloads, text=tr("Revisar metadados antes de baixar"), variable=self.review_metadata).pack(anchor="w", pady=(0, 8))
         from file_output import ORGANIZATIONS, DUPLICATES
         ttk.Label(downloads, text=tr("Organizar músicas em"), style="Muted.TLabel").pack(anchor="w")

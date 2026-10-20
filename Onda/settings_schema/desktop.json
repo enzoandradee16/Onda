@@ -81,13 +81,17 @@
     "worker_priority": "Normal",
     "memory_reserve": "Desativado",
     "jukebox_equalizer": "{}",
+    "jukebox_gradual_transition": true,
+    "jukebox_transition_seconds": 2,
+    "playback_tab_order": "Efeitos primeiro",
     "qt_animations": true,
     "remember_settings": true,
     "spotify_client_id": "",
     "spotify_client_secret": "",
     "social_cookies": "",
     "youtube_cookies": "",
-    "notifications_enabled": true
+    "notifications_enabled": true,
+    "jukebox_background": true
   },
   "fields": [
     {
@@ -583,13 +587,6 @@
     },
     {
       "category": "Downloads",
-      "key": "confirm_version",
-      "label": "Confirmar a versão do YouTube de cada música antes de baixar",
-      "kind": "bool",
-      "choices": []
-    },
-    {
-      "category": "Downloads",
       "key": "review_metadata",
       "label": "Revisar metadados antes de baixar",
       "kind": "bool",
@@ -783,10 +780,19 @@
     {
       "category": "Áudio",
       "key": "background_preview",
-      "label": "Continuar efeitos e Jukebox em outras abas",
+      "label": "Continuar prévia dos efeitos em outras abas",
       "kind": "bool",
       "choices": [],
-      "hint": "Permite continuar a prévia de efeitos ou o Jukebox ao trocar de aba. As prévias da pesquisa e dos metadados param ao sair da tela."
+      "hint": "Mantém a prévia dos efeitos ao trocar de página. Não controla a reprodução do Jukebox.",
+      "section": "Reprodução e prévias"
+    },
+    {
+      "category": "Áudio",
+      "key": "jukebox_background",
+      "label": "Continuar Jukebox em outras abas e em segundo plano",
+      "kind": "bool",
+      "choices": [],
+      "hint": "Desligado, pausa o Jukebox ao sair da página ou minimizar o ONDA."
     },
     {
       "category": "Áudio",
@@ -794,12 +800,31 @@
       "label": "Mostrar letra sincronizada (LRC)",
       "kind": "bool",
       "choices": [],
-      "hint": "Mostra a letra durante a prévia de efeitos quando existe um arquivo .lrc com o mesmo nome ao lado do áudio."
+      "hint": "Mostra a letra sincronizada durante os efeitos. Use Escolher letra para importar um arquivo LRC ou mantenha um .lrc com o mesmo nome ao lado do áudio."
+    },
+    {
+      "category": "Áudio",
+      "key": "jukebox_transition_seconds",
+      "label": "Duração da transição entre músicas (segundos)",
+      "kind": "select",
+      "choices": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+      ],
+      "hint": "Tempo de sobreposição entre a música atual e a próxima. Vale para trocas pelo timer e pela fila, com a transição gradual ativada."
     },
     {
       "category": "Áudio",
       "key": "search_preview_duration",
-      "label": "Duração máxima da prévia na pesquisa",
+      "label": "Músicas nas pesquisas",
       "kind": "select",
       "choices": [
         "10 segundos",
@@ -812,12 +837,13 @@
         "120 segundos",
         "180 segundos"
       ],
-      "hint": "Limita o tempo de reprodução ao clicar em Ouvir prévia. O trecho fornecido pelo catálogo pode terminar antes, geralmente após 30 segundos. Não repete nem estende o trecho."
+      "hint": "Limita o tempo de reprodução ao clicar em Ouvir prévia. O trecho fornecido pelo catálogo pode terminar antes, geralmente após 30 segundos. Não repete nem estende o trecho.",
+      "section": "Duração das prévias"
     },
     {
       "category": "Áudio",
       "key": "effects_preview_duration",
-      "label": "Duração da prévia de efeitos",
+      "label": "Slowed / Sped Up e Reverb",
       "kind": "select",
       "choices": [
         "10 segundos",
@@ -907,6 +933,16 @@
     },
     {
       "category": "Aparência",
+      "key": "playback_tab_order",
+      "label": "Ordem das abas de reprodução",
+      "kind": "select",
+      "choices": [
+        "Efeitos primeiro",
+        "Jukebox infinito primeiro"
+      ]
+    },
+    {
+      "category": "Aparência",
       "key": "qt_animations",
       "label": "Animações da interface",
       "kind": "bool",
@@ -948,14 +984,6 @@
         "Spotify",
         "Todos"
       ]
-    },
-    {
-      "category": "Áudio",
-      "key": "effects_keep_pitch",
-      "label": "Manter tom ao alterar a velocidade",
-      "kind": "bool",
-      "choices": [],
-      "hint": "Preserva o tom original ao mudar a velocidade da prévia e da exportação dos efeitos. Desligado, desacelerar também deixa a voz mais grave."
     },
     {
       "category": "Downloads",

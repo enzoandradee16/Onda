@@ -21,6 +21,13 @@ class LyricsTests(unittest.TestCase):
         self.assertEqual(parse_lrc('plain lyrics'),[])
         with self.assertRaises(ValueError):parse_lrc('x'*(1024*1024+1))
 
+    def test_lrc_utf16_and_utf8_bom(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path=Path(folder)/'letra.lrc'
+            for encoding in ('utf-16','utf-8-sig','cp1252'):
+                path.write_bytes('[00:01.20]Canção de teste'.encode(encoding))
+                self.assertEqual(read_lrc(path),[(1.2,'Canção de teste')])
+
     def test_lrc_file_encoding_and_default_off(self):
         from advanced_options import DEFAULTS,clean_advanced,export_settings,import_settings
         from preferences import PreferenceStore

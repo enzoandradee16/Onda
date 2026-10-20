@@ -26,7 +26,7 @@ Popup {
             ScrollView { Layout.fillWidth: true; Layout.fillHeight: true; clip: true; contentWidth: availableWidth
                 ColumnLayout { width: parent.availableWidth; spacing: Math.round(18*bridge.spacing)
                     Repeater { model: workspace.settingsFields
-                        OptionField { required property var modelData; Layout.fillWidth: true; field: modelData; settings: true; visible: (modelData.key !== "pure_black_separators" || workspace.preferences.theme_mode === "Preto puro") && (search.text ? bridge.translate(modelData.label).toLowerCase().indexOf(search.text.toLowerCase()) >= 0 : modelData.category === popup.category) }
+                        OptionField { required property var modelData; Layout.fillWidth: true; Layout.minimumWidth: 0; Layout.maximumWidth: parent.width; field: modelData; settings: true; visible: (modelData.key !== "pure_black_separators" || workspace.preferences.theme_mode === "Preto puro") && (search.text ? bridge.translate(modelData.label).toLowerCase().indexOf(search.text.toLowerCase()) >= 0 : modelData.category === popup.category) }
                     }
                     ActionButton { visible: popup.category === "Geral" && !search.text; text: bridge.translate("Escolher quais configurações restaurar…"); onClicked: reset.open() }
                     Flow { visible: popup.category === "Geral" && !search.text; Layout.fillWidth: true; spacing: Math.round(8*bridge.spacing)

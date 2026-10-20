@@ -12,6 +12,7 @@ ScrollView {
     FileDialog { id: queueFiles; title: bridge.translate("Adicionar músicas à fila"); fileMode: FileDialog.OpenFiles; nameFilters: ["Áudio (*.mp3 *.m4a *.flac *.wav *.ogg *.opus *.aac *.webm)"]; onAccepted: { bridge.enqueueFiles(selectedFiles);page.queueExpanded=true } }
     property bool queueExpanded: false
     EqualizerPopup { id: equalizer }
+    TimerPopup { id: timerPopup }
     ColumnLayout {
         width: page.availableWidth; spacing: Math.round(16*bridge.spacing)
         RowLayout {
@@ -29,12 +30,8 @@ ScrollView {
             ActionButton { text: bridge.translate("Adicionar arquivos à fila"); onClicked: queueFiles.open() }
             ActionButton { text: bridge.translate("Fila de reprodução")+" ("+bridge.queuedTracks.length+")"; onClicked: page.queueExpanded=!page.queueExpanded }
             ActionButton { text: bridge.translate("Próxima"); enabled: bridge.queuedTracks.length>0; onClicked: bridge.nextTrack() }
-            Label { text: bridge.translate("Tempo por faixa"); color: bridge.palette.muted; padding: 10 }
-            ChoiceBox { implicitWidth: 150; model: ["Manual","3 minutos","5 minutos","10 minutos","15 minutos"]; onActivated: bridge.setTrackMinutes([0,3,5,10,15][index]) }
-            Label { text: bridge.translate("Parar suavemente"); color: bridge.palette.muted; padding: 10 }
-            ChoiceBox { id: sleepChoice; model: ["15 minutos","30 minutos","45 minutos","60 minutos","90 minutos"]; Layout.preferredWidth: 150 }
-            ActionButton { text: bridge.translate(bridge.playback.sleepActive ? "Cancelar temporizador" : "Ativar temporizador"); onClicked: bridge.setSleep(bridge.playback.sleepActive ? 0 : [15,30,45,60,90][sleepChoice.currentIndex]) }
-            Label { visible: bridge.playback.sleepActive; text: Math.floor(bridge.playback.remaining/60)+":"+String(bridge.playback.remaining%60).padStart(2,"0")+" · "+bridge.translate("Volume diminui nos últimos 15 segundos"); color: bridge.palette.muted; padding: 10 }
+            ActionButton { text: bridge.translate("Timers"); onClicked: timerPopup.open() }
+
         }
         Card { visible: page.queueExpanded; Layout.fillWidth: true; implicitHeight: bridge.queuedTracks.length ? Math.min(340,bridge.queuedTracks.length*92+64) : 110
             ColumnLayout { anchors.fill: parent; anchors.margins: 10
@@ -49,9 +46,10 @@ ScrollView {
                             Label { Layout.fillWidth: true; text: (modelData.current ? "▶ " : "")+modelData.title; color: modelData.current ? bridge.palette.accent : bridge.palette.text; elide: Text.ElideRight }
                             Label { Layout.fillWidth: true; visible: !!modelData.artist; text: modelData.artist || ""; color: bridge.palette.muted; elide: Text.ElideRight }
                             Label { Layout.fillWidth: true; visible: !!modelData.album; text: modelData.album || ""; color: bridge.palette.muted; elide: Text.ElideRight }
+                            Label { Layout.fillWidth: true; elide: Text.ElideRight; text: bridge.translate(({pending:"Aguardando análise",preparing:"Analisando ritmo e trechos…",ready:"Pronta para reproduzir",error:"Erro na análise"})[modelData.analysis] || ""); color: modelData.analysis === "error" ? bridge.palette.accent : bridge.palette.muted }
                             Label { visible: modelData.duration > 0; text: workspace.clock(modelData.duration || 0); color: bridge.palette.muted }
                         }
-                        ActionButton { text: bridge.translate("Tocar"); onClicked: bridge.playQueued(index) }
+                        ActionButton { text: bridge.translate(modelData.analysis === "error" ? "Tentar novamente" : "Tocar"); onClicked: bridge.playQueued(index) }
                         ActionButton { text: "↑"; enabled: index>0; onClicked: bridge.moveQueued(index,-1) }
                         ActionButton { text: "↓"; enabled: index+1<bridge.queuedTracks.length; onClicked: bridge.moveQueued(index,1) }
                         ActionButton { text: "×"; Accessible.name: bridge.translate("Remover da fila"); onClicked: bridge.removeQueued(index) }
@@ -62,11 +60,16 @@ ScrollView {
         }
         Card {
             Layout.fillWidth: true
-            implicitHeight: bridge.state.results.length ? Math.min(236,resultList.contentHeight+12) : 0
+            implicitHeight: bridge.state.results.length ? Math.min(282,resultList.contentHeight+58) : 0
             visible: implicitHeight>0; clip: true
             Behavior on implicitHeight { NumberAnimation { duration: bridge.animations ? 160 : 0; easing.type: Easing.OutCubic } }
+            RowLayout {
+                anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right; anchors.margins: 8
+                Label { Layout.fillWidth: true; text: bridge.translate("Resultados"); color: bridge.palette.text }
+                ActionButton { objectName: "closeJukeboxSearch"; text: "×"; Accessible.name: bridge.translate("Fechar pesquisa"); ToolTip.visible: hovered; ToolTip.text: Accessible.name; onClicked: bridge.closeSearch() }
+            }
             ListView {
-                id: resultList; anchors.fill: parent; anchors.margins: 6; clip: true; model: bridge.state.results
+                id: resultList; anchors.fill: parent; anchors.margins: 6; anchors.topMargin: 56; clip: true; model: bridge.state.results
                 delegate: ItemDelegate {
                     required property var modelData; required property int index
                     width: resultList.width; height: 50
@@ -90,10 +93,10 @@ ScrollView {
                 }
                 ColumnLayout {
                     Layout.fillWidth: true; spacing: Math.round(5*bridge.spacing)
-                    Text { Layout.fillWidth: true; text: bridge.state.title; elide: Text.ElideRight; color: bridge.palette.text; font.pixelSize: Math.round(17*bridge.fontScale); font.weight: Font.DemiBold }
-                    Text { text: bridge.state.artist; visible: text.length>0; color: bridge.palette.text; font.pixelSize: Math.round(13*bridge.fontScale) }
-                    Text { Layout.fillWidth: true; text: bridge.state.album; visible: text.length>0; elide: Text.ElideRight; color: bridge.palette.muted; font.pixelSize: Math.round(12*bridge.fontScale) }
-                    Text { Layout.fillWidth: true; text: bridge.state.paused ? bridge.translate("Pausado.") : bridge.state.status; elide: Text.ElideRight; color: bridge.state.playing ? bridge.palette.accent : bridge.palette.muted; font.pixelSize: Math.round(12*bridge.fontScale) }
+                    Text { Layout.fillWidth: true; text: bridge.state.title; elide: Text.ElideRight; color: bridge.palette.text; font.pixelSize: Math.round(23*bridge.fontScale); font.weight: Font.DemiBold }
+                    Text { Layout.fillWidth: true; text: bridge.state.artist; visible: text.length>0; elide: Text.ElideRight; color: bridge.palette.text; font.pixelSize: Math.round(17*bridge.fontScale) }
+                    Text { Layout.fillWidth: true; text: bridge.state.album; visible: text.length>0; elide: Text.ElideRight; color: bridge.palette.muted; font.pixelSize: Math.round(16*bridge.fontScale) }
+                    Text { Layout.fillWidth: true; text: bridge.state.paused ? bridge.translate("Pausado.") : bridge.state.status; elide: Text.ElideRight; color: bridge.state.playing ? bridge.palette.accent : bridge.palette.muted; font.pixelSize: Math.round(14*bridge.fontScale) }
                 }
                 ActionButton { primary: true; text: bridge.translate("Equalizador"); onClicked: equalizer.open() }
             }
@@ -109,14 +112,11 @@ ScrollView {
                         BeatGraph { id: graph; anchors.fill: parent; graphData: bridge.graph; accent: bridge.palette.accent; muted: bridge.palette.muted }
                         Rectangle {
                             id: marker
-                            property real angle: bridge.position / Math.max(1,graphArea.beatCount) * Math.PI*2-Math.PI/2
                             property real orbitRadius: Math.min(graphArea.width,graphArea.height)*0.42
-                            x: graphArea.width/2+Math.cos(angle)*orbitRadius-width/2
-                            y: graphArea.height/2+Math.sin(angle)*orbitRadius-height/2
+                            x: graphArea.width/2+bridge.cursor.x*orbitRadius-width/2
+                            y: graphArea.height/2+bridge.cursor.y*orbitRadius-height/2
                             width: 14; height: 14; radius: 7; color: bridge.palette.accent; border.color: bridge.palette.surface; border.width: 2
                             scale: bridge.state.playing ? 1+0.25*Math.pow(1-bridge.phase,3) : 1
-                            Behavior on x { NumberAnimation { duration: bridge.animations ? 36 : 0 } }
-                            Behavior on y { NumberAnimation { duration: bridge.animations ? 36 : 0 } }
                             Behavior on scale { NumberAnimation { duration: bridge.animations ? 55 : 0 } }
                         }
                         MouseArea {

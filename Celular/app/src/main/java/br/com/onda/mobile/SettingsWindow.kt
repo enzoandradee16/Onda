@@ -25,10 +25,10 @@ import org.json.JSONObject
 
 val categories=linkedMapOf(
     "Geral" to listOf("remember","language","clipboard_links","notice_duration","notice_animation"),
-    "Aparência" to listOf("simple_download_ui","queue_actions_at_top","queue_view","queue_card_size","catalog_card_size","history_card_size","pure_black_separators","history_view","theme","accent","tab_order","hidden_tabs","interface_font","interface_font_size","interface_spacing"),
-    "Downloads" to listOf("wifi_only","wifi_loss","finish_action","notification_controls","auto_select_media","social_best_quality","detect_duplicates","filename_template","concurrent_downloads","resume_downloads","resume_queue","normalize_volume","schedule_enabled","schedule_start","schedule_stop","mode","audio_quality","height","fps","playlist_limit","link_playlist","organization","duplicate_policy","output_uri","auto_metadata","auto_match","confirm_version","review_metadata"),
+    "Aparência" to listOf("simple_download_ui","queue_actions_at_top","queue_view","queue_card_size","catalog_card_size","history_card_size","pure_black_separators","history_view","theme","accent","playback_tab_order","bottom_bar_order","tab_order","hidden_tabs","interface_font","interface_font_size","interface_spacing"),
+    "Downloads" to listOf("wifi_only","wifi_loss","finish_action","notification_controls","auto_select_media","social_best_quality","detect_duplicates","filename_template","concurrent_downloads","resume_downloads","resume_queue","normalize_volume","schedule_enabled","schedule_start","schedule_stop","mode","audio_quality","height","fps","playlist_limit","link_playlist","organization","duplicate_policy","output_uri","auto_metadata","auto_match","review_metadata"),
     "Imagens" to listOf("image_format","image_size","image_width","image_height","keep_ratio"),
-    "Áudio" to listOf("search_preview","effects_preview","keep_preview","jukebox_background","synced_lyrics","jukebox_equalizer"),
+    "Áudio" to listOf("search_preview","effects_preview","keep_preview","jukebox_background","synced_lyrics","jukebox_equalizer","jukebox_gradual_transition","jukebox_transition_seconds"),
     "Contas" to listOf("spotify_client_id","cookies_file","youtube_cookies_file"),
     "Ferramentas" to listOf("check_updates"))
 
@@ -136,7 +136,18 @@ val categories=linkedMapOf(
                         Select("Tamanho dos cards do histórico",settings.optString("history_card_size","Grande"),listOf("Pequeno","Médio","Grande")){put("history_card_size",it)}
                         SettingsDivider()
                         UiText("Navegação",style=MaterialTheme.typography.titleMedium)
+                        Select("Ordem das abas de reprodução",settings.optString("playback_tab_order","Efeitos primeiro"),listOf("Efeitos primeiro","Jukebox infinito primeiro")){put("playback_tab_order",it)}
                         UiText("Pesquisar, Downloads e Mais ficam na barra inferior. Use + em Downloads para adicionar links. As ferramentas ficam no menu Mais.",style=MaterialTheme.typography.bodySmall)
+                        UiText("Ordem da barra inferior",style=MaterialTheme.typography.titleSmall)
+                        val bottomOrder=bottomBarOrder(settings)
+                        bottomOrder.forEachIndexed {index,name->Row(verticalAlignment=androidx.compose.ui.Alignment.CenterVertically) {
+                            UiText(when(name){"Fila"->"Downloads";"Efeitos"->"Reprodução";else->"Pesquisar"},Modifier.weight(1f))
+                            fun moveBottom(delta:Int) {val copy=bottomOrder.toMutableList();java.util.Collections.swap(copy,index,index+delta);put("bottom_bar_order",JSONArray(copy))}
+                            TextButton(enabled=index>0,onClick={moveBottom(-1)},modifier=Modifier.testTag("bottom-up-$name")){AccessibleSymbol("↑","Mover para cima")}
+                            TextButton(enabled=index<bottomOrder.lastIndex,onClick={moveBottom(1)},modifier=Modifier.testTag("bottom-down-$name")){AccessibleSymbol("↓","Mover para baixo")}
+                        }}
+                        UiText("Mais permanece sempre no final. A navegação por arraste acompanha a ordem escolhida.",style=MaterialTheme.typography.bodySmall)
+                        TextButton(onClick={put("bottom_bar_order",JSONArray(bottomBarDefaults))}){UiText("Restaurar ordem da barra inferior")}
                         val hidden=hiddenTabs(settings)
                         Toggle("Mostrar Reprodução na barra inferior","Efeitos" !in hidden) {shown->
                             put("hidden_tabs",JSONArray(if(shown)hidden.filter {it!="Efeitos"} else hidden+"Efeitos"))
@@ -178,10 +189,6 @@ val categories=linkedMapOf(
                         Toggle("Escolher automaticamente a versão mais semelhante no YouTube",settings.optBoolean("auto_match")){put("auto_match",it)}
                         SettingsDivider()
                         UiText("Vale para os próximos downloads iniciados, inclusive itens já na fila e álbuns. Escolhe a maior similaridade entre as versões compatíveis.",style=MaterialTheme.typography.bodySmall)
-                        if(settings.optBoolean("auto_match")) {
-                            UiText("A confirmação de versão fica desativada enquanto a escolha automática está ligada.",style=MaterialTheme.typography.bodySmall)
-                        }
-                        Toggle("Confirmar a versão do YouTube de cada música antes de baixar",settings.optBoolean("confirm_version")){put("confirm_version",it)}
                         SettingsDivider()
                         Toggle("Revisar metadados antes de baixar",settings.optBoolean("review_metadata")){put("review_metadata",it)}
                         UiText("Spotify, Deezer e Apple Music fornecem metadados; o áudio correspondente é obtido do YouTube.",style=MaterialTheme.typography.bodySmall)
@@ -208,6 +215,9 @@ val categories=linkedMapOf(
                         UiText("Mantém a prévia dos efeitos ao trocar de página. Não controla a reprodução do Jukebox.",style=MaterialTheme.typography.bodySmall)
                         Toggle("Continuar Jukebox em outras abas e em segundo plano",settings.optBoolean("jukebox_background")){put("jukebox_background",it)}
                         Toggle("Mostrar letra sincronizada (LRC)",settings.optBoolean("synced_lyrics")){put("synced_lyrics",it)}
+                        SettingsDivider()
+                        Select("Duração da transição entre músicas (segundos)",settings.optInt("jukebox_transition_seconds",2).toString(),(1..10).map {it.toString()}){put("jukebox_transition_seconds",it.toInt())}
+                        UiText("Tempo de sobreposição entre a música atual e a próxima. Vale para trocas pelo timer e pela fila.",style=MaterialTheme.typography.bodySmall)
                         SettingsDivider()
                         UiText("Duração das prévias",style=MaterialTheme.typography.titleSmall)
                         for((key,label) in listOf("search_preview" to "Músicas nas pesquisas","effects_preview" to "Slowed / Sped Up e Reverb")) {

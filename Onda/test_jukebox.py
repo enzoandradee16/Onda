@@ -21,7 +21,7 @@ class JukeboxTests(unittest.TestCase):
         self.temp=tempfile.TemporaryDirectory();self.env=patch.dict(os.environ,{'ONDA_ALIAS_CACHE_ROOT':self.temp.name});self.env.start()
         self.base=jukebox.cache_root()/('a'*64);self.base.mkdir(parents=True)
         song(self.base/'audio.wav')
-        model={'version':1,'duration':8,'bpm':120,'beats':[i*.25 for i in range(33)],'neighbors':[[] for _ in range(32)],'links':1}
+        model={'version':1,'phrase_version':jukebox.PHRASE_VERSION,'duration':8,'bpm':120,'beats':[i*.25 for i in range(33)],'neighbors':[[] for _ in range(32)],'links':1}
         model['neighbors'][4]=[20];(self.base/'analysis.json').write_text(json.dumps(model));self.model=model
     def tearDown(self):self.env.stop();self.temp.cleanup()
     def test_twenty_minute_analysis_is_accepted_but_longer_is_rejected(self):
@@ -38,6 +38,13 @@ class JukeboxTests(unittest.TestCase):
                 with wave.open(str(self.base/'audio.wav'),'rb') as original:self.assertEqual(b''.join(p['pcm'] for p in parts),original.readframes(original.getnframes()))
                 self.assertEqual(player.index,0);self.assertEqual(player.jumps,0);self.assertAlmostEqual(sum(p['seconds'] for p in parts),8)
             finally:player.close()
+    def test_phrase_comparison_checks_the_continuation_not_just_first_beat(self):
+        a=[1.0]+[0.0]*11+[.1,.1,.1,.3,.3,.3,.05,.05]
+        b=[0.0,1.0]+[0.0]*10+[.1,.1,.1,.3,.3,.3,.05,.05]
+        rows=[a]*8+[a,b,b,b]
+        self.assertIsNone(jukebox.phrase_similarity(rows,0,8))
+        self.assertAlmostEqual(jukebox.phrase_similarity([a]*12,0,8),1.0)
+
     def test_energy_filter_rejects_calm_phrase_after_a_loud_first_beat(self):
         levels=[.3]*32
         levels[21:28]=[.04]*7
@@ -72,6 +79,21 @@ class JukeboxTests(unittest.TestCase):
         saved=json.loads((base/'analysis.json').read_text())
         self.assertEqual(saved['energy_levels'],result['energy_levels'])
         self.assertEqual(saved['links'],sum(map(len,saved['neighbors'])))
+
+    def test_old_phrase_cache_is_reanalysed_from_pcm_once(self):
+        import hashlib,shutil
+        source=self.base/'audio.wav'
+        digest=hashlib.sha256(str(jukebox.VERSION).encode()+source.read_bytes()).hexdigest()
+        base=jukebox.cache_root()/digest;base.mkdir()
+        shutil.copy2(source,base/'audio.wav')
+        old=dict(self.model);old.pop('phrase_version')
+        (base/'analysis.json').write_text(json.dumps(old))
+        with patch('audio_tools.executable',return_value='ffmpeg'),patch.object(jukebox,'_run') as decode,patch.object(jukebox,'analyse_wave',return_value=self.model) as analyse:
+            self.assertTrue(jukebox.prepare(source)['cached'])
+            self.assertTrue(jukebox.prepare(source)['cached'])
+            self.assertEqual(analyse.call_count,1)
+            self.assertEqual(decode.call_count,1)
+            self.assertEqual(decode.call_args.args[0][5],str(base/'audio.wav'))
 
     def test_jump_uses_only_graph_neighbors_and_honors_spacing(self):
         player=jukebox.Session(self.base);player.random=SimpleNamespace(random=lambda:0,choice=lambda rows:rows[0])

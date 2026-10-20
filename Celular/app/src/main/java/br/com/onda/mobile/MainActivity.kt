@@ -148,7 +148,7 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
             Column(Modifier.fillMaxSize().padding(padding)) {
                 if(busy) LinearProgressIndicator(Modifier.fillMaxWidth())
                 TopStatusNotice(status,statusVisible,busy,settings.optBoolean("notice_animation",true),onCancel={vm.cancel()},onDismiss={statusVisible=false},onOpenSettings={category->if(category=="Sessão do YouTube")youtubeSession=true else {settingsCategory=category;showSettings=true}})
-                SwipePageHost(current=tab,pages=mainDestinations(tabs),onNavigate={tab=it},modifier=Modifier.weight(1f).fillMaxWidth()) {
+                SwipePageHost(current=tab,pages=mainDestinations(tabs,bottomBarOrder(settings)),onNavigate={tab=it},modifier=Modifier.weight(1f).fillMaxWidth()) {
                     pages.SaveableStateProvider(tab) {when(tab) {
                         "Pesquisar"->SearchPage(vm,onConnectSpotify={settingsCategory="Contas";showSettings=true})
                         "Links e fila","Fila"->DownloadsHome(vm)
@@ -401,6 +401,11 @@ internal fun displayReleaseDate(value:String):String {
                     }
                 }
                 Text(record.stringList("artists"),style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant,maxLines=1,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                record.cleanString("album").takeIf {it.isNotBlank()}?.let {album->
+                    Text(album,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant,maxLines=1,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                }
+                if(releaseDate.isNotBlank())Text(translateUi("Data de lançamento")+": "+displayReleaseDate(releaseDate),style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                MetadataPlatformBadge(record)
                 val duration=record.optLong("duration_ms")
                 val detail=translateUi("Música")+if(duration>0)" · "+mediaClock(duration/1000) else ""
                 Text(detail,style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant,maxLines=1)
@@ -728,7 +733,7 @@ internal fun displayReleaseDate(value:String):String {
             }
             Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
                 if(!complete && item.mode.lowercase() in audioModes)Checkbox(checked=item.id in selectedHistory,onCheckedChange={checked->selectedHistory=if(checked) selectedHistory+item.id else selectedHistory-item.id},modifier=Modifier.padding(end=LayoutSpacing.checkboxLabel).a11yLabel("Selecionar música"))
-                Text(item.title,Modifier.weight(1f),fontWeight=FontWeight.Bold)
+                if(!complete)Text(item.title,Modifier.weight(1f),fontWeight=FontWeight.Bold) else Spacer(Modifier.weight(1f))
                 TextButton(onClick={OndaStore.removeHistory(item.id)},modifier=Modifier.testTag("remove-history-${item.id}")){UiText("Remover")}
             }
             MetadataPlatformBadge(JSONObject().put("platform",item.metadataPlatform))
@@ -769,10 +774,12 @@ fun mediaClock(seconds:Long):String {val value=seconds.coerceAtLeast(0);return "
 @Composable fun EffectsPage(vm: OndaViewModel,heading:Boolean=true) {
     var lyrics by remember {mutableStateOf<List<Pair<Double,String>>>(emptyList())}
     var lyricLine by remember {mutableStateOf("")}
+    var lyricsName by remember {mutableStateOf("")}
     val lyricSettings by OndaStore.settings.collectAsStateWithLifecycle()
-    val pickLyrics=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) {uri->if(uri!=null)vm.importLocal(uri,"lyrics") {file->
-        vm.operation("lyrics_read",JSONObject().put("source",file.absolutePath)) {result->
+    val pickLyrics=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) {uri->if(uri!=null)vm.importLocal(uri,"lyrics",dialog=true) {file->
+        vm.operation("lyrics_read",JSONObject().put("source",file.absolutePath),dialog=true) {result->
             lyrics=result.optJSONArray("lines")?.let {rows->(0 until rows.length()).map {index->rows.getJSONArray(index).let {it.getDouble(0) to it.getString(1)}}} ?: emptyList()
+            lyricsName=if(lyrics.isEmpty()) "" else file.name.replaceFirst(Regex("^lyrics-[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}-"),"")
             file.delete()
             if(lyrics.isEmpty())vm.showNotice("Importar letra LRC","Nenhum tempo válido na letra LRC.")
             else OndaStore.saveSettings(JSONObject(OndaStore.settings.value.toString()).put("synced_lyrics",true))
@@ -783,7 +790,7 @@ fun mediaClock(seconds:Long):String {val value=seconds.coerceAtLeast(0);return "
         while(true) {lyricLine=lyrics.lastOrNull {it.first<=vm.lyricsPosition()}?.second ?: "";delay(200)}
     }
     var source by rememberSaveable {mutableStateOf("")}
-    LaunchedEffect(source) {lyrics=emptyList();lyricLine=""}
+    LaunchedEffect(source) {lyrics=emptyList();lyricLine="";lyricsName=""}
     var speed by rememberSaveable {mutableFloatStateOf(85f)}
     var reverb by rememberSaveable {mutableFloatStateOf(25f)}
     var pitch by rememberSaveable {mutableStateOf(false)}
@@ -812,7 +819,8 @@ fun mediaClock(seconds:Long):String {val value=seconds.coerceAtLeast(0);return "
     Column(Modifier.verticalScroll(rememberScrollState()).padding(LayoutSpacing.inset),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
         if(heading)PageTitle("Slowed · Sped Up · Reverb","Desacelere ou acelere sua música. Adicione reverb se quiser.")
         OutlinedButton(onClick={choose.launch(arrayOf("audio/*"))},modifier=Modifier.fillMaxWidth()){UiText(if(source.isBlank()) "Abrir áudio" else importedAudioName(source),maxLines=2)}
-        TextButton(onClick={pickLyrics.launch(arrayOf("text/plain","application/x-lrc","application/octet-stream"))},enabled=source.isNotBlank()){UiText("Importar letra LRC")}
+        TextButton(onClick={pickLyrics.launch(arrayOf("*/*"))},enabled=source.isNotBlank()){UiText("Importar letra LRC")}
+        if(lyricsName.isNotBlank())Text(lyricsName,style=MaterialTheme.typography.bodySmall)
         if(lyricLine.isNotBlank())Text(lyricLine,style=MaterialTheme.typography.titleMedium)
         val presets=remember {linkedMapOf("Original" to (100f to 0f),"Slowed leve" to (90f to 0f),"Slowed intenso" to (75f to 0f),"Sped Up leve" to (115f to 0f),"Sped Up intenso" to (130f to 0f),"Sped Up + Reverb" to (120f to 25f),"Só Reverb" to (100f to 30f),"Clássico" to (85f to 25f),"Atmosférico" to (75f to 50f))}
         val preset=presets.entries.firstOrNull {it.value.first.toInt()==speed.toInt() && it.value.second.toInt()==reverb.toInt()}?.key ?: "Personalizado"

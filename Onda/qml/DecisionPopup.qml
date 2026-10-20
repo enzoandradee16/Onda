@@ -42,7 +42,7 @@ Popup {
                             }
                             Image { visible: decisionDialog.media; Layout.preferredWidth: 100; Layout.preferredHeight: 100; source: modelData.thumbnail || modelData.preview_url || modelData.url || ""; fillMode: Image.PreserveAspectFit; asynchronous: true }
                             Label { Layout.fillWidth: true; text: modelData.title || modelData.name || modelData.id || ""; wrapMode: Text.Wrap; color: bridge.palette.text }
-                            ComboBox { visible: decisionDialog.media && (modelData.outputLabels || []).length > 0; model: modelData.outputLabels || []; onActivated: { var values=Object.assign({},decisionDialog.modes);values[modelData.id]=modelData.outputCodes[index];decisionDialog.modes=values } }
+                            ChoiceBox { visible: decisionDialog.media && (modelData.outputLabels || []).length > 0; model: modelData.outputLabels || []; onActivated: { var values=Object.assign({},decisionDialog.modes);values[modelData.id]=modelData.outputCodes[index];decisionDialog.modes=values } }
                             ActionButton { visible: decisionDialog.decision.type === "choose_version"; text: bridge.translate("Versão errada"); onClicked: { var ids=decisionDialog.rejected.slice();ids.push(modelData.id);decisionDialog.rejected=ids } }
                             ActionButton { visible: !decisionDialog.media; text: bridge.translate("Escolher"); primary: true; onClicked: decisionDialog.reply({selected_id:modelData.id || modelData.source_url,remember_choice:remember.checked,rejected_ids:decisionDialog.rejected}) }
                         }

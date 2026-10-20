@@ -166,16 +166,6 @@
   },
   {
     "category": "Downloads",
-    "label": "A confirmação de versão fica desativada enquanto a escolha automática está ligada.",
-    "keywords": ""
-  },
-  {
-    "category": "Downloads",
-    "label": "Confirmar a versão do YouTube de cada música antes de baixar",
-    "keywords": ""
-  },
-  {
-    "category": "Downloads",
     "label": "Revisar metadados antes de baixar",
     "keywords": " Spotify, Deezer e Apple Music fornecem metadados; o áudio correspondente é obtido do YouTube."
   },

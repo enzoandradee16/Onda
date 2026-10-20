@@ -30,6 +30,7 @@ class JukeboxService:Service() {
     private var artwork:Bitmap?=null
     private var artworkModel:org.json.JSONObject?=null
     private var artworkTask:Job?=null
+    private var selfStopped=false
     override fun onBind(intent:Intent?)=null
     override fun onCreate() {
         super.onCreate();controller=JukeboxRuntime.get(this)
@@ -46,7 +47,7 @@ class JukeboxService:Service() {
         if(Build.VERSION.SDK_INT>=29)startForeground(13,notification,ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK) else startForeground(13,notification)
         scope.launch {
             controller.state.map {Triple(it.playing,it.paused,it.model)}.distinctUntilChanged().collect {state->
-                if(!state.first){stopSelf();return@collect}
+                if(!state.first){selfStopped=true;stopSelf();return@collect}
                 if(state.second){if(wake.isHeld)wake.release()}else if(!wake.isHeld)wake.acquire()
                 session.isActive=true
                 refresh()
@@ -105,6 +106,10 @@ class JukeboxService:Service() {
     }
     override fun onTaskRemoved(rootIntent:Intent?) {controller.stop();stopSelf()}
     override fun onDestroy() {
-        controller.stop();scope.cancel();if(wake.isHeld)wake.release();session.isActive=false;session.release();stopForeground(STOP_FOREGROUND_REMOVE);super.onDestroy()
+        // A stop from the previous song may finish after the next one has started.
+        val restart=selfStopped && controller.state.value.playing
+        if(!selfStopped)controller.stop()
+        scope.cancel();if(wake.isHeld)wake.release();session.isActive=false;session.release();stopForeground(STOP_FOREGROUND_REMOVE);super.onDestroy()
+        if(restart)androidx.core.content.ContextCompat.startForegroundService(applicationContext,Intent(applicationContext,JukeboxService::class.java))
     }
 }
