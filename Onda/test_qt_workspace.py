@@ -102,6 +102,37 @@ class NativeDesktopTests(unittest.TestCase):
             self.assertNotIn('app_update',self.ws.activity['busy'])
             self.assertEqual(self.ws.activity['background'],[])
 
+    def test_card_sizes_change_geometry_and_persist_for_each_list(self):
+        from qt_desktop_ui import create_application,close_application
+        from PySide6.QtCore import QObject,QMetaObject,Q_ARG
+        app,engine,bridge=create_application(complete=False);ws=engine.workspace;window=engine.rootObjects()[0]
+        def visible_item(name):
+            def visit(item):
+                if item.objectName()==name and item.isVisible():return item
+                for child in item.childItems():
+                    result=visit(child)
+                    if result is not None:return result
+            return visit(window.contentItem())
+        try:
+            ws.searched({'tracks':[{'title':'Track','artists':['Artist'],'album':'Album','source_url':'https://example.com/track'}]})
+            ws.enqueue(['https://example.com/download.mp3'])
+            ws.models['playlists'].replace([{'title':'Track','artist':'Artist','album':'Album'}])
+            ws.models['history'].replace([{'title':'Track','date':'2026-10-20','mode':'MP3'}])
+            for page,key,card_name in [('catalog','catalog_card_size','libraryTrackCard'),('playlists','playlist_card_size','libraryTrackCard'),('history','history_card_size','libraryTrackCard'),('queue','queue_card_size','downloadQueueCard')]:
+                ws.selectPage(page)
+                if page=='history':ws.models['history'].replace([{'title':'Track','date':'2026-10-20','mode':'MP3'}])
+                self.settle();sizes=[]
+                for index,size in enumerate(('Pequeno','Médio','Grande')):
+                    choice=visible_item('cardSizeChoice');self.assertIsNotNone(choice)
+                    choice.setProperty('currentIndex',index);QMetaObject.invokeMethod(choice,'activated',Q_ARG(int,index));self.settle()
+                    self.assertEqual(ws.preferences[key],size)
+                    card=visible_item(card_name);self.assertIsNotNone(card,page);sizes.append(card.height())
+                self.assertLess(sizes[0],sizes[2],(page,sizes));self.assertLessEqual(sizes[0],sizes[1]);self.assertLessEqual(sizes[1],sizes[2])
+                ws.setSetting(key,'Médio')
+            ws.persist()
+            for key in ('catalog_card_size','playlist_card_size','history_card_size','queue_card_size'):self.assertEqual(ws.store.load()[key],'Médio')
+        finally:close_application(engine,bridge)
+
     def test_links_and_queue_have_separate_controls_and_navigation(self):
         from qt_desktop_ui import create_application,close_application
         from PySide6.QtCore import QObject,QMetaObject

@@ -4,6 +4,8 @@ import QtQuick.Layouts
 ColumnLayout {
     id: page
     property bool queuePage: workspace.currentPage === "queue"
+    readonly property string cardSize: workspace.preferences.queue_card_size || "Grande"
+    readonly property bool smallCards: cardSize === "Pequeno"
     spacing: Math.round(14*bridge.spacing)
     Menu {
         id: queueContext
@@ -72,6 +74,7 @@ ColumnLayout {
     Card { objectName: "downloadQueueTools"; visible: page.queuePage; Layout.fillWidth: true; implicitHeight: queueTools.implicitHeight+24
         Flow { id: queueTools; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 12; spacing: 8
             ActionButton { text: bridge.translate(workspace.queueModel.count>0 && workspace.activity.visibleSelected === workspace.queueModel.count ? "Desmarcar todas" : "Selecionar todas"); enabled: workspace.queueModel.count>0; onClicked: workspace.invoke("check_all",{model:"queue",checked:workspace.activity.visibleSelected !== workspace.queueModel.count}) }
+            CardSizeControl { settingKey: "queue_card_size" }
             Label { text: bridge.translate("Selecionados")+": "+workspace.activity.selected; color: bridge.palette.muted; padding: 12 }
             ActionButton { text: bridge.translate("Pausar"); enabled: workspace.activity.selected>0; onClicked: workspace.invoke("queue_action",{name:"pause"}) }
             ActionButton { text: bridge.translate("Retomar"); enabled: workspace.activity.selected>0; onClicked: workspace.invoke("queue_action",{name:"resume"}) }
@@ -97,7 +100,7 @@ ColumnLayout {
     RowLayout { visible: page.queuePage; Layout.fillWidth: true; Label { Layout.fillWidth: true; text: workspace.queueModel.count+" · "+(workspace.values.queueStorage || ""); color: bridge.palette.muted; wrapMode: Text.Wrap } Label { text: bridge.translate("Tempo decorrido")+": "+workspace.clock(workspace.activity.elapsed); color: bridge.palette.muted } }
     ListView { objectName: "downloadQueueList"; visible: page.queuePage; Layout.fillWidth: true; Layout.fillHeight: true; clip: true; spacing: Math.round(8*bridge.spacing); model: page.queuePage ? workspace.queueModel : null; reuseItems: true
         ScrollBar.vertical: ScrollBar {}
-        delegate: Card { id: card; objectName: "downloadQueueCard"; required property var entry; required property int index; width: ListView.view.width; height: Math.max(workspace.preferences.queue_view === "Completa" ? 156 : 112,queueDetails.implicitHeight+24)
+        delegate: Card { id: card; objectName: "downloadQueueCard"; required property var entry; required property int index; width: ListView.view.width; height: Math.max(page.smallCards ? 88 : page.cardSize === "Médio" ? 128 : 176,queueDetails.implicitHeight+24)
             function openContext() {
                 queueContext.targetId = card.entry.id
                 queueContext.targetChecked = !!card.entry.checked
@@ -114,15 +117,15 @@ ColumnLayout {
                 CheckBox { id: queueCheck; checked: card.entry.checked || false; onToggled: workspace.invoke("check",{model:"queue",index:card.index,checked:checked}); Accessible.name: bridge.translate("Selecionar")+" "+card.entry.track_title
                     indicator: Rectangle { implicitWidth: 20; implicitHeight: 20; x: queueCheck.leftPadding; y: (queueCheck.height-height)/2; radius: 4; color: queueCheck.checked ? bridge.palette.accent : bridge.palette.input; border.color: queueCheck.checked || queueCheck.activeFocus ? bridge.palette.accent : bridge.palette.muted; Label { anchors.centerIn: parent; text: "✓"; visible: queueCheck.checked; color: bridge.palette.accent_text } }
                 }
-                Rectangle { Layout.preferredWidth: Math.min(132,card.height-24); Layout.preferredHeight: Layout.preferredWidth; radius: 8; color: bridge.palette.input
+                Rectangle { Layout.preferredWidth: Math.min(page.smallCards ? 56 : page.cardSize === "Médio" ? 96 : 132,card.height-24); Layout.preferredHeight: Layout.preferredWidth; radius: 8; color: bridge.palette.input
                     Image { id: queueCover; objectName: "downloadQueueArtwork"; anchors.fill: parent; source: card.entry.track_cover || ""; sourceSize.width: 264; sourceSize.height: 264; fillMode: Image.PreserveAspectFit; asynchronous: true }
                     Label { anchors.centerIn: parent; visible: queueCover.status !== Image.Ready; text: "♪"; color: bridge.palette.muted; font.pixelSize: 30 }
                 }
-                ColumnLayout { id: queueDetails; Layout.fillWidth: true; spacing: 5
-                    Label { text: card.entry.track_title; color: bridge.palette.text; font.weight: Font.DemiBold; Layout.fillWidth: true; elide: Text.ElideRight }
+                ColumnLayout { id: queueDetails; Layout.fillWidth: true; spacing: page.smallCards ? 3 : 5
+                    Label { text: card.entry.track_title; font.pixelSize: Math.round((page.smallCards ? 13 : page.cardSize === "Médio" ? 14 : 16)*bridge.fontScale); color: bridge.palette.text; font.weight: Font.DemiBold; Layout.fillWidth: true; elide: Text.ElideRight }
                     Label { visible: !!card.entry.track_artist; text: card.entry.track_artist; color: bridge.palette.muted; Layout.fillWidth: true; elide: Text.ElideRight }
-                    Label { visible: !!card.entry.track_album; text: card.entry.track_album; color: bridge.palette.muted; Layout.fillWidth: true; elide: Text.ElideRight }
-                    Label { visible: card.entry.track_duration > 0; text: workspace.clock(card.entry.track_duration); color: bridge.palette.muted }
+                    Label { visible: !page.smallCards && !!card.entry.track_album; text: card.entry.track_album; color: bridge.palette.muted; Layout.fillWidth: true; elide: Text.ElideRight }
+                    Label { visible: !page.smallCards && card.entry.track_duration > 0; text: workspace.clock(card.entry.track_duration); color: bridge.palette.muted }
                     Label { text: bridge.translate(card.entry.state)+" · "+String(card.entry.mode).toUpperCase(); color: bridge.palette.muted }
                     OndaProgressBar { Layout.fillWidth: true; from: 0; to: 100; value: card.entry.percent || 0; visible: card.entry.state === "Em andamento" }
                     Label { visible: workspace.preferences.queue_view === "Completa"; text: card.entry.last_error || card.entry.url; color: card.entry.last_error ? bridge.palette.error : bridge.palette.muted; wrapMode: Text.Wrap; Layout.fillWidth: true; maximumLineCount: 2 }

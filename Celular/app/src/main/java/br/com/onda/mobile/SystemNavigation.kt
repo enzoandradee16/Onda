@@ -15,4 +15,5 @@ internal fun applyNavigationBarTheme(window:Window,background:Color,dark:Boolean
     if(Build.VERSION.SDK_INT>=28)window.navigationBarDividerColor=color
     if(Build.VERSION.SDK_INT>=29)window.isNavigationBarContrastEnforced=false
     WindowCompat.getInsetsController(window,window.decorView).isAppearanceLightNavigationBars=!dark
+    WindowCompat.getInsetsController(window,window.decorView).isAppearanceLightStatusBars=!dark
 }

@@ -3,6 +3,8 @@
     "shortcut_keys": "{}",
     "language": "pt-BR",
     "queue_card_size": "Grande",
+    "catalog_card_size": "Grande",
+    "playlist_card_size": "Grande",
     "queue_view": "Compacto",
     "history_card_size": "Grande",
     "pure_black_separators": false,
@@ -436,6 +438,28 @@
       "choices": [
         "Compacto",
         "Completa"
+      ]
+    },
+    {
+      "category": "Aparência",
+      "key": "catalog_card_size",
+      "label": "Tamanho dos cards da pesquisa",
+      "kind": "select",
+      "choices": [
+        "Pequeno",
+        "Médio",
+        "Grande"
+      ]
+    },
+    {
+      "category": "Aparência",
+      "key": "playlist_card_size",
+      "label": "Tamanho dos cards de álbuns e playlists",
+      "kind": "select",
+      "choices": [
+        "Pequeno",
+        "Médio",
+        "Grande"
       ]
     },
     {

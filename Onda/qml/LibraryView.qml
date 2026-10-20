@@ -6,6 +6,9 @@ ColumnLayout {
     property string mode: workspace.currentPage
     property bool catalog: mode === "catalog"
     property bool history: mode === "history"
+    readonly property string cardSizeKey: history ? "history_card_size" : catalog ? "catalog_card_size" : "playlist_card_size"
+    readonly property string cardSize: workspace.preferences[cardSizeKey] || "Grande"
+    readonly property bool smallCards: cardSize === "Pequeno"
     spacing: Math.round(14*bridge.spacing)
     RowLayout { Layout.fillWidth: true
         OndaTextField { Layout.fillWidth: true; placeholderText: bridge.translate(page.history ? "Buscar no histórico" : page.catalog ? "Pesquise uma música ou cole um link" : "Link do álbum ou playlist"); text: page.history ? workspace.values.historyQuery : page.catalog ? workspace.values.query : workspace.values.playlistUrl
@@ -35,6 +38,7 @@ ColumnLayout {
         ActionButton { visible: page.history; text: bridge.translate("Limpar histórico"); onClicked: workspace.invoke("history_clear",{}) }
     }
     Label { visible: !page.catalog && !page.history; text: workspace.values.playlistTitle || ""; color: bridge.palette.text; font.pixelSize: Math.round(20*bridge.fontScale) }
+    CardSizeControl { Layout.alignment: Qt.AlignRight; settingKey: page.cardSizeKey }
     ListView { Layout.fillWidth: true; Layout.fillHeight: true; clip: true; spacing: Math.round(10*bridge.spacing); reuseItems: true; model: page.catalog ? workspace.catalogModel : page.history ? workspace.historyModel : workspace.playlistModel
         EmptyState {
             objectName: "libraryEmptyState"
@@ -43,14 +47,14 @@ ColumnLayout {
             description: bridge.translate(page.history ? (workspace.values.historyQuery ? "Tente outro termo para buscar no histórico." : "Seus downloads e arquivos exportados aparecerão aqui.") : page.catalog ? (workspace.activity.busy.indexOf("search")>=0 ? "Aguarde os resultados ou clique em Cancelar." : workspace.values.catalogSearched ? "Tente outra busca ou ajuste os filtros de artista, álbum e versão." : "Pesquise por música ou artista, ou cole um link de faixa.") : "Cole o link de um álbum ou playlist e clique em Carregar, ou importe uma lista.")
         }
         ScrollBar.vertical: ScrollBar {}
-        delegate: Card { id: rowCard; required property var entry; required property int index; width: ListView.view.width; height: Math.max(page.history ? 100 : 176,trackDetails.implicitHeight+24)
+        delegate: Card { id: rowCard; objectName: "libraryTrackCard"; required property var entry; required property int index; width: ListView.view.width; height: Math.max(page.history ? (page.smallCards ? 76 : page.cardSize === "Médio" ? 104 : 132) : (page.smallCards ? 132 : page.cardSize === "Médio" ? 160 : 192),trackDetails.implicitHeight+24)
             RowLayout { id: trackBody; anchors.fill: parent; anchors.margins: 12; spacing: Math.round(18*bridge.spacing)
                 CheckBox { visible: !page.catalog; checked: rowCard.entry.checked || false; onToggled: workspace.invoke("check",{model:page.history ? "history" : "playlists",index:rowCard.index,checked:checked}) }
-                Image { objectName: "libraryArtwork"; visible: !page.history; source: rowCard.entry.cover_url || ""; sourceSize.width: 440; sourceSize.height: 440; Layout.preferredWidth: Math.min(rowCard.height-24,220,rowCard.width*0.25); Layout.preferredHeight: Layout.preferredWidth; fillMode: Image.PreserveAspectFit; asynchronous: true
+                Image { objectName: "libraryArtwork"; visible: !page.history; source: rowCard.entry.cover_url || ""; sourceSize.width: 440; sourceSize.height: 440; Layout.preferredWidth: Math.min(rowCard.height-24,page.smallCards ? 76 : page.cardSize === "Médio" ? 112 : 168,rowCard.width*0.25); Layout.preferredHeight: Layout.preferredWidth; fillMode: Image.PreserveAspectFit; asynchronous: true
                     Label { anchors.centerIn: parent; visible: parent.status !== Image.Ready; text: "♪"; font.pixelSize: Math.round(36*bridge.fontScale); color: bridge.palette.muted }
                 }
-                ColumnLayout { id: trackDetails; Layout.fillWidth: true; spacing: Math.round(7*bridge.spacing)
-                    Label { text: rowCard.entry.title || rowCard.entry.name || ""; font.pixelSize: Math.round(17*bridge.fontScale); font.weight: Font.DemiBold; color: bridge.palette.text; Layout.fillWidth: true; elide: Text.ElideRight }
+                ColumnLayout { id: trackDetails; Layout.fillWidth: true; spacing: Math.round((page.smallCards ? 3 : 7)*bridge.spacing)
+                    Label { text: rowCard.entry.title || rowCard.entry.name || ""; font.pixelSize: Math.round((page.smallCards ? 14 : page.cardSize === "Médio" ? 16 : 17)*bridge.fontScale); font.weight: Font.DemiBold; color: bridge.palette.text; Layout.fillWidth: true; elide: Text.ElideRight }
                     Label { text: page.history ? rowCard.entry.date+" · "+rowCard.entry.mode : (rowCard.entry.artist || "")+" · "+(rowCard.entry.album || ""); color: bridge.palette.muted; Layout.fillWidth: true; elide: Text.ElideRight }
                     RowLayout { visible: !page.history; Image { objectName: "platformIcon"; source: rowCard.entry.platform_key ? "image://platform/"+rowCard.entry.platform_key+"/"+bridge.palette.text.replace("#","") : ""; Layout.preferredWidth: 20; Layout.preferredHeight: 20; fillMode: Image.PreserveAspectFit } Label { text: rowCard.entry.platform || ""; color: bridge.palette.muted } }
                     Label { visible: !page.history && (!!rowCard.entry.release_date || !!rowCard.entry.comparison || (!!rowCard.entry.service && rowCard.entry.service !== rowCard.entry.platform)); text: rowCard.entry.release_date ? bridge.translate("Data de lançamento")+": "+rowCard.entry.release_date : (rowCard.entry.comparison || rowCard.entry.service || rowCard.entry.platform || ""); color: bridge.palette.muted }

@@ -252,10 +252,10 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
-    fun loadCollection(url: String, options: JSONObject, startDownload:Boolean=false) = operation("collection",OndaStore.config(options).put("url",url)) {
+    fun loadCollection(url: String, options: JSONObject, startDownload:Boolean=false,queueOnly:Boolean=false) = operation("collection",OndaStore.config(options).put("url",url)) {
         collectionComparison.value=null
         collection.value=it.put("_collection_url",url)
-        if(startDownload)queueCollection(it.optJSONArray("tracks")?.objects() ?: emptyList(),options,it.optString("folder_title",it.optString("title","Playlist")),true)
+        if(startDownload || queueOnly)queueCollection(it.optJSONArray("tracks")?.objects() ?: emptyList(),options,it.optString("folder_title",it.optString("title","Playlist")),startDownload)
     }
     fun compareCollectionLocal(tree:Uri,url:String,options:JSONObject,reload:Boolean) {
         if(busy.value || addingToQueue.value)return

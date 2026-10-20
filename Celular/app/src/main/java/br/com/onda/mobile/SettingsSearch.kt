@@ -18,7 +18,15 @@ private fun settingsFold(value:String)=Normalizer.normalize(value.lowercase(),No
 internal fun settingsSearchMatches(query:String,text:String)=settingsFold(query).split(Regex("\\s+")).filter {it.isNotBlank()}.all {it in settingsFold(text)}
 internal fun settingsSearchEntries():List<SettingsSearchEntry> {
     val data=JSONArray(OndaStore.context.assets.open("settings_search.json").bufferedReader().use {it.readText()})
-    return (0 until data.length()).map {data.getJSONObject(it).let {row->SettingsSearchEntry(row.getString("category"),row.getString("label"),row.optString("keywords"))}}
+    val legacy=(0 until data.length()).map {data.getJSONObject(it).let {row->SettingsSearchEntry(row.getString("category"),row.getString("label"),row.optString("keywords"))}}
+    return legacy.filter {it.label !in setOf("Ordem das abas","Mostrar ou ocultar abas","Restaurar ordem das abas")}+listOf(
+        SettingsSearchEntry("Aparência","Tamanho dos cards da pesquisa","capas resultados músicas"),
+        SettingsSearchEntry("Aparência","Navegação","abas barra inferior links downloads"),
+        SettingsSearchEntry("Aparência","Mostrar Reprodução na barra inferior","jukebox efeitos ocultar"),
+        SettingsSearchEntry("Aparência","Ferramentas no menu Mais","ordem mostrar ocultar imagens conversor metadados"),
+        SettingsSearchEntry("Aparência","Biblioteca no menu Mais","ordem mostrar ocultar álbuns playlists histórico"),
+        SettingsSearchEntry("Aparência","Gerenciamento avançado","ações listas fila")
+    )
 }
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable internal fun settingsSearchModifier(text:String,modifier:Modifier):Modifier {

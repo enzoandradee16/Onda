@@ -13,13 +13,14 @@ import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.*
 import org.json.JSONObject
 
-@Composable fun ClipboardDownloadPrompt(enabled:Boolean,canPrompt:Boolean,onConfirm:(JSONObject)->Unit) {
+@Composable fun ClipboardDownloadPrompt(enabled:Boolean,canPrompt:Boolean,onAdd:((JSONObject)->Unit)?=null,onConfirm:(JSONObject)->Unit) {
     val context=LocalContext.current
     val view=LocalView.current
     val lifecycle=LocalLifecycleOwner.current.lifecycle
     var seen by rememberSaveable {mutableStateOf(emptyList<String>())}
     var pending by remember {mutableStateOf<JSONObject?>(null)}
     val latestConfirm by rememberUpdatedState(onConfirm)
+    val latestAdd by rememberUpdatedState(onAdd)
     LaunchedEffect(enabled,canPrompt,lifecycle,view) {
         if(!enabled || !canPrompt) {pending=null;return@LaunchedEffect}
         lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
@@ -51,6 +52,6 @@ import org.json.JSONObject
         AlertDialog(containerColor=ondaDialogContainerColor(),onDismissRequest={pending=null},title={UiText("Link copiado")},
             text={androidx.compose.foundation.layout.Column {UiText("Foi encontrado um link compatível. Deseja iniciar o download?");Text(candidate.optString("url"),maxLines=5)}},
             confirmButton={TextButton(onClick={pending=null;latestConfirm(candidate)}){UiText("Baixar agora")}},
-            dismissButton={TextButton(onClick={pending=null}){UiText("Agora não")}})
+            dismissButton={androidx.compose.foundation.layout.Row {if(latestAdd!=null)TextButton(onClick={pending=null;latestAdd?.invoke(candidate)}){UiText("Adicionar à fila")};TextButton(onClick={pending=null}){UiText("Agora não")}}})
     }
 }

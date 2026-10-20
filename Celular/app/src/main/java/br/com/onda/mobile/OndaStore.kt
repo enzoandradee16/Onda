@@ -88,7 +88,7 @@ object OndaStore {
         refresh()
     }
     fun defaults() = JSONObject().put("wifi_only",false).put("wifi_loss","Pausar downloads").put("notification_controls",true).put("finish_action","Notificação").put("clipboard_links",true).put("auto_select_media",true).put("simple_download_ui",false).put("social_best_quality",true).put("language","pt-BR").put("mode","mp3").put("audio_quality","320 kbps").put("height",1080).put("fps",JSONObject.NULL)
-        .put("queue_actions_at_top",true).put("queue_view","Completa").put("queue_card_size","Grande").put("pure_black_separators",false).put("history_card_size","Grande").put("history_view","Compacto").put("playlist_limit",2000).put("link_playlist",false).put("auto_metadata",false).put("auto_match",false).put("confirm_version",false).put("review_metadata",false)
+        .put("queue_actions_at_top",true).put("queue_view","Completa").put("queue_card_size","Grande").put("catalog_card_size","Grande").put("pure_black_separators",false).put("history_card_size","Grande").put("history_view","Compacto").put("playlist_limit",2000).put("link_playlist",false).put("auto_metadata",false).put("auto_match",false).put("confirm_version",false).put("review_metadata",false)
         .put("detect_duplicates",true).put("filename_template","Original").put("duplicate_policy","ask").put("organization","Pasta de destino").put("interface_font",DEFAULT_INTERFACE_FONT).put("interface_font_size","100%").put("interface_spacing","Padrão").put("theme","Seguir o sistema").put("accent","Verde-Água")
         .put("concurrent_downloads","1").put("resume_downloads",true).put("resume_queue",false).put("normalize_volume",false)
         .put("schedule_enabled",false).put("schedule_start","22:00").put("schedule_stop","07:00").put("check_updates",true).put("notice_duration","Após 3 segundos").put("notice_animation",true)
@@ -118,7 +118,7 @@ object OndaStore {
         aliases[value.optString("accent")]?.let {value.put("accent",it)}
         if(value.optString("theme")=="Sistema") value.put("theme","Seguir o sistema")
     }
-    private val displayFields=listOf("queue_view","queue_card_size","history_view","history_card_size")
+    private val displayFields=listOf("queue_view","queue_card_size","history_view","history_card_size","catalog_card_size")
     @Synchronized fun saveSettings(value: JSONObject) {
         normalizeAppearance(value)
         val scheduleChanged=listOf("schedule_enabled","schedule_start","schedule_stop","wifi_only").any {settings.value.opt(it)!=value.opt(it)}
@@ -127,7 +127,7 @@ object OndaStore {
         if(controlsChanged && DownloadRuntime.running.get())refreshDownloadNotification(context)
         if(scheduleChanged)DownloadSchedule.configure(context,value)
         val persisted = if (value.optBoolean("remember",true)) value else defaults().put("remember",false).put("language",value.optString("language","pt-BR"))
-        context.getSharedPreferences("preferences",0).edit().putString("settings",persisted.toString()).putString("display",JSONObject().apply { displayFields.forEach { key -> put(key,value.get(key)) } }.toString()).apply()
+        context.getSharedPreferences("preferences",0).edit().putString("settings",persisted.toString()).putString("display",JSONObject().apply { displayFields.forEach { key -> put(key,value.optString(key,defaults().optString(key))) } }.toString()).apply()
         LauncherIcons.sync(context,value)
     }
     fun config(options: JSONObject = settings.value, includeSecrets: Boolean = true): JSONObject = JSONObject(options.toString()).apply {

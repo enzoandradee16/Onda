@@ -19,7 +19,7 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class TrackCardLayoutTest {
     @get:Rule val compose=createComposeRule()
-    @Test fun allThreeButtonsFitWithoutHorizontalScrolling() {
+    @Test fun downloadAndOverflowFitAndKeepOtherActionsAccessible() {
         val context=InstrumentationRegistry.getInstrumentation().targetContext
         OndaStore.initialize(context)
         val vm=OndaViewModel(androidx.test.core.app.ApplicationProvider.getApplicationContext())
@@ -30,11 +30,12 @@ class TrackCardLayoutTest {
             }
         }}
         val bounds=compose.onNodeWithTag("track-width").fetchSemanticsNode().boundsInRoot
-        for(label in listOf("Ouvir prévia","Adicionar à fila","Baixar agora")) {
-            val button=compose.onNodeWithText(label)
-            button.assertIsDisplayed()
-            assertTrue(label,button.fetchSemanticsNode().boundsInRoot.right<=bounds.right)
-        }
+        val download=compose.onNodeWithContentDescription("Baixar agora")
+        download.assertIsDisplayed()
+        assertTrue(download.fetchSemanticsNode().boundsInRoot.right<=bounds.right)
+        compose.onNodeWithContentDescription("Mais ações").performClick()
+        compose.onNodeWithText("Adicionar à fila").assertIsDisplayed()
+        compose.onNodeWithText("Ouvir prévia").assertExists()
         compose.onNodeWithText("Baixar agora").performClick()
         compose.runOnIdle {assertEquals(1,downloads)}
     }

@@ -20,12 +20,14 @@ import androidx.compose.material3.*
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -170,8 +172,9 @@ internal class JukeboxController(private val context:Context,private val scope:C
 }
 
 @Composable internal fun PlaybackPage(vm:OndaViewModel) {
-    var mode by rememberSaveable {mutableStateOf(0)}
+    var mode by rememberSaveable {mutableStateOf(if(vm.jukebox.state.value.model!=null)1 else 0)}
     val jukeboxState by vm.jukebox.state.collectAsStateWithLifecycle()
+    LaunchedEffect(Unit) {if(jukeboxState.playing)mode=1}
     val incomingSource by vm.effectsSource.collectAsStateWithLifecycle()
     LaunchedEffect(jukeboxState.model) {jukeboxState.model?.optString("source")?.takeIf {it.isNotBlank()}?.let {vm.effectsSource.value=it}}
     LaunchedEffect(incomingSource) {if(incomingSource.isNotBlank() && incomingSource!=jukeboxState.model?.optString("source"))mode=0}
@@ -182,9 +185,9 @@ internal class JukeboxController(private val context:Context,private val scope:C
         onDispose {owner.lifecycle.removeObserver(observer);if(!OndaStore.settings.value.optBoolean("jukebox_background"))vm.jukebox.pause()}
     }
     Column(Modifier.fillMaxSize()) {
-        PageTitle("Reprodução e efeitos","Sua música, de um novo jeito.")
-        TabRow(selectedTabIndex=mode) {
-            listOf("Efeitos","Jukebox infinito").forEachIndexed {index,label->Tab(selected=index==mode,onClick={vm.stopPreview(!OndaStore.settings.value.optBoolean("jukebox_background"));mode=index;if(index==1 && incomingSource.isNotBlank() && incomingSource!=jukeboxState.model?.optString("source"))vm.jukebox.prepare(incomingSource)},text={UiText(label)})}
+        UiText("Reprodução",modifier=Modifier.padding(horizontal=24.dp,vertical=8.dp),style=MaterialTheme.typography.headlineMedium,fontWeight=androidx.compose.ui.text.font.FontWeight.Bold)
+        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal=24.dp,vertical=8.dp)) {
+            listOf("Efeitos","Jukebox infinito").forEachIndexed {index,label->SegmentedButton(selected=index==mode,shape=RoundedCornerShape(12.dp),icon={},colors=SegmentedButtonDefaults.colors(activeContainerColor=MaterialTheme.colorScheme.primary,activeContentColor=MaterialTheme.colorScheme.onPrimary),onClick={vm.stopPreview(!OndaStore.settings.value.optBoolean("jukebox_background"));mode=index;if(index==1 && incomingSource.isNotBlank() && incomingSource!=jukeboxState.model?.optString("source"))vm.jukebox.prepare(incomingSource)}){UiText(label)}}
         }
         if(mode==0)EffectsPage(vm,heading=false) else JukeboxPage(vm)
     }
@@ -200,58 +203,82 @@ internal class JukeboxController(private val context:Context,private val scope:C
     var normal by rememberSaveable {mutableStateOf(controller.normal)}
     LaunchedEffect(variation,smooth,normal) {controller.variation=variation;controller.smooth=smooth;controller.normal=normal}
     val chooser=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) {uri->if(uri!=null)vm.importLocal(uri,"audio") {file->controller.prepare(file.absolutePath)}}
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(LayoutSpacing.inset),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
-        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
-            OutlinedButton(onClick={chooser.launch(arrayOf("audio/*"))},enabled=!state.busy,modifier=Modifier.weight(1f)){UiText("Abrir arquivo")}
-            Button(onClick={showEqualizer=true},modifier=Modifier.weight(1f)){UiText("Equalizador")}
-        }
-        OutlinedTextField(query,{query=it},label={UiText("Pesquise uma música ou cole um link")},singleLine=true,modifier=Modifier.fillMaxWidth())
-        Button(onClick={controller.search(query)},enabled=query.isNotBlank()&&!state.busy){UiText("Pesquisar")}
-        if(state.busy){LinearProgressIndicator(Modifier.fillMaxWidth());TextButton(onClick=controller::stop){UiText("Cancelar")}}
-        state.records.forEach {record->
-            val artists=record.optJSONArray("artists")?.let {a->(0 until a.length()).joinToString(", "){a.getString(it)}}.orEmpty()
-            OutlinedButton(onClick={controller.prepare(record=record)},modifier=Modifier.fillMaxWidth()) {UiText(listOf(record.optString("title"),artists).filter {it.isNotBlank()}.joinToString(" · "))}
+    var chooseMusic by rememberSaveable {mutableStateOf(false)}
+    var playbackMenu by remember {mutableStateOf(false)}
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+    val graphHeight=(maxHeight*.36f).coerceIn(200.dp,260.dp)
+    Column(Modifier.fillMaxSize().padding(horizontal=24.dp)) {
+        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(top=12.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
+        if(state.model==null || chooseMusic || state.busy) {
+            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+                Button(onClick={chooser.launch(arrayOf("audio/*"))},enabled=!state.busy){UiText("Abrir arquivo")}
+                TextButton(onClick={showEqualizer=true}){UiText("Equalizador")}
+            }
+            OutlinedTextField(query,{query=it},placeholder={UiText("Pesquise uma música ou cole um link")},singleLine=true,shape=RoundedCornerShape(14.dp),modifier=Modifier.fillMaxWidth())
+            Button(onClick={if(state.busy)controller.stop() else controller.search(query)},enabled=state.busy || query.isNotBlank()){UiText(if(state.busy)"Cancelar" else "Pesquisar")}
+            if(state.busy)LinearProgressIndicator(Modifier.fillMaxWidth())
+            state.records.forEach {record->
+                val artists=record.optJSONArray("artists")?.let {a->(0 until a.length()).joinToString(", "){a.getString(it)}}.orEmpty()
+                OutlinedButton(onClick={chooseMusic=false;controller.prepare(record=record)},modifier=Modifier.fillMaxWidth()) {UiText(listOf(record.optString("title"),artists).filter {it.isNotBlank()}.joinToString(" · "))}
+            }
         }
         val embeddedCover=state.model?.optString("media_cover").orEmpty()
         val cover=remember(embeddedCover,state.model?.optString("cover_url")) {
             if(embeddedCover.isNotBlank())runCatching {Base64.decode(embeddedCover,Base64.DEFAULT)}.getOrNull()
             else state.model?.optString("cover_url")?.takeIf {it.isNotBlank()}
         }
-        Row(Modifier.fillMaxWidth(),verticalAlignment=androidx.compose.ui.Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
-            Box(Modifier.size(88.dp).clip(RoundedCornerShape(8.dp)),contentAlignment=androidx.compose.ui.Alignment.Center) {
-                if(cover!=null)coil.compose.AsyncImage(model=cover,contentDescription=null,contentScale=ContentScale.Crop,modifier=Modifier.fillMaxSize())
-                else UiText("♪",style=MaterialTheme.typography.headlineLarge)
+        if(state.model!=null)Row(Modifier.fillMaxWidth(),verticalAlignment=androidx.compose.ui.Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(16.dp)) {
+            Box(Modifier.size(128.dp).clip(RoundedCornerShape(12.dp)),contentAlignment=androidx.compose.ui.Alignment.Center) {
+                if(cover!=null)coil.compose.AsyncImage(model=cover,contentDescription=translateUi("Capa do álbum"),contentScale=ContentScale.Crop,modifier=Modifier.fillMaxSize())
+                else OndaIcon("album",modifier=Modifier.size(44.dp))
             }
-            Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(4.dp)) {
-                if(state.title.isNotBlank())UiText(state.title,style=MaterialTheme.typography.titleMedium)
-                state.model?.optString("media_artist")?.takeIf {it.isNotBlank()}?.let {UiText(it,style=MaterialTheme.typography.bodyMedium)}
-                state.model?.optString("album")?.takeIf {it.isNotBlank()}?.let {UiText(it,style=MaterialTheme.typography.bodySmall)}
+            Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(5.dp)) {
+                UiText(state.title,style=MaterialTheme.typography.titleMedium,maxLines=2)
+                state.model?.optString("media_artist")?.takeIf {it.isNotBlank()}?.let {UiText(it,style=MaterialTheme.typography.bodyMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)}
+                state.model?.optString("album")?.takeIf {it.isNotBlank()}?.let {UiText(it,style=MaterialTheme.typography.bodySmall,maxLines=1,color=MaterialTheme.colorScheme.onSurfaceVariant)}
+                OutlinedButton(onClick={showEqualizer=true},shape=RoundedCornerShape(10.dp),contentPadding=PaddingValues(horizontal=10.dp,vertical=4.dp)) {
+                    OndaIcon("equalizer",modifier=Modifier.size(17.dp));Spacer(Modifier.width(8.dp));UiText("Equalizador",style=MaterialTheme.typography.labelMedium)
+                }
             }
         }
-        UiText(if(state.paused)"Pausado." else state.message,style=MaterialTheme.typography.bodySmall)
-        JukeboxGraph(state.model,state.index,state.phase,state.playing,state.flow,variation,smooth,normal,controller::seek)
-        UiText("Como a música se transforma",style=MaterialTheme.typography.titleMedium)
-        UiText("Variação")
-        RoundSlider(variation,{variation=it;controller.variation=it},valueRange=0f..100f)
-        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){UiText("Mais fiel");UiText("Mais saltos")}
-        UiText("Transição suave")
-        RoundSlider(smooth,{smooth=it;controller.smooth=it},valueRange=0f..100f)
-        UiText("A análise fica salva para os próximos usos.",style=MaterialTheme.typography.bodySmall)
-        UiText("Os saltos dependem de trechos compatíveis. A detecção de batidas é uma estimativa.",style=MaterialTheme.typography.bodySmall)
-        Row(horizontalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
-            Button(onClick=controller::playPause,enabled=state.model!=null&&!state.busy){UiText(if(state.playing)if(state.paused)"Retomar" else "Pausar" else "Reproduzir")}
-            OutlinedButton(onClick=controller::stop){UiText("Parar")}
+        if(state.model==null || state.busy)UiText(state.message,style=MaterialTheme.typography.bodySmall)
+        JukeboxGraph(state.model,state.index,state.phase,state.playing,state.flow,variation,smooth,normal,controller::seek,height=graphHeight)
+        UiText("Variação",style=MaterialTheme.typography.labelLarge)
+        Row(Modifier.fillMaxWidth(),verticalAlignment=androidx.compose.ui.Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+            UiText("Mais fiel",style=MaterialTheme.typography.labelSmall)
+            RoundSlider(variation,{variation=it;controller.variation=it},modifier=Modifier.weight(1f).testTag("jukebox-variation"),valueRange=0f..100f,slim=true)
+            UiText("Mais saltos",style=MaterialTheme.typography.labelSmall)
         }
-        Toggle("Reprodução normal",normal){normal=it;controller.normal=it}
-        UiText(translateUi("Tempo ouvido: {time} · Saltos: {count}").replace("{time}",mediaClock(state.elapsed.toLong())).replace("{count}",state.jumps.toString()))
+        UiText("Transição suave",style=MaterialTheme.typography.labelLarge)
+        RoundSlider(smooth,{smooth=it;controller.smooth=it},modifier=Modifier.fillMaxWidth().testTag("jukebox-transition"),valueRange=0f..100f,slim=true)
+        Spacer(Modifier.height(4.dp))
+        }
+        Row(Modifier.fillMaxWidth(),verticalAlignment=androidx.compose.ui.Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceEvenly) {
+            IconButton(onClick={showEqualizer=true}){OndaIcon("equalizer","Equalizador",Modifier.size(23.dp))}
+            IconButton(onClick={controller.seek((state.index-1).coerceAtLeast(0))},enabled=state.model!=null&&!state.busy){OndaIcon("previous","Trecho anterior",Modifier.size(25.dp))}
+            FilledIconButton(onClick=controller::playPause,enabled=state.model!=null&&!state.busy,modifier=Modifier.size(64.dp),shape=RoundedCornerShape(50)){OndaIcon(if(state.playing&&!state.paused)"pause" else "play",if(state.playing&&!state.paused)"Pausar" else "Reproduzir",Modifier.size(28.dp))}
+            IconButton(onClick={val n=state.model?.optJSONArray("neighbors")?.length() ?: 1;controller.seek((state.index+1)%n)},enabled=state.model!=null&&!state.busy){OndaIcon("next","Próximo trecho",Modifier.size(25.dp))}
+            Box {
+                IconButton(onClick={playbackMenu=true}){OndaIcon("more","Controles da reprodução",Modifier.size(25.dp))}
+                DropdownMenu(expanded=playbackMenu,onDismissRequest={playbackMenu=false}) {
+                    DropdownMenuItem(text={UiText("Trocar música")},onClick={chooseMusic=true;playbackMenu=false})
+                    DropdownMenuItem(text={UiText("Reprodução normal")},leadingIcon={Checkbox(normal,null)},onClick={normal=!normal;controller.normal=normal;playbackMenu=false})
+                    DropdownMenuItem(text={UiText("Parar")},enabled=state.playing || state.busy,onClick={controller.stop();playbackMenu=false})
+                    HorizontalDivider()
+                    DropdownMenuItem(text={UiText(translateUi("Tempo ouvido: {time} · Saltos: {count}").replace("{time}",mediaClock(state.elapsed.toLong())).replace("{count}",state.jumps.toString()),style=MaterialTheme.typography.labelSmall)},enabled=false,onClick={})
+                }
+            }
+        }
+
+    }
     }
 }
 
-@Composable private fun JukeboxGraph(model:JSONObject?,current:Int,phase:Float,playing:Boolean,flow:List<Pair<Int,Int>>,variation:Float,smooth:Float,normal:Boolean,onSeek:(Int)->Unit) {
+@Composable private fun JukeboxGraph(model:JSONObject?,current:Int,phase:Float,playing:Boolean,flow:List<Pair<Int,Int>>,variation:Float,smooth:Float,normal:Boolean,onSeek:(Int)->Unit,height:Dp=230.dp) {
     val colors=MaterialTheme.colorScheme;val rows=model?.optJSONArray("neighbors");val n=max(1,rows?.length() ?: 64)
     val graphColors=jukeboxGraphColors(colors)
     val visible=remember(model,variation,normal){jukeboxVisibleLinks(model,variation,normal)}
-    Box(Modifier.fillMaxWidth().height(300.dp),contentAlignment=androidx.compose.ui.Alignment.Center) {
+    Box(Modifier.fillMaxWidth().height(height),contentAlignment=androidx.compose.ui.Alignment.Center) {
         Canvas(Modifier.fillMaxSize().pointerInput(n,model) {
             detectTapGestures {position->
                 if(model!=null) {
@@ -269,7 +296,7 @@ internal class JukeboxController(private val context:Context,private val scope:C
             val strength=if(normal)0f else (variation/100).coerceIn(0f,1f)
             for((i,j) in visible) {
                 val a=point(i.toDouble());val b=point(j.toDouble())
-                drawPath(Path().apply {moveTo(a.x,a.y);quadraticTo(center.x,center.y,b.x,b.y)},graphColors.second.copy(alpha=.7f+.3f*strength),style=androidx.compose.ui.graphics.drawscope.Stroke((1f+smooth/100).dp.toPx()))
+                drawPath(Path().apply {moveTo(a.x,a.y);quadraticTo(center.x,center.y,b.x,b.y)},graphColors.second.copy(alpha=.35f+.15f*strength),style=androidx.compose.ui.graphics.drawscope.Stroke((.65f+.35f*smooth/100).dp.toPx()))
             }
             for((k,edge) in flow.withIndex()) {
                 val (i,j)=edge;val ink=colors.primary.copy(alpha=.75f+.25f*(k+1)/flow.size)

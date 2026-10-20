@@ -25,7 +25,7 @@ import org.json.JSONObject
 
 val categories=linkedMapOf(
     "Geral" to listOf("remember","language","clipboard_links","notice_duration","notice_animation"),
-    "Aparência" to listOf("simple_download_ui","queue_actions_at_top","queue_view","queue_card_size","history_card_size","pure_black_separators","history_view","theme","accent","tab_order","hidden_tabs","interface_font","interface_font_size","interface_spacing"),
+    "Aparência" to listOf("simple_download_ui","queue_actions_at_top","queue_view","queue_card_size","catalog_card_size","history_card_size","pure_black_separators","history_view","theme","accent","tab_order","hidden_tabs","interface_font","interface_font_size","interface_spacing"),
     "Downloads" to listOf("wifi_only","wifi_loss","finish_action","notification_controls","auto_select_media","social_best_quality","detect_duplicates","filename_template","concurrent_downloads","resume_downloads","resume_queue","normalize_volume","schedule_enabled","schedule_start","schedule_stop","mode","audio_quality","height","fps","playlist_limit","link_playlist","organization","duplicate_policy","output_uri","auto_metadata","auto_match","confirm_version","review_metadata"),
     "Imagens" to listOf("image_format","image_size","image_width","image_height","keep_ratio"),
     "Áudio" to listOf("search_preview","effects_preview","keep_preview","jukebox_background","synced_lyrics","jukebox_equalizer"),
@@ -78,7 +78,7 @@ val categories=linkedMapOf(
                             searchTarget=entry.label;searchQuery="";keyboard?.hide()
                             scope.launch {pager.scrollToPage(names.indexOf(entry.category).coerceAtLeast(0))}
                         },modifier=Modifier.fillMaxWidth()) {
-                            Text(translateUi(entry.category,language)+" · "+translateUi(entry.label,language))
+                            Text(translateUi(entry.category,language)+": "+translateUi(entry.label,language))
                         }
                     }
                 }
@@ -115,6 +115,7 @@ val categories=linkedMapOf(
                         SettingsDivider()
                         if(settings.optString("theme")=="Preto puro") Toggle("Mostrar bordas e separações no Preto puro",settings.optBoolean("pure_black_separators",false)){put("pure_black_separators",it)}
                         SettingsDivider()
+                        UiText("Texto e espaçamento",style=MaterialTheme.typography.titleMedium)
                         Select("Alterar tamanho da fonte",settings.optString("interface_font_size","100%"),interfaceFontSizes){put("interface_font_size",it)}
                         SettingsDivider()
                         Select("Fonte da interface",settings.optString("interface_font",DEFAULT_INTERFACE_FONT),interfaceFonts.keys.toList()){put("interface_font",it)}
@@ -123,33 +124,40 @@ val categories=linkedMapOf(
                         SettingsDivider()
                         Select("Espaçamento da interface",settings.optString("interface_spacing","Padrão"),spacingModes){put("interface_spacing",it)}
                         SettingsDivider()
+                        UiText("Cards e listas",style=MaterialTheme.typography.titleMedium)
+                        Select("Tamanho dos cards da pesquisa",settings.optString("catalog_card_size","Grande"),listOf("Pequeno","Médio","Grande")){put("catalog_card_size",it)}
                         Toggle("Simplificar controles de download",settings.optBoolean("simple_download_ui",false)){put("simple_download_ui",it)}
-                        UiText("Oculta formato e qualidade nas abas de download e usa a maior qualidade disponível. Não altera o espaçamento nem as abas visíveis.",style=MaterialTheme.typography.bodySmall)
+                        UiText("Oculta formato e qualidade ao adicionar links pelo botão + e ao baixar músicas da pesquisa. Usa a maior qualidade disponível.",style=MaterialTheme.typography.bodySmall)
                         SettingsDivider()
-                        Toggle("Mostrar ações antes das listas",settings.optBoolean("queue_actions_at_top",true)){put("queue_actions_at_top",it)}
                         Select("Mostrar itens na fila",settings.optString("queue_view","Completa"),listOf("Compacto","Completa")){put("queue_view",it)}
                         Select("Tamanho dos cards da fila",settings.optString("queue_card_size","Grande"),listOf("Pequeno","Médio","Grande")){put("queue_card_size",it)}
                         Select("Mostrar músicas no histórico",settings.optString("history_view","Compacto"),listOf("Compacto","Completa")){put("history_view",it)}
-                        UiText("Compacto: exibição atual. Completa: cards com capa e informações disponíveis da música e do álbum.",style=MaterialTheme.typography.bodySmall)
+                        UiText("Compacto mostra título e andamento. Completa inclui capa e informações disponíveis da música e do álbum.",style=MaterialTheme.typography.bodySmall)
                         Select("Tamanho dos cards do histórico",settings.optString("history_card_size","Grande"),listOf("Pequeno","Médio","Grande")){put("history_card_size",it)}
                         SettingsDivider()
-                        UiText("Ordem das abas",style=MaterialTheme.typography.titleMedium)
-                        val order=settings.getJSONArray("tab_order").let {a->(0 until a.length()).map {a.getString(it)}}
-                        order.forEachIndexed {index,name->Row {
-                            UiText(tabLabel(name),Modifier.weight(1f).padding(vertical=12.dp))
-                            TextButton(enabled=index>0,onClick={val copy=order.toMutableList();java.util.Collections.swap(copy,index,index-1);put("tab_order",JSONArray(copy))}){AccessibleSymbol("↑","Mover ${translateUi(tabLabel(name),LocalUiLanguage.current)} para cima")}
-                            TextButton(enabled=index<order.lastIndex,onClick={val copy=order.toMutableList();java.util.Collections.swap(copy,index,index+1);put("tab_order",JSONArray(copy))}){AccessibleSymbol("↓","Mover ${translateUi(tabLabel(name),LocalUiLanguage.current)} para baixo")}
-                        }}
-                        TextButton(onClick={put("tab_order",OndaStore.defaults().getJSONArray("tab_order"))}){UiText("Restaurar ordem das abas")}
-                        UiText("Mostrar ou ocultar abas",style=MaterialTheme.typography.titleMedium)
-                        UiText("Pesquisar músicas, Links e Fila ficam sempre disponíveis.",style=MaterialTheme.typography.bodySmall)
+                        UiText("Navegação",style=MaterialTheme.typography.titleMedium)
+                        UiText("Pesquisar, Downloads e Mais ficam na barra inferior. Use + em Downloads para adicionar links. As ferramentas ficam no menu Mais.",style=MaterialTheme.typography.bodySmall)
                         val hidden=hiddenTabs(settings)
-                        order.forEach {name->
-                            if(name in requiredTabs) UiText(tabLabel(name),Modifier.padding(vertical=8.dp))
-                            else Toggle(tabLabel(name),name !in hidden) {shown->
-                                put("hidden_tabs",JSONArray(if(shown) hidden.filter {it!=name} else hidden+name))
-                            }
+                        Toggle("Mostrar Reprodução na barra inferior","Efeitos" !in hidden) {shown->
+                            put("hidden_tabs",JSONArray(if(shown)hidden.filter {it!="Efeitos"} else hidden+"Efeitos"))
                         }
+                        val order=settings.getJSONArray("tab_order").let {a->(0 until a.length()).map {a.getString(it)}}
+                        for((heading,keys) in listOf("Ferramentas no menu Mais" to listOf("Imagens","Conversor de vídeos","Metadados"),"Biblioteca no menu Mais" to listOf("Playlists / Álbuns","Histórico"))) {
+                            SettingsDivider()
+                            UiText(heading,style=MaterialTheme.typography.titleSmall)
+                            val group=order.filter {it in keys}
+                            group.forEachIndexed {index,name->Row(verticalAlignment=androidx.compose.ui.Alignment.CenterVertically) {
+                                Box(Modifier.weight(1f)) {Toggle(tabLabel(name),name !in hidden) {shown->put("hidden_tabs",JSONArray(if(shown)hidden.filter {it!=name} else hidden+name))}}
+                                fun move(delta:Int) {val copy=order.toMutableList();java.util.Collections.swap(copy,order.indexOf(name),order.indexOf(group[index+delta]));put("tab_order",JSONArray(copy))}
+                                TextButton(enabled=index>0,onClick={move(-1)}){AccessibleSymbol("↑","Mover ${translateUi(tabLabel(name),LocalUiLanguage.current)} para cima")}
+                                TextButton(enabled=index<group.lastIndex,onClick={move(1)}){AccessibleSymbol("↓","Mover ${translateUi(tabLabel(name),LocalUiLanguage.current)} para baixo")}
+                            }}
+                        }
+                        TextButton(onClick={put("tab_order",OndaStore.defaults().getJSONArray("tab_order"))}){UiText("Restaurar ordem do menu Mais")}
+                        SettingsDivider()
+                        UiText("Gerenciamento avançado",style=MaterialTheme.typography.titleMedium)
+                        Toggle("Mostrar ações antes das listas",settings.optBoolean("queue_actions_at_top",true)){put("queue_actions_at_top",it)}
+                        UiText("Aplica-se à tela Gerenciar fila e ao histórico. Em Downloads, as ações ficam no menu de três pontos.",style=MaterialTheme.typography.bodySmall)
 
                     }
                     "Downloads"->{
@@ -197,6 +205,7 @@ val categories=linkedMapOf(
                     "Áudio"->{
                         UiText("Reprodução e prévias",style=MaterialTheme.typography.titleMedium)
                         Toggle("Continuar prévia dos efeitos em outras abas",settings.optBoolean("keep_preview")){put("keep_preview",it)}
+                        UiText("Mantém a prévia dos efeitos ao trocar de página. Não controla a reprodução do Jukebox.",style=MaterialTheme.typography.bodySmall)
                         Toggle("Continuar Jukebox em outras abas e em segundo plano",settings.optBoolean("jukebox_background")){put("jukebox_background",it)}
                         Toggle("Mostrar letra sincronizada (LRC)",settings.optBoolean("synced_lyrics")){put("synced_lyrics",it)}
                         SettingsDivider()

@@ -38,7 +38,7 @@ class PreferenceStore:
         finally:
             temporary.unlink(missing_ok=True)
 
-    DISPLAY_FIELDS = ("queue_view", "queue_card_size", "history_view", "history_card_size")
+    DISPLAY_FIELDS = ("queue_view", "queue_card_size", "history_view", "history_card_size", "catalog_card_size", "playlist_card_size")
 
     def load_display(self):
         try:
@@ -85,6 +85,8 @@ class PreferenceStore:
                 result[name] = value
         if type(data.get("pure_black_separators")) is bool:
             result["pure_black_separators"] = data["pure_black_separators"]
+        for name in ("catalog_card_size","playlist_card_size"):
+            if data.get(name) in ("Pequeno","Médio","Grande"):result[name]=data[name]
         if data.get("queue_card_size") in ("Pequeno","Médio","Grande"):
             result["queue_card_size"] = data["queue_card_size"]
         if data.get("queue_view") in ("Compacto","Completa"):

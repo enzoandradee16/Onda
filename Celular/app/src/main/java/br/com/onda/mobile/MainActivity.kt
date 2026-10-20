@@ -91,7 +91,7 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
     val dark=when(settings.optString("theme")) { "Claro"->false; "Escuro","Preto puro","Alto contraste"->true; else->isSystemInDarkTheme() }
     val palette=if(dark) accents else lightAccents
     val accent=Color(palette[settings.optString("accent")] ?: palette.getValue("Verde-Água"))
-    val baseScheme=if(dark) darkColorScheme(primary=accent,background=Color(0xFF0E131B),surface=Color(0xFF161E29),onPrimary=Color(0xFF10171F)) else lightColorScheme(primary=accent)
+    val baseScheme=if(dark) darkColorScheme(primary=accent,background=Color(0xFF0E131B),surface=Color(0xFF161E29),onPrimary=Color(0xFF10171F),surfaceContainerLowest=Color(0xFF0B1016),surfaceContainerLow=Color(0xFF18212B),surfaceContainer=Color(0xFF1C2631),surfaceContainerHigh=Color(0xFF242F3B),surfaceContainerHighest=Color(0xFF2B3744),onBackground=Color(0xFFE9EEF5),onSurface=Color(0xFFE9EEF5),onSurfaceVariant=Color(0xFFAFBBC9),surfaceVariant=Color(0xFF25303D),secondaryContainer=Color(0xFF25303D),outline=Color(0xFF425161),outlineVariant=Color(0xFF303C49)) else lightColorScheme(primary=accent)
     val tabs=visibleTabs(settings)
     val blackScheme=if(pureBlack) baseScheme.copy(
         background=Color.Black,surface=Color.Black,surfaceTint=Color.Transparent,
@@ -108,9 +108,9 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
     }
     val activityWindow=iconActivity?.window
     SideEffect {activityWindow?.let {applyNavigationBarTheme(it,scheme.background,dark)}}
-    val homeTab=tabs.optString(0,"Pesquisar")
+    val homeTab="Pesquisar"
     var tab by rememberSaveable { mutableStateOf(homeTab) }
-    LaunchedEffect(tab,tabs.toString()) {if((0 until tabs.length()).none {tabs.getString(it)==tab}) tab=homeTab}
+    LaunchedEffect(tab,tabs.toString()) {if(tab!="Mais" && (0 until tabs.length()).none {tabs.getString(it)==tab}) tab=homeTab}
     val queueRequested by vm.queueNavigation.collectAsStateWithLifecycle()
     LaunchedEffect(queueRequested) {if(queueRequested) {tab="Fila";vm.queueNavigation.value=false}}
     var metadataUri by rememberSaveable {mutableStateOf<String?>(null)}
@@ -118,82 +118,41 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
     var settingsCategory by rememberSaveable { mutableStateOf("Geral") }
     var youtubeSession by rememberSaveable {mutableStateOf(false)}
     var showLicenses by rememberSaveable {mutableStateOf(false)}
-    val drawer=rememberDrawerState(DrawerValue.Closed)
-    val scope=rememberCoroutineScope()
     val pages=rememberSaveableStateHolder()
-    val keyboard=LocalSoftwareKeyboardController.current
-    val view=androidx.compose.ui.platform.LocalView.current
-    val inputMethod=remember(view) {view.context.getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager}
-    val currentTab by rememberUpdatedState(tab)
-    var navigationPending by remember {mutableStateOf(false)}
-    val keyboardBlocked by rememberUpdatedState(navigationPending || showSettings || youtubeSession || showLicenses || question!=null || notice!=null)
-    fun navigateFromDrawer(action: ()->Unit) {
-        if(navigationPending) return
-        navigationPending=true
-        scope.launch {
-            try {drawer.close();action()} finally {navigationPending=false}
-        }
-    }
-    LaunchedEffect(drawer,keyboard,view) {
-        var opened=false
-        var restoreKeyboard=false
-        var inputTab=""
-        snapshotFlow {drawer.currentValue to drawer.targetValue}.collect { (current,target)->
-            if(!opened && (current==DrawerValue.Open || target==DrawerValue.Open)) {
-                opened=true
-                restoreKeyboard=inputMethod.isAcceptingText
-                inputTab=currentTab
-                keyboard?.hide()
-            } else if(opened && current==DrawerValue.Closed && target==DrawerValue.Closed) {
-                opened=false
-                if(restoreKeyboard && inputTab==currentTab && !keyboardBlocked && inputMethod.isAcceptingText) {
-                    withFrameNanos { }
-                    if(inputTab==currentTab && !keyboardBlocked && inputMethod.isAcceptingText) keyboard?.show()
-                }
-                restoreKeyboard=false
-            }
-        }
-    }
-
+    var showLinks by rememberSaveable {mutableStateOf(false)}
     val preferences=OndaStore.context.getSharedPreferences("preferences",0)
     var welcome by remember { mutableStateOf(!preferences.getBoolean("welcome_seen",false)) }
     val permission=rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
-    BackHandler(enabled=(drawer.isOpen || drawer.targetValue==DrawerValue.Open || tab!=homeTab) && !showSettings && !youtubeSession && !showLicenses && !welcome && question==null && notice==null) {
-        if(drawer.isOpen || drawer.targetValue==DrawerValue.Open) scope.launch {drawer.close()} else tab=homeTab
+    BackHandler(enabled=(showLinks || tab!=homeTab) && !showSettings && !youtubeSession && !showLicenses && !welcome && question==null && notice==null) {
+        if(showLinks)showLinks=false else tab=if(tab in listOf("Imagens","Conversor de vídeos","Playlists / Álbuns","Histórico","Metadados")) "Mais" else homeTab
     }
     LaunchedEffect(Unit) { if(Build.VERSION.SDK_INT>=33) permission.launch(Manifest.permission.POST_NOTIFICATIONS) }
-    LaunchedEffect(shared) { if(shared.isNotBlank()) tab="Links e fila" }
+    LaunchedEffect(shared) { if(shared.isNotBlank()) {tab="Fila";showLinks=true} }
     LaunchedEffect(effectsSource) {if(effectsSource.isNotBlank()) tab="Efeitos"}
-    LaunchedEffect(tab) { if(!settings.optBoolean("keep_preview")) vm.stopPreview(!settings.optBoolean("jukebox_background")) }
+    LaunchedEffect(tab) {
+        if(tab!="Efeitos") {
+            if(!settings.optBoolean("keep_preview"))vm.stopPreview(stopJukebox=false)
+            if(!settings.optBoolean("jukebox_background"))vm.jukebox.stop()
+        }
+    }
     val typography=remember(settings.optString("interface_font"),settings.optString("interface_font_size")) {interfaceTypography(settings.optString("interface_font",DEFAULT_INTERFACE_FONT),settings.optString("interface_font_size","100%"))}
     LocalizedTheme(language=settings.optString("language","pt-BR"),colorScheme=scheme,typography=typography,spacing=settings.optString("interface_spacing","Padrão")) {
-        ModalNavigationDrawer(drawerState=drawer,drawerContent={ModalDrawerSheet(Modifier.width(300.dp)) {
-            Row(Modifier.fillMaxWidth().padding(20.dp),horizontalArrangement=Arrangement.Center,verticalAlignment=Alignment.CenterVertically) {OndaLogo(Modifier.size(36.dp).clip(RoundedCornerShape(25)));UiText("ONDA",style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.Bold,modifier=Modifier.padding(start=8.dp))}
-            Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
-                for(index in 0 until tabs.length()) {val name=tabs.getString(index)
-                    NavigationDrawerItem(label={UiText(tabLabel(name))},selected=tab==name,onClick={navigateFromDrawer {tab=name}},modifier=Modifier.padding(horizontal=10.dp).testTag("tab-$name"))
-                }
-                HorizontalDivider(Modifier.padding(12.dp))
-                NavigationDrawerItem(label={UiText("Configurações")},selected=false,onClick={navigateFromDrawer {settingsCategory="Geral";showSettings=true}})
-                NavigationDrawerItem(label={UiText("Sessão do YouTube")},selected=false,onClick={navigateFromDrawer {youtubeSession=true}})
-                NavigationDrawerItem(label={UiText("Licenças e fontes")},selected=false,onClick={navigateFromDrawer {showLicenses=true}})
-                NavigationDrawerItem(label={UiText("Falhas da fila")},selected=false,onClick={navigateFromDrawer {OndaStore.failureSummary.value=OndaStore.items.value.filter {it.state=="Erro"}.map {it.id}.takeIf {it.isNotEmpty()}}})
-                UiText("Seus downloads",style=MaterialTheme.typography.labelLarge,modifier=Modifier.padding(LayoutSpacing.inset))
-                val queue by OndaStore.items.collectAsStateWithLifecycle()
-                UiText("${queue.count {it.state=="Pendente"}} pendentes · ${queue.count {it.state=="Concluído"}} concluídos",modifier=Modifier.padding(horizontal=LayoutSpacing.inset),style=MaterialTheme.typography.bodySmall)
-                if(statusVisible) UiText(status,modifier=Modifier.padding(LayoutSpacing.inset),style=MaterialTheme.typography.bodySmall)
-            }
-            UiText("ONDA Android ${BuildConfig.VERSION_NAME}",Modifier.padding(LayoutSpacing.inset),style=MaterialTheme.typography.labelSmall)
-        }}) {
-        Scaffold(topBar={ TopAppBar(navigationIcon={IconButton(onClick={scope.launch {drawer.open()}},modifier=Modifier.testTag("open-menu")){AccessibleSymbol("☰","Abrir menu de navegação",style=MaterialTheme.typography.titleLarge)}},title={Row(verticalAlignment=Alignment.CenterVertically) {OndaLogo(Modifier.size(28.dp).clip(RoundedCornerShape(25)),"Ícone ONDA");Column(Modifier.padding(start=8.dp)){UiText("ONDA",color=MaterialTheme.colorScheme.primary,fontWeight=FontWeight.Bold,style=MaterialTheme.typography.titleMedium);UiText(tabLabel(tab),style=MaterialTheme.typography.labelSmall)}}}) }) { padding ->
+        Scaffold(
+            topBar={OndaAppBar {settingsCategory="Geral";showSettings=true}},
+            bottomBar={Column {
+                if(tab!="Efeitos")OndaMiniPlayer(vm) {tab="Efeitos"}
+                OndaBottomNavigation(tab,tabs) {destination->tab=destination}
+            }},
+            floatingActionButton={if(tab=="Fila" || tab=="Links e fila")FloatingActionButton(onClick={showLinks=true},containerColor=MaterialTheme.colorScheme.primary,shape=RoundedCornerShape(50)) {OndaIcon("add","Adicionar links",Modifier.size(24.dp))}}
+        ) { padding ->
             Column(Modifier.fillMaxSize().padding(padding)) {
                 if(busy) LinearProgressIndicator(Modifier.fillMaxWidth())
                 TopStatusNotice(status,statusVisible,busy,settings.optBoolean("notice_animation",true),onCancel={vm.cancel()},onDismiss={statusVisible=false},onOpenSettings={category->if(category=="Sessão do YouTube")youtubeSession=true else {settingsCategory=category;showSettings=true}})
-                Box(Modifier.weight(1f)) {
+                SwipePageHost(current=tab,pages=mainDestinations(tabs),onNavigate={tab=it},modifier=Modifier.weight(1f).fillMaxWidth()) {
                     pages.SaveableStateProvider(tab) {when(tab) {
                         "Pesquisar"->SearchPage(vm,onConnectSpotify={settingsCategory="Contas";showSettings=true})
-                        "Links e fila"->LinksPage(vm)
-                        "Fila"->QueuePage(vm)
+                        "Links e fila","Fila"->DownloadsHome(vm)
+                        "Mais"->MorePage(tabs,onNavigate={tab=it},onYouTube={youtubeSession=true},onLicenses={showLicenses=true},onFailures={OndaStore.failureSummary.value=OndaStore.items.value.filter {it.state=="Erro"}.map {it.id}.takeIf {it.isNotEmpty()}})
                         "Imagens"->ImagesPage(vm)
                         "Playlists / Álbuns"->CollectionsPage(vm)
                         "Histórico"->HistoryPage(vm,onEditMetadata={metadataUri=it.uri;tab="Metadados"})
@@ -204,12 +163,18 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
                 }
             }
         }
+        if(showLinks)ModalBottomSheet(onDismissRequest={showLinks=false},sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true)) {
+            Box(Modifier.fillMaxWidth().fillMaxHeight(.88f).imePadding()) {LinksPage(vm,onAdded={showLinks=false;tab="Fila"})}
         }
         val failureIds by OndaStore.failureSummary.collectAsStateWithLifecycle()
         if(question==null && notice==null && !showSettings && !youtubeSession && !showLicenses && !welcome) {
             failureIds?.let {FailureSummaryWindow(it,vm){OndaStore.failureSummary.value=null}}
         }
-        ClipboardDownloadPrompt(settings.optBoolean("clipboard_links",true),!busy && question==null && notice==null && !showSettings && !youtubeSession && !showLicenses && !welcome) {candidate->
+        ClipboardDownloadPrompt(settings.optBoolean("clipboard_links",true),!busy && question==null && notice==null && !showSettings && !youtubeSession && !showLicenses && !welcome && !showLinks,onAdd={candidate->
+            if(candidate.optBoolean("collection"))vm.loadCollection(candidate.getString("url"),OndaStore.collectionOptions(),queueOnly=true)
+            else vm.enqueueLinks(listOf(candidate.getString("url")),false)
+            tab="Fila"
+        }) {candidate->
             if(candidate.optBoolean("collection"))vm.loadCollection(candidate.getString("url"),OndaStore.collectionOptions(),startDownload=true)
             else vm.enqueueLinks(listOf(candidate.getString("url")),true)
         }
@@ -236,9 +201,9 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
 fun tabLabel(tab: String)=when(tab) {"Conversor de vídeos"->"Conversor";"Links e fila"->"Links";"Metadados"->"Editar metadados";"Pesquisar"->"Pesquisar músicas";"Efeitos"->"Reprodução e efeitos";"Playlists / Álbuns"->"Álbuns e playlists";else->tab}
 
 @Composable fun PageTitle(title: String, description: String) {
-    Column(Modifier.fillMaxWidth().padding(vertical=8.dp),horizontalAlignment=Alignment.CenterHorizontally) {
-        UiText(title,modifier=Modifier.semantics {heading()},style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.Bold,textAlign=TextAlign.Center)
-        UiText(description,style=MaterialTheme.typography.bodySmall,textAlign=TextAlign.Center,modifier=Modifier.padding(top=LayoutSpacing.details))
+    Column(Modifier.fillMaxWidth().padding(vertical=8.dp),horizontalAlignment=Alignment.Start) {
+        UiText(title,modifier=Modifier.semantics {heading()},style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.Bold,textAlign=TextAlign.Start)
+        if(description.isNotBlank())UiText(description,style=MaterialTheme.typography.bodySmall,textAlign=TextAlign.Start,modifier=Modifier.padding(top=LayoutSpacing.details))
     }
 }
 @Composable fun Select(label: String, value: String, choices: List<String>, modifier: Modifier=Modifier, changed: (String)->Unit) {
@@ -344,8 +309,10 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
         })
     }}
     LazyColumn(Modifier.fillMaxSize().padding(horizontal=LayoutSpacing.inset),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
-        item {PageTitle("Encontre sua próxima música.","Pesquise artista ou música, ou cole um link de faixa.")}
-        item {OutlinedTextField(query,{query=it},label={UiText("Música, artista ou link")},singleLine=true,
+        item {PageTitle("Pesquisar músicas","")}
+        item {OutlinedTextField(query,{query=it},placeholder={UiText("Música, artista ou link")},singleLine=true,shape=RoundedCornerShape(14.dp),
+            leadingIcon={OndaIcon("search",modifier=Modifier.size(21.dp))},
+            trailingIcon={IconButton(onClick={if(busy)vm.cancel() else submitSearch()},enabled=busy || query.isNotBlank()){OndaIcon(if(busy)"stop" else "search",if(busy)"Cancelar" else "Pesquisar",Modifier.size(22.dp))}},
             keyboardOptions=KeyboardOptions(imeAction=ImeAction.Search),keyboardActions=KeyboardActions(onSearch={submitSearch()}),
             modifier=Modifier.fillMaxWidth().testTag("music-query").onPreviewKeyEvent {event->
                 if(event.key==Key.Enter || event.key==Key.NumPadEnter) {
@@ -353,46 +320,28 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
                     true
                 } else false
             })}
-        item {Column {
-            UiText("Catálogo",style=MaterialTheme.typography.labelMedium)
-            Row(horizontalArrangement=Arrangement.spacedBy(LayoutSpacing.controls),verticalAlignment=Alignment.CenterVertically) {
-                Select("",provider,listOf("Todos","Deezer","Apple / iTunes","Spotify"),Modifier.weight(1f)){provider=it}
-                Button(onClick={submitSearch()},enabled=query.isNotBlank() && !busy) {UiText("Pesquisar")}
+        item {Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+            Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                for(name in listOf("Todos","Deezer","Apple / iTunes","Spotify"))FilterChip(selected=provider==name,onClick={provider=name},label={UiText(name)},colors=FilterChipDefaults.filterChipColors(selectedContainerColor=MaterialTheme.colorScheme.primary,selectedLabelColor=MaterialTheme.colorScheme.onPrimary))
             }
-            Row {
-                TextButton(onClick={showSearchFilters=true},enabled=!busy){UiText("Filtros")}
-                TextButton(onClick={vm.search(query,provider,true)},enabled=query.isNotBlank() && !busy){UiText("Atualizar busca")}
-                if(busy)TextButton(onClick={vm.cancel()}){UiText("Cancelar")}
-            }
+            var actions by remember {mutableStateOf(false)}
+            Box {IconButton(onClick={actions=true}){OndaIcon("more","Opções da pesquisa",Modifier.size(22.dp))};DropdownMenu(actions,{actions=false}) {
+                DropdownMenuItem(text={UiText("Filtros")},onClick={actions=false;showSearchFilters=true})
+                DropdownMenuItem(text={UiText("Atualizar busca")},enabled=query.isNotBlank()&&!busy,onClick={actions=false;vm.search(query,provider,true)})
+                HorizontalDivider()
+                DropdownMenuItem(text={UiText("Tamanho dos cards")},enabled=false,onClick={})
+                listOf("Pequeno","Médio","Grande").forEach {size->DropdownMenuItem(text={UiText(size)},onClick={OndaStore.saveSettings(JSONObject(settings.toString()).put("catalog_card_size",size));actions=false})}
+
+            }}
         }}
+        if(results.isNotEmpty())item {UiText("Resultados",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold)}
         if(provider=="Spotify") item {
             Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(LayoutSpacing.controls),verticalAlignment=Alignment.CenterVertically) {
                 OutlinedButton(onClick=onConnectSpotify,modifier=Modifier.testTag("search-connect-spotify")) {UiText("Conectar Spotify")}
                 UiText("Client ID em Configurações → Contas.",Modifier.weight(1f),style=MaterialTheme.typography.bodySmall)
             }
         }
-        if(searchQueue.isNotEmpty()) item {
-            ElevatedCard(Modifier.fillMaxWidth().testTag("search-queue")) {Column(Modifier.padding(10.dp),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.details)) {
-                UiText("Fila da pesquisa · ${searchQueue.count {it.state=="Concluído"}} de ${searchQueue.size} concluídas",style=MaterialTheme.typography.titleSmall)
-                LazyColumn(Modifier.fillMaxWidth().heightIn(max=180.dp)) {items(searchQueue,key={it.id}) {item->Column(Modifier.padding(vertical=6.dp)) {
-                    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
-                        Text(item.title,Modifier.weight(1f),maxLines=2,style=MaterialTheme.typography.bodyMedium)
-                        TextButton(onClick={OndaStore.remove(setOf(item.id))},enabled=item.id!=active && item.state !in listOf("Baixando","Aguardando escolha"),modifier=Modifier.testTag("remove-search-${item.id}")){UiText("Remover")}
-                    }
-                    if(item.state=="Erro" && item.message.contains("Nenhuma versão suficientemente compatível",ignoreCase=true)) {
-                        TextButton(onClick={OndaStore.retryWithVersionChoice(item.id)}) {UiText("Escolher versão")}
-                    }
-                    UiText(item.state,style=MaterialTheme.typography.labelMedium)
-                    if(item.state in listOf("Baixando","Aguardando escolha")) LinearProgressIndicator(progress={item.progress/100},modifier=Modifier.fillMaxWidth())
-                    if(item.message.isNotBlank()) UiText(item.message,style=MaterialTheme.typography.bodySmall,maxLines=2)
-                }}}
-                Row(Modifier.horizontalScroll(rememberScrollState())) {
-                    TextButton(onClick={DownloadService.batch(OndaStore.context,searchQueue.filter {it.state=="Pendente"}.map {it.id})},enabled=searchQueue.any {it.state=="Pendente"}){UiText("Baixar fila da pesquisa")}
-                    TextButton(onClick={OndaStore.retry(searchQueue.filter {it.state=="Erro"}.map {it.id}.toSet())},enabled=searchQueue.any {it.state=="Erro"}){UiText("Tentar novamente")}
-                    TextButton(onClick={OndaStore.remove(searchQueue.filter {it.id!=OndaStore.active.value}.map {it.id}.toSet())}){UiText("Limpar fila da pesquisa")}
-                }
-            }}
-        }
+        if(searchQueue.isNotEmpty())item {TextButton(onClick={vm.queueNavigation.value=true}){UiText("Ver fila")}}
         if(results.isEmpty()) item {UiText("Sua biblioteca começa com uma busca",fontWeight=FontWeight.Bold);UiText("Encontre a música e escolha a versão que você quer.",style=MaterialTheme.typography.bodySmall)}
         if(comparison.size==1)item {UiText("Selecione outro resultado para comparar.")}
         items(results,contentType={"search_track"}) {record-> TrackCard(record,vm,onDownload={downloadTrack=record.toString()},onCompare={
@@ -401,7 +350,6 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
             if(repeated)vm.showNotice("Comparar resultados","Essa música já foi selecionada. Escolha outro resultado para comparar.")
             else comparison=(comparison+record).takeLast(2)
         }) }
-        item {UiText("Catálogo e capa: plataforma selecionada  •  Áudio: YouTube / FLAC: Monochrome",style=MaterialTheme.typography.bodySmall)}
         item {Spacer(Modifier.height(LayoutSpacing.controls))}
     }
 }
@@ -418,36 +366,51 @@ internal fun displayReleaseDate(value:String):String {
 }
 
 @Composable fun TrackCard(record: JSONObject, vm: OndaViewModel, onDownload:()->Unit, onCompare:(()->Unit)?=null) {
+    val cardSettings by OndaStore.settings.collectAsStateWithLifecycle()
+    val cardSize=cardSettings.optString("catalog_card_size","Grande")
+    val coverSide=when(cardSize){"Pequeno"->56.dp;"Médio"->76.dp;else->94.dp}
+
     val playing by vm.previewActive.collectAsStateWithLifecycle()
     val playingUrl by vm.previewUrl.collectAsStateWithLifecycle()
     var releaseDate by remember(record) {mutableStateOf(record.cleanString("release_date"))}
     LaunchedEffect(record) {releaseDate=vm.releaseDate(record)}
     val url=record.cleanString("preview_url")
     val thisPlaying=playing && playingUrl==url
-    Card(Modifier.fillMaxWidth(),colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.background,contentColor=MaterialTheme.colorScheme.onBackground),elevation=CardDefaults.cardElevation(defaultElevation=0.dp)) { Column(Modifier.padding(12.dp)) {
-        Row(verticalAlignment=Alignment.CenterVertically) {
-            AsyncImage(model=record.cleanString("cover_url"),contentDescription=translateUi("Capa do álbum",LocalUiLanguage.current),modifier=Modifier.size(60.dp))
-            Column(Modifier.padding(start=12.dp).weight(1f)) {Text(record.cleanString("title"),fontWeight=FontWeight.Bold);Text(record.stringList("artists"),style=MaterialTheme.typography.bodySmall);Text(record.cleanString("album"),style=MaterialTheme.typography.bodySmall)
-                releaseDate.takeIf {it.isNotBlank()}?.let { date ->
-                    Text(translateUi("Data de lançamento",LocalUiLanguage.current)+": "+displayReleaseDate(date),modifier=Modifier.padding(top=4.dp),style=MaterialTheme.typography.bodyMedium,fontWeight=FontWeight.Medium)
+    var actions by remember {mutableStateOf(false)}
+    Surface(Modifier.fillMaxWidth(),shape=RoundedCornerShape(18.dp),color=MaterialTheme.colorScheme.surfaceContainerLow) {
+        Row(Modifier.padding(if(cardSize=="Pequeno")10.dp else 14.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+            AsyncImage(record.cleanString("cover_url"),translateUi("Capa do álbum"),Modifier.size(coverSide).clip(RoundedCornerShape(10.dp)),contentScale=androidx.compose.ui.layout.ContentScale.Crop)
+            Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(5.dp)) {
+                Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.Top) {
+                    Text(record.cleanString("title"),modifier=Modifier.weight(1f).padding(top=10.dp),fontWeight=FontWeight.SemiBold,maxLines=2,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis,style=if(cardSize=="Pequeno")MaterialTheme.typography.bodyMedium else MaterialTheme.typography.titleSmall)
+                    IconButton(onClick=onDownload){
+                        Box(Modifier.size(30.dp).border(1.dp,MaterialTheme.colorScheme.onSurfaceVariant,androidx.compose.foundation.shape.CircleShape),contentAlignment=Alignment.Center){OndaIcon("download","Baixar agora",Modifier.size(18.dp))}
+                    }
+                    Box {
+                        IconButton(onClick={actions=true}){OndaIcon("more-vertical","Mais ações",Modifier.size(20.dp))}
+                DropdownMenu(expanded=actions,onDismissRequest={actions=false}) {
+                    DropdownMenuItem(text={UiText("Baixar agora")},onClick={actions=false;onDownload()})
+                    DropdownMenuItem(text={UiText("Adicionar à fila")},onClick={actions=false;vm.queueTrack(record,origin="search")})
+                    DropdownMenuItem(text={UiText(if(thisPlaying)"Parar prévia" else "Ouvir prévia")},enabled=thisPlaying || url.isNotBlank(),onClick={actions=false;if(thisPlaying)vm.stopPreview() else vm.preview(url,OndaStore.settings.value.optInt("search_preview",25))})
+                    DropdownMenuItem(text={UiText("Ver no catálogo")},onClick={actions=false;val source=record.cleanString("source_url");if(source.startsWith("https://"))OndaStore.context.startActivity(Intent(Intent.ACTION_VIEW,android.net.Uri.parse(source)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))})
+                    if(onCompare!=null)DropdownMenuItem(text={UiText("Comparar resultados")},onClick={actions=false;onCompare()})
+                    if(record.cleanString("album").isNotBlank())DropdownMenuItem(text={Text(record.cleanString("album"))},enabled=false,onClick={})
+                    DropdownMenuItem(text={MetadataPlatformBadge(record)},enabled=false,onClick={})
+                    if(releaseDate.isNotBlank())DropdownMenuItem(text={Text(translateUi("Data de lançamento")+": "+displayReleaseDate(releaseDate))},enabled=false,onClick={})
                 }
-                if(record.optLong("duration_ms")>0) UiText(mediaClock(record.optLong("duration_ms")/1000),style=MaterialTheme.typography.labelSmall)
+                    }
+                }
+                Text(record.stringList("artists"),style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant,maxLines=1,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                val duration=record.optLong("duration_ms")
+                val detail=translateUi("Música")+if(duration>0)" · "+mediaClock(duration/1000) else ""
+                Text(detail,style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant,maxLines=1)
+
             }
         }
-        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceEvenly,verticalAlignment=Alignment.CenterVertically) {
-            TextButton(contentPadding=PaddingValues(horizontal=4.dp,vertical=8.dp),onClick={if(thisPlaying) vm.stopPreview() else if(url.isNotBlank()) vm.preview(url,OndaStore.settings.value.optInt("search_preview",25)) else vm.status.value="Esta faixa não oferece prévia no catálogo."}) {UiText(if(thisPlaying) "Parar prévia" else "Ouvir prévia")}
-            TextButton(contentPadding=PaddingValues(horizontal=4.dp,vertical=8.dp),onClick={vm.queueTrack(record,origin="search")}) {UiText("Adicionar à fila")}
-            Button(contentPadding=PaddingValues(horizontal=10.dp,vertical=8.dp),onClick=onDownload) {UiText("Baixar agora")}
-        }
-        MetadataPlatformBadge(record)
-        Row {
-            TextButton(onClick={val url=record.cleanString("source_url");if(url.startsWith("https://")) OndaStore.context.startActivity(Intent(Intent.ACTION_VIEW,android.net.Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))}){UiText("Ver no catálogo")}
-            if(onCompare!=null)TextButton(onClick=onCompare){UiText("Comparar resultados")}
-        }
-    }}
+    }
 }
 
-@Composable fun LinksPage(vm: OndaViewModel) {
+@Composable fun LinksPage(vm: OndaViewModel,onAdded:()->Unit={}) {
     val settings by OndaStore.settings.collectAsStateWithLifecycle()
     val adding by vm.addingToQueue.collectAsStateWithLifecycle()
     val shared by OndaStore.sharedLink.collectAsStateWithLifecycle()
@@ -456,11 +419,11 @@ internal fun displayReleaseDate(value:String):String {
     fun add(now:Boolean) {
         val urls=link.lines().map {it.trim()}.filter {it.isNotBlank()}
         vm.enqueueLinks(urls,now)
-        link=""
+        link="";onAdded()
     }
     NavigableList(Modifier.fillMaxSize().padding(horizontal=LayoutSpacing.inset),navigationId="links") {
-        item {PageTitle("Do link para sua biblioteca.","Músicas, vídeos e fotos, organizados do seu jeito.")}
-        item {OutlinedTextField(link,{link=it},label={UiText("LINKS")},placeholder={UiText("YouTube, Instagram, TikTok, Kwai… um link por linha")},minLines=2,modifier=Modifier.fillMaxWidth().testTag("links-input"),singleLine=false)}
+        item {PageTitle("Adicionar links","YouTube, Instagram, TikTok e outros sites.")}
+        item {OutlinedTextField(link,{link=it},label={UiText("LINKS")},placeholder={UiText("YouTube, Instagram, TikTok, Kwai… um link por linha")},shape=RoundedCornerShape(14.dp),minLines=2,modifier=Modifier.fillMaxWidth().testTag("links-input"),singleLine=false)}
         item {FormatOptions(settings,OndaStore::saveSettings)}
         item {Toggle("Baixar playlist de vídeo",settings.optBoolean("link_playlist")){OndaStore.saveSettings(JSONObject(settings.toString()).put("link_playlist",it))}}
         item {Row(horizontalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
@@ -468,7 +431,7 @@ internal fun displayReleaseDate(value:String):String {
             Button(onClick={add(true)},enabled=link.isNotBlank() && !adding,modifier=Modifier.testTag("links-download")){UiText("Baixar agora")}
         }}
         if(adding)item {LinearProgressIndicator(Modifier.fillMaxWidth())}
-        item {TextButton(onClick={vm.queueNavigation.value=true},modifier=Modifier.testTag("view-queue")){UiText("Ver fila")}}
+        item {TextButton(onClick={vm.queueNavigation.value=true;onAdded()},modifier=Modifier.testTag("view-queue")){UiText("Ver fila")}}
     }
 }
 
