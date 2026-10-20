@@ -9,6 +9,15 @@ def client(config,cancel):
     if account and account.connected:value.spotify_get=account.get
     return value
 
+def image_details(source):
+    from PIL import Image
+    try:
+        with Image.open(source) as image:
+            width,height=image.size
+            if image.getexif().get(274) in (5,6,7,8):width,height=height,width
+            return {'width':width,'height':height,'format':image.format or Path(source).suffix.lstrip('.').upper()}
+    except (OSError,ValueError):return {}
+
 def perform(action,config,cancel,emit):
     if cancel.is_set():raise ValueError('Operação cancelada.')
     if action in ('search','collection','check_matches','release_date'):
@@ -37,6 +46,16 @@ def perform(action,config,cancel,emit):
         from playlist_sync import scan_folder,compare_collection
         inventory=scan_folder(config['folder'],config.get('history',[]),cancel.is_set)
         return compare_collection(config['tracks'],inventory,config.get('queued',[]),config.get('url',''),config['database'])
+    if action=='detect_silence':
+        from silence import detect
+        rows=[]
+        for index,source in enumerate(config['sources']):
+            if cancel.is_set():raise InterruptedError('Detecção cancelada.')
+            emit('stage',message=f"{index+1}/{len(config['sources'])} · {Path(source).name}")
+            try:rows.append(detect(source,config.get('ffmpeg',''),cancel.is_set))
+            except InterruptedError:raise
+            except (OSError,ValueError,subprocess.TimeoutExpired) as error:rows.append({'source':source,'error':str(error)})
+        return rows
     if action=='convert':
         from video_converter import convert_video,convert_batch
         return (convert_batch if len(config.get('sources',[]))>1 else convert_video)(config,emit,cancel.is_set)
@@ -59,6 +78,12 @@ def perform(action,config,cancel,emit):
             box=crop_box(*image.size,zoom,float(config.get('x',0))*side,float(config.get('y',0))*side)
             image.resize((1000,1000),Image.Resampling.LANCZOS,box=box).save(target)
         return {'path':str(target)}
+    if action=='effects_info':
+        from audio_library import read_audio,cover_preview
+        try:record=read_audio(config['source'])
+        except (OSError,ValueError):record={'title':Path(config['source']).stem}
+        duration=record.get('duration') or perform('probe',config,cancel,emit)
+        return {'record':record,'cover':cover_preview(config['source']) or '', 'duration':duration}
     if action=='audio_read':
         from audio_library import read_audio,cover_preview
         return {'record':read_audio(config['source']),'cover':cover_preview(config['source']) or ''}
@@ -66,6 +91,7 @@ def perform(action,config,cancel,emit):
         from audio_library import edit_copy
         from batch_metadata import edit_batch
         return edit_batch(config,emit) if len(config.get('sources',[]))>1 else edit_copy(config,emit)
+    if action=='image_info':return {'source':image_details(config['source'])}
     if action in ('image_preview','image_export'):
         from image_output import transform_image,open_preview
         from file_output import publish
@@ -84,13 +110,15 @@ def perform(action,config,cancel,emit):
             else:
                 source=Path(temp)/Path(config['source']).name;shutil.copyfile(config['source'],source)
             if cancel.is_set():raise ValueError('Operação cancelada.')
+            original=image_details(source)
             output=transform_image(source,config['image_options'],emit)
+            output_info=image_details(output)
             if action=='image_preview':
                 target=root/'preview.png'
                 with open_preview(output) as image:image.thumbnail((1400,1400));image.convert('RGBA').save(target)
-                return {'path':str(target),'preview':True}
+                return {'path':str(target),'preview':True,'image_info':{'source':original,'output':output_info}}
             final,skipped=publish(output,config['folder'],'keep',None)
-            return {'path':str(final),'skipped':skipped}
+            return {'path':str(final),'skipped':skipped,'image_info':{'source':original,'output':output_info}}
     if action in ('cache_info','cache_clear'):
         from cache_cleanup import cache_info,clear_cache
         return (clear_cache if action=='cache_clear' else cache_info)(config['_root'])

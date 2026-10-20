@@ -51,7 +51,7 @@ Popup {
                 Repeater { model: decisionDialog.review ? ["title","artists","album","genre","release_date","track_number","disc_number"] : []
                     ColumnLayout { required property string modelData; Layout.fillWidth: true
                         Label { text: bridge.translate(({title:"Título",artists:"Artista",album:"Álbum",genre:"Gênero",release_date:"Data de lançamento",track_number:"Número da faixa",disc_number:"Disco"})[modelData]); color: bridge.palette.muted }
-                        OndaTextField { Layout.fillWidth: true; text: Array.isArray(decisionDialog.changes[modelData]) ? decisionDialog.changes[modelData].join(", ") : decisionDialog.changes[modelData] || ""; onEditingFinished: decisionDialog.changes[modelData]=modelData === "artists" ? text.split(",").map(function(name) { return name.trim() }) : text }
+                        OndaTextField { Layout.fillWidth: true; text: decisionDialog.changes[modelData] && typeof decisionDialog.changes[modelData].join === "function" ? decisionDialog.changes[modelData].join(", ") : decisionDialog.changes[modelData] || ""; onEditingFinished: decisionDialog.changes[modelData]=modelData === "artists" ? text.split(",").map(function(name) { return name.trim() }) : text }
                     }
                 }
             }

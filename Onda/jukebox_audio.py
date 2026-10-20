@@ -16,7 +16,7 @@ class WaveTime(c.Structure):
 
 class PcmOutput:
     def __init__(self,progress=None):
-        self.api=c.WinDLL('winmm');self.handle=w.HANDLE();self.buffers=deque();self.played=0;self.paused=False;self.progress=progress;self.last_notify=0;self.last_frame=-1
+        self.api=c.WinDLL('winmm');self.handle=w.HANDLE();self.buffers=deque();self.played=0;self.paused=False;self.progress=progress;self.last_notify=0;self.last_frame=-1;self.gain=None;self.last_gain=1.
         self.api.waveOutOpen.argtypes=[c.POINTER(w.HANDLE),w.UINT,c.POINTER(WaveFormat),c.c_size_t,c.c_size_t,w.DWORD]
         self.api.waveOutOpen.restype=w.UINT
         for name in ('waveOutPrepareHeader','waveOutWrite','waveOutUnprepareHeader'):
@@ -61,7 +61,11 @@ class PcmOutput:
         block=RATE//10*CHANNELS*2
         for offset in range(0,len(data),block):
             while self.control(cancelled,paused):time.sleep(.02)
-            payload=data[offset:offset+block];buffer=c.create_string_buffer(payload)
+            payload=data[offset:offset+block]
+            if self.gain is not None:
+                from playback_controls import fade_pcm
+                gain=self.gain();payload=fade_pcm(payload,self.last_gain,gain);self.last_gain=gain
+            buffer=c.create_string_buffer(payload)
             header=WaveHeader(c.cast(buffer,c.c_void_p),len(payload),0,0,0,0,None,0)
             self._check(self.api.waveOutPrepareHeader(self.handle,c.byref(header),c.sizeof(header)))
             try:self._check(self.api.waveOutWrite(self.handle,c.byref(header),c.sizeof(header)))

@@ -1,6 +1,6 @@
 # Interface Qt do ONDA para Windows
 
-Execute `Portatil-Qt/Onda.exe`. Todas as áreas visíveis usam Qt Quick/QML: catálogo, links, fila, álbuns e playlists, histórico, conversor, imagens, efeitos, Jukebox, metadados, configurações e diálogos. Não existe incorporação de janelas Tk nem processo de interface auxiliar.
+Execute `Portatil/Onda.exe`. Todas as áreas visíveis usam Qt Quick/QML: catálogo, links, fila, álbuns e playlists, histórico, conversor, imagens, efeitos, Jukebox, metadados, configurações e diálogos. Não existe incorporação de janelas Tk nem processo de interface auxiliar.
 
 ## Estrutura
 
@@ -27,8 +27,17 @@ Para executar pelo código:
 & '.\Portatil\_runtime\python\pythonw.exe' 'Onda/qt_desktop_ui.py'
 ```
 
-O launcher existente aceita `/define:QT_UI`. Sem essa definição, continua iniciando a interface anterior. A pasta `Portatil-Qt` contém o runtime, o Qt, os fontes e o executável; mantenha-os juntos.
+O launcher existente aceita `/define:QT_UI`. Sem essa definição, continua iniciando a interface anterior. A pasta `Portatil` contém o runtime, o Qt, os fontes e o executável; mantenha-os juntos.
 
 ## Validação
 
 `test_qt_workspace.py` cobre configuração, listas, escolhas, cancelamento, leitura e edição, conversão real, imagens, recorte, efeitos, todas as telas e diálogos, e download pelo motor real em servidor HTTP local. `test_qt_jukebox.py` cobre análise, reprodução, equalizador e visualização. Não são necessários serviços públicos para executar esses testes.
+
+## Reprodução e fila
+
+- No Jukebox, adicione arquivos ou resultados de pesquisa à fila. Use Tocar, Próxima ou escolha um tempo por faixa; Manual mantém o comportamento infinito até uma troca manual. A fila de reprodução vale para a sessão atual.
+- O temporizador do Jukebox usa tempo corrido e reduz o áudio nos últimos 15 segundos, sem modificar o volume escolhido nem o equalizador.
+- Em Links/Fila, Desfazer recupera até dez remoções, limpezas, cancelamentos e mudanças de ordem. Não apaga arquivos nem volta o progresso de downloads em andamento. Aguarde o término de um cancelamento antes de desfazê-lo.
+- No Conversor, Detectar silêncio analisa o áudio abaixo de −45 dB por ao menos 0,3 segundo. A remoção opcional corta somente as extremidades; pausas internas e o arquivo original são preservados. A análise é reutilizada enquanto tamanho e data do arquivo permanecem iguais.
+
+Na pesquisa de músicas, Adicionar à fila permite escolher entre downloads e reprodução no Jukebox. As duas filas mostram capa e metadados disponíveis. Em Links/Fila, o menu Mais ações reúne movimentação, prioridade, nova tentativa, cancelamento, limpeza, falhas e detalhes; os controles principais continuam visíveis.

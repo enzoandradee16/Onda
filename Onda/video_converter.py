@@ -54,6 +54,15 @@ def convert_video(config,emit=lambda *args,**kwargs:None,cancelled=lambda:False)
         if cancelled():raise ConversionCancelled('Conversão cancelada.')
     check();info=probe_video(source,config.get('ffmpeg',''),audio_only=mode in AUDIO_FORMATS);check()
     if mode in AUDIO_FORMATS and not info['has_audio']:raise ValueError('O vídeo selecionado não contém áudio.')
+    trim=None;expected_duration=info['duration']
+    if config.get('trim_silence'):
+        from silence import cached,detect
+        emit('stage',message='Detectando silêncio nas extremidades…')
+        try:trim=cached(source,config.get('silence_results',[])) or detect(source,config.get('ffmpeg',''),cancelled)
+        except InterruptedError:raise ConversionCancelled('Conversão cancelada.')
+        if trim.get('error'):raise ValueError(trim['error'])
+        if trim['silent']:raise ValueError('O arquivo é inteiramente silencioso. Desative o recorte para convertê-lo sem cortes.')
+        expected_duration=trim['end']-trim['start'];check()
     output.parent.mkdir(parents=True,exist_ok=True)
     fd,name=tempfile.mkstemp(prefix='.onda-convert-',suffix=output.suffix,dir=output.parent);os.close(fd)
     temporary=Path(name);process=None
@@ -74,6 +83,9 @@ def convert_video(config,emit=lambda *args,**kwargs:None,cancelled=lambda:False)
         if mode in AUDIO_FORMATS:
             command=[executable('ffmpeg',config.get('ffmpeg','')),'-hide_banner','-loglevel','error','-nostdin','-y','-i',str(source),'-map','0:a:0','-vn','-map_metadata','0','-c:a','libmp3lame' if mode=='MP3' else 'aac','-b:a',audio_bitrate]
             if mode=='M4A':command+=['-movflags','+faststart']
+        if trim:
+            position=command.index('-i');command[position:position]=['-ss',str(trim['start'])]
+            command+=['-t',str(expected_duration)]
         from performance import thread_args,priority_flags
         command[1:1]=thread_args(config)
         command+=thread_args(config,default=2 if mode not in AUDIO_FORMATS else None)+['-progress','pipe:1','-nostats',str(temporary)]
@@ -94,7 +106,7 @@ def convert_video(config,emit=lambda *args,**kwargs:None,cancelled=lambda:False)
                 except queue.Empty:continue
                 if line is None:break
                 if line.startswith('out_time_us='):
-                    try:percent=min(99,max(0,float(line.split('=',1)[1])/1e6/info['duration']*100))
+                    try:percent=min(99,max(0,float(line.split('=',1)[1])/1e6/expected_duration*100))
                     except ValueError:continue
                     emit('progress',percent=percent)
             code=process.wait();reader.join(timeout=2);check()
@@ -102,7 +114,7 @@ def convert_video(config,emit=lambda *args,**kwargs:None,cancelled=lambda:False)
                 errors.seek(0);detail=errors.read(2500).decode('utf-8',errors='replace')
                 raise ValueError('Falha ao converter o vídeo. '+detail)
         rendered=probe_video(temporary,config.get('ffmpeg',''),audio_only=mode in AUDIO_FORMATS);check()
-        if abs(rendered['duration']-info['duration'])>max(2,info['duration']*.02):
+        if abs(rendered['duration']-expected_duration)>max(.25 if trim else 2,expected_duration*.02):
             raise ValueError('A duração do vídeo convertido não corresponde ao original.')
         # Publish exclusively: a file created during conversion is never replaced.
         if os.name=='nt':os.rename(temporary,output)

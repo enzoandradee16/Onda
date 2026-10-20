@@ -36,12 +36,15 @@ Popup {
                     }
                     ColumnLayout { visible: popup.category === "Aparência" && !search.text; Layout.fillWidth: true
                         Label { text: bridge.translate("Ordem e visibilidade das abas"); color: bridge.palette.text; font.pixelSize: Math.round(19*bridge.fontScale) }
-                        Repeater { model: workspace.preferences.tab_order
-                            RowLayout { required property string modelData; Layout.fillWidth: true
-                                CheckBox { checked: workspace.hiddenTabs.indexOf(modelData) < 0; enabled: ["catalog","downloads","queue"].indexOf(modelData) < 0; onToggled: workspace.invoke("toggle_tab",{key:modelData}) }
-                                Label { Layout.fillWidth: true; text: workspace.pageLabel(modelData); color: bridge.palette.text }
-                                ActionButton { text: "↑"; onClicked: workspace.invoke("tab_move",{key:modelData,direction:-1}) }
-                                ActionButton { text: "↓"; onClicked: workspace.invoke("tab_move",{key:modelData,direction:1}) }
+                        Repeater { model: workspace.navigation
+                            ColumnLayout { required property var modelData; Layout.fillWidth: true; spacing: 6
+                                Label { objectName: "appearanceTabGroup"; visible: !!modelData.group; text: bridge.translate(modelData.group || ""); color: bridge.palette.muted; font.pixelSize: Math.round(13*bridge.fontScale); font.weight: Font.DemiBold; Layout.topMargin: 12; Layout.bottomMargin: 4 }
+                                RowLayout { visible: !!modelData.key; Layout.fillWidth: true
+                                    CheckBox { checked: workspace.hiddenTabs.indexOf(modelData.key) < 0; enabled: ["catalog","downloads","queue"].indexOf(modelData.key) < 0; onToggled: workspace.invoke("toggle_tab",{key:modelData.key}) }
+                                    Label { Layout.fillWidth: true; text: modelData.key ? workspace.pageLabel(modelData.key) : ""; color: bridge.palette.text }
+                                    ActionButton { text: "↑"; enabled: !!modelData.canMoveUp; Accessible.name: bridge.translate("Mover para cima"); onClicked: workspace.invoke("tab_move",{key:modelData.key,direction:-1}) }
+                                    ActionButton { text: "↓"; enabled: !!modelData.canMoveDown; Accessible.name: bridge.translate("Mover para baixo"); onClicked: workspace.invoke("tab_move",{key:modelData.key,direction:1}) }
+                                }
                             }
                         }
                         ActionButton { text: bridge.translate("Restaurar ordem das abas"); onClicked: workspace.invoke("reset_tab_order",{}) }

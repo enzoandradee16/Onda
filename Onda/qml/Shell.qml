@@ -4,8 +4,8 @@ import QtQuick.Layouts
 Pane {
     id: app
     width: 1360; height: 900
-    readonly property var inlineTasks: ({catalog:["search"],playlists:["collection","compare_collection","check_matches"],converter:["convert"],effects:["effects_export"],images:["image_preview","image_export"],metadata:["audio_edit","normalize_preview"]})[workspace.currentPage] || []
-    readonly property var remainingTasks: workspace.activity.busy.filter(function(name) { return app.inlineTasks.indexOf(name)<0 })
+    readonly property var inlineTasks: ({catalog:["search"],playlists:["collection","compare_collection","check_matches"],converter:["convert","detect_silence"],effects:["effects_export"],images:["image_preview","image_export"],metadata:["audio_edit","normalize_preview"]})[workspace.currentPage] || []
+    readonly property var remainingTasks: workspace.activity.busy.filter(function(name) { return app.inlineTasks.indexOf(name)<0 && workspace.activity.background.indexOf(name)<0 })
     padding: 0
     background: Rectangle { color: bridge.palette.bg }
     font.family: workspace.preferences.interface_font === "Padrão do sistema" ? "Segoe UI" : workspace.preferences.interface_font; font.pixelSize: Math.round(14*bridge.fontScale)
@@ -59,7 +59,7 @@ Pane {
                         primary: true
                         symbol: bridge.state.playing && !bridge.state.paused ? "Ⅱ" : "▶"
                         text: bridge.translate(bridge.state.playing ? (bridge.state.paused ? "Retomar" : "Pausar") : "Reproduzir")
-                        enabled: bridge.state.ready && !bridge.state.busy
+                        enabled: bridge.state.ready && (!bridge.state.busy || bridge.state.playing)
                         onClicked: bridge.playPause()
                     }
                     ActionButton { text: bridge.translate(bridge.state.busy ? "Cancelar" : "Parar"); symbol: "■"; enabled: bridge.state.playing || bridge.state.busy; onClicked: bridge.stop() }

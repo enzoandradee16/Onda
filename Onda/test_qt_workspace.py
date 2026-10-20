@@ -44,6 +44,23 @@ class NativeDesktopTests(unittest.TestCase):
         self.ws.setSetting('hidden_tabs',['catalog','downloads','queue','images','metadata']);self.assertEqual(self.ws.hiddenTabs,['images','metadata'])
         self.ws.selectPage('images');self.assertEqual(self.ws.currentPage,'catalog')
         self.ws.invoke('tab_move',{'key':'history','direction':-1});self.assertLess(self.ws.settings['tab_order'].index('history'),self.ws.defaults['tab_order'].index('history'))
+    def test_tab_order_moves_only_inside_its_category(self):
+        self.ws.setSetting('tab_order',['images','catalog','converter','downloads','queue','playlists','history','effects','metadata'])
+        self.ws.invoke('tab_move',{'key':'downloads','direction':-1})
+        groups={};current=None
+        for row in self.ws.navigation:
+            if row.get('group'):current=row['group'];groups[current]=[]
+            else:groups[current].append(row['key'])
+        self.assertEqual(groups['BIBLIOTECA'],['downloads','catalog','queue','playlists','history'])
+        self.assertEqual(groups['FERRAMENTAS'],['images','converter','effects','metadata'])
+        before=list(self.ws.settings['tab_order'])
+        self.ws.invoke('tab_move',{'key':'images','direction':-1})
+        self.assertEqual(self.ws.settings['tab_order'],before)
+        self.ws.invoke('tab_move',{'key':'images','direction':1})
+        tools=[row for row in self.ws.navigation if row.get('key') in groups['FERRAMENTAS']]
+        self.assertEqual([row['key'] for row in tools],['converter','images','effects','metadata'])
+        self.assertFalse(tools[0]['canMoveUp']);self.assertFalse(tools[-1]['canMoveDown'])
+
     def test_queue_duplicate_filters_order_and_persistence(self):
         urls=['https://example.com/b.mp3','https://example.com/a.mp3']
         self.ws.enqueue(urls);self.ws.enqueue(urls);self.assertEqual(len(self.ws.jobs),2)
@@ -70,6 +87,88 @@ class NativeDesktopTests(unittest.TestCase):
         with patch('qt_operations_ui.perform',side_effect=work):
             self.ws.run_task('probe',{'source':'old'},applied.append);self.ws.run_task('probe',{'source':'new'},applied.append);self.task_done('probe');release.set();self.settle()
         self.assertEqual(applied,['new'])
+    def test_background_update_does_not_hide_manual_task(self):
+        pending=[]
+        with patch.object(self.ws,'launch_thread',side_effect=pending.append):
+            self.ws.run_task('app_update',background=True)
+            self.assertIn('app_update',self.ws.activity['busy'])
+            self.assertIn('app_update',self.ws.activity['background'])
+            old_revision=self.ws.generations['app_update']
+            self.ws.run_task('app_update')
+            self.assertNotIn('app_update',self.ws.activity['background'])
+            self.ws.on_event('task_finished',{'action':'app_update','revision':old_revision})
+            self.assertIn('app_update',self.ws.activity['busy'])
+            self.ws.on_event('task_finished',{'action':'app_update','revision':self.ws.generations['app_update']})
+            self.assertNotIn('app_update',self.ws.activity['busy'])
+            self.assertEqual(self.ws.activity['background'],[])
+
+    def test_links_and_queue_have_separate_controls_and_navigation(self):
+        from qt_desktop_ui import create_application,close_application
+        from PySide6.QtCore import QObject,QMetaObject
+        app,engine,bridge=create_application(complete=False);ws=engine.workspace;window=engine.rootObjects()[0]
+        try:
+            ws.selectPage('downloads');self.settle()
+            def control(name):return window.findChild(QObject,name)
+            for name in ('downloadQueueList','downloadQueueTools','downloadQueueFilters'):
+                self.assertFalse(control(name).property('visible'))
+            self.assertFalse(control('addLinksButton').property('enabled'))
+            ws.setOption('links','https://example.com/test.mp3')
+            QMetaObject.invokeMethod(control('addLinksButton'),'clicked');self.settle()
+            self.assertEqual(ws.currentPage,'downloads');self.assertFalse(ws.running)
+            self.assertTrue(control('linksQueueNotice').property('visible'))
+            QMetaObject.invokeMethod(control('viewDownloadQueueButton'),'clicked');self.settle()
+            self.assertEqual(ws.currentPage,'queue')
+            for name in ('downloadQueueList','downloadQueueTools','downloadQueueFilters'):
+                self.assertTrue(control(name).property('visible'))
+            self.assertFalse(control('addLinksButton').property('visible'))
+            ws.selectPage('downloads');self.settle();ws.setOption('links','https://example.com/other.mp3')
+            with patch.object(ws,'start_queue') as start:
+                QMetaObject.invokeMethod(control('downloadLinksNowButton'),'clicked')
+                start.assert_called_once()
+            self.assertEqual(ws.currentPage,'queue');self.assertEqual(len(ws.jobs),2)
+        finally:close_application(engine,bridge)
+
+    def test_queue_context_opens_with_right_click(self):
+        from qt_desktop_ui import create_application,close_application
+        from PySide6.QtCore import QObject,Qt,QPointF
+        from PySide6.QtTest import QTest
+        from PySide6.QtQml import QQmlExpression
+        app,engine,bridge=create_application(complete=False);ws=engine.workspace;window=engine.rootObjects()[0]
+        try:
+            ws.enqueue(['https://example.com/a.mp3']);ws.selectPage('queue');self.settle()
+            def find(item):
+                if item.objectName()=='downloadQueueCard' and item.isVisible():return item
+                for child in item.childItems():
+                    result=find(child)
+                    if result is not None:return result
+            card=find(window.contentItem());self.assertIsNotNone(card)
+            for _ in range(10):self.settle()
+            window.requestActivate();self.settle()
+            position=card.mapToScene(QPointF(card.width()/2,card.height()/2)).toPoint()
+            QTest.mouseClick(window,Qt.RightButton,Qt.NoModifier,position);self.settle()
+            menu=next(menu for menu in window.findChildren(QObject,'queueContextMenu') if QQmlExpression(engine.rootContext(),menu,'visible').evaluate()[0])
+            self.wait_for(lambda:QQmlExpression(engine.rootContext(),menu,'opened').evaluate()[0])
+            self.assertEqual(ws.activity['selected'],0)
+            self.assertEqual(menu.property('targetId'),ws.jobs[0]['id'])
+            ws.invoke('queue_action',{'name':'remove','id':menu.property('actionId')})
+            self.assertEqual(len(ws.jobs),0)
+        finally:close_application(engine,bridge)
+
+    def test_queue_context_preserves_selected_rows_and_copies_links(self):
+        self.ws.enqueue(['https://example.com/a.mp3','https://example.com/b.mp3','https://example.com/c.mp3'])
+        self.ws.jobs[0]['checked']=True;self.ws.jobs[1]['checked']=True
+        self.assertEqual(self.ws.activity['selected'],2)
+        self.ws.invoke('queue_copy_links',{})
+        self.assertEqual(self.app.clipboard().text(),'https://example.com/a.mp3\nhttps://example.com/b.mp3')
+        identity=self.ws.jobs[2]['id']
+        self.ws.invoke('queue_copy_links',{'id':identity})
+        self.assertEqual(self.app.clipboard().text(),'https://example.com/c.mp3')
+        self.assertEqual([job['checked'] for job in self.ws.jobs],[True,True,False])
+        self.ws.invoke('queue_action',{'name':'remove','id':identity})
+        self.assertEqual(len(self.ws.jobs),2)
+        self.ws.invoke('undo_queue',{})
+        self.assertEqual(len(self.ws.jobs),3)
+
     def test_clipboard_requires_confirmation_and_deduplicates(self):
         from types import SimpleNamespace
         self.ws.settings['clipboard_links']=True
@@ -118,6 +217,7 @@ class NativeDesktopTests(unittest.TestCase):
                 self.assertEqual(self.ws.options['imageSource'],'')
                 self.ws.invoke('image_preview',{});self.task_done('image_preview')
                 self.assertTrue(self.ws.options['imagePreview'],self.ws.status)
+                self.assertEqual(self.ws.options['imageInfo']['source'],{'width':160,'height':90,'format':'PNG'})
                 from PySide6.QtCore import QUrl
                 with Image.open(QUrl(self.ws.options['imagePreview']).toLocalFile()) as preview:self.assertEqual(preview.size,(160,90))
         finally:server.shutdown();server.server_close();thread.join()
@@ -283,6 +383,104 @@ class NativeDesktopTests(unittest.TestCase):
         own=threading.Event();other=threading.Event()
         self.ws.active={'export':{'cancel':own,'process':None,'operation':'effects_export'},'download':{'cancel':other,'process':None}}
         self.assertIn('effects_export',self.ws.activity['busy']);self.ws.cancel_task('effects_export');self.assertTrue(own.is_set());self.assertFalse(other.is_set());self.ws.active.clear()
+    def test_image_information_reports_original_and_output_not_thumbnail(self):
+        from PIL import Image
+        from PySide6.QtCore import QUrl
+        source=self.root/'large.png';Image.new('RGB',(2000,1000),'blue').save(source)
+        self.ws.accept_files('image',[str(source)]);self.task_done('image_info')
+        self.assertEqual(self.ws.options['imageInfo']['source'],{'width':2000,'height':1000,'format':'PNG'})
+        self.ws.invoke('image_preview',{});self.task_done('image_preview')
+        self.assertEqual(self.ws.options['imageInfo']['output']['width'],2000)
+        with Image.open(QUrl(self.ws.options['imagePreview']).toLocalFile()) as preview:self.assertEqual(preview.size,(1400,700))
+        self.ws.setSetting('image_format','JPG');self.ws.setSetting('image_size','Até 1280 × 720');self.ws.invoke('image_preview',{});self.task_done('image_preview')
+        self.assertEqual(self.ws.options['imageInfo']['source']['width'],2000)
+        self.assertEqual(self.ws.options['imageInfo']['output'],{'width':1280,'height':640,'format':'JPEG'})
+        self.ws.setOption('imageUrl','https://example.com/next.png');self.assertEqual(self.ws.options['imageInfo'],{})
+    def test_library_empty_states_change_with_results_and_page(self):
+        from qt_desktop_ui import create_application,close_application
+        from PySide6.QtCore import QObject
+        app,engine,bridge=create_application(complete=False);ws=engine.workspace;window=engine.rootObjects()[0]
+        try:
+            ws.selectPage('catalog');self.settle();empty=window.findChild(QObject,'libraryEmptyState')
+            self.assertTrue(empty.property('visible'));self.assertEqual(empty.property('heading'),'Encontre sua próxima música')
+            ws.searched({'tracks':[]});self.settle();self.assertEqual(empty.property('heading'),'Nenhuma música encontrada')
+            ws.searched({'tracks':[{'title':'Song','source_url':'https://example.com/song'}]});self.settle();self.assertFalse(empty.property('visible'))
+            ws.selectPage('history');self.settle();empty=window.findChild(QObject,'libraryEmptyState');self.assertTrue(empty.property('visible'));self.assertEqual(empty.property('heading'),'Seu histórico está vazio')
+            ws.setOption('historyQuery','missing');self.settle();self.assertEqual(empty.property('heading'),'Nenhum arquivo encontrado')
+        finally:close_application(engine,bridge)
+    def test_effects_read_embedded_artwork_and_clear_it_for_next_file(self):
+        import io
+        from PIL import Image
+        from mutagen.wave import WAVE
+        from mutagen.id3 import TIT2,TPE1,TALB,APIC
+        source=self.tone('tagged.wav');cover=io.BytesIO();Image.new('RGB',(80,80),'red').save(cover,format='PNG')
+        audio=WAVE(source);audio.add_tags();audio.tags.add(TIT2(encoding=3,text=['Song title']));audio.tags.add(TPE1(encoding=3,text=['Artist']));audio.tags.add(TALB(encoding=3,text=['Album']));audio.tags.add(APIC(encoding=3,mime='image/png',type=3,desc='Front',data=cover.getvalue()));audio.save()
+        original=source.read_bytes();self.ws.accept_files('effects',[str(source)]);self.task_done('effects_info')
+        self.assertEqual(self.ws.options['effectsRecord']['title'],'Song title');self.assertEqual(self.ws.options['effectsRecord']['artists'],['Artist']);self.assertEqual(self.ws.options['effectsRecord']['album'],'Album')
+        self.assertTrue(self.ws.options['effectsCover'].startswith('data:image/png;base64,'));self.assertGreater(self.ws.options['duration'],0);self.assertEqual(source.read_bytes(),original)
+        plain=self.tone('plain.wav');self.ws.accept_files('effects',[str(plain)]);self.assertEqual(self.ws.options['effectsCover'],'');self.task_done('effects_info')
+        self.assertEqual(self.ws.options['effectsRecord']['title'],'plain');self.assertEqual(self.ws.options['effectsCover'],'')
+    def test_silence_detection_and_conversion_trim_only_edges(self):
+        import math,wave
+        from array import array
+        from silence import detect,cached
+        from video_converter import convert_video,probe_video
+        if not TOOLS.is_dir():self.skipTest('FFmpeg required')
+        source=self.root/'padded.wav';rate=44100;samples=array('h')
+        for length,tone in [(1,False),(1,True),(.5,False),(1,True),(1,False)]:
+            samples.extend(round(math.sin(i*2*math.pi*440/rate)*12000) if tone else 0 for i in range(round(rate*length)))
+        with wave.open(str(source),'wb') as out:out.setparams((1,2,rate,0,'NONE',''));out.writeframes(samples.tobytes())
+        original=source.read_bytes();result=detect(source,str(TOOLS));self.assertAlmostEqual(result['leading'],1,places=2);self.assertAlmostEqual(result['trailing'],1,places=2);self.assertEqual(len(result['intervals']),3)
+        target=self.root/'trimmed.mp3'
+        with patch('silence.detect',side_effect=AssertionError('Cached analysis should be reused')):
+            convert_video({'source':str(source),'output':str(target),'video_format':'MP3','ffmpeg':str(TOOLS),'trim_silence':True,'silence_results':[result]})
+        self.assertAlmostEqual(probe_video(target,str(TOOLS),audio_only=True)['duration'],2.5,delta=.15);self.assertEqual(source.read_bytes(),original)
+        source.write_bytes(original+b'0');self.assertIsNone(cached(source,[result]))
+    def test_queue_undo_restores_clear_and_order(self):
+        self.ws.enqueue(['https://example.com/one.mp3','https://example.com/two.mp3'])
+        ids=[job['id'] for job in self.ws.jobs];self.ws.jobs[0]['checked']=True;self.ws.queue_action('up');self.assertFalse(self.ws.undo_history.entries);self.ws.jobs[0]['checked']=False;self.ws.jobs[1]['checked']=True;self.ws.queue_action('up');self.assertNotEqual([job['id'] for job in self.ws.jobs],ids)
+        self.ws.invoke('undo_queue',{});self.assertEqual([job['id'] for job in self.ws.jobs],ids)
+        self.ws.queue_action('clear');self.assertFalse(self.ws.jobs);self.ws.invoke('undo_queue',{});self.assertEqual([job['id'] for job in self.ws.jobs],ids)
+    def test_search_can_queue_remote_track_for_playback_without_download(self):
+        record={'title':'Remote song','artists':['Artist'],'album':'Album','source_url':'https://www.deezer.com/track/1','cover_url':'https://example.com/cover.png','duration_ms':180000}
+        self.ws.searched({'tracks':[record]})
+        with patch('qt_jukebox_ui.fetch_audio') as fetch:
+            self.ws.invoke('jukebox_add',{'index':0});fetch.assert_not_called()
+        entry=self.bridge.queuedTracks[0];self.assertEqual(entry['kind'],'catalog');self.assertEqual(entry['artist'],'Artist');self.assertEqual(entry['album'],'Album');self.assertEqual(entry['cover'],record['cover_url']);self.assertEqual(entry['duration'],180);self.assertEqual(self.ws.jobs,[])
+        self.ws.invoke('catalog_add',{'index':0});row=self.ws.queueModel.rows[0];self.assertEqual(row['track_title'],'Remote song');self.assertEqual(row['track_artist'],'Artist');self.assertEqual(row['track_album'],'Album');self.assertEqual(row['track_cover'],record['cover_url'])
+    def test_queue_destination_menu_routes_playback_and_download_separately(self):
+        from qt_desktop_ui import create_application,close_application
+        from PySide6.QtCore import QObject,QUrl,QMetaObject
+        from PySide6.QtQml import QQmlComponent
+        app,engine,bridge=create_application(complete=False);ws=engine.workspace
+        try:
+            ws.searched({'tracks':[{'title':'Song','artists':['Artist'],'source_url':'https://www.deezer.com/track/1'}]})
+            component=QQmlComponent(engine,QUrl.fromLocalFile(str(ROOT/'qml/QueueDestinationMenu.qml')));menu=component.create();self.assertIsNotNone(menu,component.errors());menu.setProperty('recordIndex',0)
+            playback=menu.findChild(QObject,'playbackDestination');QMetaObject.invokeMethod(playback,'triggered');self.assertEqual(len(bridge.queuedTracks),1);self.assertEqual(ws.jobs,[])
+            download=menu.findChild(QObject,'downloadDestination');QMetaObject.invokeMethod(download,'triggered');self.assertEqual(len(ws.jobs),1);self.assertEqual(len(bridge.queuedTracks),1);menu.deleteLater()
+        finally:close_application(engine,bridge)
+    def test_metadata_artwork_is_next_to_controls_and_full_artist_is_visible(self):
+        import io,base64
+        from PIL import Image
+        from qt_desktop_ui import create_application,close_application
+        from PySide6.QtCore import QObject,QPointF
+        app,engine,bridge=create_application(complete=False);ws=engine.workspace;window=engine.rootObjects()[0]
+        try:
+            cover=io.BytesIO();Image.new('RGB',(100,100),'blue').save(cover,format='PNG')
+            ws.selectPage('metadata');ws.audio_loaded({'record':{'title':'Song','artists':['Stardust','Other Artist'],'album':'Album'},'cover':base64.b64encode(cover.getvalue()).decode()});self.settle()
+            def find(item,name):
+                if item.objectName()==name:return item
+                return next((result for child in item.childItems() if (result:=find(child,name)) is not None),None)
+            self.assertEqual(find(window.contentItem(),'metadataField_artists').property('text'),'Stardust, Other Artist')
+            art=window.findChild(QObject,'metadataArtwork');self.assertTrue(art.property('visible'))
+            self.assertGreater(art.mapToScene(QPointF(0,0)).x(),find(window.contentItem(),'metadataField_title').mapToScene(QPointF(0,0)).x()+400)
+            self.assertLess(art.mapToScene(QPointF(0,0)).x(),900)
+        finally:close_application(engine,bridge)
+    def test_queue_metadata_update_keeps_the_model_and_selection(self):
+        self.ws.enqueue(['https://example.com/one.mp3']);job=self.ws.jobs[0];self.ws.toggle_row('queue',0,True)
+        with patch.object(self.ws.models['queue'],'replace',wraps=self.ws.models['queue'].replace) as reset:
+            self.ws.on_event(job['id'],{'type':'queue_title','title':'Artist - Song','queue_info':{'title':'Song','artists':['Artist'],'album':'Album','cover_url':'https://example.com/cover.png','duration_ms':180000}});reset.assert_not_called()
+        row=self.ws.queueModel.rows[0];self.assertTrue(row['checked']);self.assertEqual(row['track_artist'],'Artist');self.assertEqual(row['track_duration'],180)
     def test_close_exits_qt_without_second_click(self):
         from qt_desktop_ui import create_application,close_application
         from PySide6.QtCore import QTimer
@@ -310,7 +508,7 @@ class NativeDesktopTests(unittest.TestCase):
         self.assertIsNotNone(process.poll());self.assertEqual(job['state'],'Cancelado')
     def test_effects_export_real_worker(self):
         if not TOOLS.is_dir():self.skipTest('FFmpeg required')
-        source=self.tone();target=self.root/'effects.mp3';self.ws.accept_files('effects',[str(source)]);self.task_done('probe');self.assertGreater(self.ws.options['duration'],0)
+        source=self.tone();target=self.root/'effects.mp3';self.ws.accept_files('effects',[str(source)]);self.task_done('effects_info');self.assertGreater(self.ws.options['duration'],0)
         with patch('PySide6.QtWidgets.QFileDialog.getSaveFileName',return_value=(str(target),'')):self.ws.export_effects()
         self.wait_for(lambda:not self.ws.active,20000);self.assertTrue(target.is_file(),self.ws.logs);self.assertTrue(self.ws.library.history())
     def test_settings_import_export_keeps_secrets_out(self):

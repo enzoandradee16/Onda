@@ -1,4 +1,5 @@
 """Qt preview integration: isolated preferences, no network or audible playback."""
+import threading
 import os,tempfile,time,unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -78,6 +79,46 @@ class QtJukeboxTests(unittest.TestCase):
             bridge.openFile(QUrl.fromLocalFile(str(source)));self.wait_for(lambda:not bridge.state['busy'],10000)
         self.assertTrue(bridge.state['ready'],bridge.state['status']);self.assertEqual(bridge.state['title'],'Teste local')
         return bridge.model
+    def test_playback_queue_reordering_next_and_autoplay(self):
+        bridge=self.bridge();model=self.prepare_model(bridge);source=Path(self.temp.name)/'Teste local.wav'
+        bridge.enqueueFiles([QUrl.fromLocalFile(str(source)),QUrl.fromLocalFile(str(source))]);self.assertEqual(len(bridge.playback['queue']),2)
+        with patch.object(bridge,'config',return_value={'ffmpeg':str(TOOLS)}),patch('qt_jukebox_ui.prepare',return_value=model),patch.object(bridge,'playPause') as play:
+            bridge.playQueued(0);self.wait_for(lambda:not bridge.state['busy']);play.assert_called_once();self.assertEqual(bridge.queue_index,0)
+            bridge.nextTrack();self.wait_for(lambda:not bridge.state['busy']);self.assertEqual(play.call_count,2);self.assertEqual(bridge.queue_index,1)
+            bridge.moveQueued(1,-1);self.assertEqual(bridge.queue_index,0);bridge.removeQueued(1);self.assertEqual(len(bridge.playback['queue']),1)
+        bridge.setTrackMinutes(3)
+        with patch.object(bridge,'nextTrack') as next_track:
+            bridge.handle_event(bridge.revision,'position',{'index':0,'phase':0,'elapsed':180,'jumps':0,'edges':[]});next_track.assert_called_once()
+    def test_sleep_timer_stops_without_altering_user_volume(self):
+        bridge=self.bridge();now=[0.];bridge.sleep.clock=lambda:now[0];bridge.setSleep(1);volume=bridge._params[2]
+        now[0]=52.5;self.assertAlmostEqual(bridge.sleep.gain(),.5);now[0]=60;bridge.tick_sleep()
+        self.assertFalse(bridge.playback['sleepActive']);self.assertFalse(bridge.state['playing']);self.assertEqual(bridge._params[2],volume);self.assertEqual(bridge.sleep.gain(),1)
+    def test_search_can_add_next_music_without_stopping_playback(self):
+        bridge=self.bridge();bridge.update_state(playing=True);cancel=bridge.cancelled
+        with patch('music_search.search_music',return_value={'tracks':[{'title':'Next','artists':[],'source_url':'https://www.deezer.com/track/1'}]}):
+            bridge.search('Next');self.wait_for(lambda:not bridge.state['busy'])
+        self.assertFalse(cancel.is_set());self.assertTrue(bridge.state['playing']);bridge.enqueueResult(0);self.assertEqual(bridge.playback['queue'][0]['title'],'Next')
+    def test_failed_queue_item_does_not_autoplay_previous_model(self):
+        bridge=self.bridge();self.prepare_model(bridge);source=Path(self.temp.name)/'Teste local.wav';bridge.enqueueFiles([QUrl.fromLocalFile(str(source))])
+        with patch.object(bridge,'config',return_value={'ffmpeg':str(TOOLS)}),patch('qt_jukebox_ui.prepare',side_effect=ValueError('Falha na análise')),patch.object(bridge,'playPause') as play:
+            bridge.playQueued(0);self.wait_for(lambda:not bridge.state['busy']);play.assert_not_called();self.assertEqual(bridge.state['status'],'Falha na análise')
+    def test_cancel_search_preserves_playback_and_sleep_timer(self):
+        bridge=self.bridge();bridge.update_state(playing=True);bridge.setSleep(15);release=threading.Event()
+        def search(*args,**kwargs):release.wait(2);return {'tracks':[]}
+        with patch('music_search.search_music',side_effect=search):
+            bridge.search('Next');self.assertTrue(bridge.state['busy']);bridge.cancelOperation();release.set()
+            self.wait_for(lambda:all(not worker.is_alive() for worker in bridge.workers))
+        self.assertTrue(bridge.state['playing']);self.assertTrue(bridge.playback['sleepActive']);self.assertFalse(bridge.cancelled.is_set());self.assertEqual(bridge.state['results'],[])
+    def test_local_queue_loads_tags_and_cover_before_playback(self):
+        import io
+        from PIL import Image
+        from mutagen.wave import WAVE
+        from mutagen.id3 import TIT2,TPE1,TALB,APIC
+        from test_jukebox import song
+        source=Path(self.temp.name)/'local.wav';song(source);cover=io.BytesIO();Image.new('RGB',(64,64),'red').save(cover,format='PNG')
+        audio=WAVE(source);audio.add_tags();audio.tags.add(TIT2(encoding=3,text=['Track']));audio.tags.add(TPE1(encoding=3,text=['Artist']));audio.tags.add(TALB(encoding=3,text=['Album']));audio.tags.add(APIC(encoding=3,mime='image/png',type=3,desc='Front',data=cover.getvalue()));audio.save()
+        bridge=self.bridge();bridge.enqueueFiles([QUrl.fromLocalFile(str(source))]);self.wait_for(lambda:bool(bridge.queuedTracks[0].get('cover')))
+        entry=bridge.queuedTracks[0];self.assertEqual(entry['title'],'Track');self.assertEqual(entry['artist'],'Artist');self.assertEqual(entry['album'],'Album');self.assertTrue(entry['cover'].startswith('data:image/png;base64,'));self.assertFalse(bridge.state['playing'])
     def test_local_analysis_and_pcm_controls_use_existing_engine(self):
         bridge=self.bridge();self.prepare_model(bridge)
         class Output:

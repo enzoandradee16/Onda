@@ -36,6 +36,12 @@ ColumnLayout {
     }
     Label { visible: !page.catalog && !page.history; text: workspace.values.playlistTitle || ""; color: bridge.palette.text; font.pixelSize: Math.round(20*bridge.fontScale) }
     ListView { Layout.fillWidth: true; Layout.fillHeight: true; clip: true; spacing: Math.round(10*bridge.spacing); reuseItems: true; model: page.catalog ? workspace.catalogModel : page.history ? workspace.historyModel : workspace.playlistModel
+        EmptyState {
+            objectName: "libraryEmptyState"
+            anchors.fill: parent; visible: parent.count === 0
+            heading: bridge.translate(page.history ? (workspace.values.historyQuery ? "Nenhum arquivo encontrado" : "Seu histórico está vazio") : page.catalog ? (workspace.activity.busy.indexOf("search")>=0 ? "Pesquisando músicas…" : workspace.values.catalogSearched ? "Nenhuma música encontrada" : "Encontre sua próxima música") : (workspace.activity.busy.indexOf("collection")>=0 ? "Carregando álbum ou playlist…" : "Nenhuma faixa para mostrar"))
+            description: bridge.translate(page.history ? (workspace.values.historyQuery ? "Tente outro termo para buscar no histórico." : "Seus downloads e arquivos exportados aparecerão aqui.") : page.catalog ? (workspace.activity.busy.indexOf("search")>=0 ? "Aguarde os resultados ou clique em Cancelar." : workspace.values.catalogSearched ? "Tente outra busca ou ajuste os filtros de artista, álbum e versão." : "Pesquise por música ou artista, ou cole um link de faixa.") : "Cole o link de um álbum ou playlist e clique em Carregar, ou importe uma lista.")
+        }
         ScrollBar.vertical: ScrollBar {}
         delegate: Card { id: rowCard; required property var entry; required property int index; width: ListView.view.width; height: Math.max(page.history ? 100 : 176,trackDetails.implicitHeight+24)
             RowLayout { id: trackBody; anchors.fill: parent; anchors.margins: 12; spacing: Math.round(18*bridge.spacing)
@@ -50,7 +56,7 @@ ColumnLayout {
                     Label { visible: !page.history && (!!rowCard.entry.release_date || !!rowCard.entry.comparison || (!!rowCard.entry.service && rowCard.entry.service !== rowCard.entry.platform)); text: rowCard.entry.release_date ? bridge.translate("Data de lançamento")+": "+rowCard.entry.release_date : (rowCard.entry.comparison || rowCard.entry.service || rowCard.entry.platform || ""); color: bridge.palette.muted }
                     Flow { Layout.fillWidth: true; spacing: Math.round(7*bridge.spacing)
                         ActionButton { primary: true; text: bridge.translate(page.history ? "Abrir arquivo" : "Baixar agora"); onClicked: workspace.invoke(page.history ? "open_file" : "catalog_download",page.history ? {path:rowCard.entry.path} : {index:rowCard.index}) }
-                        ActionButton { visible: page.catalog; text: bridge.translate("Adicionar à fila"); onClicked: workspace.invoke("catalog_add",{index:rowCard.index}) }
+                        ActionButton { visible: page.catalog; text: bridge.translate("Adicionar à fila"); onClicked: destinations.popup(); QueueDestinationMenu { id: destinations; recordIndex: rowCard.index } }
                         ActionButton { visible: page.catalog; text: bridge.translate(workspace.values.previewActive && workspace.values.previewKind === "catalog" && workspace.values.previewSource === rowCard.entry.source_url ? "Parar prévia" : "Ouvir prévia"); onClicked: workspace.invoke("preview_catalog",{index:rowCard.index}) }
                         ActionButton { visible: !page.history; text: bridge.translate("Ver no catálogo"); onClicked: workspace.invoke("open_url",{url:rowCard.entry.source_url}) }
                         ActionButton { visible: page.catalog; text: bridge.translate("Comparar resultados"); onClicked: workspace.invoke("compare_results",{index:rowCard.index}) }

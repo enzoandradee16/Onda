@@ -67,7 +67,4 @@ htmlcov/
 .DS_Store
 ._*
 
-# Planejamento mantido apenas localmente
-/ROADMAP.md
-
 /Portatil-Qt/
