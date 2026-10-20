@@ -68,7 +68,11 @@ internal static class Launcher {
         try {
             string root = AppDomain.CurrentDomain.BaseDirectory;
             string python = Path.Combine(root, "_runtime", "python", "pythonw.exe");
+#if QT_UI
+            string entry = Path.Combine(root, "Onda", "qt_desktop_ui.py");
+#else
             string entry = Path.Combine(root, "Onda", "desktop_entry.py");
+#endif
             if (!File.Exists(python) || !File.Exists(entry)) {
                 MessageBox.Show(T("O pacote do ONDA está incompleto. Mantenha Onda.exe, Onda e _runtime na mesma pasta, ou reinstale o aplicativo.", "The ONDA package is incomplete. Keep Onda.exe, Onda and _runtime in the same folder, or reinstall the app.", "El paquete de ONDA está incompleto. Mantén Onda.exe, Onda y _runtime en la misma carpeta o reinstala la aplicación."), "ONDA", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return 1;

@@ -133,9 +133,11 @@ class App(UiMixin, tk.Tk):
         for key,value in DEFAULTS.items():
             setattr(self,key,tk.BooleanVar(value=value) if type(value) is bool else tk.StringVar(value=value))
         self.jukebox_equalizer=tk.StringVar(value="{}")
+        self.qt_animations=tk.BooleanVar(value=True)
         self.preference_fields = {name: getattr(self, name) for name in ("shortcut_keys", "language", "queue_card_size", "queue_view", "history_card_size", "pure_black_separators", "history_view", "theme_mode", "theme_accent", "interface_font", "interface_font_size", "interface_spacing", "notice_duration", "effects_keep_pitch", "image_format", "image_size", "image_width", "image_height", "image_keep_ratio", "tab_order", "hidden_tabs", "playlist_mode", "playlist_height", "playlist_fps", "playlist_mp3_quality", "playlist_m4a_quality", "mode", "height", "fps", "catalog_provider", "folder", "ffmpeg", "playlist", "playlist_limit", "mp3_quality", "m4a_quality", "review_metadata", "auto_match", "background_preview", "effects_preview_duration", "search_preview_duration", "organization", "filename_template", "duplicates")}
         self.preference_fields.update({key:getattr(self,key) for key in (*DEFAULTS,*PERFORMANCE_DEFAULTS)})
         self.preference_fields["jukebox_equalizer"]=self.jukebox_equalizer
+        self.preference_fields["qt_animations"]=self.qt_animations
         self.preference_defaults = {name: variable.get() for name, variable in self.preference_fields.items()}
         self.preference_defaults["language"] = "pt-BR"
         for name, value in {**(preferences or {}), **self.preference_store.load_display()}.items():

@@ -7,6 +7,7 @@ Copyright (c) 2026 Enzo Andrade para o código próprio do ONDA, licenciado sob 
 | gallery-dl | GPL-2.0-only; `_runtime/python/Lib/site-packages/gallery_dl-*.dist-info/licenses/LICENSE` |
 | Mutagen | GPL-2.0-or-later; licença na pasta `.dist-info/licenses` correspondente |
 | yt-dlp e dependências | Licenças individuais nas pastas `.dist-info`; consulte os arquivos originais |
+| Qt, PySide6 e Shiboken (portátil Qt) | Licenças e avisos originais preservados em `_runtime/qt/pyside6_essentials-*.dist-info/licenses` e `_runtime/qt/shiboken6-*.dist-info/licenses` |
 | CPython, Tcl/Tk e componentes | `_runtime/python/LICENSE.txt` e avisos dentro do runtime |
 | FFmpeg / ffprobe / ffplay | Não incluídos nos pacotes do ONDA. Obtidos diretamente de gyan.dev pelo usuário na primeira preparação. Licença GPLv3, README e origem preservados no cache local |
 | Node.js | MIT e avisos dos componentes incorporados, em `_runtime/node/LICENSE.txt` |

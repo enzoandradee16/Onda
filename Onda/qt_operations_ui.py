@@ -1,0 +1,123 @@
+"""Headless operations reused by Qt. No widgets or GUI event loops."""
+from pathlib import Path
+import json,shutil,subprocess,tempfile
+
+def client(config,cancel):
+    from metadata import MetadataClient
+    value=MetadataClient(config.get('spotify_client_id',''),config.get('spotify_client_secret',''));value.cancelled=cancel.is_set
+    account=config.get('_account')
+    if account and account.connected:value.spotify_get=account.get
+    return value
+
+def perform(action,config,cancel,emit):
+    if cancel.is_set():raise ValueError('Operação cancelada.')
+    if action in ('search','collection','check_matches','release_date'):
+        value=client(config,cancel)
+        try:
+            if action=='search':
+                from music_search import search_music
+                return search_music(value,config['query'],config.get('provider','Deezer'),account=config.get('_account'),automatic=config.get('auto_metadata',False),refresh=config.get('refresh',False),cancelled=cancel.is_set)
+            if action=='collection':
+                from playlist_import import load_playlist
+                return load_playlist(config['url'],value,limit=int(config.get('playlist_limit',1000)),account=config.get('_account'),cancelled=cancel.is_set)
+            if action=='release_date':
+                from metadata import deezer_release_date
+                return deezer_release_date(config['record'],value)
+            from matching import find_youtube
+            from engine import Logger
+            result={}
+            for row in config['tracks']:
+                if cancel.is_set():break
+                try:
+                    match=find_youtube(row,Logger(),prefer_best=config.get('auto_match',False));result[row['source_url']]=match['title']
+                except Exception as error:result[row['source_url']]=str(error)
+            return result
+        finally:value.close()
+    if action=='compare_collection':
+        from playlist_sync import scan_folder,compare_collection
+        inventory=scan_folder(config['folder'],config.get('history',[]),cancel.is_set)
+        return compare_collection(config['tracks'],inventory,config.get('queued',[]),config.get('url',''),config['database'])
+    if action=='convert':
+        from video_converter import convert_video,convert_batch
+        return (convert_batch if len(config.get('sources',[]))>1 else convert_video)(config,emit,cancel.is_set)
+    if action=='probe':
+        from audio_tools import executable,process_options
+        output=subprocess.run([executable('ffprobe',config.get('ffmpeg','')),'-v','error','-show_entries','format=duration','-of','json',config['source']],capture_output=True,text=True,timeout=20,**process_options())
+        if output.returncode:raise ValueError(output.stderr[-1000:])
+        return float(json.loads(output.stdout).get('format',{}).get('duration',0))
+    if action=='normalize_preview':
+        from audio_library import normalize_audio
+        return {'path':str(normalize_audio(config['source'],config,emit,preview=True))}
+    if action=='cover_crop':
+        from PIL import Image,ImageOps
+        from cover_crop import crop_box
+        import uuid
+        target=Path(config['_root'])/'image-preview';target.mkdir(parents=True,exist_ok=True);target=target/(uuid.uuid4().hex+'.png')
+        with Image.open(config['source']) as opened:
+            if opened.width*opened.height>40_000_000:raise ValueError('Escolha uma imagem de até 40 megapixels.')
+            image=ImageOps.exif_transpose(opened).convert('RGBA');image.thumbnail((2048,2048));zoom=max(1,min(4,float(config.get('zoom',1))));side=min(image.size)/zoom
+            box=crop_box(*image.size,zoom,float(config.get('x',0))*side,float(config.get('y',0))*side)
+            image.resize((1000,1000),Image.Resampling.LANCZOS,box=box).save(target)
+        return {'path':str(target)}
+    if action=='audio_read':
+        from audio_library import read_audio,cover_preview
+        return {'record':read_audio(config['source']),'cover':cover_preview(config['source']) or ''}
+    if action=='audio_edit':
+        from audio_library import edit_copy
+        from batch_metadata import edit_batch
+        return edit_batch(config,emit) if len(config.get('sources',[]))>1 else edit_copy(config,emit)
+    if action in ('image_preview','image_export'):
+        from image_output import transform_image,open_preview
+        from file_output import publish
+        root=Path(config['_root'])/'image-preview';root.mkdir(parents=True,exist_ok=True)
+        with tempfile.TemporaryDirectory(prefix='onda-image-') as temp:
+            if str(config['source']).startswith(('http://','https://')):
+                from media_links import prepare_link
+                files=[]
+                def capture(event,**data):
+                    if cancel.is_set():raise ValueError('Operação cancelada.')
+                    if event=='file':files.append(data['path'])
+                    emit(event,**data)
+                done,_=prepare_link({'url':config['source'],'mode':'photos','folder':temp,'cookies_file':config.get('social_cookies',''),'duplicate_policy':'keep'},capture,None)
+                if not done or not files:raise ValueError('Use um link direto de imagem ou uma página com imagem principal. Publicações podem ser baixadas pela fila.')
+                source=Path(files[0])
+            else:
+                source=Path(temp)/Path(config['source']).name;shutil.copyfile(config['source'],source)
+            if cancel.is_set():raise ValueError('Operação cancelada.')
+            output=transform_image(source,config['image_options'],emit)
+            if action=='image_preview':
+                target=root/'preview.png'
+                with open_preview(output) as image:image.thumbnail((1400,1400));image.convert('RGBA').save(target)
+                return {'path':str(target),'preview':True}
+            final,skipped=publish(output,config['folder'],'keep',None)
+            return {'path':str(final),'skipped':skipped}
+    if action in ('cache_info','cache_clear'):
+        from cache_cleanup import cache_info,clear_cache
+        return (clear_cache if action=='cache_clear' else cache_info)(config['_root'])
+    if action=='prepare_tools':
+        from ffmpeg_runtime import download_tools
+        return str(download_tools(cancel=cancel,progress=lambda done,total,message:emit('stage',message=message)))
+    if action=='verify_tools':
+        from audio_tools import executable,process_options
+        results=[]
+        for name in ('ffmpeg','ffprobe','ffplay'):
+            value=subprocess.run([executable(name,config.get('ffmpeg','')),'-version'],capture_output=True,text=True,timeout=20,**process_options())
+            if value.returncode:raise ValueError(value.stderr[-1000:])
+            results.append(value.stdout.splitlines()[0])
+        return {'message':'\n'.join(results)}
+    if action=='app_update':
+        from advanced_options import release_update
+        return release_update('windows','1.1.7')
+    if action=='update_tools':
+        from audio_tools import process_options
+        import sys
+        python=Path(sys.executable).with_name('python.exe')
+        result=subprocess.run([str(python),'-m','pip','install','--upgrade','yt-dlp[default,curl-cffi]','gallery-dl<2','Pillow>=10'],capture_output=True,text=True,timeout=240,**process_options())
+        if result.returncode:raise ValueError(result.stderr[-2000:])
+        return {'message':'Ferramentas atualizadas. Reinicie o ONDA.'}
+    if action=='spotify_connect':
+        from spotify_account import authorize
+        identity,tokens=authorize(config['spotify_client_id'],cancel,language=config.get('language','pt-BR'))
+        config['_account'].accept(identity,tokens,remember=True)
+        return {'message':'Spotify conectado.'}
+    raise ValueError('Operação desconhecida: '+action)

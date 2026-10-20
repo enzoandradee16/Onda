@@ -101,6 +101,8 @@ class PreferenceStore:
             result["interface_font_size"] = data["interface_font_size"]
         if valid_font(data.get('interface_font')):
             result['interface_font'] = data['interface_font']
+        if type(data.get('notifications_enabled')) is bool:result['notifications_enabled']=data['notifications_enabled']
+        if type(data.get('qt_animations')) is bool:result['qt_animations']=data['qt_animations']
         if type(data.get('effects_keep_pitch')) is bool:
             result['effects_keep_pitch'] = data['effects_keep_pitch']
         from image_output import FORMATS, IMAGE_SIZES

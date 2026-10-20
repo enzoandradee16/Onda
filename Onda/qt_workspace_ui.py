@@ -1,0 +1,793 @@
+"""Native Qt controller; shared media engines execute off the UI thread."""
+import json,os,queue,subprocess,sys,threading,time,uuid
+from pathlib import Path
+from PySide6.QtCore import QObject,Property,Signal,Slot,QTimer,QUrl,Qt
+from PySide6.QtGui import QDesktopServices,QGuiApplication,QShortcut,QKeySequence
+from qt_models_ui import RowsModel
+from preferences import PreferenceStore
+from library import LibraryStore
+from i18n import tr
+ROOT=Path(__file__).resolve().parent
+PAGES={'catalog':'Pesquisar músicas','downloads':'Links','queue':'Fila','images':'Imagens','converter':'Conversor','playlists':'Álbuns e playlists','history':'Histórico','effects':'Reprodução e efeitos','metadata':'Editar metadados','jukebox':'Reprodução e efeitos'}
+CHOICES={'choose_flac','choose_media','choose_version','choose_catalog','choose_duplicate','review_metadata'}
+class DesktopWorkspace(QObject):
+    changed=Signal();optionsChanged=Signal();settingsChanged=Signal();choiceChanged=Signal();statusChanged=Signal()
+    comparisonRequested=Signal(int);cropRequested=Signal();settingsRequested=Signal();shortcutsRequested=Signal();message=Signal(str,str);_event=Signal(str,object)
+    def __init__(self,bridge,parent=None):
+        super().__init__(parent);self.bridge=bridge;self.window=None;self.prepare_tools=False;self.restart_requested=False;self.closed=False
+        schema=json.loads((ROOT/'settings_schema/desktop.json').read_text(encoding='utf-8'));self.defaults=schema['defaults'];self.fields=schema['fields']
+        from performance import thread_choices
+        for field in self.fields:
+            if field['key']=='conversion_threads':field['choices']=list(thread_choices())
+        self.settings=dict(self.defaults,**bridge.preferences);self.settings['remember_settings']=bridge.store.remember_enabled();self.settings['language']=bridge.store.load_language();self.settings['folder']=self.settings.get('folder') or str(Path.home()/'Downloads/Onda')
+        self.store=bridge.store;self.library=LibraryStore(self.store.path.parent/'library.sqlite3')
+        from spotify_account import SpotifyAccount
+        self.account=SpotifyAccount(self.store.path.with_name('spotify-account.dpapi'))
+        from credentials import CredentialStore,CredentialError
+        self.credentials=CredentialStore()
+        try:identity,secret=self.credentials.load() or ('','')
+        except CredentialError:identity,secret='',''
+        self.settings.update(spotify_client_id=os.environ.get('SPOTIFY_CLIENT_ID',identity),spotify_client_secret=os.environ.get('SPOTIFY_CLIENT_SECRET',secret))
+        self._page='catalog';self._status=tr('Pronto para começar');self._choice={};self.choice_callbacks={};self.pending_choices=[];self.logs=[]
+        self.models={key:RowsModel(self) for key in ('queue','catalog','playlists','history')}
+        self.jobs=[];self.active={};self.tasks={};self.generations={};self.callbacks={};self.running=False;self.closing=False;self.paused_all=False;self.schedule_blocked=False;self.clipboard_seen=set();self.syncing=False
+        self.lyrics=[];self.last_preview_processed=True;self.preview_kind='';self.preview_source=''
+        self.preview_timer=QTimer(self);self.preview_timer.setSingleShot(True);self.preview_timer.setInterval(150);self.preview_timer.timeout.connect(self.play_effects_preview)
+        self.options={'previewActive':False,'previewKind':'','previewSource':'','previewProcessed':False,'metadataFields':{},'lyricText':'','query':'','provider':self.settings.get('catalog_provider','Deezer'),'links':'','playlistUrl':'','playlistTitle':'','queueQuery':'','queueState':'Todos','historyQuery':'','converterSources':[],'converterFormat':'MP4','video_quality':'Equilibrada','video_resolution':'Original','video_bitrate':'Automático','audio_bitrate':'192k','video_fps':'Original','video_audio':'Manter áudio','effectsSource':'','speed':85,'reverb':25,'keep_pitch':self.settings.get('effects_keep_pitch',False),'effectFormat':'MP3','position':0,'duration':0,'imageSource':'','imageUrl':'','imagePreview':'','metadataSources':[],'metadata':{},'cover_path':'','lyrics_path':'','normalize_volume':False,'overwrite_original':False,'comparison':{},'selectedCatalog':-1,'selectedPlaylist':-1,'filterArtist':'','filterAlbum':'','filterVersion':''}
+        from audio_tools import PreviewPlayer
+        self.player=PreviewPlayer();self.tray=None;self.shell=None;self.shortcuts=[];self.tasks_threads=[]
+        self.shutdown_timer=QTimer(self);self.shutdown_timer.setSingleShot(True);self.shutdown_timer.setInterval(60000);self.shutdown_timer.timeout.connect(self.perform_shutdown)
+        self.save_timer=QTimer(self);self.save_timer.setSingleShot(True);self.save_timer.setInterval(400);self.save_timer.timeout.connect(self.persist)
+        self.timer=QTimer(self);self.timer.setInterval(300);self.timer.timeout.connect(self.tick)
+        self._event.connect(self.on_event,Qt.ConnectionType.QueuedConnection)
+        bridge.appearanceChanged.connect(self.from_bridge);bridge.equalizerChanged.connect(self.from_bridge);bridge.config_provider=self.config
+        for index,job in enumerate(self.library.load_queue()):self.jobs.append(dict(job,id=uuid.uuid4().hex,checked=False,percent=0,queue_original=index))
+        from queue_titles import TitleLookup
+        from queue_timing import QueueTiming
+        self.title_events=queue.SimpleQueue();self.title_lookup=TitleLookup(self.title_events);self.title_lookup.spotify_account=self.account;self.timing=QueueTiming()
+        self.refresh_queue();self.refresh_history()
+    @Property(str,notify=changed)
+    def currentPage(self):return self._page
+    @Property(str,notify=changed)
+    def title(self):return tr(PAGES[self._page])
+    @Property(bool,notify=changed)
+    def ready(self):return True
+    @Property(str,notify=statusChanged)
+    def error(self):return ''
+    @Property(str,notify=statusChanged)
+    def status(self):return self._status
+    @Property('QVariantMap',notify=optionsChanged)
+    def values(self):return dict(self.options)
+    @Property('QVariantMap',notify=settingsChanged)
+    def preferences(self):return dict(self.settings)
+    @Property('QVariantList',notify=settingsChanged)
+    def settingsFields(self):return self.fields
+    @Property('QStringList',notify=settingsChanged)
+    def hiddenTabs(self):return list(self.settings.get('hidden_tabs',[]))
+    @Property('QVariantMap',notify=choiceChanged)
+    def choice(self):return dict(self._choice)
+    @Property('QVariantMap',notify=statusChanged)
+    def activity(self):return {'running':self.running,'active':len(self.active),'busy':list(dict.fromkeys(list(self.tasks)+[state['operation'] for state in self.active.values() if state.get('operation')]+[job['ui_operation'] for job in self.jobs if job.get('ui_operation') and job['state']=='Na fila'])),'logs':'\n'.join(self.logs[-200:]),'spotify':self.account.connected,'elapsed':self.timing.snapshot(sum(job['state'] in ('Na fila','Em andamento') for job in self.jobs))[0] if hasattr(self,'timing') else 0}
+    @Property(QObject,constant=True)
+    def queueModel(self):return self.models['queue']
+    @Property(QObject,constant=True)
+    def catalogModel(self):return self.models['catalog']
+    @Property(QObject,constant=True)
+    def playlistModel(self):return self.models['playlists']
+    @Property(QObject,constant=True)
+    def historyModel(self):return self.models['history']
+    def attach(self,window,area=None):self.window=window
+    def start(self):
+        self.timer.start();self.setup_shell();QGuiApplication.clipboard().dataChanged.connect(self.clipboard_changed)
+        from ffmpeg_runtime import existing_folder
+        tools=existing_folder()
+        if tools:self.settings['ffmpeg']=str(tools)
+        elif self.prepare_tools:self.run_task('prepare_tools',{},lambda result:self.setSetting('ffmpeg',result))
+        if self.settings.get('resume_queue') and not self.settings.get('schedule_enabled'):QTimer.singleShot(500,self.start_queue)
+        if self.settings.get('check_updates'):QTimer.singleShot(3000,lambda:self.run_task('app_update',{},lambda result:self.notify(result.get('message',''))))
+        self.from_bridge();self.bind_shortcuts()
+    def config(self):
+        from engine import MODES,HEIGHTS,FPS_OPTIONS
+        from file_output import DUPLICATES
+        config=dict(self.settings);config.update(mode=MODES.get(config.get('mode'),'mp3'),height=HEIGHTS.get(config.get('height')),fps=FPS_OPTIONS.get(config.get('fps')),duplicate_policy=DUPLICATES.get(config.get('duplicates'),'ask'),playlist_limit=int(config.get('playlist_limit',1000)),_root=str(self.store.path.parent),_account=self.account)
+        config['audio_quality']=config.get('m4a_quality') if config['mode']=='m4a' else config.get('mp3_quality');config['youtube_cookies_file']=config.get('youtube_cookies','');config['cookies_file']=config.get('social_cookies','');config['image_options']=self.image_options();return config
+    def image_options(self):
+        from image_output import IMAGE_SIZES
+        size=IMAGE_SIZES.get(self.settings.get('image_size','Original'));width,height=size if size is not None else (int(self.settings.get('image_width',1920)),int(self.settings.get('image_height',1080)))
+        return {'format':self.settings.get('image_format','Original'),'width':width,'height':height,'keep_ratio':self.settings.get('image_keep_ratio',True)}
+    def notify(self,text):self._status=tr(str(text));self.statusChanged.emit()
+    def log(self,text):self.logs.append(str(text));self.logs=self.logs[-400:];self.statusChanged.emit()
+    @Slot(str,'QVariant')
+    def setOption(self,key,value):
+        self.options[key]=value
+        if key=='imageUrl' and str(value).strip():self.options['imageSource']='';self.options['imagePreview']=''
+        self.optionsChanged.emit()
+        if key in ('queueQuery','queueState'):self.refresh_queue()
+        if key=='historyQuery':self.refresh_history()
+        if key.startswith('filter'):self.filter_catalog()
+        if key in ('speed','reverb','keep_pitch','position') and self.player.active and self.preview_kind=='effects':self.preview_timer.start()
+    @Slot(str,'QVariant')
+    def setSetting(self,key,value):
+        if key not in self.defaults:return
+        if key=='remember_settings':
+            self.settings[key]=bool(value)
+            if not value:self.store.forget()
+        elif key in ('spotify_client_id','spotify_client_secret','social_cookies','youtube_cookies'):self.settings[key]=str(value)
+        elif key in ('tab_order','hidden_tabs'):
+            from tab_order import normalize_hidden,normalize_order
+            self.settings[key]=(normalize_hidden if key=='hidden_tabs' else normalize_order)(value)
+        else:
+            cleaned=PreferenceStore.clean({key:value})
+            if key not in cleaned:return
+            self.settings[key]=cleaned[key]
+        if key=='synced_lyrics' and not self.settings[key]:self.options['lyricText']='';self.optionsChanged.emit()
+        if key=='effects_keep_pitch':self.setOption('keep_pitch',self.settings[key])
+        if key=='background_preview' and not self.settings[key] and self.preview_kind=='effects' and self._page!='effects':self.stop_preview()
+        if key=='language':self.store.save_language(value);self.notify('Reinicie o ONDA para aplicar o idioma.')
+        if key=='shortcut_keys':self.bind_shortcuts()
+        self.syncing=True
+        try:self.bridge.preferences.update({k:v for k,v in self.settings.items() if k in self.defaults});self.bridge.appearanceChanged.emit()
+        finally:self.syncing=False
+        if self._page in self.hiddenTabs or self._page=='jukebox' and 'effects' in self.hiddenTabs:self.selectPage('catalog')
+        self.settingsChanged.emit();self.save_timer.start()
+    @Slot()
+    def from_bridge(self):
+        if self.syncing:return
+        for key in ('theme_mode','theme_accent','qt_animations','jukebox_equalizer'):self.settings[key]=self.bridge.preferences.get(key,self.settings.get(key))
+        self.settingsChanged.emit();self.save_timer.start()
+        if self.tray:self.tray.setIcon(QGuiApplication.windowIcon())
+    def persist(self):
+        self.save_timer.stop()
+        try:
+            self.store.save_display(self.settings)
+            if self.settings.get('remember_settings'):self.store.save(self.settings)
+        except OSError as error:self.notify(error)
+    @Slot(str)
+    def selectPage(self,key):
+        if key not in PAGES or key in self.hiddenTabs:return
+        if key!=self._page:
+            if self.preview_kind!='effects' or not self.settings.get('background_preview'):self.stop_preview()
+            if self._page=='jukebox' and not self.settings.get('background_preview'):self.bridge.stop()
+        self._page=key;self.changed.emit()
+        if key=='history':self.refresh_history()
+    @Slot()
+    def showSettings(self):self.settingsRequested.emit()
+    @Slot()
+    def showShortcuts(self):self.shortcutsRequested.emit()
+    @Slot()
+    def showMetadata(self):self.selectPage('metadata')
+    def run_task(self,action,overrides=None,callback=None):
+        self.cancel_task(action);revision=self.generations.get(action,0)+1;self.generations[action]=revision;cancel=threading.Event();self.tasks[action]=cancel;self.callbacks[action]=callback
+        config=dict(self.config(),**(overrides or {}));self.statusChanged.emit()
+        def work():
+            try:
+                from qt_operations_ui import perform
+                result=perform(action,config,cancel,lambda kind,**values:self._event.emit('task_progress',{'action':action,'revision':revision,'event':dict(type=kind,**values)}))
+                if not cancel.is_set():self._event.emit('task_result',{'action':action,'revision':revision,'result':result})
+            except Exception as error:
+                if not cancel.is_set():
+                    if hasattr(error,'candidates'):self._event.emit('task_result',{'action':action,'revision':revision,'result':{'tracks':error.candidates}})
+                    else:self._event.emit('task_error',{'action':action,'revision':revision,'error':str(error)})
+            finally:self._event.emit('task_finished',{'action':action,'revision':revision})
+        self.launch_thread(work)
+    def launch_thread(self,work):
+        self.tasks_threads=[thread for thread in self.tasks_threads if thread.is_alive()];thread=threading.Thread(target=work,daemon=True);self.tasks_threads.append(thread);thread.start()
+    def cancel_task(self,action):
+        if action in self.tasks:self.tasks[action].set()
+        for identity,state in list(self.active.items()):
+            if state.get('operation')==action:self.stop_job(identity)
+        changed=False
+        for job in self.jobs:
+            if job.get('ui_operation')==action and job['state']=='Na fila':job['state']='Cancelado';changed=True
+        if changed:self.refresh_queue();self.save_queue()
+        self.statusChanged.emit()
+
+    @Slot(str,'QVariantMap')
+    def invoke(self,action,params):
+        try:self.dispatch(action,dict(params))
+        except Exception as error:self.notify(error);self.message.emit(tr('ONDA'),str(error))
+    def dispatch(self,action,p):
+        if action=='search':self.run_task('search',dict(query=self.options['query'],provider=self.options['provider'],refresh=p.get('refresh',False)),self.searched)
+        elif action=='cancel_task':self.cancel_task(p['name'])
+        elif action=='add_links':self.enqueue(self.options['links'].splitlines(),start=p.get('start',False))
+        elif action=='start_queue':self.start_queue()
+        elif action=='stop_queue':self.stop_queue()
+        elif action=='queue_action':self.queue_action(p['name'],p.get('id',''))
+        elif action=='check':self.toggle_row(p['model'],p['index'],p['checked'])
+        elif action=='check_all':
+            for index in range(len(self.models[p['model']].rows)):self.toggle_row(p['model'],index,p['checked'])
+        elif action=='catalog_select':
+            self.options['selectedCatalog']=p['index'];self.optionsChanged.emit();record=self.models['catalog'].rows[p['index']]
+            if (record.get('platform') or record.get('service'))=='Deezer' and not record.get('release_date'):self.run_task('release_date',{'record':record},lambda result:self.models['catalog'].update(p['index'],release_date=__import__('metadata').display_release_date(result) if result else ''))
+        elif action in ('catalog_add','catalog_download'):
+            record=self.models['catalog'].rows[int(p.get('index',self.options['selectedCatalog']))];self.enqueue([record['source_url']],overrides=self.music_overrides(record),start=action=='catalog_download')
+        elif action=='compare_results':self.comparisonRequested.emit(int(p.get('index',0)))
+        elif action=='open_url':QDesktopServices.openUrl(QUrl(p['url']))
+        elif action=='open_file':QDesktopServices.openUrl(QUrl.fromLocalFile(p['path']))
+        elif action=='preview_catalog':
+            record=self.models['catalog'].rows[int(p.get('index',self.options['selectedCatalog']))]
+            if self.player.active and self.preview_kind=='catalog' and self.preview_source==record['source_url']:self.stop_preview()
+            else:self.start_preview(record.get('preview_url') or record['source_url'],'catalog',identity=record['source_url'],youtube=not bool(record.get('preview_url')),duration=int(self.settings['search_preview_duration'].split()[0]))
+        elif action=='stop_preview':self.stop_preview()
+        elif action=='load_playlist':self.run_task('collection',{'url':self.options['playlistUrl']},self.collection_loaded)
+        elif action=='playlist_add':
+            for row in self.models['playlists'].rows:
+                if row.get('checked'):self.enqueue([row['source_url']],overrides=dict(self.music_overrides(row),playlist_title=self.options['playlistTitle']))
+            if p.get('start'):self.start_queue()
+        elif action=='compare_playlist':self.run_task('compare_collection',{'url':self.options['playlistUrl'],'tracks':self.models['playlists'].rows,'history':self.library.comparison_history(),'queued':self.jobs,'database':str(self.library.path)},self.collection_compared)
+        elif action=='playlist_missing':
+            for i,row in enumerate(self.models['playlists'].rows):self.models['playlists'].update(i,checked=row.get('comparison')=='missing')
+        elif action=='pick':self.pick(p['kind'])
+        elif action=='convert':self.convert()
+        elif action=='effects_preview':
+            processed=p.get('processed',True)
+            if self.player.active and self.preview_kind=='effects' and self.last_preview_processed==processed:self.stop_preview()
+            else:self.last_preview_processed=processed;self.play_effects_preview()
+        elif action=='effects_export':self.export_effects()
+        elif action in ('image_preview','image_export'):
+            if not self.options['imageSource']:
+                if action=='image_preview':
+                    if not self.options['imageUrl'].strip():raise ValueError('Escolha um arquivo ou informe um link de imagem.')
+                    self.run_task(action,{'source':self.options['imageUrl'].strip()},self.image_result);return
+                added=self.enqueue([self.options['imageUrl']],overrides={'mode':'photos','playlist':False},start=True)
+                for job in added:
+                    job['ui_operation']='image_export'
+                    if job['id'] in self.active:self.active[job['id']]['operation']='image_export'
+                self.statusChanged.emit()
+            else:self.run_task(action,{'source':self.options['imageSource']},self.image_result)
+        elif action=='audio_edit':self.edit_audio()
+        elif action=='metadata_preview':
+            source=self.options['metadataSources'][0];normalized=p.get('normalized',False)
+            if self.player.active and self.preview_kind=='metadata' and self.options['previewProcessed']==normalized:self.stop_preview()
+            elif normalized:
+                self.stop_preview()
+                self.run_task('normalize_preview',{'source':source},lambda result:self.start_preview(result['path'],'metadata',processed=True,duration=20))
+            else:self.start_preview(source,'metadata',processed=False,duration=20)
+        elif action=='crop_cover':
+            if self.options['cover_path']:self.cropRequested.emit()
+        elif action=='apply_cover_crop':self.run_task('cover_crop',dict(p,source=self.options['cover_path']),self.cover_cropped)
+        elif action=='undo_cover':self.options['cover_path']='';self.options['metadataCover']=self.options.get('originalCover','');self.optionsChanged.emit()
+        elif action=='reset_selected':
+            for key in p.get('keys',[]):
+                if key in self.defaults:self.setSetting(key,self.defaults[key])
+        elif action=='check_matches':self.run_task('check_matches',{'tracks':[row for row in self.models['playlists'].rows if row.get('checked')]},self.matches_checked)
+        elif action=='update_playlist':self.update_playlist()
+        elif action=='history_edit':
+            sources=[row['path'] for row in self.models['history'].rows if row.get('checked')]
+            if sources:self.accept_files('metadata',sources);self.selectPage('metadata')
+        elif action=='history_effects':self.accept_files('effects',[self.models['history'].rows[p['index']]['path']]);self.selectPage('effects')
+        elif action=='history_retry':
+            row=self.models['history'].rows[p['index']];self.enqueue([row['source']],overrides={'mode':row.get('mode','mp3')},start=True)
+        elif action=='history_clear':self.confirm('Limpar histórico','Limpar o histórico? Os arquivos serão preservados.',self.clear_history)
+        elif action in ('export_playlist','import_playlist','export_settings','import_settings','restore_settings','export_history'):self.settings_file_action(action)
+        elif action=='save_credentials':self.credentials.save(self.settings['spotify_client_id'],self.settings['spotify_client_secret']);self.notify('Credenciais salvas neste computador.')
+        elif action=='forget_credentials':self.credentials.forget();self.settings.update(spotify_client_id='',spotify_client_secret='');self.settingsChanged.emit()
+        elif action=='spotify_connect':self.run_task(action,{},self.show_result)
+        elif action=='spotify_disconnect':self.account.disconnect();self.statusChanged.emit()
+        elif action=='logs':self.message.emit(tr('Detalhes'),'\n'.join(self.logs[-200:]) or tr('Sem registros.'))
+        elif action=='failures':self.message.emit(tr('Falhas da fila'),'\n'.join(job.get('display_name',job['url'])+': '+job.get('last_error','') for job in self.jobs if job['state']=='Falhou') or tr('Nenhuma falha.'))
+        elif action=='reset_tab_order':self.setSetting('tab_order',self.defaults['tab_order'])
+        elif action=='toggle_tab':
+            values=list(self.hiddenTabs);key=p['key']
+            if key in ('catalog','downloads','queue'):return
+            if key in values:values.remove(key)
+            else:values.append(key)
+            self.setSetting('hidden_tabs',values)
+        elif action=='tab_move':
+            values=list(self.settings['tab_order']);index=values.index(p['key']);target=max(0,min(len(values)-1,index+p['direction']));values[index],values[target]=values[target],values[index];self.setSetting('tab_order',values)
+        elif action=='shortcut_set':
+            from shortcut_options import validate_overrides
+            values=json.loads(self.settings.get('shortcut_keys','{}'));sequence=p['sequence'];sequence=sequence if sequence.startswith('<') or not sequence else '<'+sequence.replace('Ctrl+','Control-').replace('Alt+','Alt-').replace('Shift+','Shift-').replace('Enter','Return').replace(',','comma')+'>';values[p['key']]=sequence;self.setSetting('shortcut_keys',json.dumps(validate_overrides(values)))
+        elif action in ('cache_info','cache_clear','prepare_tools','verify_tools','app_update','update_tools'):
+            if action=='cache_clear' and (self.active or self.tasks or self.bridge.state['playing']):raise ValueError('Pare as operações antes de limpar o cache.')
+            self.run_task(action,{},(lambda result:self.setSetting('ffmpeg',result)) if action=='prepare_tools' else (lambda result:self.show_result(result,notification=False)))
+        else:raise ValueError('Ação desconhecida: '+action)
+    @Slot(str,result=str)
+    def taskLabel(self,key):
+        labels={'collection':'Carregamento da playlist','search':'Pesquisa','compare_collection':'Conferência de arquivos locais','check_matches':'Conferência de versões','release_date':'Data de lançamento','convert':'Conversão','probe':'Leitura do áudio','audio_read':'Leitura dos metadados','audio_edit':'Edição dos metadados','normalize_preview':'Prévia normalizada','cover_crop':'Ajuste da capa','image_preview':'Prévia da imagem','image_export':'Exportação da imagem','spotify_connect':'Conexão com Spotify','prepare_tools':'Preparação das ferramentas','verify_tools':'Verificação das ferramentas','app_update':'Verificação de atualização','update_tools':'Atualização das ferramentas','cache_info':'Consulta ao cache','cache_clear':'Limpeza do cache'}
+        label=tr(labels.get(key,'Operação em andamento'))
+        return label[:1].lower()+label[1:]
+    @Slot(str,result=str)
+    def pageLabel(self,key):return tr(PAGES.get(key,key))
+    @Property('QVariantList',notify=settingsChanged)
+    def shortcutFields(self):
+        from shortcut_options import PRIMARY,load_overrides,display_shortcut
+        names={'next':'Próxima aba','previous':'Aba anterior','links':'Links','queue':'Fila','history':'Histórico','search':'Pesquisar','download':'Baixar agora','add':'Adicionar à fila','start':'Baixar fila','stop':'Parar fila','settings':'Configurações','metadata':'Metadados','help':'Atalhos','retry':'Tentar novamente','up':'Subir','down':'Descer','prioritize':'Priorizar','folder':'Abrir pasta','clear':'Limpar fila','log':'Detalhes','failures':'Falhas','view':'Alternar visualização','select-all':'Selecionar todas','scroll-up':'Rolar para cima','scroll-down':'Rolar para baixo'}
+        values=load_overrides(self.settings.get('shortcut_keys','{}'))
+        return [{'key':key,'label':tr(names.get(key,'Abrir aba '+key[4:] if key.startswith('tab:') else key)),'sequence':display_shortcut(values.get(key,default))} for key,default in PRIMARY.items()]
+    def searched(self,result):
+        self.catalog_records=result.get('tracks',[]);self.filter_catalog();self.notify(str(len(self.catalog_records))+' '+tr('resultados'))
+    def filter_catalog(self):
+        rows=getattr(self,'catalog_records',[])
+        for option,key in (('filterArtist','artists'),('filterAlbum','album'),('filterVersion','title')):
+            query=str(self.options.get(option,'')).casefold().strip()
+            if query:rows=[row for row in rows if query in str(row.get(key,'')).casefold()]
+        self.models['catalog'].replace([self.decorate_record(row,index) for index,row in enumerate(rows)]);self.options['selectedCatalog']=-1;self.optionsChanged.emit()
+    def record_name(self,record):return ' - '.join(filter(None,[', '.join(record.get('artists',[])),record.get('title','')]))
+    def collection_loaded(self,result):
+        self.options['playlistTitle']=result.get('title','');self.optionsChanged.emit();self.models['playlists'].replace([dict(self.decorate_record(row,index),checked=True) for index,row in enumerate(result.get('tracks',[]))]);self.notify(result.get('note') or str(self.models['playlists'].count)+' '+tr('faixas'))
+    def collection_compared(self,result):
+        self.options['comparison']=result;self.optionsChanged.emit()
+        for index,row in enumerate(result.get('items',result.get('tracks',[]))):
+            if index<len(self.models['playlists'].rows):self.models['playlists'].update(index,comparison=row.get('state','review'))
+        counts=result.get('counts',{})
+        labels={'present':'Já disponíveis','missing':'Ausentes','review':'Precisam de revisão','queued':'Já na fila'}
+        lines=[tr(label)+': '+str(counts.get(key,0)) for key,label in labels.items()]
+        if result.get('has_previous'):
+            lines.extend([tr('Adicionadas à playlist')+': '+str(result.get('new_count',0)),tr('Removidas da playlist')+': '+str(result.get('removed_count',0))])
+        self.notify('Conferência concluída.')
+        if self.settings.get('notifications_enabled',True):self.message.emit(tr('Conferência de arquivos locais'),'\n'.join(lines))
+    def refresh_history(self):self.models['history'].replace(self.library.history(self.options.get('historyQuery','')))
+    def clear_history(self):self.library.clear_history();self.refresh_history()
+    def toggle_row(self,model,index,checked):
+        row=self.models[model].rows[index];self.models[model].update(index,checked=checked)
+        if model=='queue':
+            job=next((job for job in self.jobs if job['id']==row['id']),None)
+            if job:job['checked']=checked
+    def refresh_queue(self):
+        query=self.options.get('queueQuery','').casefold();state=self.options.get('queueState','Todos')
+        rows=[job for job in self.jobs if (state=='Todos' or job['state']==state) and query in (job.get('display_name','')+' '+job['url']).casefold()]
+        self.models['queue'].replace(rows)
+        from queue_control import storage_report
+        total,unknown,required,low=storage_report(self.jobs,int(self.settings.get('concurrent_downloads',1)),check_space=False)
+        self.options['queueStorage']=str(round(total/1048576,1))+' MB · '+str(unknown)+' '+tr('sem estimativa');self.optionsChanged.emit();self.statusChanged.emit()
+    def save_queue(self):self.library.save_queue(self.jobs)
+    def enqueue(self,urls,overrides=None,start=False):
+        from engine import validate_url
+        from metadata import is_streaming_link
+        from download_defaults import effective_download
+        from duplicate_links import source_key
+        config=self.config();config.pop('_account',None);config.pop('_root',None);added=[]
+        for url in urls:
+            url=url.strip()
+            if not url:continue
+            streaming=is_streaming_link(url)
+            if not streaming:url=validate_url(url)
+            job=dict(config,**(overrides or {}));job.update(url=url,streaming=streaming,simple_download_mode=config['mode']);job=effective_download(job)
+            if config.get('detect_duplicates') and any(source_key(previous['url'])==source_key(url) and previous['mode']==job['mode'] and previous['state'] in ('Na fila','Em andamento','Concluído') for previous in self.jobs):continue
+            job.update(id=uuid.uuid4().hex,state='Na fila',percent=0,checked=False,queue_original=len(self.jobs));job.setdefault('display_name',url)
+            duplicate=self.library.find_duplicate(url,job['mode']) if config.get('detect_duplicates') else None
+            if duplicate:self.confirm('Duplicata encontrada',duplicate,lambda job=job:self.add_duplicate(job,start));continue
+            self.jobs.append(job);added.append(job)
+            from queue_titles import supports_lookup
+            if not job.get('catalog_record') and supports_lookup(url):self.title_lookup.submit(job['id'],url,(self.settings.get('spotify_client_id',''),self.settings.get('spotify_client_secret','')),config.get('cookies_file',''))
+        self.refresh_queue();self.save_queue()
+        if added:self.notify(str(len(added))+' '+tr('itens adicionados à fila'))
+        if start:self.start_queue()
+        return added
+    def add_duplicate(self,job,start):
+        self.jobs.append(job);self.refresh_queue();self.save_queue()
+        if start:self.start_queue()
+    @Slot()
+    def start_queue(self):
+        from queue_control import storage_report
+        total,unknown,required,low=storage_report([job for job in self.jobs if job['state']=='Na fila'],int(self.settings.get('concurrent_downloads',1)))
+        if low:self.confirm('Espaço em disco','O espaço livre pode não ser suficiente. Continuar?',self.begin_queue)
+        else:self.begin_queue()
+    def begin_queue(self):self.schedule_blocked=False;self.running=True;self.paused_all=False;self.timing.set_running(True);self.fill_queue()
+    def fill_queue(self):
+        from advanced_options import schedule_allowed
+        from performance import available_memory_mb,RESERVES
+        if not self.running or not schedule_allowed(self.settings):return
+        reserve=RESERVES.get(self.settings.get('memory_reserve'),0)
+        if reserve and (available_memory_mb() or reserve)<reserve:self.notify('Aguardando memória livre para iniciar o próximo download.');return
+        limit=int(self.settings.get('concurrent_downloads',1));started=False
+        for job in self.jobs:
+            if len(self.active)>=limit:break
+            if job['state']!='Na fila':continue
+            started=True;identity=job['id'];cancel=threading.Event();self.active[identity]={'cancel':cancel,'process':None,'operation':job.get('ui_operation','')};job['state']='Em andamento';job.pop('last_error',None)
+            config=dict(job);config.update({key:value for key,value in self.config().items() if key in ('auto_metadata','auto_match','confirm_version','ffmpeg','cookies_file','youtube_cookies_file','spotify_client_id','spotify_client_secret','worker_priority','conversion_threads')});config['_cleanup_work']=True
+            if config.get('youtube_cookies_file'):config['cookies_file']=config['youtube_cookies_file']
+            self.launch_thread(lambda identity=identity,config=config,cancel=cancel:self.process_worker(identity,config,cancel,'engine.py'))
+        if started:self.refresh_queue();self.save_queue()
+        if not self.active and not any(job['state']=='Na fila' for job in self.jobs):self.running=False;self.timing.set_running(False);self.notify('Fila finalizada');self.queue_finished()
+    def process_worker(self,identity,config,cancel,script):
+        from audio_tools import process_options
+        from performance import priority_flags
+        from engine import stop_process
+        process=None;success=False;last_progress=0.
+        try:
+            if str(script).endswith('engine.py'):
+                from spotify_metadata import prepare_spotify_config
+                config=prepare_spotify_config(config,self.account)
+            flags=process_options();flags['creationflags']=flags.get('creationflags',0)|priority_flags(config)
+            process=subprocess.Popen([str(Path(sys.executable).with_name('python.exe')),'-u',str(ROOT/script)],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,encoding='utf-8',errors='replace',env=dict(os.environ,PYTHONUTF8='1',PYTHONIOENCODING='utf-8'),**flags)
+            self._event.emit('process',{'id':identity,'process':process})
+            if cancel.is_set():stop_process(process)
+            else:
+                process.stdin.write(json.dumps(config)+'\n');process.stdin.flush()
+                for line in process.stdout:
+                    try:event=json.loads(line)
+                    except ValueError:continue
+                    if event.get('type')=='progress':
+                        now=time.monotonic()
+                        if now-last_progress<.12 and event.get('status')!='finished':continue
+                        last_progress=now
+                    self._event.emit(identity,event)
+                    if event.get('type')=='done':success=True
+            success=process.wait()==0 and success
+        except Exception as error:self._event.emit(identity,{'type':'error','message':str(error)})
+        finally:
+            if process:
+                if process.poll() is None:stop_process(process);process.wait()
+                for stream in (process.stdin,process.stdout):
+                    if stream:stream.close()
+            self._event.emit('finished',{'id':identity,'success':success,'cancelled':cancel.is_set()})
+    def stop_queue(self):
+        self.schedule_blocked=True;self.running=False;self.paused_all=True;self.timing.set_running(False)
+        for identity in list(self.active):self.stop_job(identity)
+        self.statusChanged.emit()
+    def stop_job(self,identity):
+        state=self.active.get(identity)
+        if not state:return
+        state['cancel'].set();process=state.get('process')
+        if process:
+            from engine import stop_process
+            threading.Thread(target=stop_process,args=(process,),daemon=True).start()
+    def queue_action(self,action,identity=''):
+        selected=[job for job in self.jobs if job['id']==identity] if identity else [job for job in self.jobs if job.get('checked')]
+        if action in ('clear','cancel_all'):selected=list(self.jobs)
+        if action.startswith('sort'):
+            from queue_control import sorted_keys
+            jobs={job['id']:job for job in self.jobs};order=action.partition(':')[2] or 'Título';keys=sorted_keys(list(jobs),jobs,order);self.jobs=[jobs[key] for key in keys]
+        elif action in ('up','down','priority'):
+            for job in selected:
+                index=self.jobs.index(job);target=0 if action=='priority' else max(0,min(len(self.jobs)-1,index+(-1 if action=='up' else 1)));self.jobs.insert(target,self.jobs.pop(index))
+        else:
+            for job in selected:
+                if action in ('cancel','cancel_all','remove','clear'):
+                    if job['id'] in self.active:job['_remove']=action in ('remove','clear');self.stop_job(job['id'])
+                    elif action in ('remove','clear'):self.jobs.remove(job)
+                    else:job['state']='Cancelado'
+                elif action=='pause':job['_paused']=True;self.stop_job(job['id'])
+                elif action in ('retry','resume') and job['id'] not in self.active:job['state']='Na fila'
+        self.refresh_queue();self.save_queue()
+        if action=='resume':self.start_queue()
+
+    @Slot(str,'QVariantMap')
+    def replyChoice(self,identity,reply):
+        if self._choice.get('identity')!=identity:return
+        callback=self.choice_callbacks.pop(identity,None)
+        if callback:callback(reply)
+        elif identity in self.active:
+            if reply.get('cancel'):self.stop_job(identity)
+            process=self.active[identity].get('process')
+            if not reply.get('cancel') and process and process.poll() is None:
+                try:process.stdin.write(json.dumps(reply)+'\n');process.stdin.flush()
+                except (OSError,ValueError):self.stop_job(identity)
+        self._choice={};self.choiceChanged.emit();self.next_choice()
+    def present_choice(self,identity,event,callback=None):
+        if event.get('type')=='choose_media':
+            from media_selection import output_choices
+            event=dict(event,candidates=[dict(row,outputLabels=list(output_choices(row)),outputCodes=list(output_choices(row).values())) for row in event.get('candidates',[])])
+        if callback:self.choice_callbacks[identity]=callback
+        self.pending_choices.append(dict(event,identity=identity));self.next_choice()
+    def next_choice(self):
+        if not self._choice and self.pending_choices:self._choice=self.pending_choices.pop(0);self.choiceChanged.emit()
+    def confirm(self,title,text,callback):
+        identity=uuid.uuid4().hex;self.present_choice(identity,{'type':'confirm','title':tr(title),'message':str(text)},lambda reply:callback() if reply.get('yes') else None)
+    @Slot(str,object)
+    def on_event(self,identity,event):
+        if self.closed:return
+        if identity.startswith('task_'):
+            action=event['action']
+            if self.generations.get(action)!=event['revision']:return
+            if identity=='task_result':
+                callback=self.callbacks.get(action)
+                try:
+                    if callback:callback(event['result'])
+                    else:self.show_result(event['result'])
+                except Exception as error:self.notify(error)
+            elif identity=='task_error':self.notify(event['error']);self.log(event['error'])
+            elif identity=='task_progress':self.notify(event['event'].get('message',''))
+            else:self.tasks.pop(action,None);self.statusChanged.emit()
+            return
+        if identity=='process':
+            if event['id'] in self.active:self.active[event['id']]['process']=event['process']
+            return
+        if identity=='finished':
+            key=event['id'];state=self.active.pop(key,None);job=next((job for job in self.jobs if job['id']==key),None)
+            if job:
+                if event['success']:self.timing.record_completion()
+                job['state']='Pausado' if job.pop('_paused',False) else 'Cancelado' if event['cancelled'] else 'Concluído' if event['success'] else 'Falhou'
+                if job.pop('_remove',False):self.jobs.remove(job)
+            self.pending_choices=[row for row in self.pending_choices if row['identity']!=key]
+            if self._choice.get('identity')==key:self._choice={};self.choiceChanged.emit();self.next_choice()
+            self.refresh_queue();self.save_queue();self.fill_queue();self.statusChanged.emit()
+            if self.closing and not self.active:self.requestClose()
+            return
+        job=next((job for job in self.jobs if job['id']==identity),None);kind=event.get('type')
+        if kind=='queue_title' and job:
+            job['display_name']=event.get('title',job['url']);job['queue_info']=event.get('queue_info',{});self.refresh_queue();return
+        if kind in CHOICES:self.present_choice(identity,event);return
+        if kind=='done' and event.get('path') and job is None:self.library.add_history(event['path'],Path(event['path']).suffix.lstrip('.'));self.refresh_history();self.notify('Arquivo exportado.')
+        if kind=='file' and event.get('path'):
+            self.library.add_history(event['path'],event.get('mode') or (job or {}).get('mode',''),(job or {}).get('url',''));self.refresh_history()
+        if job:
+            if kind=='progress':
+                total=event.get('total') or event.get('total_bytes') or event.get('total_bytes_estimate') or 0;job['percent']=min(100,float(event.get('downloaded',event.get('downloaded_bytes',0)))/total*100) if total else float(event.get('percent',0) or 0)
+                for index,row in enumerate(self.models['queue'].rows):
+                    if row['id']==identity:self.models['queue'].update(index,percent=job['percent'])
+            if kind=='error':job['last_error']=event.get('message','')
+        if kind in ('error','log','stage'):self.log(event.get('message',''))
+    def show_result(self,result,notification=True):
+        if isinstance(result,dict) and result.get('available'):
+            self.confirm('Atualização do ONDA',result.get('message','')+'\n'+tr('Abrir página da atualização?'),lambda:QDesktopServices.openUrl(QUrl(result.get('page') or result.get('url',''))));return
+        if isinstance(result,dict) and result.get('path'):
+            self.library.add_history(result['path'],Path(result['path']).suffix.lstrip('.'));self.refresh_history()
+        text=result.get('message') if isinstance(result,dict) else str(result)
+        if not text and isinstance(result,dict) and result.get('path'):text=tr('Arquivo salvo:')+'\n'+str(result['path'])
+        text=text or json.dumps(result,ensure_ascii=False,default=str)
+        self.notify(text)
+        if not notification or self.settings.get('notifications_enabled',True):self.message.emit(tr('ONDA'),text)
+    def pick(self,kind):
+        from PySide6.QtWidgets import QFileDialog
+        if kind in ('folder','ffmpeg'):
+            path=QFileDialog.getExistingDirectory(None,tr('Escolher pasta'),self.settings['folder'])
+            if path:self.setSetting(kind,path)
+            return
+        multiple=kind in ('converter','metadata')
+        filters={'converter':'Mídia (*.mp3 *.m4a *.aac *.flac *.wav *.ogg *.opus *.mp4 *.mkv *.mov *.avi *.webm);;Todos os arquivos (*)','effects':'Áudio (*.mp3 *.m4a *.aac *.flac *.wav *.ogg *.opus)','metadata':'Áudio (*.mp3 *.m4a *.flac *.ogg *.opus *.wav)','image':'Imagens (*.png *.jpg *.jpeg *.webp *.gif *.svg)','cover_path':'Imagens (*.png *.jpg *.jpeg *.webp)','lyrics_path':'Letras (*.lrc *.txt)','youtube_cookies':'Cookies (*.txt)','social_cookies':'Cookies (*.txt)'}
+        if multiple:paths,_=QFileDialog.getOpenFileNames(None,tr('Escolher arquivo'),'',filters.get(kind,'Todos os arquivos (*)'))
+        else:
+            path,_=QFileDialog.getOpenFileName(None,tr('Escolher arquivo'),'',filters.get(kind,'Todos os arquivos (*)'));paths=[path] if path else []
+        if not paths:return
+        self.accept_files(kind,paths)
+    def accept_files(self,kind,paths):
+        if kind=='flac_import':self.replyChoice(self._choice['identity'],{'path':paths[0]})
+        elif kind in ('social_cookies','youtube_cookies'):self.setSetting(kind,paths[0])
+        elif kind=='converter':
+            self.options['converterSources']=paths
+            from video_converter import AUDIO_INPUT_EXTENSIONS
+            self.options['converterFormat']='MP3' if any(Path(path).suffix.lower() in AUDIO_INPUT_EXTENSIONS for path in paths) else 'MP4'
+        elif kind=='effects':
+            self.options['effectsSource']=paths[0];self.options['position']=0;self.load_lyrics(str(Path(paths[0]).with_suffix('.lrc')));self.run_task('probe',{'source':paths[0]},lambda result:self.setOption('duration',result))
+        elif kind=='cover_path':
+            self.options['cover_path']=paths[0];self.options['metadataCover']=QUrl.fromLocalFile(paths[0]).toString()
+        elif kind=='effectLyrics':self.load_lyrics(paths[0])
+        elif kind=='metadata':self.options['metadataFields']={};self.options['metadataSources']=paths;self.run_task('audio_read',{'source':paths[0]},self.audio_loaded)
+        elif kind=='image':self.options['imageSource']=paths[0];self.options['imagePreview']=QUrl.fromLocalFile(paths[0]).toString()
+        else:self.options[kind]=paths[0]
+        self.optionsChanged.emit()
+    def convert(self):
+        from PySide6.QtWidgets import QFileDialog
+        sources=list(self.options['converterSources'])
+        if not sources:raise ValueError('Escolha um arquivo para converter.')
+        fmt=self.options['converterFormat']
+        if len(sources)>1:target=QFileDialog.getExistingDirectory(None,tr('Pasta de destino'),self.settings['folder'])
+        else:target,_=QFileDialog.getSaveFileName(None,tr('Salvar arquivo'),str(Path(self.settings['folder'])/(Path(sources[0]).stem+' - convertido.'+fmt.lower())),fmt+' (*.'+fmt.lower()+')')
+        if target:self.convert_to(sources,target)
+    def convert_to(self,sources,target):
+        config={key:self.options[key] for key in ('video_quality','video_resolution','video_bitrate','audio_bitrate','video_fps','video_audio')};config.update(source=sources[0],output=target,video_format=self.options['converterFormat'])
+        if len(sources)>1:config.update(sources=sources,output_folder=target)
+        self.run_task('convert',config,self.show_result)
+    def audio_loaded(self,result):
+        cover=('data:image/png;base64,'+result['cover']) if result.get('cover') else ''
+        self.options['metadata']=result['record'];self.options['metadataCover']=cover;self.options['originalCover']=cover;self.optionsChanged.emit()
+    def image_result(self,result):
+        if result.get('preview'):self.options['imagePreview']=QUrl.fromLocalFile(result['path']).toString()+'?v='+str(time.time());self.optionsChanged.emit()
+        else:self.show_result(result)
+    def edit_audio(self):
+        sources=self.options['metadataSources']
+        if not sources:raise ValueError('Escolha um arquivo de áudio.')
+        from audio_library import FIELDS
+        changes={key:value for key,value in self.options['metadata'].items() if key in FIELDS and (len(sources)==1 or self.options['metadataFields'].get(key,False))}
+        if isinstance(changes.get('artists'),str):changes['artists']=[value.strip() for value in changes['artists'].split(',') if value.strip()]
+        config=dict(source=sources[0],changes=changes,edit_metadata=True,overwrite_original=self.options['overwrite_original'],normalize_volume=self.options['normalize_volume'],cover_path=self.options['cover_path'],lyrics_path=self.options['lyrics_path'])
+        if len(sources)>1:config['sources']=[{'source':source} for source in sources]
+        self.run_task('audio_edit',config,self.show_result)
+    def export_effects(self):
+        from PySide6.QtWidgets import QFileDialog
+        source=self.options['effectsSource']
+        if not source:raise ValueError('Abra um arquivo de áudio primeiro.')
+        fmt=self.options['effectFormat'].lower();target,_=QFileDialog.getSaveFileName(None,tr('Exportar música inteira'),str(Path(source).with_name(Path(source).stem+' - efeitos.'+fmt)),'Áudio (*.'+fmt+')')
+        if not target:return
+        if Path(source).resolve()==Path(target).resolve():raise ValueError('Escolha outro nome para preservar o original.')
+        identity=uuid.uuid4().hex;cancel=threading.Event();self.active[identity]={'cancel':cancel,'process':None,'operation':'effects_export'};self.statusChanged.emit()
+        config={key:self.options[key] for key in ('speed','reverb','keep_pitch')};config.update(source=source,output=target,ffmpeg=self.settings.get('ffmpeg',''),replace=Path(target).exists(),bitrate=320,conversion_threads=self.settings.get('conversion_threads','Automático'))
+        self.launch_thread(lambda:self.process_worker(identity,config,cancel,'effects_worker.py'));self.notify('Exportando a música inteira…')
+    def settings_file_action(self,action):
+        from PySide6.QtWidgets import QFileDialog
+        from advanced_options import export_settings,import_settings
+        if action=='restore_settings':
+            self.confirm('Restaurar configurações','Restaurar todas as configurações?',self.reset_settings);return
+        if action in ('import_settings','import_playlist'):
+            path,_=QFileDialog.getOpenFileName(None,tr('Importar arquivo'),'','Arquivos (*.json *.txt *.csv *.m3u *.m3u8)')
+            if not path:return
+            raw=Path(path).read_text(encoding='utf-8-sig')
+            if action=='import_settings':
+                for key,value in import_settings(json.loads(raw),'windows').items():self.setSetting(key,value)
+            else:
+                from playlist_import import load_text
+                from playlist_files import load_csv
+                result=(load_csv if Path(path).suffix.lower()=='.csv' else load_text)(raw,int(self.settings['playlist_limit']));self.collection_loaded(result)
+            return
+        path,_=QFileDialog.getSaveFileName(None,tr('Exportar arquivo'),'onda.json' if action=='export_settings' else 'onda.m3u','JSON (*.json)' if action=='export_settings' else 'M3U (*.m3u);;Texto (*.txt)')
+        if not path:return
+        if action=='export_settings':text=json.dumps(export_settings(self.settings,'windows'),ensure_ascii=False,indent=2)
+        else:
+            from playlist_files import export_text
+            rows=self.models['playlists'].rows if action=='export_playlist' else [dict(title=row['name'],source_url=row['path']) for row in self.models['history'].rows];text=export_text(rows,m3u=Path(path).suffix.lower()=='.m3u')
+        Path(path).write_text(text,encoding='utf-8');self.notify('Arquivo exportado.')
+    def reset_settings(self):
+        for key,value in self.defaults.items():self.setSetting(key,value)
+    def queue_finished(self):
+        action=self.settings.get('finish_action','Nenhuma')
+        if self.settings.get('notifications_enabled',True) and action in ('Som','Som e notificação') and os.name=='nt':
+            import winsound
+            winsound.PlaySound('SystemNotification',winsound.SND_ALIAS|winsound.SND_ASYNC)
+        if self.settings.get('notifications_enabled',True) and self.tray and action in ('Notificação','Som e notificação'):self.tray.show();self.tray.showMessage('ONDA',tr('Fila finalizada'))
+        if action=='Desligar PC':self.confirm('Desligar PC','A fila terminou. Desligar o PC após 60 segundos?',self.shutdown_countdown)
+    def shutdown_countdown(self):
+        self.shutdown_timer.start();self.present_choice(uuid.uuid4().hex,{'type':'power_countdown','title':tr('Desligar PC'),'message':tr('O PC será desligado após 60 segundos.')},lambda reply:self.shutdown_timer.stop())
+    def perform_shutdown(self):
+        if not self.active and not self.tasks:subprocess.run(['shutdown.exe','/s','/t','0'],creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0))
+    def clipboard_changed(self):
+        if not self.settings.get('clipboard_links'):return
+        from clipboard_links import recognize_link
+        candidate=recognize_link(QGuiApplication.clipboard().text())
+        if candidate and candidate['key'] not in self.clipboard_seen:
+            self.clipboard_seen.add(candidate['key']);self.confirm('Link copiado','Deseja iniciar o download?\n'+candidate['url'],lambda:self.enqueue([candidate['url']],start=True))
+    def tick(self):
+        if self.running and time.monotonic()-getattr(self,'last_clock',0)>1:self.last_clock=time.monotonic();self.statusChanged.emit()
+        for _ in range(30):
+            try:identity,event=self.title_events.get_nowait()
+            except queue.Empty:break
+            self.on_event(identity,event)
+        from advanced_options import schedule_allowed
+        if not schedule_allowed(self.settings):self.schedule_blocked=False
+        if self.running and not schedule_allowed(self.settings):
+            for job in self.jobs:
+                if job['id'] in self.active:job['_paused']=True;self.stop_job(job['id'])
+        elif self.settings.get('schedule_enabled') and not self.schedule_blocked and schedule_allowed(self.settings) and any(job['state'] in ('Na fila','Pausado') for job in self.jobs):
+            for job in self.jobs:
+                if job['state']=='Pausado':job['state']='Na fila'
+            self.running=True;self.fill_queue()
+        elif self.running:self.fill_queue()
+        if self.shell:
+            active=[job['percent'] for job in self.jobs if job['id'] in self.active];self.shell.progress(sum(active)/len(active) if active else None,self.paused_all,self.settings.get('taskbar_progress',True))
+        for text in self.player.messages():self.notify(text)
+        if self.options['previewActive']!=self.player.active:self.options['previewActive']=self.player.active;self.optionsChanged.emit()
+        if self.shutdown_timer.isActive() and (self.active or self.tasks):self.shutdown_timer.stop()
+        if self.player.active and self.preview_kind=='effects':
+            self.options['position']=self.player.position_snapshot()
+            from synced_lyrics import line_at
+            self.options['lyricText']=line_at(self.lyrics,self.options['position']) if self.settings.get('synced_lyrics') else '';self.optionsChanged.emit()
+    def setup_shell(self):
+        from PySide6.QtWidgets import QSystemTrayIcon,QMenu
+        from types import SimpleNamespace
+        if QSystemTrayIcon.isSystemTrayAvailable():
+            self.tray=QSystemTrayIcon(QGuiApplication.windowIcon(),self);self.tray_menu=QMenu();self.tray_menu.addAction(tr('Abrir ONDA'),self.restore);self.tray_menu.addAction(tr('Baixar fila'),self.start_queue);self.tray_menu.addAction(tr('Parar fila'),self.stop_queue);self.tray_menu.addAction(tr('Sair'),lambda:self.requestClose(True));self.tray.setContextMenu(self.tray_menu);self.tray.activated.connect(lambda reason:self.restore())
+        try:
+            from windows_shell import WindowsShell
+            self.shell=WindowsShell(SimpleNamespace(winfo_id=lambda:int(self.window.winId())))
+        except OSError:self.shell=None
+    def bind_shortcuts(self):
+        from shortcut_options import effective_bindings,display_shortcut
+        for shortcut in self.shortcuts:shortcut.setEnabled(False);shortcut.deleteLater()
+        self.shortcuts=[]
+        if self.window is None:return
+        for sequence,action in effective_bindings(self.settings.get('shortcut_keys','{}')).items():
+            shortcut=QShortcut(QKeySequence(display_shortcut(sequence).replace('Prior','PgUp').replace('Next','PgDown')),self.window);shortcut.activated.connect(lambda action=action:self.shortcut(action));self.shortcuts.append(shortcut)
+    def shortcut(self,action):
+        pages=self.settings.get('tab_order',list(PAGES));visible=[key for key in pages if key not in self.hiddenTabs]
+        if action.startswith('tab:'):
+            index=int(action[4:])
+            if index<len(visible):self.selectPage(visible[index])
+        elif action in ('next','previous'):
+            key='effects' if self._page=='jukebox' else self._page;self.selectPage(visible[(visible.index(key)+(1 if action=='next' else -1))%len(visible)])
+        elif action in ('links','queue','history','search'):self.selectPage({'links':'downloads','search':'catalog'}.get(action,action))
+        elif action=='settings':self.showSettings()
+        elif action=='metadata':self.showMetadata()
+        elif action=='help':self.showShortcuts()
+        elif action=='start':self.start_queue()
+        elif action=='stop':self.stop_queue()
+        elif action=='download':self.enqueue(self.options['links'].splitlines(),start=True)
+        elif action=='add':self.enqueue(self.options['links'].splitlines())
+        elif action in ('retry','up','down','prioritize','clear'):self.queue_action('priority' if action=='prioritize' else action)
+        elif action=='folder':QDesktopServices.openUrl(QUrl.fromLocalFile(self.settings['folder']))
+        elif action in ('log','failures'):self.dispatch('logs' if action=='log' else action,{})
+    @Slot()
+    def restore(self):
+        self.window.show();self.window.raise_();self.window.requestActivate()
+        if self.tray:self.tray.hide()
+    @Slot()
+    @Slot(bool)
+    def requestClose(self,force=False):
+        if not force and self.settings.get('close_behavior')=='Minimizar para a bandeja' and self.tray:self.persist();self.save_queue();self.tray.show();self.window.hide();return
+        if self.tasks:self.notify('Cancele ou aguarde as operações antes de fechar o ONDA.');return
+        if self.active:self.closing=True;self.stop_queue();return
+        self.shutdown_timer.stop();self.persist();self.save_queue();QGuiApplication.exit(0)
+    def shutdown(self):
+        if self.closed:return
+        self.closed=True;self.shutdown_timer.stop();self.title_lookup.shutdown();self.preview_timer.stop();self.timer.stop();self.save_timer.stop();self.player.close();self.persist();self.save_queue()
+        for cancel in self.tasks.values():cancel.set()
+        for identity in list(self.active):self.stop_job(identity)
+        self.bridge.config_provider=None
+        if self.shell:self.shell.close();self.shell=None
+        if self.tray:self.tray.hide();self.tray.deleteLater();self.tray=None
+        deadline=time.monotonic()+3
+        for thread in self.tasks_threads:thread.join(timeout=max(0,deadline-time.monotonic()))
+
+    def music_overrides(self,record):
+        from engine import MODES
+        mode=MODES.get(self.settings.get('playlist_mode'),'mp3')
+        if mode not in ('mp3','m4a','flac','original'):mode='mp3'
+        return {'catalog_record':record,'display_name':self.record_name(record),'playlist':False,'mode':mode,'audio_quality':self.settings.get('playlist_m4a_quality','256 kbps') if mode=='m4a' else self.settings.get('playlist_mp3_quality','320 kbps')}
+    def update_playlist(self):
+        def loaded(result):
+            self.collection_loaded(result)
+            def compared(value):
+                self.collection_compared(value)
+                for item in value['items']:
+                    if item['state']=='missing':
+                        record=self.models['playlists'].rows[item['index']];self.enqueue([record['source_url']],overrides=dict(self.music_overrides(record),playlist_title=self.options['playlistTitle']))
+                self.start_queue()
+            self.run_task('compare_collection',{'url':self.options['playlistUrl'],'tracks':self.models['playlists'].rows,'history':self.library.comparison_history(),'queued':self.jobs,'database':str(self.library.path)},compared)
+        self.run_task('collection',{'url':self.options['playlistUrl']},loaded)
+    def load_lyrics(self,path):
+        from synced_lyrics import read_lrc
+        try:self.lyrics=read_lrc(path) if Path(path).is_file() else []
+        except (ValueError,OSError):self.lyrics=[]
+    def start_preview(self,source,kind,identity=None,processed=None,**options):
+        self.preview_timer.stop();self.cancel_task('normalize_preview');self.preview_kind=kind;self.preview_source=identity or source
+        self.player.play(source,self.settings.get('ffmpeg',''),**options)
+        self.options.update(previewActive=self.player.active,previewKind=kind,previewSource=self.preview_source,previewProcessed=(self.last_preview_processed if kind=='effects' else bool(processed)))
+        self.optionsChanged.emit()
+    def stop_preview(self):
+        self.preview_timer.stop();self.cancel_task('normalize_preview');self.player.stop();self.preview_kind='';self.preview_source=''
+        self.options.update(previewActive=False,previewKind='',previewSource='');self.optionsChanged.emit()
+    def play_effects_preview(self):
+        processed=self.last_preview_processed
+        if not self.options['effectsSource']:raise ValueError('Escolha um arquivo de áudio.')
+        self.start_preview(self.options['effectsSource'],'effects',speed=self.options['speed'] if processed else 100,reverb=self.options['reverb'] if processed else 0,start=self.options['position'],duration=int(self.settings['effects_preview_duration'].split()[0]),keep_pitch=self.options['keep_pitch'])
+    @Slot('QVariantMap')
+    def receiveDrop(self,payload):
+        paths=[QUrl(url).toLocalFile() for url in payload.get('urls',[]) if QUrl(url).isLocalFile()]
+        if paths:self.confirm('Abrir arquivos no ONDA',str(len(paths))+' '+tr('arquivos selecionados'),lambda:(self.accept_files('converter',paths),self.selectPage('converter')));return
+        from clipboard_links import recognize_link
+        links=[]
+        for line in payload.get('text','').splitlines():
+            candidate=recognize_link(line)
+            if candidate:links.append(candidate['url'])
+        if links:self.confirm('Adicionar à fila','\n'.join(links),lambda:self.enqueue(links))
+
+    def decorate_record(self,row,index):
+        from metadata import display_release_date
+        url=row.get('source_url','');provider='deezer' if 'deezer' in url else 'spotify' if 'spotify' in url else 'apple_music' if 'apple' in url else 'youtube'
+        label={'deezer':'Deezer','spotify':'Spotify','apple_music':'Apple Music','youtube':'YouTube'}[provider]
+        return dict(row,id=str(index),artist=', '.join(row.get('artists',[])),platform=label,platform_key=provider,platform_icon=QUrl.fromLocalFile(str(ROOT/'assets/platforms'/(provider+'.png'))).toString(),release_date=display_release_date(row.get('release_date','')))
+
+    @Property('QVariantList',notify=optionsChanged)
+    def catalogChoices(self):return [{'label':self.record_name(row),'index':index} for index,row in enumerate(self.models['catalog'].rows)]
+    @Slot(int,int,result=str)
+    def compareText(self,left,right):
+        rows=self.models['catalog'].rows
+        if not (0<=left<len(rows) and 0<=right<len(rows)):return tr('Busque pelo menos dois resultados para comparar.')
+        a,b=rows[left],rows[right]
+        from duplicate_links import source_key
+        if left==right or source_key(a.get('source_url'))==source_key(b.get('source_url')):return tr('Essa música já foi selecionada. Escolha outro resultado para comparar.')
+        from edition_evidence import differences
+        lines=[]
+        for key,label in (('title','Título'),('artists','Artistas'),('album','Álbum'),('release_date','Data'),('duration_ms','Duração (ms)'),('isrc','ISRC'),('platform','Catálogo')):
+            values=[', '.join(row.get(key) or []) if key=='artists' else str(row.get(key) or '—') for row in (a,b)];lines.append(tr(label)+': '+values[0]+'  |  '+values[1])
+        return '\n\n'.join(lines+['; '.join(differences(a,b)) or tr('Sem divergências explícitas; isso não comprova a mesma gravação.')])
+    def cover_cropped(self,result):self.options['cover_path']=result['path'];self.options['metadataCover']=QUrl.fromLocalFile(result['path']).toString();self.optionsChanged.emit()
+    def matches_checked(self,result):
+        for index,row in enumerate(self.models['playlists'].rows):
+            if row['source_url'] in result:self.models['playlists'].update(index,comparison=result[row['source_url']])
+        self.notify('Conferência concluída.')
+    @Property('QVariantList',notify=settingsChanged)
+    def navigation(self):
+        icons={'catalog':'E721','downloads':'E71B','queue':'E8FD','playlists':'E93C','history':'E81C','images':'EB9F','converter':'E8AB','effects':'E768','metadata':'E8D2'}
+        order=self.settings.get('tab_order',self.defaults['tab_order'])
+        rows=[]
+        for label,keys in [('BIBLIOTECA',('catalog','downloads','queue','playlists','history')),('FERRAMENTAS',('images','converter','effects','metadata'))]:
+            rows.append({'group':label})
+            rows.extend({'name':PAGES[key],'key':key,'icon':chr(int(icons[key],16))} for key in order if key in keys)
+        return rows
+
+    @Slot(int,result=str)
+    def clock(self,seconds):
+        from queue_timing import duration_text
+        return duration_text(seconds)

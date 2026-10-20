@@ -1,0 +1,355 @@
+"""Functional regression tests for the all-Qt desktop. No public network."""
+import functools,http.server,json,os,sys,tempfile,threading,time,unittest
+from pathlib import Path
+from unittest.mock import patch
+ROOT=Path(__file__).resolve().parent
+TOOLS=Path(os.environ.get('LOCALAPPDATA',''))/'Onda/tools/ffmpeg/9.0.2'
+sys.path.insert(0,str(ROOT.parent/'.venv/qt-packages'))
+
+@unittest.skipUnless(os.environ.get('ONDA_QT_TESTS'),'Optional Qt desktop tests')
+class NativeDesktopTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        from PySide6.QtWidgets import QApplication
+        cls.app=QApplication.instance() or QApplication([]);cls.app.setQuitOnLastWindowClosed(False)
+    def setUp(self):
+        self.temp=tempfile.TemporaryDirectory();self.root=Path(self.temp.name)
+        self.env=patch.dict(os.environ,{'LOCALAPPDATA':self.temp.name,'ONDA_ALIAS_CACHE_ROOT':str(self.root/'cache'),'NO_PROXY':'127.0.0.1,localhost'});self.env.start()
+        from preferences import PreferenceStore
+        self.store=PreferenceStore();self.store.save({'check_updates':False,'clipboard_links':False,'folder':str(self.root/'out'),'ffmpeg':str(TOOLS),'mode':'Áudio · MP3 (320 kbps)','finish_action':'Nenhuma'})
+        from qt_jukebox_ui import JukeboxBridge
+        from qt_workspace_ui import DesktopWorkspace
+        self.bridge=JukeboxBridge(self.store);self.ws=DesktopWorkspace(self.bridge);self.ws.settings['ffmpeg']=str(TOOLS)
+    def tearDown(self):
+        self.ws.shutdown();self.bridge.shutdown();self.env.stop();self.temp.cleanup()
+    def wait_for(self,predicate,timeout=10000):
+        from PySide6.QtCore import QTimer,QEventLoop
+        deadline=time.monotonic()+timeout/1000
+        while not predicate():
+            self.assertLess(time.monotonic(),deadline,self.ws.status+' '+str(self.ws.logs[-3:]))
+            loop=QEventLoop();QTimer.singleShot(15,loop.quit);loop.exec()
+    def settle(self):
+        from PySide6.QtCore import QTimer,QEventLoop
+        loop=QEventLoop();QTimer.singleShot(50,loop.quit);loop.exec()
+    def task_done(self,name):self.wait_for(lambda:name not in self.ws.tasks,30000)
+    def tone(self,name='source.wav'):
+        from test_jukebox import song
+        path=self.root/name;song(path);return path
+    def test_settings_persist_preserve_and_disable_remembering(self):
+        self.ws.setSetting('theme_accent','Turquesa');self.ws.setSetting('concurrent_downloads','3');self.ws.persist()
+        data=self.store.load();self.assertEqual(data['theme_accent'],'Turquesa');self.assertEqual(data['concurrent_downloads'],'3')
+        self.ws.setSetting('remember_settings',False);self.ws.setSetting('theme_mode','Escuro');self.ws.persist();self.assertFalse(self.store.path.exists())
+        self.assertFalse(self.store.remember_enabled())
+    def test_hidden_tabs_and_order_keep_required_navigation(self):
+        self.ws.setSetting('hidden_tabs',['catalog','downloads','queue','images','metadata']);self.assertEqual(self.ws.hiddenTabs,['images','metadata'])
+        self.ws.selectPage('images');self.assertEqual(self.ws.currentPage,'catalog')
+        self.ws.invoke('tab_move',{'key':'history','direction':-1});self.assertLess(self.ws.settings['tab_order'].index('history'),self.ws.defaults['tab_order'].index('history'))
+    def test_queue_duplicate_filters_order_and_persistence(self):
+        urls=['https://example.com/b.mp3','https://example.com/a.mp3']
+        self.ws.enqueue(urls);self.ws.enqueue(urls);self.assertEqual(len(self.ws.jobs),2)
+        self.ws.jobs[0]['display_name']='B';self.ws.jobs[1]['display_name']='A';self.ws.queue_action('sort:Título');self.assertEqual(self.ws.jobs[0]['display_name'],'A')
+        self.ws.setOption('queueQuery','b.mp3');self.assertEqual(self.ws.queueModel.count,1)
+        self.ws.toggle_row('queue',0,True);self.ws.queue_action('remove');self.assertEqual(len(self.ws.jobs),1);self.assertEqual(len(self.ws.library.load_queue()),1)
+    def test_search_uses_existing_service_and_filters(self):
+        rows=[{'title':'One','artists':['A'],'album':'First','source_url':'https://www.deezer.com/track/1'},{'title':'Two','artists':['B'],'album':'Second','source_url':'https://www.deezer.com/track/2'}]
+        with patch('qt_operations_ui.perform',return_value={'tracks':rows}):
+            self.ws.setOption('query','test');self.ws.invoke('search',{});self.task_done('search')
+        self.assertEqual(self.ws.catalogModel.count,2);self.ws.setOption('filterArtist','B');self.assertEqual(self.ws.catalogModel.count,1)
+        self.assertEqual(self.ws.catalogModel.rows[0]['title'],'Two')
+    def test_cancelled_task_cannot_apply_result(self):
+        release=threading.Event();applied=[]
+        def work(*args):release.wait(2);return 'stale'
+        with patch('qt_operations_ui.perform',side_effect=work):
+            self.ws.run_task('probe',{},applied.append);self.ws.cancel_task('probe');release.set();self.task_done('probe')
+        self.assertEqual(applied,[])
+    def test_new_task_ignores_old_generation(self):
+        release=threading.Event();applied=[]
+        def work(action,config,*args):
+            if config['source']=='old':release.wait(2)
+            return config['source']
+        with patch('qt_operations_ui.perform',side_effect=work):
+            self.ws.run_task('probe',{'source':'old'},applied.append);self.ws.run_task('probe',{'source':'new'},applied.append);self.task_done('probe');release.set();self.settle()
+        self.assertEqual(applied,['new'])
+    def test_clipboard_requires_confirmation_and_deduplicates(self):
+        from types import SimpleNamespace
+        self.ws.settings['clipboard_links']=True
+        with patch('qt_workspace_ui.QGuiApplication.clipboard',return_value=SimpleNamespace(text=lambda:'https://www.youtube.com/watch?v=abcdefghijk')),patch.object(self.ws,'enqueue') as add:
+            self.ws.clipboard_changed();add.assert_not_called();self.assertEqual(self.ws.choice['type'],'confirm')
+            self.ws.replyChoice(self.ws.choice['identity'],{'yes':True});add.assert_called_once()
+            self.ws.clipboard_changed();self.assertFalse(self.ws.choice)
+    def test_media_selection_and_duplicate_choices_forward_replies(self):
+        self.ws.present_choice('media',{'type':'choose_media','candidates':[{'id':'a','kind':'Vídeo','title':'A'}]})
+        self.assertTrue(self.ws.choice['candidates'][0]['outputCodes'])
+        self.ws.replyChoice('media',{'cancel':True});self.assertFalse(self.ws.choice)
+        picked=[];self.ws.confirm('Dup','file',lambda:picked.append(True));self.ws.replyChoice(self.ws.choice['identity'],{'yes':False});self.assertEqual(picked,[])
+    def test_converter_real_audio_and_original_preserved(self):
+        if not TOOLS.is_dir():self.skipTest('FFmpeg required')
+        source=self.tone();original=source.read_bytes();target=self.root/'result.mp3'
+        self.ws.accept_files('converter',[str(source)]);self.assertEqual(self.ws.options['converterFormat'],'MP3')
+        self.ws.convert_to([str(source)],str(target));self.task_done('convert')
+        self.assertTrue(target.is_file(),self.ws.status);self.assertEqual(source.read_bytes(),original);self.assertEqual(len(self.ws.library.history()),1)
+    def test_metadata_single_and_batch_use_existing_editor(self):
+        if not TOOLS.is_dir():self.skipTest('FFmpeg required')
+        source=self.tone();target=self.root/'taggable.mp3';self.ws.options['converterFormat']='MP3';self.ws.convert_to([str(source)],str(target));self.task_done('convert')
+        self.ws.accept_files('metadata',[str(target)]);self.task_done('audio_read');self.ws.options['metadata']['title']='Edited';self.ws.edit_audio();self.task_done('audio_edit')
+        from audio_library import read_audio
+        results=[row for row in self.ws.library.history() if row['path']!=str(target)]
+        self.assertTrue(results,self.ws.status);self.assertEqual(read_audio(results[0]['path'])['title'],'Edited');self.assertNotEqual(read_audio(target)['title'],'Edited')
+        other=self.root/'second.mp3';other.write_bytes(target.read_bytes());self.ws.accept_files('metadata',[str(target),str(other)]);self.task_done('audio_read')
+        self.ws.options['metadata']['album']='Batch album';self.ws.options['metadataFields']={'album':True};self.ws.edit_audio();self.task_done('audio_edit')
+        self.assertIn('2 arquivos salvos',self.ws.status)
+    def test_images_export_preserves_source(self):
+        from PIL import Image
+        source=self.root/'source.png';Image.new('RGB',(160,90),'blue').save(source);original=source.read_bytes()
+        self.ws.accept_files('image',[str(source)]);self.ws.setSetting('image_format','JPG');self.ws.invoke('image_export',{});self.task_done('image_export')
+        self.assertEqual(source.read_bytes(),original);self.assertEqual(len(list((self.root/'out').glob('*.jpg'))),1)
+    def test_remote_image_preview_direct_and_page(self):
+        from PIL import Image
+        source=self.root/'remote.png';Image.new('RGB',(160,90),'blue').save(source)
+        (self.root/'page.html').write_text('<meta property="og:image" content="/remote.png">')
+        class Handler(http.server.SimpleHTTPRequestHandler):
+            def log_message(self,*args):pass
+        server=http.server.ThreadingHTTPServer(('127.0.0.1',0),functools.partial(Handler,directory=str(self.root)))
+        thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
+        try:
+            self.ws.accept_files('image',[str(source)])
+            for name in ('remote.png','page.html'):
+                self.ws.setOption('imageUrl',f'http://127.0.0.1:{server.server_port}/{name}')
+                self.assertEqual(self.ws.options['imageSource'],'')
+                self.ws.invoke('image_preview',{});self.task_done('image_preview')
+                self.assertTrue(self.ws.options['imagePreview'],self.ws.status)
+                from PySide6.QtCore import QUrl
+                with Image.open(QUrl(self.ws.options['imagePreview']).toLocalFile()) as preview:self.assertEqual(preview.size,(160,90))
+        finally:server.shutdown();server.server_close();thread.join()
+    def test_embedded_artwork_is_a_qt_image_url(self):
+        import base64,io
+        from PIL import Image
+        data=io.BytesIO();Image.new('RGB',(80,80),'red').save(data,format='PNG')
+        self.ws.audio_loaded({'record':{'title':'Artwork'},'cover':base64.b64encode(data.getvalue()).decode('ascii')})
+        from PySide6.QtGui import QImage
+        cover=self.ws.options['metadataCover'];self.assertTrue(cover.startswith('data:image/png;base64,'))
+        self.assertFalse(QImage.fromData(base64.b64decode(cover.split(',',1)[1])).isNull())
+        self.ws.invoke('undo_cover',{});self.assertEqual(self.ws.options['metadataCover'],cover)
+    def test_sidebar_groups_do_not_mix_tools_and_library(self):
+        rows=self.ws.navigation
+        self.assertEqual([row['group'] for row in rows if 'group' in row],['BIBLIOTECA','FERRAMENTAS'])
+        split=next(i for i,row in enumerate(rows) if row.get('group')=='FERRAMENTAS')
+        self.assertEqual({row['key'] for row in rows[1:split]},{'catalog','downloads','queue','playlists','history'})
+        self.assertEqual({row['key'] for row in rows[split+1:]},{'images','converter','effects','metadata'})
+    def test_comparison_summary_is_readable_and_notifications_can_be_disabled(self):
+        messages=[];self.ws.message.connect(lambda title,text:messages.append((title,text)))
+        result={'counts':{'present':2,'missing':11,'review':1,'queued':3},'has_previous':True,'new_count':4,'removed_count':1}
+        self.ws.collection_compared(result)
+        self.assertIn('Ausentes: 11',messages[-1][1]);self.assertIn('Já disponíveis: 2',messages[-1][1]);self.assertIn('Adicionadas à playlist: 4',messages[-1][1]);self.assertNotIn('"counts"',messages[-1][1])
+        self.assertEqual(self.ws.taskLabel('collection'),'carregamento da playlist');self.assertNotIn('unknown',self.ws.taskLabel('unknown'))
+        self.ws.setSetting('notifications_enabled',False);self.ws.persist();self.assertIs(self.store.load()['notifications_enabled'],False)
+        messages.clear();self.ws.collection_compared(result);self.ws.show_result({'message':'Concluído'})
+        self.assertEqual(messages,[]);self.assertEqual(self.ws.status,'Concluído')
+        self.ws.show_result({'message':'Consulta solicitada'},notification=False);self.assertEqual(messages[-1][1],'Consulta solicitada')
+        self.ws.invoke('invalid_action',{});self.assertGreater(len(messages),1)
+        self.ws.setSetting('notifications_enabled',True);self.ws.show_result({'message':'Pronto'});self.assertEqual(messages[-1][1],'Pronto')
+    def test_notifications_toggle_controls_queue_sound_and_system_notice(self):
+        from unittest.mock import Mock
+        with patch.object(self.ws,'tray',Mock()) as tray,patch('winsound.PlaySound') as sound:
+            self.ws.settings.update(finish_action='Som e notificação',notifications_enabled=False)
+            self.ws.queue_finished();tray.showMessage.assert_not_called();sound.assert_not_called()
+            self.ws.settings['notifications_enabled']=True;self.ws.queue_finished();tray.showMessage.assert_called_once();sound.assert_called_once()
+    def test_collection_comparison_selects_only_missing(self):
+        self.ws.collection_loaded({'title':'List','tracks':[{'title':'A','artists':['X'],'source_url':'https://www.deezer.com/track/1'},{'title':'B','artists':['X'],'source_url':'https://www.deezer.com/track/2'}]})
+        self.ws.collection_compared({'items':[{'index':0,'state':'present'},{'index':1,'state':'missing'}],'counts':{'present':1,'missing':1}})
+        self.ws.invoke('playlist_missing',{});self.assertFalse(self.ws.playlistModel.rows[0]['checked']);self.assertTrue(self.ws.playlistModel.rows[1]['checked'])
+    def test_engine_real_download_from_local_server(self):
+        if not TOOLS.is_dir():self.skipTest('FFmpeg required')
+        source=self.tone()
+        class Handler(http.server.SimpleHTTPRequestHandler):
+            def log_message(self,*args):pass
+            def copyfile(self,*args):
+                try:super().copyfile(*args)
+                except ConnectionError:pass
+        server=http.server.ThreadingHTTPServer(('127.0.0.1',0),functools.partial(Handler,directory=str(self.root)))
+        thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
+        try:
+            self.ws.enqueue([f'http://127.0.0.1:{server.server_port}/{source.name}'],{'mode':'original','playlist':False,'synced_lyrics':False},start=True)
+            self.wait_for(lambda:not self.ws.active,30000)
+            self.assertEqual(self.ws.jobs[0]['state'],'Concluído',self.ws.jobs[0].get('last_error'));self.assertTrue(self.ws.library.history())
+        finally:server.shutdown();server.server_close();thread.join()
+    def test_worker_interactive_protocol_and_cancellation(self):
+        fixture=self.root/'worker.py';fixture.write_text('import json,sys\njson.loads(sys.stdin.readline())\nprint(json.dumps({"type":"choose_media","candidates":[{"id":"a","kind":"Foto","title":"A"}]}),flush=True)\nreply=json.loads(sys.stdin.readline())\nassert reply["selected_ids"]==["a"]\nprint(json.dumps({"type":"done"}),flush=True)\n',encoding='utf-8')
+        job=self.ws.enqueue(['https://example.com/a.mp3'])[0];identity=job['id'];cancel=threading.Event();self.ws.active[identity]={'cancel':cancel,'process':None};job['state']='Em andamento'
+        self.ws.launch_thread(lambda:self.ws.process_worker(identity,{},cancel,str(fixture)))
+        self.wait_for(lambda:bool(self.ws.choice));self.ws.replyChoice(identity,{'selected_ids':['a']});self.wait_for(lambda:not self.ws.active)
+        self.assertEqual(job['state'],'Concluído')
+    def test_qml_all_pages_settings_and_decisions_have_no_runtime_warnings(self):
+        from qt_desktop_ui import create_application,close_application
+        from PySide6.QtCore import QObject,QMetaObject,qInstallMessageHandler
+        warnings=[];old=qInstallMessageHandler(lambda kind,context,msg:warnings.append(msg))
+        app,engine,bridge=create_application(complete=False);ws=engine.workspace;window=engine.rootObjects()[0]
+        try:
+            for name in ('catalog','downloads','queue','playlists','history','images','converter','effects','metadata','jukebox'):
+                ws.selectPage(name);self.settle();self.assertFalse(window.grabWindow().isNull())
+            settings=window.findChild(QObject,'settingsPopup');QMetaObject.invokeMethod(settings,'open');self.settle()
+            for category in ('Geral','Aparência','Downloads','Imagens','Áudio','Contas','Ferramentas','Desempenho'):settings.setProperty('category',category);self.settle()
+            QMetaObject.invokeMethod(settings,'close')
+            ws.searched({'tracks':[{'title':'A','artists':['X'],'source_url':'https://www.deezer.com/track/1'},{'title':'B','artists':['X'],'source_url':'https://www.deezer.com/track/2'}]})
+            ws.invoke('compare_results',{'index':0});self.settle();QMetaObject.invokeMethod(window.findChild(QObject,'comparisonPopup'),'close')
+            from PIL import Image
+            cover=self.root/'gui-cover.png';Image.new('RGB',(100,80),'green').save(cover);ws.accept_files('cover_path',[str(cover)]);ws.invoke('crop_cover',{});self.settle();QMetaObject.invokeMethod(window.findChild(QObject,'coverCropPopup'),'close')
+            QMetaObject.invokeMethod(window.findChild(QObject,'shortcutsPopup'),'open');self.settle();QMetaObject.invokeMethod(window.findChild(QObject,'shortcutsPopup'),'close')
+            QMetaObject.invokeMethod(window.findChild(QObject,'resetPopup'),'open');self.settle();QMetaObject.invokeMethod(window.findChild(QObject,'resetPopup'),'close')
+            ws.present_choice('link',{'type':'confirm','title':'Link copiado','message':'Deseja iniciar o download?\nhttps://example.com/image.jpg'});self.settle()
+            popup=window.findChild(QObject,'decisionPopup');self.assertLess(popup.property('height'),300);self.assertGreater(popup.property('height'),120);ws.replyChoice('link',{'cancel':True});self.settle()
+            ws.present_choice('media',{'type':'choose_media','candidates':[{'id':'a','kind':'Foto','title':'A'}]});self.settle();ws.replyChoice('media',{'cancel':True});self.settle()
+            import tkinter
+            self.assertIsNone(tkinter._default_root)
+            self.assertNotIn('qt_workspace_server_ui',sys.modules)
+        finally:close_application(engine,bridge);qInstallMessageHandler(old)
+        self.assertEqual(warnings,[])
+    def test_warning_sizes_follow_message_in_light_and_pure_black(self):
+        from qt_desktop_ui import create_application,close_application
+        from PySide6.QtCore import QObject,QMetaObject,qInstallMessageHandler
+        warnings=[];old=qInstallMessageHandler(lambda kind,context,msg:warnings.append(msg))
+        app,engine,bridge=create_application(complete=False);ws=engine.workspace;window=engine.rootObjects()[0]
+        try:
+            for theme in ('Claro','Preto puro'):
+                ws.setSetting('theme_mode',theme);ws.message.emit('ONDA','Concluído.');self.settle()
+                popup=window.findChild(QObject,'messagePopup');short=(popup.property('width'),popup.property('height'))
+                self.assertLess(short[0],400);self.assertLess(short[1],230)
+                ws.message.emit('Conferência de arquivos locais','Já disponíveis: 2'+chr(10)+'Ausentes: 11'+chr(10)+'Precisam de revisão: 1'+chr(10)+'Já na fila: 0');self.settle()
+                self.assertGreater(popup.property('height'),short[1]);self.assertGreater(popup.property('width'),short[0])
+                ws.message.emit('Aviso longo',('Texto longo para conferir a rolagem e o limite de tamanho. '+chr(10))*100);self.settle()
+                self.assertLessEqual(popup.property('height'),500);self.assertLessEqual(popup.property('width'),window.width()-48)
+                self.assertFalse(window.grabWindow().isNull());QMetaObject.invokeMethod(popup,'close')
+                ws.present_choice('short',{'type':'confirm','title':'Confirmar','message':'Continuar?'});self.settle()
+                decision=window.findChild(QObject,'decisionPopup');small=decision.property('width');self.assertLess(small,400)
+                ws.replyChoice('short',{'cancel':True})
+                ws.present_choice('long',{'type':'confirm','title':'Link copiado','message':'Deseja iniciar o download? '+('https://example.com/long-image-name.jpg'*5)});self.settle()
+                self.assertGreater(decision.property('width'),small);self.assertLessEqual(decision.property('height'),window.height()-70);ws.replyChoice('long',{'cancel':True})
+        finally:close_application(engine,bridge);qInstallMessageHandler(old)
+        self.assertEqual(warnings,[])
+    def test_preview_controls_respect_durations_background_and_owner(self):
+        from unittest.mock import Mock
+        player=Mock(active=False);player.messages.return_value=[];player.position_snapshot.return_value=12
+        player.play.side_effect=lambda *args,**kwargs:setattr(player,'active',True)
+        player.stop.side_effect=lambda:setattr(player,'active',False)
+        with patch.object(self.ws,'player',player):
+            self.ws.searched({'tracks':[{'title':'Song','artists':['Artist'],'source_url':'https://www.deezer.com/track/1','preview_url':'https://example.com/preview.mp3'}]})
+            self.ws.setSetting('search_preview_duration','15 segundos');self.ws.invoke('preview_catalog',{'index':0})
+            self.assertEqual(player.play.call_args.kwargs['duration'],15);self.assertTrue(self.ws.options['previewActive'])
+            self.ws.setOption('speed',90);self.assertFalse(self.ws.preview_timer.isActive())
+            self.ws.invoke('preview_catalog',{'index':0});self.assertFalse(self.ws.options['previewActive'])
+            self.ws.selectPage('effects');self.ws.options['effectsSource']='test.wav';self.ws.setSetting('effects_preview_duration','180 segundos');self.ws.setSetting('effects_keep_pitch',True)
+            self.ws.invoke('effects_preview',{'processed':True});self.assertEqual(player.play.call_args.kwargs['duration'],180);self.assertTrue(player.play.call_args.kwargs['keep_pitch'])
+            self.ws.setSetting('background_preview',True);self.ws.selectPage('downloads');self.assertTrue(player.active)
+            self.ws.setSetting('background_preview',False);self.assertFalse(player.active)
+            self.ws.selectPage('effects');self.ws.invoke('effects_preview',{'processed':False});self.assertFalse(self.ws.options['previewProcessed'])
+            self.ws.invoke('effects_preview',{'processed':False});self.assertFalse(player.active)
+            self.ws.invoke('effects_preview',{'processed':True});self.ws.selectPage('catalog');self.assertFalse(player.active)
+    def test_platform_icons_are_tinted_and_load_in_both_themes(self):
+        from qt_desktop_ui import create_application,close_application
+        from PySide6.QtQml import QQmlComponent
+        from PySide6.QtCore import QUrl
+        from qt_platform_icons_ui import PlatformIcons
+        from PySide6.QtGui import QColor
+        app,engine,bridge=create_application(complete=False)
+        try:
+            for theme in ('Claro','Preto puro'):
+                engine.workspace.setSetting('theme_mode',theme);color=bridge.palette['text'];provider=PlatformIcons()
+                for key in ('deezer','spotify','apple_music','youtube'):
+                    image=provider.requestImage(key+'/'+color.lstrip('#'),None,None);self.assertFalse(image.isNull())
+                    pixels=[image.pixelColor(x,y) for x in range(image.width()) for y in range(image.height()) if image.pixelColor(x,y).alpha()>200]
+                    self.assertTrue(pixels);self.assertLessEqual(max(abs(a-b) for a,b in zip(pixels[0].getRgb()[:3],QColor(color).getRgb()[:3])),1)
+                component=QQmlComponent(engine);component.setData(('import QtQuick; Image { property bool ready: status === Image.Ready; width: 24; height: 24; source: "image://platform/deezer/'+color.lstrip('#')+'" }').encode(),QUrl())
+                icon=component.create();self.assertIsNotNone(icon);self.settle();self.assertTrue(icon.property('ready'));icon.deleteLater()
+        finally:close_application(engine,bridge)
+    def test_primary_search_and_load_buttons_cancel_their_real_tasks(self):
+        from qt_desktop_ui import create_application,close_application
+        from PySide6.QtCore import QObject,QMetaObject,qInstallMessageHandler
+        warnings=[];old=qInstallMessageHandler(lambda kind,context,msg:warnings.append(msg))
+        app,engine,bridge=create_application(complete=False);ws=engine.workspace;window=engine.rootObjects()[0]
+        def operation(action,config,cancel,emit):
+            cancel.wait(3)
+            return {'tracks':[{'title':'Stale','source_url':'https://example.com/stale'}]}
+        try:
+            with patch('qt_operations_ui.perform',side_effect=operation):
+                for page,label,task in [('catalog','Pesquisar','search'),('playlists','Carregar','collection')]:
+                    ws.selectPage(page);self.settle();button=window.findChild(QObject,'libraryLoadButton');self.assertEqual(button.property('text'),label)
+                    QMetaObject.invokeMethod(button,'clicked');self.settle();self.assertEqual(button.property('text'),'Cancelar');cancel=ws.tasks[task]
+                    QMetaObject.invokeMethod(button,'clicked');self.assertTrue(cancel.is_set())
+                    self.wait_for(lambda:task not in ws.tasks);self.settle();self.assertEqual(button.property('text'),label)
+                    self.assertEqual(ws.catalogModel.count,0);self.assertEqual(ws.playlistModel.count,0)
+        finally:close_application(engine,bridge);qInstallMessageHandler(old)
+        self.assertEqual(warnings,[])
+    def test_export_cancel_targets_only_its_worker(self):
+        own=threading.Event();other=threading.Event()
+        self.ws.active={'export':{'cancel':own,'process':None,'operation':'effects_export'},'download':{'cancel':other,'process':None}}
+        self.assertIn('effects_export',self.ws.activity['busy']);self.ws.cancel_task('effects_export');self.assertTrue(own.is_set());self.assertFalse(other.is_set());self.ws.active.clear()
+    def test_close_exits_qt_without_second_click(self):
+        from qt_desktop_ui import create_application,close_application
+        from PySide6.QtCore import QTimer
+        app,engine,bridge=create_application(complete=False);ws=engine.workspace
+        timer=QTimer();timer.setSingleShot(True);timer.timeout.connect(ws.requestClose);timer.start(100)
+        watchdog=QTimer();watchdog.setSingleShot(True);watchdog.timeout.connect(lambda:app.exit(99));watchdog.start(4000)
+        try:self.assertEqual(app.exec(),0)
+        finally:timer.stop();watchdog.stop();close_application(engine,bridge)
+
+    def test_comparison_rejects_same_record_and_displays_differences(self):
+        self.ws.searched({'tracks':[{'title':'Song','artists':['Artist'],'album':'One','source_url':'https://www.deezer.com/track/1'},{'title':'Song live','artists':['Artist'],'album':'Two','source_url':'https://www.deezer.com/track/2'}]})
+        self.assertIn('já foi selecionada',self.ws.compareText(0,0));text=self.ws.compareText(0,1);self.assertIn('Song live',text);self.assertIn('Two',text)
+    def test_cover_crop_is_square_and_does_not_change_original(self):
+        from PIL import Image
+        source=self.root/'cover.png';Image.new('RGB',(700,400),'green').save(source);original=source.read_bytes()
+        self.ws.accept_files('cover_path',[str(source)]);self.ws.invoke('apply_cover_crop',{'zoom':2,'x':.1,'y':-.1});self.task_done('cover_crop')
+        target=Path(self.ws.options['cover_path']);self.assertNotEqual(target,source)
+        with Image.open(target) as image:self.assertEqual(image.size,(1000,1000))
+        self.assertEqual(source.read_bytes(),original)
+    def test_worker_cancel_stops_blocked_process(self):
+        fixture=self.root/'blocked.py';fixture.write_text('import sys,json,time\njson.loads(sys.stdin.readline())\nprint(json.dumps({"type":"stage","message":"ready"}),flush=True)\ntime.sleep(60)\n',encoding='utf-8')
+        job=self.ws.enqueue(['https://example.com/cancel.mp3'])[0];identity=job['id'];cancel=threading.Event();self.ws.active[identity]={'cancel':cancel,'process':None};job['state']='Em andamento'
+        self.ws.launch_thread(lambda:self.ws.process_worker(identity,{},cancel,str(fixture)))
+        self.wait_for(lambda:self.ws.active[identity]['process'] is not None);process=self.ws.active[identity]['process'];self.ws.stop_job(identity);self.wait_for(lambda:not self.ws.active)
+        self.assertIsNotNone(process.poll());self.assertEqual(job['state'],'Cancelado')
+    def test_effects_export_real_worker(self):
+        if not TOOLS.is_dir():self.skipTest('FFmpeg required')
+        source=self.tone();target=self.root/'effects.mp3';self.ws.accept_files('effects',[str(source)]);self.task_done('probe');self.assertGreater(self.ws.options['duration'],0)
+        with patch('PySide6.QtWidgets.QFileDialog.getSaveFileName',return_value=(str(target),'')):self.ws.export_effects()
+        self.wait_for(lambda:not self.ws.active,20000);self.assertTrue(target.is_file(),self.ws.logs);self.assertTrue(self.ws.library.history())
+    def test_settings_import_export_keeps_secrets_out(self):
+        path=self.root/'settings.json';self.ws.settings['spotify_client_secret']='private-secret';self.ws.settings['social_cookies']='private-cookies.txt'
+        with patch('PySide6.QtWidgets.QFileDialog.getSaveFileName',return_value=(str(path),'')):self.ws.settings_file_action('export_settings')
+        raw=path.read_text(encoding='utf-8');self.assertNotIn('private-secret',raw);self.assertNotIn('private-cookies',raw)
+        self.ws.setSetting('theme_accent','Azul')
+        with patch('PySide6.QtWidgets.QFileDialog.getOpenFileName',return_value=(str(path),'')):self.ws.settings_file_action('import_settings')
+        self.assertNotEqual(self.ws.settings['theme_accent'],'Azul')
+    def test_schedule_does_not_override_manual_stop(self):
+        self.ws.settings.update(schedule_enabled=True,schedule_start='00:00',schedule_stop='23:59');self.ws.enqueue(['https://example.com/queued.mp3']);self.ws.stop_queue()
+        with patch.object(self.ws,'fill_queue') as fill:self.ws.tick();fill.assert_not_called()
+
+    def test_power_countdown_can_be_cancelled_without_system_command(self):
+        with patch('qt_workspace_ui.subprocess.run') as command:
+            self.ws.shutdown_countdown();self.assertTrue(self.ws.shutdown_timer.isActive())
+            self.ws.replyChoice(self.ws.choice['identity'],{'cancel':True});self.assertFalse(self.ws.shutdown_timer.isActive());command.assert_not_called()
+
+    def test_qml_buttons_add_links_and_convert_real_file(self):
+        if not TOOLS.is_dir():self.skipTest('FFmpeg required')
+        from qt_desktop_ui import create_application,close_application
+        from PySide6.QtCore import QObject,QMetaObject
+        app,engine,bridge=create_application(complete=False);ws=engine.workspace;window=engine.rootObjects()[0]
+        try:
+            ws.selectPage('downloads');self.settle();ws.setOption('links','https://example.com/test.mp3')
+            button=window.findChild(QObject,'addLinksButton');self.assertIsNotNone(button);self.assertTrue(button.property('enabled'));QMetaObject.invokeMethod(button,'clicked')
+            self.assertEqual(len(ws.jobs),1);self.assertFalse(ws.running)
+            ws.selectPage('converter');self.settle();source=self.tone();target=self.root/'qml-converted.mp3';ws.accept_files('converter',[str(source)]);self.settle()
+            button=window.findChild(QObject,'convertButton');self.assertIsNotNone(button);self.assertTrue(button.property('enabled'))
+            with patch('PySide6.QtWidgets.QFileDialog.getSaveFileName',return_value=(str(target),'')):QMetaObject.invokeMethod(button,'clicked')
+            self.wait_for(lambda:'convert' not in ws.tasks,20000);self.assertTrue(target.is_file(),ws.status)
+        finally:close_application(engine,bridge)
+
+    def test_worker_prepares_connected_account_metadata_before_serializing(self):
+        fixture=self.root/'engine.py';fixture.write_text('import sys,json\nconfig=json.loads(sys.stdin.readline())\nassert config["catalog_record"]["title"]=="Prepared"\nprint(json.dumps({"type":"done"}),flush=True)\n',encoding='utf-8')
+        job=self.ws.enqueue(['https://example.com/account.mp3'])[0];identity=job['id'];cancel=threading.Event();self.ws.active[identity]={'cancel':cancel,'process':None};job['state']='Em andamento'
+        with patch('spotify_metadata.prepare_spotify_config',return_value={'catalog_record':{'title':'Prepared'}}) as prepare:
+            self.ws.launch_thread(lambda:self.ws.process_worker(identity,{},cancel,str(fixture)));self.wait_for(lambda:not self.ws.active)
+            prepare.assert_called_once_with({},self.ws.account)
+        self.assertEqual(job['state'],'Concluído')
+
+if __name__=='__main__':unittest.main()

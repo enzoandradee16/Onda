@@ -1,0 +1,974 @@
+{
+  "defaults": {
+    "shortcut_keys": "{}",
+    "language": "pt-BR",
+    "queue_card_size": "Grande",
+    "queue_view": "Compacto",
+    "history_card_size": "Grande",
+    "pure_black_separators": false,
+    "history_view": "Compacto",
+    "theme_mode": "Seguir o sistema",
+    "theme_accent": "Verde-Água",
+    "interface_font": "Padrão do sistema",
+    "interface_font_size": "100%",
+    "interface_spacing": "Padrão",
+    "notice_duration": "Após 3 segundos",
+    "effects_keep_pitch": false,
+    "image_format": "Original",
+    "image_size": "Original",
+    "image_width": "1920",
+    "image_height": "1080",
+    "image_keep_ratio": true,
+    "tab_order": [
+      "catalog",
+      "downloads",
+      "queue",
+      "images",
+      "converter",
+      "playlists",
+      "history",
+      "effects",
+      "metadata"
+    ],
+    "hidden_tabs": [],
+    "playlist_mode": "Áudio · MP3 (320 kbps)",
+    "playlist_height": "1080p",
+    "playlist_fps": "Original",
+    "playlist_mp3_quality": "320 kbps",
+    "playlist_m4a_quality": "256 kbps",
+    "mode": "Vídeo · melhor qualidade (MKV)",
+    "height": "1080p",
+    "fps": "Original",
+    "catalog_provider": "Deezer",
+    "folder": "",
+    "ffmpeg": "",
+    "playlist": false,
+    "playlist_limit": "1000",
+    "mp3_quality": "320 kbps",
+    "m4a_quality": "256 kbps",
+    "review_metadata": false,
+    "auto_match": false,
+    "background_preview": false,
+    "effects_preview_duration": "25 segundos",
+    "search_preview_duration": "30 segundos",
+    "organization": "Catálogo",
+    "filename_template": "Original",
+    "duplicates": "Perguntar",
+    "finish_action": "Notificação",
+    "close_behavior": "Encerrar",
+    "taskbar_progress": true,
+    "synced_lyrics": false,
+    "clipboard_links": true,
+    "auto_select_media": true,
+    "simple_download_ui": false,
+    "social_best_quality": true,
+    "concurrent_downloads": "1",
+    "detect_duplicates": true,
+    "auto_metadata": false,
+    "resume_downloads": true,
+    "resume_queue": false,
+    "normalize_volume": false,
+    "schedule_enabled": false,
+    "schedule_start": "22:00",
+    "schedule_stop": "07:00",
+    "check_updates": true,
+    "notice_animation": true,
+    "queue_actions_at_top": true,
+    "confirm_version": false,
+    "conversion_threads": "Automático",
+    "worker_priority": "Normal",
+    "memory_reserve": "Desativado",
+    "jukebox_equalizer": "{}",
+    "qt_animations": true,
+    "remember_settings": true,
+    "spotify_client_id": "",
+    "spotify_client_secret": "",
+    "social_cookies": "",
+    "youtube_cookies": "",
+    "notifications_enabled": true
+  },
+  "fields": [
+    {
+      "category": "Geral",
+      "key": "remember_settings",
+      "label": "Lembrar configurações",
+      "kind": "bool",
+      "choices": []
+    },
+    {
+      "category": "Geral",
+      "key": "notifications_enabled",
+      "label": "Ativar notificações",
+      "kind": "bool",
+      "hint": "Mostrar avisos de conclusão no app e no Windows. Erros e confirmações continuam visíveis."
+    },
+    {
+      "category": "Geral",
+      "key": "language",
+      "label": "Idioma",
+      "kind": "select",
+      "choices": [
+        "Português (Brasil)",
+        "Español",
+        "English"
+      ]
+    },
+    {
+      "category": "Geral",
+      "key": "close_behavior",
+      "label": "Ao fechar o ONDA",
+      "kind": "select",
+      "choices": [
+        "Encerrar",
+        "Minimizar para a bandeja"
+      ]
+    },
+    {
+      "category": "Geral",
+      "key": "clipboard_links",
+      "label": "Reconhecer links copiados automaticamente",
+      "kind": "bool",
+      "choices": []
+    },
+    {
+      "category": "Geral",
+      "key": "notice_duration",
+      "label": "Duração dos avisos",
+      "kind": "select",
+      "choices": [
+        "Fechar manualmente",
+        "Após 3 segundos",
+        "Após 5 segundos",
+        "Após 10 segundos",
+        "Após 15 segundos",
+        "Após 30 segundos",
+        "Após 60 segundos"
+      ]
+    },
+    {
+      "category": "Geral",
+      "key": "notice_animation",
+      "label": "Animar avisos",
+      "kind": "bool",
+      "choices": []
+    },
+    {
+      "category": "Aparência",
+      "key": "theme_mode",
+      "label": "Modo de aparência",
+      "kind": "select",
+      "choices": [
+        "Seguir o sistema",
+        "Escuro",
+        "Preto puro",
+        "Claro",
+        "Alto contraste"
+      ]
+    },
+    {
+      "category": "Aparência",
+      "key": "theme_accent",
+      "label": "Cor de destaque",
+      "kind": "select",
+      "choices": [
+        "Verde-Água",
+        "Azul",
+        "Roxo",
+        "Rosa",
+        "Laranja",
+        "Vermelho",
+        "Verde",
+        "Verde-limão",
+        "Amarelo",
+        "Dourado",
+        "Ciano",
+        "Turquesa",
+        "Índigo",
+        "Lilás",
+        "Coral",
+        "Cinza"
+      ]
+    },
+    {
+      "category": "Aparência",
+      "key": "pure_black_separators",
+      "label": "Mostrar bordas e separações no Preto puro",
+      "kind": "bool",
+      "choices": []
+    },
+    {
+      "category": "Aparência",
+      "key": "interface_font_size",
+      "label": "Alterar tamanho da fonte",
+      "kind": "select",
+      "choices": [
+        "85%",
+        "100%",
+        "115%",
+        "130%"
+      ]
+    },
+    {
+      "category": "Aparência",
+      "key": "interface_font",
+      "label": "Fonte da interface",
+      "kind": "select",
+      "choices": [
+        "Padrão do sistema",
+        "Sem serifa",
+        "Serifada",
+        "Monoespaçada",
+        "Condensada",
+        "Cursiva",
+        "Arredondada",
+        "Arabic Transparent",
+        "Arial",
+        "Arial Baltic",
+        "Arial Black",
+        "Arial CE",
+        "Arial CYR",
+        "Arial Greek",
+        "Arial Narrow",
+        "Arial TUR",
+        "Bahnschrift",
+        "Bahnschrift Condensed",
+        "Bahnschrift Light",
+        "Bahnschrift Light Condensed",
+        "Bahnschrift Light SemiCondensed",
+        "Bahnschrift SemiBold",
+        "Bahnschrift SemiBold Condensed",
+        "Bahnschrift SemiBold SemiConden",
+        "Bahnschrift SemiCondensed",
+        "Bahnschrift SemiLight",
+        "Bahnschrift SemiLight Condensed",
+        "Bahnschrift SemiLight SemiConde",
+        "Book Antiqua",
+        "Bookman Old Style",
+        "Bookshelf Symbol 7",
+        "Calibri",
+        "Calibri Light",
+        "Cambria",
+        "Cambria Math",
+        "Candara",
+        "Candara Light",
+        "Cascadia Code",
+        "Cascadia Code ExtraLight",
+        "Cascadia Code Light",
+        "Cascadia Code SemiBold",
+        "Cascadia Code SemiLight",
+        "Cascadia Mono",
+        "Cascadia Mono ExtraLight",
+        "Cascadia Mono Light",
+        "Cascadia Mono SemiBold",
+        "Cascadia Mono SemiLight",
+        "Century",
+        "Century Gothic",
+        "Comic Sans MS",
+        "Consolas",
+        "Constantia",
+        "Corbel",
+        "Corbel Light",
+        "Courier",
+        "Courier New",
+        "Courier New Baltic",
+        "Courier New CE",
+        "Courier New CYR",
+        "Courier New Greek",
+        "Courier New TUR",
+        "Dubai",
+        "Dubai Light",
+        "Dubai Medium",
+        "Ebrima",
+        "Fixedsys",
+        "Franklin Gothic Medium",
+        "Gabriola",
+        "Gadugi",
+        "Garamond",
+        "Georgia",
+        "Impact",
+        "Ink Free",
+        "Javanese Text",
+        "Leelawadee",
+        "Leelawadee UI",
+        "Leelawadee UI Semilight",
+        "Lucida Console",
+        "Lucida Sans Unicode",
+        "Malgun Gothic",
+        "Malgun Gothic Semilight",
+        "Marlett",
+        "Microsoft Himalaya",
+        "Microsoft JhengHei",
+        "Microsoft JhengHei Light",
+        "Microsoft JhengHei UI",
+        "Microsoft JhengHei UI Light",
+        "Microsoft New Tai Lue",
+        "Microsoft PhagsPa",
+        "Microsoft Sans Serif",
+        "Microsoft Tai Le",
+        "Microsoft Uighur",
+        "Microsoft YaHei",
+        "Microsoft YaHei Light",
+        "Microsoft YaHei UI",
+        "Microsoft YaHei UI Light",
+        "Microsoft Yi Baiti",
+        "MingLiU-ExtB",
+        "MingLiU_HKSCS-ExtB",
+        "MingLiU_MSCS-ExtB",
+        "Modern",
+        "Mongolian Baiti",
+        "Monotype Corsiva",
+        "MS Gothic",
+        "MS PGothic",
+        "MS Reference Sans Serif",
+        "MS Reference Specialty",
+        "MS Sans Serif",
+        "MS Serif",
+        "MS UI Gothic",
+        "MT Extra",
+        "MV Boli",
+        "Myanmar Text",
+        "Nirmala Text",
+        "Nirmala Text Semilight",
+        "Nirmala UI",
+        "Nirmala UI Semilight",
+        "NSimSun",
+        "Palatino Linotype",
+        "PMingLiU-ExtB",
+        "Roman",
+        "Sans Serif Collection",
+        "Script",
+        "Segoe Fluent Icons",
+        "Segoe MDL2 Assets",
+        "Segoe Print",
+        "Segoe Script",
+        "Segoe UI",
+        "Segoe UI Black",
+        "Segoe UI Emoji",
+        "Segoe UI Historic",
+        "Segoe UI Light",
+        "Segoe UI Semibold",
+        "Segoe UI Semilight",
+        "Segoe UI Symbol",
+        "Segoe UI Variable Display",
+        "Segoe UI Variable Display Light",
+        "Segoe UI Variable Display Semib",
+        "Segoe UI Variable Display Semil",
+        "Segoe UI Variable Small",
+        "Segoe UI Variable Small Light",
+        "Segoe UI Variable Small Semibol",
+        "Segoe UI Variable Small Semilig",
+        "Segoe UI Variable Text",
+        "Segoe UI Variable Text Light",
+        "Segoe UI Variable Text Semibold",
+        "Segoe UI Variable Text Semiligh",
+        "SimSun",
+        "SimSun-ExtB",
+        "SimSun-ExtG",
+        "Sitka Banner",
+        "Sitka Banner Semibold",
+        "Sitka Display",
+        "Sitka Display Semibold",
+        "Sitka Heading",
+        "Sitka Heading Semibold",
+        "Sitka Small",
+        "Sitka Small Semibold",
+        "Sitka Subheading",
+        "Sitka Subheading Semibold",
+        "Sitka Text",
+        "Sitka Text Semibold",
+        "Small Fonts",
+        "Sylfaen",
+        "Symbol",
+        "System",
+        "Tahoma",
+        "Terminal",
+        "Times New Roman",
+        "Times New Roman Baltic",
+        "Times New Roman CE",
+        "Times New Roman CYR",
+        "Times New Roman Greek",
+        "Times New Roman TUR",
+        "Trebuchet MS",
+        "Verdana",
+        "Webdings",
+        "Wingdings",
+        "Wingdings 2",
+        "Wingdings 3",
+        "Yu Gothic",
+        "Yu Gothic Light",
+        "Yu Gothic Medium",
+        "Yu Gothic UI",
+        "Yu Gothic UI Light",
+        "Yu Gothic UI Semibold",
+        "Yu Gothic UI Semilight"
+      ]
+    },
+    {
+      "category": "Aparência",
+      "key": "interface_spacing",
+      "label": "Espaçamento da interface",
+      "kind": "select",
+      "choices": [
+        "Compacto",
+        "Padrão",
+        "Confortável"
+      ]
+    },
+    {
+      "category": "Aparência",
+      "key": "simple_download_ui",
+      "label": "Simplificar controles de download",
+      "kind": "bool",
+      "choices": []
+    },
+    {
+      "category": "Aparência",
+      "key": "queue_actions_at_top",
+      "label": "Mostrar ações antes das listas",
+      "kind": "bool",
+      "choices": []
+    },
+    {
+      "category": "Aparência",
+      "key": "queue_view",
+      "label": "Mostrar itens na fila",
+      "kind": "select",
+      "choices": [
+        "Compacto",
+        "Completa"
+      ]
+    },
+    {
+      "category": "Aparência",
+      "key": "queue_card_size",
+      "label": "Tamanho dos cards da fila",
+      "kind": "select",
+      "choices": [
+        "Pequeno",
+        "Médio",
+        "Grande"
+      ]
+    },
+    {
+      "category": "Aparência",
+      "key": "history_view",
+      "label": "Mostrar músicas no histórico",
+      "kind": "select",
+      "choices": [
+        "Compacto",
+        "Completa"
+      ]
+    },
+    {
+      "category": "Aparência",
+      "key": "history_card_size",
+      "label": "Tamanho dos cards do histórico",
+      "kind": "select",
+      "choices": [
+        "Pequeno",
+        "Médio",
+        "Grande"
+      ]
+    },
+    {
+      "category": "Downloads",
+      "key": "folder",
+      "label": "Pasta de destino",
+      "kind": "text",
+      "choices": []
+    },
+    {
+      "category": "Downloads",
+      "key": "mode",
+      "label": "Formato",
+      "kind": "select",
+      "choices": [
+        "Vídeo · melhor qualidade (MKV)",
+        "Vídeo · MP4",
+        "Áudio · original, sem recodificar",
+        "Áudio · MP3",
+        "Áudio · M4A (AAC)",
+        "Áudio · FLAC",
+        "Fotos · todas do carrossel",
+        "Publicação · fotos e vídeos originais"
+      ]
+    },
+    {
+      "category": "Downloads",
+      "key": "height",
+      "label": "Resolução máxima",
+      "kind": "select",
+      "choices": [
+        "Melhor disponível",
+        "2160p / 4K",
+        "1440p",
+        "1080p",
+        "720p",
+        "480p"
+      ]
+    },
+    {
+      "category": "Downloads",
+      "key": "fps",
+      "label": "FPS máximo",
+      "kind": "select",
+      "choices": [
+        "Original",
+        "24 fps",
+        "30 fps",
+        "60 fps",
+        "120 fps"
+      ]
+    },
+    {
+      "category": "Downloads",
+      "key": "concurrent_downloads",
+      "label": "Downloads simultâneos",
+      "kind": "select",
+      "choices": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "10",
+        "11",
+        "12",
+        "13",
+        "14",
+        "15"
+      ]
+    },
+    {
+      "category": "Downloads",
+      "key": "auto_metadata",
+      "label": "Escolher automaticamente os metadados mais semelhantes",
+      "kind": "bool",
+      "choices": []
+    },
+    {
+      "category": "Downloads",
+      "key": "auto_match",
+      "label": "Escolher automaticamente a versão mais semelhante no YouTube",
+      "kind": "bool",
+      "choices": []
+    },
+    {
+      "category": "Downloads",
+      "key": "confirm_version",
+      "label": "Confirmar a versão do YouTube de cada música antes de baixar",
+      "kind": "bool",
+      "choices": []
+    },
+    {
+      "category": "Downloads",
+      "key": "review_metadata",
+      "label": "Revisar metadados antes de baixar",
+      "kind": "bool",
+      "choices": []
+    },
+    {
+      "category": "Downloads",
+      "key": "organization",
+      "label": "Organizar músicas em",
+      "kind": "select",
+      "choices": [
+        "Catálogo",
+        "Pasta de destino",
+        "Artista",
+        "Artista / Álbum",
+        "Álbum",
+        "Artista / Ano - Álbum",
+        "Gênero / Artista / Álbum",
+        "Formato / Artista / Álbum"
+      ]
+    },
+    {
+      "category": "Downloads",
+      "key": "filename_template",
+      "label": "Nome dos arquivos",
+      "kind": "select",
+      "choices": [
+        "Original",
+        "Artista - Música",
+        "Faixa - Música",
+        "Faixa - Artista - Música",
+        "Disco-Faixa - Música"
+      ]
+    },
+    {
+      "category": "Downloads",
+      "key": "duplicates",
+      "label": "Quando o arquivo já existir",
+      "kind": "select",
+      "choices": [
+        "Perguntar",
+        "Manter ambos",
+        "Substituir",
+        "Ignorar"
+      ]
+    },
+    {
+      "category": "Downloads",
+      "key": "social_best_quality",
+      "label": "Baixar mídias sociais automaticamente na maior qualidade",
+      "kind": "bool",
+      "choices": []
+    },
+    {
+      "category": "Downloads",
+      "key": "auto_select_media",
+      "label": "Selecionar todas as mídias ao abrir a publicação",
+      "kind": "bool",
+      "choices": []
+    },
+    {
+      "category": "Downloads",
+      "key": "playlist",
+      "label": "Baixar playlist de vídeo",
+      "kind": "bool",
+      "choices": []
+    },
+    {
+      "category": "Downloads",
+      "key": "playlist_limit",
+      "label": "Máximo de itens por playlist",
+      "kind": "text",
+      "choices": []
+    },
+    {
+      "category": "Downloads",
+      "key": "detect_duplicates",
+      "label": "Detectar duplicatas na fila e no histórico",
+      "kind": "bool",
+      "choices": []
+    },
+    {
+      "category": "Downloads",
+      "key": "resume_downloads",
+      "label": "Retomar arquivos interrompidos quando possível",
+      "kind": "bool",
+      "choices": []
+    },
+    {
+      "category": "Downloads",
+      "key": "resume_queue",
+      "label": "Retomar fila ao abrir o ONDA",
+      "kind": "bool",
+      "choices": []
+    },
+    {
+      "category": "Downloads",
+      "key": "normalize_volume",
+      "label": "Normalizar volume dos próximos downloads",
+      "kind": "bool",
+      "choices": []
+    },
+    {
+      "category": "Downloads",
+      "key": "finish_action",
+      "label": "Ação ao terminar a fila",
+      "kind": "select",
+      "choices": [
+        "Nenhuma",
+        "Som",
+        "Notificação",
+        "Som e notificação",
+        "Desligar PC"
+      ]
+    },
+    {
+      "category": "Downloads",
+      "key": "taskbar_progress",
+      "label": "Mostrar progresso na barra de tarefas",
+      "kind": "bool",
+      "choices": []
+    },
+    {
+      "category": "Downloads",
+      "key": "schedule_enabled",
+      "label": "Agendar downloads",
+      "kind": "bool",
+      "choices": []
+    },
+    {
+      "category": "Downloads",
+      "key": "schedule_start",
+      "label": "Começar · HH:MM",
+      "kind": "text",
+      "choices": []
+    },
+    {
+      "category": "Downloads",
+      "key": "schedule_stop",
+      "label": "Parar · HH:MM",
+      "kind": "text",
+      "choices": []
+    },
+    {
+      "category": "Imagens",
+      "key": "image_format",
+      "label": "Formato",
+      "kind": "select",
+      "choices": [
+        "Original",
+        "JPG",
+        "PNG",
+        "WebP",
+        "SVG"
+      ]
+    },
+    {
+      "category": "Imagens",
+      "key": "image_size",
+      "label": "Tamanho máximo",
+      "kind": "select",
+      "choices": [
+        "Original",
+        "Até 1920 × 1080",
+        "Até 1280 × 720",
+        "Até 1080 × 1080",
+        "Personalizado"
+      ]
+    },
+    {
+      "category": "Imagens",
+      "key": "image_width",
+      "label": "Largura",
+      "kind": "text",
+      "choices": []
+    },
+    {
+      "category": "Imagens",
+      "key": "image_height",
+      "label": "Altura",
+      "kind": "text",
+      "choices": []
+    },
+    {
+      "category": "Imagens",
+      "key": "image_keep_ratio",
+      "label": "Manter proporção (sem ampliar ou distorcer)",
+      "kind": "bool",
+      "choices": []
+    },
+    {
+      "category": "Áudio",
+      "key": "background_preview",
+      "label": "Continuar efeitos e Jukebox em outras abas",
+      "kind": "bool",
+      "choices": [],
+      "hint": "Permite continuar a prévia de efeitos ou o Jukebox ao trocar de aba. As prévias da pesquisa e dos metadados param ao sair da tela."
+    },
+    {
+      "category": "Áudio",
+      "key": "synced_lyrics",
+      "label": "Mostrar letra sincronizada (LRC)",
+      "kind": "bool",
+      "choices": [],
+      "hint": "Mostra a letra durante a prévia de efeitos quando existe um arquivo .lrc com o mesmo nome ao lado do áudio."
+    },
+    {
+      "category": "Áudio",
+      "key": "search_preview_duration",
+      "label": "Duração máxima da prévia na pesquisa",
+      "kind": "select",
+      "choices": [
+        "10 segundos",
+        "15 segundos",
+        "25 segundos",
+        "30 segundos",
+        "45 segundos",
+        "60 segundos",
+        "90 segundos",
+        "120 segundos",
+        "180 segundos"
+      ],
+      "hint": "Limita o tempo de reprodução ao clicar em Ouvir prévia. O trecho fornecido pelo catálogo pode terminar antes, geralmente após 30 segundos. Não repete nem estende o trecho."
+    },
+    {
+      "category": "Áudio",
+      "key": "effects_preview_duration",
+      "label": "Duração da prévia de efeitos",
+      "kind": "select",
+      "choices": [
+        "10 segundos",
+        "15 segundos",
+        "25 segundos",
+        "30 segundos",
+        "45 segundos",
+        "60 segundos",
+        "90 segundos",
+        "120 segundos",
+        "180 segundos"
+      ],
+      "hint": "Tempo máximo de Ouvir original e Ouvir com efeitos, a partir da posição escolhida. Não altera a duração da exportação nem limita o Jukebox Infinito."
+    },
+    {
+      "category": "Contas",
+      "key": "spotify_client_id",
+      "label": "Client ID",
+      "kind": "text",
+      "choices": []
+    },
+    {
+      "category": "Contas",
+      "key": "spotify_client_secret",
+      "label": "Client Secret · opcional",
+      "kind": "text",
+      "choices": []
+    },
+    {
+      "category": "Ferramentas",
+      "key": "check_updates",
+      "label": "Verificar atualizações do ONDA ao abrir",
+      "kind": "bool",
+      "choices": []
+    },
+    {
+      "category": "Ferramentas",
+      "key": "ffmpeg",
+      "label": "Pasta do FFmpeg · opcional quando já configurado",
+      "kind": "text",
+      "choices": []
+    },
+    {
+      "category": "Desempenho",
+      "key": "conversion_threads",
+      "label": "Threads por conversão",
+      "kind": "select",
+      "choices": [
+        "Automático",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "10",
+        "11",
+        "12"
+      ]
+    },
+    {
+      "category": "Desempenho",
+      "key": "memory_reserve",
+      "label": "Aguardar quando a RAM livre ficar abaixo de",
+      "kind": "select",
+      "choices": [
+        "Desativado",
+        "512 MB",
+        "1 GB",
+        "2 GB",
+        "4 GB"
+      ]
+    },
+    {
+      "category": "Desempenho",
+      "key": "worker_priority",
+      "label": "Prioridade das tarefas",
+      "kind": "select",
+      "choices": [
+        "Normal",
+        "Baixa",
+        "Acima do normal"
+      ]
+    },
+    {
+      "category": "Aparência",
+      "key": "qt_animations",
+      "label": "Animações da interface",
+      "kind": "bool",
+      "choices": []
+    },
+    {
+      "category": "Downloads",
+      "key": "mp3_quality",
+      "label": "Qualidade MP3",
+      "kind": "select",
+      "choices": [
+        "320 kbps",
+        "256 kbps",
+        "192 kbps",
+        "128 kbps",
+        "96 kbps"
+      ]
+    },
+    {
+      "category": "Downloads",
+      "key": "m4a_quality",
+      "label": "Qualidade M4A",
+      "kind": "select",
+      "choices": [
+        "256 kbps",
+        "192 kbps",
+        "128 kbps",
+        "96 kbps"
+      ]
+    },
+    {
+      "category": "Downloads",
+      "key": "catalog_provider",
+      "label": "Plataforma de pesquisa",
+      "kind": "select",
+      "choices": [
+        "Deezer",
+        "Apple / iTunes",
+        "Spotify",
+        "Todos"
+      ]
+    },
+    {
+      "category": "Áudio",
+      "key": "effects_keep_pitch",
+      "label": "Manter tom ao alterar a velocidade",
+      "kind": "bool",
+      "choices": [],
+      "hint": "Preserva o tom original ao mudar a velocidade da prévia e da exportação dos efeitos. Desligado, desacelerar também deixa a voz mais grave."
+    },
+    {
+      "category": "Downloads",
+      "key": "playlist_mode",
+      "label": "Formato de álbuns e playlists",
+      "kind": "select",
+      "choices": [
+        "Áudio · MP3 (320 kbps)",
+        "Áudio · M4A (AAC)",
+        "Áudio · FLAC",
+        "Áudio · original, sem recodificar"
+      ]
+    },
+    {
+      "category": "Downloads",
+      "key": "playlist_mp3_quality",
+      "label": "Qualidade MP3 de playlists",
+      "kind": "select",
+      "choices": [
+        "320 kbps",
+        "256 kbps",
+        "192 kbps",
+        "128 kbps",
+        "96 kbps"
+      ]
+    },
+    {
+      "category": "Downloads",
+      "key": "playlist_m4a_quality",
+      "label": "Qualidade M4A de playlists",
+      "kind": "select",
+      "choices": [
+        "256 kbps",
+        "192 kbps",
+        "128 kbps",
+        "96 kbps"
+      ]
+    }
+  ]
+}

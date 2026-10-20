@@ -49,8 +49,8 @@ val categories=linkedMapOf(
     val searchEntries=remember {settingsSearchEntries()}
     val language=LocalUiLanguage.current
     val keyboard=LocalSoftwareKeyboardController.current
-    val searchResults=remember(searchQuery,language) {if(searchQuery.isBlank())emptyList() else searchEntries.filter {entry->
-        settingsSearchMatches(searchQuery,listOf(entry.category,entry.label,entry.keywords).joinToString(" "){translateUi(it,language)})
+    val searchResults=remember(searchQuery,language,settings.optString("theme")) {if(searchQuery.isBlank())emptyList() else searchEntries.filter {entry->
+        (entry.label!="Mostrar bordas e separações no Preto puro" || settings.optString("theme")=="Preto puro") && settingsSearchMatches(searchQuery,listOf(entry.category,entry.label,entry.keywords).joinToString(" "){translateUi(it,language)})
     }.sortedWith(compareBy<SettingsSearchEntry> {!settingsSearchMatches(searchQuery,translateUi(it.label,language))}.thenBy {it.label.length})}
     fun put(key: String,value: Any) {OndaStore.saveSettings(JSONObject(settings.toString()).put(key,value))}
     val folder=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) {uri->if(uri!=null) {
@@ -113,7 +113,7 @@ val categories=linkedMapOf(
                         Select("Modo de aparência",settings.optString("theme"),listOf("Seguir o sistema","Escuro","Preto puro","Claro","Alto contraste")){put("theme",it)}
                         Select("Cor de destaque",settings.optString("accent"),accents.keys.toList()){put("accent",it)}
                         SettingsDivider()
-                        Toggle("Mostrar bordas e separações no Preto puro",settings.optBoolean("pure_black_separators",false)){put("pure_black_separators",it)}
+                        if(settings.optString("theme")=="Preto puro") Toggle("Mostrar bordas e separações no Preto puro",settings.optBoolean("pure_black_separators",false)){put("pure_black_separators",it)}
                         SettingsDivider()
                         Select("Alterar tamanho da fonte",settings.optString("interface_font_size","100%"),interfaceFontSizes){put("interface_font_size",it)}
                         SettingsDivider()

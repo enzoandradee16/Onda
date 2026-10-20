@@ -1,0 +1,2 @@
+# Qt desktop dependencies; not required by the legacy UI or Android.
+PySide6-Essentials==6.12.0
