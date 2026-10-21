@@ -41,7 +41,10 @@ def create_application(*, complete=True):
         from PySide6.QtGui import QFont
         family=bridge.preferences.get('interface_font','Padrão do sistema');app.setFont(QFont('Segoe UI' if family=='Padrão do sistema' else family))
         picture=draw_icon('onda',64,bridge.palette);qimage=QImage(picture.tobytes('raw','RGBA'),64,64,QImage.Format.Format_RGBA8888).copy()
-        app.setWindowIcon(QIcon(QPixmap.fromImage(qimage)))
+        icon=QIcon(QPixmap.fromImage(qimage))
+        app.setWindowIcon(icon)
+        for window in engine.rootObjects():window.setIcon(icon)
+        if workspace.tray:workspace.tray.setIcon(icon)
     refresh_icon();bridge.appearanceChanged.connect(refresh_icon)
     warnings=[];engine.warnings.connect(lambda rows:warnings.extend(row.toString() for row in rows))
     engine.load(QUrl.fromLocalFile(str(ROOT/'qml/Main.qml')))

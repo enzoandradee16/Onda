@@ -6,6 +6,8 @@ import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -40,8 +42,9 @@ import kotlinx.coroutines.withContext
     val audio=item
     if(audio!=null) {
         key(audio.uri) {AudioFileEditor(audio,vm){item=null;selectedUri=null}}
-    } else Column(Modifier.fillMaxSize().padding(horizontal=LayoutSpacing.inset),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.section)) {
-        PageTitle("Edite os metadados da sua música.","Escolha um arquivo de áudio do aparelho, mesmo que não esteja no histórico.")
+    } else Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal=20.dp),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.section)) {
+        ToolHeading("Editar metadados")
+        ToolEmpty("tag","Sua música, seus detalhes","Escolha um áudio para editar informações, capa e letra.")
         Button(onClick={picker.launch(arrayOf("audio/*","application/ogg"))},modifier=Modifier.fillMaxWidth()) {UiText("Escolher arquivo de áudio")}
         OutlinedButton(onClick={batchSources=arrayListOf();batchOpen=true},modifier=Modifier.fillMaxWidth()){UiText("Editar metadados em lote")}
         UiText("MP3, M4A, FLAC, WAV, OGG e OPUS. Edite música, artistas, álbum, gênero, data, capa e letra.",style=MaterialTheme.typography.bodySmall)

@@ -28,6 +28,9 @@
                 <data android:scheme="onda" android:host="spotify-return" />
             </intent-filter>
         </activity>
+        <activity-alias android:name=".LauncherContrast" android:targetActivity=".MainActivity" android:label="ONDA" android:icon="@mipmap/ic_onda_launcher_contrast" android:enabled="false" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
         <activity-alias android:name=".LauncherDarkAqua" android:targetActivity=".MainActivity" android:label="ONDA" android:icon="@mipmap/ic_onda_launcher_dark_aqua" android:enabled="false" android:exported="true">
             <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
         </activity-alias>

@@ -62,6 +62,8 @@ import org.json.JSONObject
             "add"->{line(12f,4f,12f,20f);line(4f,12f,20f,12f)}
             "next"->{path(6f to 5f,16f to 12f,6f to 19f,close=true);line(19f,5f,19f,19f)}
             "previous"->{path(18f to 5f,8f to 12f,18f to 19f,close=true);line(5f,5f,5f,19f)}
+            "paste"->{path(8f to 5f,4f to 5f,4f to 22f,20f to 22f,20f to 5f,16f to 5f);path(8f to 2f,16f to 2f,16f to 7f,8f to 7f,close=true)}
+            "back"->path(15f to 4f,7f to 12f,15f to 20f)
             "check"->path(5f to 12f,10f to 17f,20f to 6f)
             "chevron"->path(9f to 5f,16f to 12f,9f to 19f)
             "image"->{path(3f to 3f,21f to 3f,21f to 21f,3f to 21f,close=true);path(3f to 18f,10f to 11f,15f to 16f,18f to 13f,21f to 16f);drawCircle(tint,2*u,Offset(16*u,8*v),style=Stroke(stroke))}
@@ -96,11 +98,7 @@ import org.json.JSONObject
 @Composable internal fun OndaAppBar(onSettings:()->Unit) {
     val accent=MaterialTheme.colorScheme.primary
     Row(Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal=24.dp,vertical=8.dp),verticalAlignment=Alignment.CenterVertically) {
-        Canvas(Modifier.size(44.dp,36.dp)) {
-            val path=Path();val points=80
-            for(i in 0..points){val x=i.toFloat()/points;val envelope=kotlin.math.sin(x*Math.PI).toFloat();val y=.5f+kotlin.math.sin(x*8*Math.PI).toFloat()*envelope*.46f;if(i==0)path.moveTo(x*size.width,y*size.height) else path.lineTo(x*size.width,y*size.height)}
-            drawPath(path,accent,style=Stroke(2.7.dp.toPx(),cap=StrokeCap.Round))
-        }
+        OndaBrandMark(Modifier.size(44.dp,36.dp),accent)
         Text("ONDA",Modifier.weight(1f).padding(start=10.dp),style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.Bold,color=accent)
         IconButton(onClick=onSettings,modifier=Modifier.testTag("open-settings")){OndaIcon("settings","Configurações",Modifier.size(25.dp))}
     }
@@ -172,7 +170,9 @@ private val LocalPageSwipeExclusions=staticCompositionLocalOf<MutableMap<Any,Lay
 
 @Composable internal fun OndaMiniPlayer(vm:OndaViewModel,onOpen:()->Unit) {
     val updates=remember(vm){vm.jukebox.state.map {it.copy(index=0,phase=0f,flow=emptyList(),used=emptySet(),elapsed=0.0,jumps=0,nextIndex=-1,jumpBlend=0f)}.distinctUntilChanged()}
-    val state by updates.collectAsStateWithLifecycle(initialValue=vm.jukebox.state.value)
+    val initialState=remember(vm){vm.jukebox.state.value}
+    val state by updates.collectAsStateWithLifecycle(initialValue=initialState)
+    val queuedTracks by vm.jukebox.playbackQueue.collectAsStateWithLifecycle()
     if(state.model==null || !state.playing)return
     var showEqualizer by rememberSaveable {mutableStateOf(false)}
     if(showEqualizer)JukeboxEqualizerDialog {showEqualizer=false}
@@ -185,14 +185,14 @@ private val LocalPageSwipeExclusions=staticCompositionLocalOf<MutableMap<Any,Lay
             Column(Modifier.weight(1f)) {Text(state.title,maxLines=1,overflow=TextOverflow.Ellipsis,style=MaterialTheme.typography.labelLarge);Text(model?.optString("media_artist").orEmpty(),maxLines=1,overflow=TextOverflow.Ellipsis,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)}
             IconButton(onClick={showEqualizer=true}){OndaIcon("equalizer","Equalizador",Modifier.size(23.dp))}
             IconButton(onClick=vm.jukebox::playPause){OndaIcon(if(state.paused)"play" else "pause",if(state.paused)"Retomar" else "Pausar",Modifier.size(23.dp))}
-            IconButton(onClick={val current=vm.jukebox.state.value;val count=current.model?.optJSONArray("neighbors")?.length() ?: 1;vm.jukebox.seek((current.index+1)%count)}){OndaIcon("next","Próximo trecho",Modifier.size(23.dp))}
+            if(queuedTracks.isNotEmpty())IconButton(onClick={vm.jukebox.playQueued(0)},enabled=queuedTracks.first().optString("_analysis")=="Pronta"&&!state.busy,modifier=Modifier.testTag("miniplayer-next-song")){OndaIcon("next","Próxima música",Modifier.size(23.dp))}
         }
     }
 }
 
 @Composable internal fun MorePage(tabs:JSONArray,onNavigate:(String)->Unit,onYouTube:()->Unit,onLicenses:()->Unit,onFailures:()->Unit) {
     val visible=remember(tabs.toString()){(0 until tabs.length()).map {tabs.optString(it)}}
-    LazyColumn(Modifier.fillMaxSize().padding(horizontal=24.dp),verticalArrangement=Arrangement.spacedBy(12.dp),contentPadding=PaddingValues(bottom=24.dp)) {
+    LazyColumn(Modifier.fillMaxSize().testTag("more-list").padding(horizontal=24.dp),verticalArrangement=Arrangement.spacedBy(12.dp),contentPadding=PaddingValues(bottom=24.dp)) {
         item {PageTitle("Mais","Todas as ferramentas do ONDA")}
         for((heading,keys) in listOf("Ferramentas" to listOf("Imagens","Conversor de vídeos","Metadados"),"Biblioteca" to listOf("Playlists / Álbuns","Histórico"))) {
             val shown=visible.filter {it in keys}

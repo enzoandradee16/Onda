@@ -714,11 +714,15 @@ class DesktopWorkspace(QObject):
         from PySide6.QtWidgets import QSystemTrayIcon,QMenu
         from types import SimpleNamespace
         if QSystemTrayIcon.isSystemTrayAvailable():
-            self.tray=QSystemTrayIcon(QGuiApplication.windowIcon(),self);self.tray_menu=QMenu();self.tray_menu.addAction(tr('Abrir ONDA'),self.restore);self.tray_menu.addAction(tr('Baixar fila'),self.start_queue);self.tray_menu.addAction(tr('Parar fila'),self.stop_queue);self.tray_menu.addAction(tr('Sair'),lambda:self.requestClose(True));self.tray.setContextMenu(self.tray_menu);self.tray.activated.connect(lambda reason:self.restore())
+            self.tray=QSystemTrayIcon(QGuiApplication.windowIcon(),self);self.tray_menu=QMenu();self.tray_menu.addAction(tr('Abrir ONDA'),self.restore);self.tray_menu.addAction(tr('Baixar fila'),self.start_queue);self.tray_menu.addAction(tr('Parar fila'),self.stop_queue);self.tray_menu.addAction(tr('Sair'),lambda:self.requestClose(True));self.tray.setContextMenu(self.tray_menu);self.tray.activated.connect(self.tray_activated)
         try:
             from windows_shell import WindowsShell
             self.shell=WindowsShell(SimpleNamespace(winfo_id=lambda:int(self.window.winId())))
         except OSError:self.shell=None
+    def tray_activated(self,reason):
+        from PySide6.QtWidgets import QSystemTrayIcon
+        if reason in (QSystemTrayIcon.ActivationReason.Trigger,QSystemTrayIcon.ActivationReason.DoubleClick):
+            self.restore()
     def bind_shortcuts(self):
         from shortcut_options import effective_bindings,display_shortcut
         for shortcut in self.shortcuts:shortcut.setEnabled(False);shortcut.deleteLater()

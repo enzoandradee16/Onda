@@ -72,10 +72,13 @@ internal object LauncherIcons {
     }
     private val taskIcons=WeakHashMap<Activity,String>()
 
+    private val launcherPrefix=MainActivity::class.java.name.substringBeforeLast('.')+".Launcher"
+
     internal fun aliasFor(context:Context,settings:JSONObject):ComponentName {
+        if(settings.optString("theme")=="Alto contraste")return ComponentName(context.packageName,"${launcherPrefix}Contrast")
         val mode=when(settings.optString("theme")) {"Claro"->"Light";"Escuro","Alto contraste"->"Dark";"Preto puro"->"Black";else->"System"}
         val color=colors[settings.optString("accent")] ?: "Aqua"
-        return ComponentName(context.packageName,"${context.packageName}.Launcher$mode$color")
+        return ComponentName(context.packageName,"$launcherPrefix$mode$color")
     }
 
     @Suppress("DEPRECATION")
@@ -100,13 +103,13 @@ internal object LauncherIcons {
                 // Enable the replacement before removing old entries on Android 8–12.
                 if(Build.VERSION.SDK_INT>=33) {
                     val changes=mutableListOf(PackageManager.ComponentEnabledSetting(desired,PackageManager.COMPONENT_ENABLED_STATE_ENABLED,PackageManager.DONT_KILL_APP))
-                    enabled.filter {it!=desired && it.className.startsWith(context.packageName+".Launcher")}.forEach {
+                    enabled.filter {it!=desired && it.className.startsWith(launcherPrefix)}.forEach {
                         changes+=PackageManager.ComponentEnabledSetting(it,PackageManager.COMPONENT_ENABLED_STATE_DISABLED,PackageManager.DONT_KILL_APP)
                     }
                     pm.setComponentEnabledSettings(changes)
                 } else {
                     pm.setComponentEnabledSetting(desired,PackageManager.COMPONENT_ENABLED_STATE_ENABLED,PackageManager.DONT_KILL_APP)
-                    enabled.filter {it!=desired && it.className.startsWith(context.packageName+".Launcher")}.forEach {
+                    enabled.filter {it!=desired && it.className.startsWith(launcherPrefix)}.forEach {
                         pm.setComponentEnabledSetting(it,PackageManager.COMPONENT_ENABLED_STATE_DISABLED,PackageManager.DONT_KILL_APP)
                     }
                 }

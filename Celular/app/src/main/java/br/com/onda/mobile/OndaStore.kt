@@ -17,7 +17,7 @@ import java.io.File
 import java.util.UUID
 
 data class DownloadItem(val id: String, val title: String, val config: JSONObject, val state: String = "Pendente", val progress: Float = 0f, val message: String = "", val activity:String="")
-data class HistoryItem(val id: Long, val title: String, val uri: String, val mode: String, val size: Long, val metadataPlatform:String="",val source:String="")
+data class HistoryItem(val id: Long, val title: String, val uri: String, val mode: String, val size: Long, val metadataPlatform:String="",val source:String="",val completedAt:Long=0L)
 data class Question(val identity: String, val event: JSONObject, val callback: ((JSONObject)->Unit)?=null)
 
 private class OndaDatabase(context: Context) : SQLiteOpenHelper(context,"onda.sqlite3",null,1) {
@@ -83,6 +83,7 @@ object OndaStore {
         database.writableDatabase.execSQL("INSERT OR IGNORE INTO queue_order SELECT id,rowid FROM queue")
         database.writableDatabase.execSQL("CREATE TABLE IF NOT EXISTS history_sources (history_id INTEGER PRIMARY KEY, source TEXT NOT NULL, mode TEXT NOT NULL)")
         database.writableDatabase.execSQL("CREATE TABLE IF NOT EXISTS history_metadata_platform (history_id INTEGER PRIMARY KEY, platform TEXT NOT NULL)")
+        database.writableDatabase.execSQL("CREATE TABLE IF NOT EXISTS history_dates (history_id INTEGER PRIMARY KEY, completed_at INTEGER NOT NULL)")
         database.writableDatabase.execSQL("CREATE INDEX IF NOT EXISTS history_source_index ON history_sources(source,mode)")
         database.writableDatabase.execSQL("UPDATE queue SET state='Erro' WHERE state='Duplicata'")
         refresh()
@@ -174,8 +175,8 @@ object OndaStore {
 
     @Synchronized private fun refreshHistory() {
         val past = mutableListOf<HistoryItem>()
-        database.readableDatabase.rawQuery("SELECT h.id,h.title,h.uri,h.mode,h.size,COALESCE(m.platform,''),COALESCE(s.source,'') FROM history h LEFT JOIN history_metadata_platform m ON m.history_id=h.id LEFT JOIN history_sources s ON s.history_id=h.id ORDER BY h.id DESC LIMIT 3000",null).use { cursor ->
-            while(cursor.moveToNext()) past += HistoryItem(cursor.getLong(0),cursor.getString(1),cursor.getString(2),cursor.getString(3),cursor.getLong(4),cursor.getString(5),cursor.getString(6))
+        database.readableDatabase.rawQuery("SELECT h.id,h.title,h.uri,h.mode,h.size,COALESCE(m.platform,''),COALESCE(s.source,''),COALESCE(d.completed_at,0) FROM history h LEFT JOIN history_dates d ON d.history_id=h.id LEFT JOIN history_metadata_platform m ON m.history_id=h.id LEFT JOIN history_sources s ON s.history_id=h.id ORDER BY h.id DESC LIMIT 3000",null).use { cursor ->
+            while(cursor.moveToNext()) past += HistoryItem(cursor.getLong(0),cursor.getString(1),cursor.getString(2),cursor.getString(3),cursor.getLong(4),cursor.getString(5),cursor.getString(6),cursor.getLong(7))
         }
         history.value = past
     }
@@ -439,9 +440,11 @@ object OndaStore {
     fun publish(path: String, config: JSONObject, mode: String): Uri {
         val file = File(path)
         val uri = destination(file,config)
+        val completedAt=System.currentTimeMillis()
         val historyId=database.writableDatabase.insertOrThrow("history",null,ContentValues().apply {
             put("title",file.name);put("uri",uri.toString());put("mode",mode);put("size",file.length())
         })
+        database.writableDatabase.execSQL("INSERT INTO history_dates(history_id,completed_at) VALUES(?,?)",arrayOf<Any>(historyId,completedAt))
         if(config.optString("url").isNotBlank() && config.optString("_operation").isBlank()) {
             database.writableDatabase.execSQL("INSERT INTO history_sources(history_id,source,mode) VALUES(?,?,?)",arrayOf<Any>(historyId,jobSource(config),mode))
         }
@@ -450,7 +453,7 @@ object OndaStore {
         if(platform.isNotBlank())database.writableDatabase.execSQL("INSERT OR REPLACE INTO history_metadata_platform(history_id,platform) VALUES(?,?)",arrayOf<Any>(historyId,platform))
         synchronized(this) {
             history.value=insertHistoryRow(history.value,HistoryItem(historyId,file.name,uri.toString(),mode,file.length(),platform,
-                if(config.optString("url").isNotBlank() && config.optString("_operation").isBlank())jobSource(config) else ""))
+                if(config.optString("url").isNotBlank() && config.optString("_operation").isBlank())jobSource(config) else "",completedAt))
         }
         // MediaStore/SAF now owns the exported copy. Keep custom inputs and the
         // Android 8/9 FileProvider source, which still backs the published URI.
@@ -476,8 +479,8 @@ object OndaStore {
         val intent = Intent(Intent.ACTION_SEND).setType(mimeFor(title)).putExtra(Intent.EXTRA_STREAM,Uri.parse(uri)).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         context.startActivity(Intent.createChooser(intent,"Compartilhar").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
-    @Synchronized fun removeHistory(id: Long) { database.writableDatabase.delete("history_metadata_platform","history_id=?",arrayOf(id.toString())); database.writableDatabase.delete("history_sources","history_id=?",arrayOf(id.toString())); database.writableDatabase.delete("history","id=?",arrayOf(id.toString())); refreshHistory() }
-    @Synchronized fun clearHistory() { database.writableDatabase.execSQL("DELETE FROM history_metadata_platform"); database.writableDatabase.execSQL("DELETE FROM history_sources"); database.writableDatabase.execSQL("DELETE FROM history"); refreshHistory() }
+    @Synchronized fun removeHistory(id: Long) { database.writableDatabase.delete("history_dates","history_id=?",arrayOf(id.toString())); database.writableDatabase.delete("history_metadata_platform","history_id=?",arrayOf(id.toString())); database.writableDatabase.delete("history_sources","history_id=?",arrayOf(id.toString())); database.writableDatabase.delete("history","id=?",arrayOf(id.toString())); refreshHistory() }
+    @Synchronized fun clearHistory() { database.writableDatabase.execSQL("DELETE FROM history_dates"); database.writableDatabase.execSQL("DELETE FROM history_metadata_platform"); database.writableDatabase.execSQL("DELETE FROM history_sources"); database.writableDatabase.execSQL("DELETE FROM history"); refreshHistory() }
     fun mimeFor(name: String): String = when(name.substringAfterLast('.').lowercase()) {
         "mp3"->"audio/mpeg"; "m4a"->"audio/mp4"; "flac"->"audio/flac"; "wav"->"audio/wav"
         "mov"->"video/quicktime"; "mp4"->"video/mp4"; "mkv"->"video/x-matroska"; "webm"->"video/webm"

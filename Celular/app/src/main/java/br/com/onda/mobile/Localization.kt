@@ -1,4 +1,5 @@
 package br.com.onda.mobile
+import androidx.compose.ui.unit.dp
 
 import android.content.Context
 import androidx.compose.material3.MaterialTheme
@@ -65,7 +66,7 @@ internal fun translateUi(text:String,language:String=OndaStore.settings.value.op
 
 @Composable internal fun LocalizedTheme(language:String,colorScheme:ColorScheme,typography:Typography,spacing:String="Padrão",content:@Composable ()->Unit) {
     CompositionLocalProvider(LocalUiLanguage provides normalizedLanguage(language),LocalLayoutSpacing provides spacingValues(spacing)) {
-        MaterialTheme(colorScheme=colorScheme,typography=typography,content=content)
+        MaterialTheme(colorScheme=colorScheme,typography=typography,shapes=androidx.compose.material3.Shapes(extraSmall=androidx.compose.foundation.shape.RoundedCornerShape(16.dp),small=androidx.compose.foundation.shape.RoundedCornerShape(12.dp),medium=androidx.compose.foundation.shape.RoundedCornerShape(16.dp),large=androidx.compose.foundation.shape.RoundedCornerShape(20.dp)),content=content)
     }
 }
 

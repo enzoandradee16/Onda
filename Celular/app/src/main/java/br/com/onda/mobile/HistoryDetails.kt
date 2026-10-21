@@ -5,19 +5,6 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
 import android.net.Uri
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 
 internal data class HistoryDetails(val title:String="",val artist:String="",val lines:List<String> = emptyList(),val cover:Bitmap?=null)
 
@@ -63,31 +50,4 @@ internal fun invalidateHistoryDetails() {
 internal fun cachedHistoryDetails(context:Context,item:HistoryItem,revision:Long):HistoryDetails {
     val key="${item.uri}|${item.size}|$revision"
     return historyDetailsCache.get(key) ?: readHistoryDetails(context,item.uri).also {historyDetailsCache.put(key,it)}
-}
-
-@Composable internal fun CompleteHistoryInformation(item:HistoryItem,size:String="Grande") {
-    val side=when(size) {"Pequeno"->56.dp;"Médio"->76.dp;else->96.dp}
-    val small=size=="Pequeno"
-    val context=LocalContext.current
-    val revision by historyDetailsRevision.collectAsState()
-    val details by produceState<HistoryDetails?>(null,item.uri,item.size,revision) {
-        value=withContext(Dispatchers.IO) {cachedHistoryDetails(context,item,revision)}
-    }
-    Row(Modifier.fillMaxWidth().padding(bottom=if(small) 6.dp else 12.dp).testTag("history-complete-${item.id}"),horizontalArrangement=Arrangement.spacedBy(if(small) 8.dp else 12.dp)) {
-        val cover=details?.cover
-        if(cover!=null) Image(cover.asImageBitmap(),translateUi("Capa do álbum",LocalUiLanguage.current),Modifier.size(side),contentScale=ContentScale.Fit)
-        else Surface(Modifier.size(side),color=MaterialTheme.colorScheme.surfaceVariant) {
-            Box(contentAlignment=androidx.compose.ui.Alignment.Center) {UiText("♫",style=MaterialTheme.typography.headlineLarge)}
-        }
-        Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.details)) {
-            Text(songCardTitle(details?.title?.ifBlank {item.title} ?: item.title,details?.artist.orEmpty()),style=if(small) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold)
-            Text(details?.artist?.takeIf {it.isNotBlank()} ?: translateUi(if(details==null) "Carregando informações…" else "Artista não informado",LocalUiLanguage.current),style=if(small) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyLarge)
-            val translatedLines=details?.lines?.map {line->
-                val split=line.indexOf(": ")
-                if(split>=0) translateUi(line.substring(0,split),LocalUiLanguage.current)+line.substring(split) else translateUi(line,LocalUiLanguage.current)
-            }
-            if(small) translatedLines?.takeIf {it.isNotEmpty()}?.let {UiText(it.joinToString(" · "),style=MaterialTheme.typography.bodySmall)}
-            else translatedLines?.forEach {UiText(it,style=MaterialTheme.typography.bodySmall)}
-        }
-    }
 }

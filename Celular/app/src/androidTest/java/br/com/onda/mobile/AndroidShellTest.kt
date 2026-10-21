@@ -29,7 +29,7 @@ class AndroidShellTest {
             compose.onNodeWithTag("more-Conversor").assertIsDisplayed()
             compose.onNodeWithTag("more-Editar metadados").assertIsDisplayed()
             compose.onNodeWithTag("more-Imagens").performClick()
-            compose.onNodeWithText("Imagens do seu jeito.").assertExists()
+            compose.onNodeWithText("Imagens").assertExists()
             compose.onNodeWithTag("nav-Fila").performClick()
             compose.onNodeWithContentDescription("Adicionar links").performClick()
             compose.onNodeWithTag("links-input").assertExists()

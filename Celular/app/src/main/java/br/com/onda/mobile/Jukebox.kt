@@ -360,6 +360,7 @@ internal class JukeboxController(private val context:Context,private val scope:C
 @Composable private fun JukeboxPage(vm:OndaViewModel) {
     val controller=vm.jukebox;val state by controller.state.collectAsStateWithLifecycle()
     val searching by controller.searching.collectAsStateWithLifecycle()
+    val queuedTracks by controller.playbackQueue.collectAsStateWithLifecycle()
     var showEqualizer by rememberSaveable {mutableStateOf(false)}
     if(showEqualizer)JukeboxEqualizerDialog {showEqualizer=false}
     var query by rememberSaveable {mutableStateOf("")}
@@ -426,7 +427,7 @@ internal class JukeboxController(private val context:Context,private val scope:C
             IconButton(onClick={showSwitchTimer=false;showTimer=true}){OndaIcon("timer","Timer",Modifier.size(23.dp),tint=if(timer>0 || switchTimer>0)MaterialTheme.colorScheme.primary else LocalContentColor.current)}
             IconButton(onClick={controller.seek((state.index-1).coerceAtLeast(0))},enabled=state.model!=null&&!state.busy){OndaIcon("previous","Trecho anterior",Modifier.size(25.dp))}
             FilledIconButton(onClick=controller::playPause,enabled=state.model!=null&&!state.busy,modifier=Modifier.size(64.dp),shape=RoundedCornerShape(50)){OndaIcon(if(state.playing&&!state.paused)"pause" else "play",if(state.playing&&!state.paused)"Pausar" else "Reproduzir",Modifier.size(28.dp))}
-            IconButton(onClick={val n=state.model?.optJSONArray("neighbors")?.length() ?: 1;controller.seek((state.index+1)%n)},enabled=state.model!=null&&!state.busy){OndaIcon("next","Próximo trecho",Modifier.size(25.dp))}
+            if(queuedTracks.isNotEmpty())IconButton(onClick={controller.playQueued(0)},enabled=queuedTracks.first().optString("_analysis")=="Pronta"&&!state.busy,modifier=Modifier.testTag("jukebox-next-song")){OndaIcon("next","Próxima música",Modifier.size(25.dp))}
             Box {
                 IconButton(onClick={playbackMenu=true}){OndaIcon("more","Controles da reprodução",Modifier.size(25.dp))}
                 DropdownMenu(expanded=playbackMenu,onDismissRequest={playbackMenu=false}) {

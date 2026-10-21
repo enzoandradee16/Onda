@@ -209,6 +209,11 @@ class JukeboxBridge(QObject):
             a=point(self._beat_index);b=point(self._next_index);t=self._jump_blend
             return {'x':a[0]*(1-t)**2+b[0]*t*t,'y':a[1]*(1-t)**2+b[1]*t*t}
         x,y=point(self._position);return {'x':x,'y':y}
+    @Property(str,constant=True)
+    def brandPath(self):
+        from brand_mark import SVG_PATH
+        return SVG_PATH
+
     @Property('QVariantMap',notify=appearanceChanged)
     def palette(self):
         from appearance import palette

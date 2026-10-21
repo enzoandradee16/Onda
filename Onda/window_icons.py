@@ -22,10 +22,8 @@ def draw_icon(kind, size, colors=None):
     ink, pale, dark = colors.get("accent","#65dfbd"), colors.get("text","#eef3fa"), colors.get("bg","#10151e")
     draw.rounded_rectangle((2, 2, 94, 94), radius=22, fill=dark)
     if kind == "onda":
-        for x,top,bottom in ((18,42,54),(32,28,68),(48,16,80),(64,28,68),(78,42,54)):
-            draw.line((x,top,x,bottom),fill=ink,width=6)
-            draw.ellipse((x-3,top-3,x+3,top+3),fill=ink)
-            draw.ellipse((x-3,bottom-3,x+3,bottom+3),fill=ink)
+        from brand_mark import icon
+        return icon(size,ink,dark)
     elif kind == "settings":
         for index in range(8):
             angle = index * math.pi / 4

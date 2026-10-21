@@ -40,12 +40,14 @@ val categories=linkedMapOf(
     val settings by OndaStore.settings.collectAsStateWithLifecycle()
     val busy by vm.busy.collectAsStateWithLifecycle()
     val status by vm.status.collectAsStateWithLifecycle()
-    val names=remember {settingsCategoryOrder()}
+    val names=remember {settingsCategoryOrder()+"Desempenho"}
     val pager=rememberPagerState(initialPage=names.indexOf(initialCategory).takeIf {it>=0} ?: 0,pageCount={names.size})
+    var overview by rememberSaveable {mutableStateOf(initialCategory=="Geral")}
     val scope=rememberCoroutineScope()
     var reset by remember {mutableStateOf(false)}
     var searchQuery by rememberSaveable {mutableStateOf("")}
     var searchTarget by remember {mutableStateOf("")}
+    androidx.activity.compose.BackHandler {if(!overview){overview=true;searchTarget=""} else close()}
     val searchEntries=remember {settingsSearchEntries()}
     val language=LocalUiLanguage.current
     val keyboard=LocalSoftwareKeyboardController.current
@@ -65,29 +67,48 @@ val categories=linkedMapOf(
         }
     }
 
-    Dialog(onDismissRequest=close) {
-        Surface(modifier=Modifier.clip(RoundedCornerShape(28.dp)),shape=RoundedCornerShape(28.dp)) {Column(Modifier.fillMaxWidth().fillMaxHeight(.94f).padding(LayoutSpacing.inset),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.text)) {
-            UiText("Do seu jeito.",style=MaterialTheme.typography.headlineSmall)
-            UiText("Escolha uma categoria para ajustar o Onda.",style=MaterialTheme.typography.bodySmall)
-            OutlinedTextField(searchQuery,{searchQuery=it;searchTarget=""},label={UiText("Pesquisar configurações")},singleLine=true,modifier=Modifier.fillMaxWidth().testTag("settings-search"))
+    Surface(Modifier.fillMaxSize(),color=MaterialTheme.colorScheme.background) {
+        Column(Modifier.fillMaxSize().imePadding().padding(horizontal=20.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+            Row(verticalAlignment=androidx.compose.ui.Alignment.CenterVertically) {
+                IconButton(onClick={if(overview)close() else {overview=true;searchTarget=""}}){OndaIcon("back","Voltar",Modifier.size(24.dp))}
+                ToolHeading(if(overview)"Configurações" else names[pager.currentPage])
+            }
+            OutlinedTextField(searchQuery,{searchQuery=it;searchTarget=""},label={UiText("Pesquisar configurações")},singleLine=true,shape=RoundedCornerShape(16.dp),modifier=Modifier.fillMaxWidth().testTag("settings-search"))
             if(searchQuery.isNotBlank()) {
                 if(searchResults.isEmpty())UiText("Nenhuma configuração encontrada.",style=MaterialTheme.typography.bodySmall)
                 Column(Modifier.fillMaxWidth().heightIn(max=170.dp).verticalScroll(rememberScrollState())) {
                     searchResults.forEach {entry->
                         TextButton(onClick={
-                            searchTarget=entry.label;searchQuery="";keyboard?.hide()
+                            searchTarget=entry.label;searchQuery="";overview=false;keyboard?.hide()
                             scope.launch {pager.scrollToPage(names.indexOf(entry.category).coerceAtLeast(0))}
                         },modifier=Modifier.fillMaxWidth()) {
-                            Text(translateUi(entry.category,language)+": "+translateUi(entry.label,language))
+                            Text(translateUi(entry.category,language)+" · "+translateUi(entry.label,language))
                         }
                     }
                 }
             }
             if(busy) {LinearProgressIndicator(Modifier.fillMaxWidth());UiText(status,style=MaterialTheme.typography.bodySmall,maxLines=2);TextButton(onClick={vm.cancel()}){UiText("Cancelar")}}
-            ScrollableTabRow(selectedTabIndex=pager.currentPage,edgePadding=0.dp) { names.forEachIndexed {index,name->Tab(selected=pager.currentPage==index,onClick={scope.launch {pager.scrollToPage(index)}},text={UiText(name,maxLines=1)})} }
+            if(overview && searchQuery.isBlank()) {
+                Column(Modifier.weight(1f).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(16.dp)) {
+                    for((group,groupNames) in listOf("Preferências" to listOf("Geral","Aparência","Áudio","Downloads","Imagens"),"Aplicativo" to listOf("Contas","Ferramentas","Desempenho"))) {
+                        UiText(group,style=MaterialTheme.typography.titleSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                        ToolCard {
+                            groupNames.filter {it in names}.forEachIndexed {index,name->
+                                if(index>0)HorizontalDivider(color=MaterialTheme.colorScheme.outlineVariant.copy(alpha=.35f))
+                                Row(Modifier.fillMaxWidth().heightIn(min=54.dp).clickable {overview=false;scope.launch {pager.scrollToPage(names.indexOf(name))}},verticalAlignment=androidx.compose.ui.Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(16.dp)) {
+                                    OndaIcon(when(name){"Aparência"->"image";"Áudio"->"equalizer";"Downloads"->"download";"Imagens"->"image";"Contas"->"tag";"Ferramentas"->"convert";else->"settings"},modifier=Modifier.size(24.dp))
+                                    Column(Modifier.weight(1f)) {UiText(name,style=MaterialTheme.typography.titleMedium);if(name=="Áudio")UiText("Prévias, transições e reprodução",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)}
+                                    OndaIcon("chevron",modifier=Modifier.size(20.dp))
+                                }
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(12.dp))
+                }
+            } else {
             CompositionLocalProvider(LocalSettingsSearchTarget provides searchTarget) {
             HorizontalPager(state=pager,modifier=Modifier.weight(1f).testTag("settings-pages"),verticalAlignment=androidx.compose.ui.Alignment.Top) { page->
-            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(top=LayoutSpacing.controls),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
+            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom=16.dp).background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha=.25f),RoundedCornerShape(18.dp)).padding(16.dp),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
                 when(names[page]) {
                     "Geral"->{
                         Toggle("Lembrar configurações",settings.optBoolean("remember",true)){put("remember",it)}
@@ -254,6 +275,9 @@ val categories=linkedMapOf(
                         if(settings.optString("youtube_cookies_file").isNotBlank()) SettingsDivider()
                         if(settings.optString("youtube_cookies_file").isNotBlank()) TextButton(onClick={java.io.File(settings.getString("youtube_cookies_file")).delete();put("youtube_cookies_file","");put("youtube_user_agent","");android.webkit.CookieManager.getInstance().removeAllCookies(null)}) {UiText("Remover sessão do YouTube")}
                     }
+                    "Desempenho"->{
+                        CacheControls(vm)
+                    }
                     "Ferramentas"->{
                         AppUpdateControls(vm)
                         SettingsDivider()
@@ -271,8 +295,8 @@ val categories=linkedMapOf(
             }
             }
             }
-            TextButton(onClick=close,modifier=Modifier.fillMaxWidth()){UiText("Pronto")}
-        }}
+            }
+        }
     }
     if(reset) ResetWindow {reset=false}
 }

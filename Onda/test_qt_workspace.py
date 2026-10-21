@@ -35,6 +35,17 @@ class NativeDesktopTests(unittest.TestCase):
     def tone(self,name='source.wav'):
         from test_jukebox import song
         path=self.root/name;song(path);return path
+    def test_tray_context_menu_does_not_restore_window(self):
+        from PySide6.QtWidgets import QSystemTrayIcon
+        reasons=QSystemTrayIcon.ActivationReason
+        with patch.object(self.ws,'restore') as restore:
+            for reason in (reasons.Context,reasons.MiddleClick,reasons.Unknown):
+                self.ws.tray_activated(reason)
+            restore.assert_not_called()
+            self.ws.tray_activated(reasons.Trigger)
+            self.ws.tray_activated(reasons.DoubleClick)
+            self.assertEqual(restore.call_count,2)
+
     def test_selected_lrc_enables_display_and_invalid_file_preserves_lyrics(self):
         path=self.root/'song.lrc';path.write_text('[00:01.20]Canção',encoding='utf-16')
         self.ws.options['position']=2

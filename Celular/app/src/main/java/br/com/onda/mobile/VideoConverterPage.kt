@@ -28,6 +28,8 @@ import java.util.UUID
     var audioBitrate by rememberSaveable {mutableStateOf("192k")}
     var fps by rememberSaveable {mutableStateOf("Original")}
     var audio by rememberSaveable {mutableStateOf("Manter áudio")}
+    var advanced by rememberSaveable {mutableStateOf(false)}
+    var trimSilence by rememberSaveable {mutableStateOf(false)}
     var info by rememberSaveable {mutableStateOf("")}
     val audioSource=(if(batch.isNotEmpty())batch else listOf(source)).any {File(it).extension.lowercase() in listOf("mp3","m4a","aac","flac","wav","ogg","opus")}
     val audioOnly=format in listOf("MP3","M4A","AAC")
@@ -35,8 +37,8 @@ import java.util.UUID
     val status by vm.status.collectAsStateWithLifecycle()
     val batchPicker=rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) {uris->
         if(uris.isNotEmpty())vm.importConversionBatch(uris) {paths->
-            batch.filter {it !in paths}.forEach {File(it).delete()}
-            batch=ArrayList(paths);source=paths.firstOrNull() ?: "";info=""
+            val previous=if(batch.isNotEmpty())batch.toList() else listOf(source).filter {it.isNotBlank()}
+            batch=ArrayList((previous+paths).distinct());source=batch.firstOrNull() ?: "";info=""
             if(paths.any {File(it).extension.lowercase() in listOf("mp3","m4a","aac","flac","wav","ogg","opus")})format="MP3"
         }
     }
@@ -54,11 +56,13 @@ import java.util.UUID
             }
         }
     }}
-    Column(Modifier.fillMaxSize().padding(LayoutSpacing.inset).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
-        PageTitle("Conversor","Converta áudios e vídeos locais sem alterar os arquivos originais.")
-        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
-        OutlinedButton(onClick={picker.launch(arrayOf("audio/*","video/*"))},enabled=!busy,modifier=Modifier.testTag("converter-choose")){UiText("Escolher arquivo")}
-        OutlinedButton(onClick={batchPicker.launch(arrayOf("audio/*","video/*"))},enabled=!busy){UiText("Converter em lote")}
+    Column(Modifier.fillMaxSize().padding(horizontal=20.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
+        ToolHeading("Conversor")
+        if(source.isBlank())ToolEmpty("convert","Converta seus arquivos","Escolha áudios ou vídeos do aparelho para começar.")
+        ToolCard {
+        Column(Modifier.fillMaxWidth(),verticalArrangement=Arrangement.spacedBy(8.dp)) {
+        OutlinedButton(onClick={picker.launch(arrayOf("audio/*","video/*"))},enabled=!busy,modifier=Modifier.fillMaxWidth().testTag("converter-choose")){UiText("Escolher arquivo")}
+        OutlinedButton(onClick={batchPicker.launch(arrayOf("audio/*","video/*"))},enabled=!busy,modifier=Modifier.fillMaxWidth()){UiText("Adicionar arquivos")}
         if(source.isNotBlank())TextButton(enabled=!busy,onClick={
             runCatching {
                 val context=OndaStore.context
@@ -72,27 +76,34 @@ import java.util.UUID
         }
         if(batch.isNotEmpty())Text("${batch.size} · "+translateUi("Arquivos selecionados",LocalUiLanguage.current))
         if(source.isNotBlank()) {
+            OndaIcon("convert",modifier=Modifier.size(30.dp),tint=MaterialTheme.colorScheme.primary)
             Text(File(source).name.replaceFirst(Regex("^(?:video-converter|audio-batch|conversion-batch)-[0-9a-f-]{36}-"),""))
             if(info.isNotBlank())Text(info)
         }
+        }
+        ToolCard {
+        UiText("Configurações",style=MaterialTheme.typography.titleMedium)
         BoxWithConstraints(Modifier.fillMaxWidth()) {
-            val columns=if(maxWidth>=600.dp) 3 else if(maxWidth>=340.dp) 2 else 1
+            val columns=if(maxWidth>=600.dp) 2 else 1
             val cellWidth=(maxWidth-LayoutSpacing.controls*(columns-1))/columns
             FlowRow(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(LayoutSpacing.controls),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
                 Box(Modifier.width(cellWidth)) { Select("Formato",format,if(audioSource)listOf("MP3","M4A","AAC") else listOf("MP4","MKV","MOV","MP3","M4A","AAC")){if(!busy)format=it} }
                 if(!audioOnly)Box(Modifier.width(cellWidth)) { Select("Qualidade",quality,listOf("Equilibrada","Alta qualidade","Arquivo menor")){if(!busy)quality=it} }
-                if(!audioOnly)Box(Modifier.width(cellWidth)) { Select("Resolução máxima",resolution,listOf("Original","1080p","720p","480p")){if(!busy)resolution=it} }
-                if(!audioOnly)Box(Modifier.width(cellWidth)) { Select("Bitrate de vídeo",bitrate,listOf("Automático","1000k","2500k","5000k","8000k","12000k","20000k")){if(!busy)bitrate=it} }
-                Box(Modifier.width(cellWidth)) { Select(if(audioOnly) "Qualidade do áudio (kbps)" else "Bitrate de áudio",audioBitrate,listOf("96k","128k","192k","256k","320k")){if(!busy)audioBitrate=it} }
-                if(!audioOnly)Box(Modifier.width(cellWidth)) { Select("Quadros por segundo (FPS)",fps,listOf("Original","24","25","30","50","60")){if(!busy)fps=it} }
-                if(!audioOnly)Box(Modifier.width(cellWidth)) { Select("Áudio",audio,listOf("Manter áudio","Sem áudio")){if(!busy)audio=it} }
+                if(advanced && !audioOnly)Box(Modifier.width(cellWidth)) { Select("Resolução máxima",resolution,listOf("Original","1080p","720p","480p")){if(!busy)resolution=it} }
+                if(advanced && !audioOnly)Box(Modifier.width(cellWidth)) { Select("Bitrate de vídeo",bitrate,listOf("Automático","1000k","2500k","5000k","8000k","12000k","20000k")){if(!busy)bitrate=it} }
+                if(audioOnly || advanced)Box(Modifier.width(cellWidth)) { Select(if(audioOnly) "Qualidade do áudio (kbps)" else "Bitrate de áudio",audioBitrate,listOf("96k","128k","192k","256k","320k")){if(!busy)audioBitrate=it} }
+                if(advanced && !audioOnly)Box(Modifier.width(cellWidth)) { Select("Quadros por segundo (FPS)",fps,listOf("Original","24","25","30","50","60")){if(!busy)fps=it} }
+                if(advanced && !audioOnly)Box(Modifier.width(cellWidth)) { Select("Áudio",audio,listOf("Manter áudio","Sem áudio")){if(!busy)audio=it} }
             }
         }
-        if(!audioOnly)UiText("Bitrate automático usa a qualidade escolhida; bitrate fixo usa a taxa selecionada.",style=MaterialTheme.typography.bodySmall)
-        if(!audioOnly)UiText("H.264 e AAC. Preserva a proporção e não amplia o vídeo.",style=MaterialTheme.typography.bodySmall)
-        if(!audioOnly)UiText("Exporta o vídeo e a primeira faixa de áudio; legendas e outras faixas não são incluídas.",style=MaterialTheme.typography.bodySmall)
+        }
+        TextButton(onClick={advanced=!advanced}){UiText(if(advanced)"Ocultar opções avançadas" else "Opções avançadas")}
+        ToolCard {ToolSwitch("Remover silêncio",trimSilence,"No início e no fim",enabled=!busy){trimSilence=it}}
+        if(advanced && !audioOnly)UiText("Bitrate automático usa a qualidade escolhida; bitrate fixo usa a taxa selecionada.",style=MaterialTheme.typography.bodySmall)
+        if(advanced && !audioOnly)UiText("H.264 e AAC. Preserva a proporção e não amplia o vídeo.",style=MaterialTheme.typography.bodySmall)
+        if(advanced && !audioOnly)UiText("Exporta o vídeo e a primeira faixa de áudio; legendas e outras faixas não são incluídas.",style=MaterialTheme.typography.bodySmall)
         Button(enabled=!busy && source.isNotBlank(),modifier=Modifier.fillMaxWidth().testTag("converter-start"),onClick={
-            val options=OndaStore.config(includeSecrets=false).put("source",source).put("video_format",format).put("video_quality",quality).put("video_resolution",resolution).put("video_bitrate",bitrate).put("audio_bitrate",audioBitrate).put("video_fps",fps).put("video_audio",audio).put("mode",format.lowercase()).put("duplicate_policy","keep")
+            val options=OndaStore.config(includeSecrets=false).put("source",source).put("video_format",format).put("video_quality",quality).put("video_resolution",resolution).put("video_bitrate",bitrate).put("audio_bitrate",audioBitrate).put("video_fps",fps).put("video_audio",audio).put("mode",format.lowercase()).put("duplicate_policy","keep").put("trim_silence",trimSilence)
             val base=File(options.getString("folder"),"Conversor");base.mkdirs()
             val name=File(source).name.replaceFirst(Regex("^video-converter-[0-9a-f-]{36}-"),"").substringBeforeLast('.')
             options.put("output",File(base,name.take(100)+" - "+UUID.randomUUID().toString().take(8)+"."+format.lowercase()).absolutePath)
@@ -101,6 +112,7 @@ import java.util.UUID
         }){UiText("Converter")}
         if(busy) {LinearProgressIndicator(Modifier.fillMaxWidth());TextButton(onClick={vm.cancel()}){UiText("Cancelar")}}
         if(status.isNotBlank())UiText(status,style=MaterialTheme.typography.bodySmall)
+        Spacer(Modifier.height(8.dp))
         UiText("A cópia convertida é salva no destino de downloads e aparece no Histórico.",style=MaterialTheme.typography.bodySmall)
     }
 }

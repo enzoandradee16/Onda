@@ -41,7 +41,7 @@ val syncSharedEngine by tasks.registering(Sync::class) {
         include("*.py")
         exclude("test_*", "*_ui.py", "queue_cards.py", "queue_artwork.py", "app.py", "ui.py", "desktop_entry.py", "ffmpeg_runtime.py",
             "failure_ui.py", "keyboard_shortcuts.py", "jukebox_ui.py", "jukebox_audio.py", "windows_media.py", "slider_style.py", "playback_ui.py", "interface_spacing.py", "failure_report.py", "list_context.py", "i18n.py", "i18n_tk.py", "credentials.py", "preferences.py", "first_run.py", "single_instance.py", "window_*.py", "tab_order.py", "settings_scroll.py",
-            "appearance.py", "interface_fonts.py", "library.py", "reset_settings.py",
+            "appearance.py", "brand_mark.py", "interface_fonts.py", "library.py", "reset_settings.py",
             "flac_browser_ui.py", "catalog_picker.py", "media_picker.py", "version_picker.py", "parallel_queue.py", "lazy_ui.py")
     }
     into("src/main/python/shared")

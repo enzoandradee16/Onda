@@ -537,9 +537,10 @@ def perform(action, config):
                 with open_preview(image) as picture:
                     dimensions=picture.size
                     picture.thumbnail((1600,1600))
-                    result=folder/'preview.png'
+                    import uuid
+                    result=folder/f'preview-{uuid.uuid4().hex}.png'
                     picture.convert('RGBA').save(result,format='PNG')
-                return {'path':str(result),'width':dimensions[0],'height':dimensions[1]}
+                return {'path':str(result),'width':dimensions[0],'height':dimensions[1],'format':image.suffix.lstrip('.').upper()}
             final,skipped=publish(image,Path(config['folder']),config.get('duplicate_policy','keep'),ask_duplicate)
             emit('file',path=final,mode=Path(final).suffix.lstrip('.'),skipped=skipped)
             return {'path':final}
