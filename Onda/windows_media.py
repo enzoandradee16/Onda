@@ -1,6 +1,9 @@
 """Native Windows SMTC session for the existing Jukebox PCM output; no helper player."""
 import ctypes as c
 from ctypes import wintypes as w
+import base64
+from pathlib import Path
+from urllib.parse import urlparse,unquote
 import queue
 import uuid
 from windows_shell import Guid
@@ -68,9 +71,39 @@ class MediaControls:
         self.vtable=(P*4)(*[c.cast(fn,P) for fn in self.callbacks])
         class Delegate(c.Structure):_fields_=[('vtable',c.POINTER(P))]
         return Delegate(self.vtable)
-    def update(self,title,artist,playing,paused):
-        signature=(title,artist,playing,paused)
+    def set_cover(self,cover):
+        """Publish the already loaded artwork, without fetching images on the UI thread."""
+        reference=P();stream=P();random=P();factory=P()
+        try:
+            data=b''
+            if cover.startswith('data:image/'):
+                header,separator,payload=cover.partition(',')
+                if not separator or ';base64' not in header or len(payload)>12*1024*1024:raise ValueError('Invalid artwork data')
+                data=base64.b64decode(payload,validate=True)
+            elif cover:
+                path=Path(unquote(urlparse(cover).path.lstrip('/'))) if cover.startswith('file:') else Path(cover)
+                if path.is_file() and path.stat().st_size<=8*1024*1024:data=path.read_bytes()
+            if data and len(data)<=8*1024*1024:
+                shell=c.WinDLL('shlwapi');shell.SHCreateMemStream.argtypes=[P,w.UINT];shell.SHCreateMemStream.restype=P
+                buffer=c.create_string_buffer(data);stream=P(shell.SHCreateMemStream(buffer,len(data)))
+                if not stream:raise OSError('Unable to create artwork stream')
+                interop=c.WinDLL('shcore');interop.CreateRandomAccessStreamOverStream.argtypes=[P,w.DWORD,c.POINTER(Guid),c.POINTER(P)];interop.CreateRandomAccessStreamOverStream.restype=HRESULT
+                checked(interop.CreateRandomAccessStreamOverStream(stream,0,c.byref(Guid.value('905a0fe1-bc53-11df-8c49-001e4fc686da')),c.byref(random)))
+                name=self.string('Windows.Storage.Streams.RandomAccessStreamReference')
+                try:checked(self.runtime.RoGetActivationFactory(name,c.byref(Guid.value('857309dc-3fbf-4e7d-986f-ef3b1a07a964')),c.byref(factory)))
+                finally:self.runtime.WindowsDeleteString(name)
+                checked(method(factory,8,P,c.POINTER(P))(factory,random,c.byref(reference)))
+            checked(method(self.updater,11,P)(self.updater,reference))
+        finally:
+            release(reference);release(factory);release(random);release(stream)
+    def update(self,title,artist,playing,paused,cover=''):
+
+        signature=(title,artist,playing,paused,cover)
         if signature==self.signature:return
+        if self.signature is None or cover!=self.signature[4]:
+            try:self.set_cover(cover)
+            except (OSError,ValueError):
+                checked(method(self.updater,11,P)(self.updater,None))
         for index,value in ((7,title),(11,artist)):
             text=self.string(value)
             try:checked(method(self.music,index,P)(self.music,text))

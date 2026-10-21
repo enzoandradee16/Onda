@@ -494,7 +494,7 @@ class JukeboxBridge(QObject):
                 if button==0 and (not self._state['playing'] or self.paused.is_set()):self.playPause()
                 elif button==1 and self._state['playing'] and not self.paused.is_set():self.playPause()
                 elif button==2:self.stop()
-            self.media.update(self._state['title'],self._state['artist'],self._state['playing'],self._state['paused'])
+            self.media.update(self._state['title'],self._state['artist'],self._state['playing'],self._state['paused'],self._state['cover'])
     @Slot()
     def shutdown(self):
         if self.closed:return

@@ -132,7 +132,7 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
     LaunchedEffect(tab) {
         if(tab!="Efeitos") {
             if(!settings.optBoolean("keep_preview"))vm.stopPreview(stopJukebox=false)
-            if(!settings.optBoolean("jukebox_background"))vm.jukebox.stop()
+            if(!settings.optBoolean("jukebox_background"))vm.jukebox.pause()
         }
     }
     val typography=remember(settings.optString("interface_font"),settings.optString("interface_font_size")) {interfaceTypography(settings.optString("interface_font",DEFAULT_INTERFACE_FONT),settings.optString("interface_font_size","100%"))}
@@ -778,11 +778,14 @@ fun mediaClock(seconds:Long):String {val value=seconds.coerceAtLeast(0);return "
     val lyricSettings by OndaStore.settings.collectAsStateWithLifecycle()
     val pickLyrics=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) {uri->if(uri!=null)vm.importLocal(uri,"lyrics",dialog=true) {file->
         vm.operation("lyrics_read",JSONObject().put("source",file.absolutePath),dialog=true) {result->
-            lyrics=result.optJSONArray("lines")?.let {rows->(0 until rows.length()).map {index->rows.getJSONArray(index).let {it.getDouble(0) to it.getString(1)}}} ?: emptyList()
-            lyricsName=if(lyrics.isEmpty()) "" else file.name.replaceFirst(Regex("^lyrics-[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}-"),"")
+            val parsed=result.optJSONArray("lines")?.let {rows->(0 until rows.length()).map {index->rows.getJSONArray(index).let {it.getDouble(0) to it.getString(1)}}} ?: emptyList()
+            val name=file.name.replaceFirst(Regex("^lyrics-[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}-"),"")
             file.delete()
-            if(lyrics.isEmpty())vm.showNotice("Importar letra LRC","Nenhum tempo válido na letra LRC.")
-            else OndaStore.saveSettings(JSONObject(OndaStore.settings.value.toString()).put("synced_lyrics",true))
+            if(parsed.isEmpty())vm.showNotice("Importar letra LRC","Nenhum tempo válido na letra LRC.")
+            else {
+                lyrics=parsed;lyricsName=name
+                OndaStore.saveSettings(JSONObject(OndaStore.settings.value.toString()).put("synced_lyrics",true))
+            }
         }
     }}
     LaunchedEffect(lyrics,lyricSettings.optBoolean("synced_lyrics")) {

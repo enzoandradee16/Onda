@@ -279,7 +279,7 @@ class App(UiMixin, tk.Tk):
             self.after_cancel(self._preference_after)
             self._preference_after = None
         try:
-            self.preference_store.save_display({name: self.preference_fields[name].get() for name in self.preference_store.DISPLAY_FIELDS})
+            self.preference_store.save_display({**self.preference_store.load_display(), **{name: self.preference_fields[name].get() for name in self.preference_store.DISPLAY_FIELDS if name in self.preference_fields}})
         except OSError:
             self.write_log("Não foi possível salvar as configurações deste computador.")
         if not self.remember_settings.get():

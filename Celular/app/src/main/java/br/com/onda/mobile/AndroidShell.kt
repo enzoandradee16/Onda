@@ -171,7 +171,7 @@ private val LocalPageSwipeExclusions=staticCompositionLocalOf<MutableMap<Any,Lay
 }
 
 @Composable internal fun OndaMiniPlayer(vm:OndaViewModel,onOpen:()->Unit) {
-    val updates=remember(vm){vm.jukebox.state.map {it.copy(index=0,phase=0f,flow=emptyList(),elapsed=0.0,jumps=0,nextIndex=-1,jumpBlend=0f)}.distinctUntilChanged()}
+    val updates=remember(vm){vm.jukebox.state.map {it.copy(index=0,phase=0f,flow=emptyList(),used=emptySet(),elapsed=0.0,jumps=0,nextIndex=-1,jumpBlend=0f)}.distinctUntilChanged()}
     val state by updates.collectAsStateWithLifecycle(initialValue=vm.jukebox.state.value)
     if(state.model==null || !state.playing)return
     var showEqualizer by rememberSaveable {mutableStateOf(false)}

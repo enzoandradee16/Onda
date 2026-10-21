@@ -17,14 +17,18 @@ Popup {
         }
         OndaTextField { id: search; Layout.fillWidth: true; placeholderText: bridge.translate("Pesquisar configurações") }
         RowLayout { Layout.fillWidth: true; Layout.fillHeight: true; spacing: Math.round(22*bridge.spacing)
-            ColumnLayout { Layout.preferredWidth: 160; Layout.alignment: Qt.AlignTop; spacing: Math.round(5*bridge.spacing)
+            ColumnLayout { Layout.preferredWidth: 160; Layout.maximumWidth: 160; Layout.minimumWidth: 160; Layout.alignment: Qt.AlignTop; spacing: Math.round(5*bridge.spacing)
                 Repeater { model: ["Geral","Aparência","Downloads","Imagens","Áudio","Contas","Ferramentas","Desempenho"]
                     ActionButton { required property string modelData; Layout.fillWidth: true; text: bridge.translate(modelData); primary: popup.category === modelData; onClicked: { popup.category=modelData;search.clear() } }
                 }
                 Item { Layout.fillHeight: true }
             }
-            ScrollView { Layout.fillWidth: true; Layout.fillHeight: true; clip: true; contentWidth: availableWidth
-                ColumnLayout { width: parent.availableWidth; spacing: Math.round(18*bridge.spacing)
+            ScrollView {
+                id: settingsScroll
+                Layout.fillWidth: true; Layout.fillHeight: true; Layout.minimumWidth: 0; Layout.preferredWidth: 700
+                clip: true; contentWidth: availableWidth
+                ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+                ColumnLayout { width: settingsScroll.availableWidth; spacing: Math.round(18*bridge.spacing)
                     Repeater { model: workspace.settingsFields
                         OptionField { required property var modelData; Layout.fillWidth: true; Layout.minimumWidth: 0; Layout.maximumWidth: parent.width; field: modelData; settings: true; visible: (modelData.key !== "pure_black_separators" || workspace.preferences.theme_mode === "Preto puro") && (search.text ? bridge.translate(modelData.label).toLowerCase().indexOf(search.text.toLowerCase()) >= 0 : modelData.category === popup.category) }
                     }

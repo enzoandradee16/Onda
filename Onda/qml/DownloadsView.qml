@@ -65,7 +65,16 @@ ColumnLayout {
             ActionButton { objectName: "viewDownloadQueueButton"; text: bridge.translate("Ver fila"); onClicked: workspace.selectPage("queue") }
         }
     }
-    Item { visible: !page.queuePage; Layout.fillWidth: true; Layout.fillHeight: true }
+    Item {
+        visible: !page.queuePage; Layout.fillWidth: true; Layout.fillHeight: true
+        ColumnLayout {
+            objectName: "linksEmptyState"
+            visible: !workspace.values.links.trim() && !workspace.values.linksNotice
+            anchors.centerIn: parent; width: Math.max(0,parent.width-32); spacing: 8
+            Label { text: bridge.translate("Cole um link para começar"); color: bridge.palette.text; font.pixelSize: Math.round(20*bridge.fontScale); font.bold: true; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.Wrap }
+            Label { text: bridge.translate("Baixe vídeos, músicas e fotos. Cole um link por linha e escolha Baixar agora ou Adicionar à fila."); color: bridge.palette.muted; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.Wrap }
+        }
+    }
     RowLayout { objectName: "downloadQueueFilters"; visible: page.queuePage; Layout.fillWidth: true
         OndaTextField { Layout.fillWidth: true; placeholderText: bridge.translate("Buscar na fila"); text: workspace.values.queueQuery; onTextEdited: workspace.setOption("queueQuery",text) }
         ChoiceBox { model: ["Todos","Na fila","Em andamento","Pausado","Concluído","Falhou","Cancelado"]; onActivated: workspace.setOption("queueState",currentText) }
