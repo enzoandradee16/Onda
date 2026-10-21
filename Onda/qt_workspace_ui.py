@@ -151,6 +151,10 @@ class DesktopWorkspace(QObject):
     def pause_background_jukebox(self):
         if not self.settings.get('jukebox_background',True) and self.bridge.state['playing'] and not self.bridge.state['paused']:self.bridge.playPause()
     @Slot(str)
+    def selectNavigationPage(self,key):
+        if key=='effects':key='jukebox' if self.settings.get('playback_tab_order')=='Jukebox infinito primeiro' else 'effects'
+        self.selectPage(key)
+    @Slot(str)
     def selectPage(self,key):
         if key not in PAGES or key in self.hiddenTabs:return
         if key!=self._page:
@@ -726,9 +730,9 @@ class DesktopWorkspace(QObject):
         pages=self.settings.get('tab_order',list(PAGES));visible=[key for key in pages if key not in self.hiddenTabs]
         if action.startswith('tab:'):
             index=int(action[4:])
-            if index<len(visible):self.selectPage(visible[index])
+            if index<len(visible):self.selectNavigationPage(visible[index])
         elif action in ('next','previous'):
-            key='effects' if self._page=='jukebox' else self._page;self.selectPage(visible[(visible.index(key)+(1 if action=='next' else -1))%len(visible)])
+            key='effects' if self._page=='jukebox' else self._page;self.selectNavigationPage(visible[(visible.index(key)+(1 if action=='next' else -1))%len(visible)])
         elif action in ('links','queue','history','search'):self.selectPage({'links':'downloads','search':'catalog'}.get(action,action))
         elif action=='settings':self.showSettings()
         elif action=='metadata':self.showMetadata()

@@ -79,6 +79,9 @@ class JukeboxTests(unittest.TestCase):
         saved=json.loads((base/'analysis.json').read_text())
         self.assertEqual(saved['energy_levels'],result['energy_levels'])
         self.assertEqual(saved['links'],sum(map(len,saved['neighbors'])))
+        self.assertEqual(len(saved['join_features']),32)
+        with patch.object(jukebox,'_features',side_effect=AssertionError('cached features were recomputed')):
+            self.assertTrue(jukebox.prepare(source)['cached'])
 
     def test_old_phrase_cache_is_reanalysed_from_pcm_once(self):
         import hashlib,shutil
@@ -94,6 +97,79 @@ class JukeboxTests(unittest.TestCase):
             self.assertEqual(analyse.call_count,1)
             self.assertEqual(decode.call_count,1)
             self.assertEqual(decode.call_args.args[0][5],str(base/'audio.wav'))
+
+    def test_loop_boundary_prefers_broad_cycle_over_late_short_repeat(self):
+        rows=[[] for _ in range(40)];rows[28]=[2];rows[37]=[31]
+        self.assertEqual(jukebox.loop_boundary(rows),28)
+        rows=[[] for _ in range(40)];rows[20]=[8];rows[12]=[2];rows[37]=[31]
+        self.assertEqual(jukebox.loop_boundary(rows),20)
+        self.assertIsNone(jukebox.loop_boundary([[],[4],[],[],[]]))
+
+    def test_branch_chance_grows_between_jumps_and_resets_after_jump(self):
+        for variation in (0,45,100):
+            values=[jukebox.branch_probability(variation,wait) for wait in (4,8,16,32,100)]
+            self.assertEqual(values,sorted(values));self.assertLess(values[0],values[-1])
+            self.assertLessEqual(values[-1],.5)
+            self.assertEqual(jukebox.branch_probability(variation,0),values[0])
+
+    def test_reachable_cycle_does_not_enter_later_short_dead_end(self):
+        model=dict(self.model,neighbors=[[] for _ in range(32)])
+        model['neighbors'][22]=[2];model['neighbors'][30]=[24]
+        (self.base/'analysis.json').write_text(json.dumps(model))
+        player=jukebox.Session(self.base);player.random=SimpleNamespace(random=lambda:1,choice=lambda rows:rows[0])
+        try:
+            parts=[player.chunk(100,0,100) for _ in range(150)]
+            self.assertEqual(player.loop_end,22)
+            self.assertTrue(all(part['index']<=22 for part in parts))
+            self.assertGreaterEqual(sum(part['jumped'] for part in parts),5)
+            self.assertTrue(all(part['next']==2 for part in parts if part['jumped']))
+        finally:player.close()
+
+    def test_jump_prefers_matching_pcm_edge_volume_among_unvisited_matches(self):
+        model=dict(self.model,neighbors=[[] for _ in range(32)])
+        model['neighbors'][4]=[20,24];(self.base/'analysis.json').write_text(json.dumps(model))
+        player=jukebox.Session(self.base);player.random=SimpleNamespace(random=lambda:0,choice=lambda rows:rows[0])
+        try:
+            player.boundary_levels=[[.1,.1] for _ in range(32)];player.boundary_levels[20]=[.5,.5]
+            player.index=4;player.since_jump=4
+            self.assertEqual(player.chunk(100,0,100)['next'],24)
+        finally:player.close()
+
+    def test_loud_optional_jump_waits_but_mandatory_return_is_not_blocked(self):
+        model=dict(self.model,neighbors=[[] for _ in range(32)])
+        model['neighbors'][4]=[20];model['neighbors'][27]=[8]
+        (self.base/'analysis.json').write_text(json.dumps(model))
+        player=jukebox.Session(self.base);player.random=SimpleNamespace(random=lambda:0,choice=lambda rows:rows[0])
+        try:
+            player.boundary_levels=[[.1,.1] for _ in range(32)]
+            player.boundary_levels[20]=[.5,.5];player.index=4;player.since_jump=4
+            self.assertFalse(player.chunk(100,0,100)['jumped'])
+            player.boundary_levels[8]=[.5,.5];player.index=27;player.since_jump=0
+            part=player.chunk(100,0,100);self.assertTrue(part['jumped']);self.assertEqual(part['next'],8)
+        finally:player.close()
+
+    def test_join_context_prefers_matching_phrase_and_reuses_cached_features(self):
+        with wave.open(str(self.base/'audio.wav'),'rb') as sound:
+            model=jukebox.with_join_features(dict(self.model,energy_levels=[.1]*32),sound)
+            with patch.object(jukebox,'_features',side_effect=AssertionError('must reuse features')):
+                self.assertIs(jukebox.with_join_features(model,sound),model)
+        self.assertEqual(len(model['join_features']),32)
+        features=[[1.]+[0.]*11+[1.]+[0.]*7 for _ in range(32)]
+        model=dict(model,join_features=features)
+        matched=jukebox.join_context(model,7,16)
+        for k in range(14,20):features[k]=[0.,1.]+[0.]*10+[0.,1.]+[0.]*6
+        self.assertGreater(jukebox.join_context(model,7,16),matched)
+
+    def test_adaptive_join_respects_smoothing_and_does_not_lengthen_vocal_risk_mix(self):
+        model=dict(self.model,energy_levels=[.1]*32)
+        boundary=[[.1,.1] for _ in range(32)]
+        self.assertEqual(jukebox.join_fade_seconds(model,4,20,boundary,0),0)
+        plain=jukebox.join_fade_seconds(model,4,20,boundary,100)
+        voice=[1.]+[0.]*11+[0.,0.,0.,1.,1.,1.,0.,0.]
+        model['join_features']=[voice for _ in range(32)]
+        risk=jukebox.join_fade_seconds(model,4,20,boundary,100)
+        self.assertGreater(risk,0);self.assertLess(risk,plain)
+        self.assertLessEqual(plain,.2)
 
     def test_jump_uses_only_graph_neighbors_and_honors_spacing(self):
         player=jukebox.Session(self.base);player.random=SimpleNamespace(random=lambda:0,choice=lambda rows:rows[0])

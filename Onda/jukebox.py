@@ -95,6 +95,79 @@ def pcm_energy_levels(sound,beats):
         levels.append(math.sqrt(sum(squares)/max(1,2*len(squares)))/32768)
     return levels
 
+def pcm_boundary_levels(sound,beats):
+    """Small, bounded PCM windows for choosing quieter joins; no new decoder."""
+    levels=[]
+    for start,end in zip(beats,beats[1:]):
+        first,last=round(start*RATE),round(end*RATE)
+        span=max(1,min(round(RATE*.05),(last-first)//2))
+        pair=[]
+        for frame in (first,max(first,last-span)):
+            sound.setpos(min(frame,sound.getnframes()))
+            samples=array('h',sound.readframes(span))
+            if os.sys.byteorder!='little':samples.byteswap()
+            # Sample both channels at a bounded rate; preserve actual edge dynamics.
+            squares=[samples[k]**2+samples[k+1]**2 for k in range(0,len(samples)-1,CHANNELS*16)]
+            pair.append(math.sqrt(sum(squares)/max(1,2*len(squares)))/32768)
+        levels.append(pair)
+    return levels
+
+
+def with_join_features(model,sound):
+    """One short spectral window per beat, cached with the prepared model."""
+    rows=model.get('join_features');n=len(model['neighbors'])
+    if isinstance(rows,list) and len(rows)==n and all(isinstance(row,list) and len(row)==20 and all(type(v) in (int,float) and math.isfinite(v) for v in row) for row in rows):return model
+    rows=[];span=round(RATE*512/8000)
+    for start,end in zip(model['beats'],model['beats'][1:]):
+        first,last=round(start*RATE),round(end*RATE)
+        sound.setpos(min(max(first,(first+last-span)//2),sound.getnframes()))
+        samples=array('h',sound.readframes(span))
+        if os.sys.byteorder!='little':samples.byteswap()
+        mono=[]
+        for k in range(512):
+            at=round(k*RATE/8000)*CHANNELS
+            mono.append((samples[at]+samples[at+1])/2 if at+1<len(samples) else 0)
+        vector,_=_features(mono);rows.append([round(value,6) for value in vector])
+    return dict(model,join_features=rows)
+
+
+def join_context(model,source,target):
+    """Compare preceding and following phrase contours without word recognition."""
+    levels=model['energy_levels'];features=model.get('join_features');n=len(levels)
+    differences=[];spectral=[]
+    for offset in (-2,-1,0,1,2,3):
+        a,b=source+1+offset,target+offset
+        if not (0<=a<n and 0<=b<n):continue
+        differences.append(min(12,abs(20*math.log10(max(levels[a],.0001)/max(levels[b],.0001)))))
+        if features:
+            left,right=features[a],features[b]
+            def cosine(a,b):return sum(x*y for x,y in zip(a,b))/(math.sqrt(sum(x*x for x in a)*sum(y*y for y in b)) or 1)
+            pitch=cosine(left[:12],right[:12]);timbre=cosine(left[12:],right[12:])
+            spectral.append(max(0,1-(.6*pitch+.4*timbre)))
+    envelope=sum(differences)/max(1,len(differences))
+    distance=sum(spectral)/max(1,len(spectral))
+    phase_penalty=0 if (target-source-1)%4==0 else .5
+    return envelope*.2+distance*4+phase_penalty
+
+
+def sustained_midrange(model,index,boundary):
+    # Harmonic midrange can also be an instrument; this is deliberately a soft risk.
+    rows=model.get('join_features')
+    if not rows:return 0.
+    row=rows[index];mid=sum(row[15:18])/max(1e-9,sum(row[12:]))
+    tail=boundary[index][1]/max(.0001,model['energy_levels'][index])
+    return max(0.,min(1.,(mid-.3)/.4))*max(0.,min(1.,tail))
+
+
+def join_fade_seconds(model,source,target,boundary,smooth):
+    a,b=boundary[source][1],boundary[target][0]
+    delta=abs(20*math.log10(max(a,.0001)/max(b,.0001)))
+    seconds=.10+.10*min(1,delta/6)
+    risk=max(sustained_midrange(model,source,boundary),sustained_midrange(model,target,boundary))
+    seconds*=1-.45*risk
+    return seconds*max(0,min(100,smooth))/100
+
+
 def refine_energy(model,sound=None):
     levels=model.get('energy_levels')
     n=len(model['neighbors'])
@@ -188,7 +261,7 @@ def analyse_wave(path,cancelled=lambda:False,progress=lambda _:None):
                 if context is not None:ranked.append((.35*chroma+.25*timbre+.4*context,j))
         neighbors[i]=[j for _,j in sorted(ranked,reverse=True)[:5]]
     neighbors=energy_matched_links(neighbors,levels)
-    return {'version':VERSION,'phrase_version':PHRASE_VERSION,'duration':duration,'bpm':round(60/period,1),'beat_confidence':round(confidence,3),'beats':beats,'energy_levels':levels,'neighbors':neighbors,'links':sum(map(len,neighbors))}
+    return {'version':VERSION,'phrase_version':PHRASE_VERSION,'duration':duration,'bpm':round(60/period,1),'beat_confidence':round(confidence,3),'beats':beats,'energy_levels':levels,'join_features':[[round(v,6) for v in row] for row in descriptors],'neighbors':neighbors,'links':sum(map(len,neighbors))}
 
 def cache_root():
     from cache_cleanup import root_path
@@ -222,7 +295,7 @@ def prepare(source,folder='',cancelled=lambda:False,progress=lambda _:None):
 
                 with wave.open(str(pcm),'rb') as sound:
                     if sound.getframerate()!=RATE or sound.getnchannels()!=CHANNELS or sound.getsampwidth()!=2 or abs(sound.getnframes()/RATE-model['duration'])>.1:raise ValueError('Cache de áudio inválido.')
-                    refined=refine_energy(model,sound)
+                    refined=with_join_features(refine_energy(model,sound),sound)
                 if refined!=model:
                     model=refined;model['links']=sum(map(len,model['neighbors']))
                     staging=base/(uuid.uuid4().hex+'.json')
@@ -260,20 +333,50 @@ def validate_model(model):
     if any(not isinstance(row,list) or len(row)>5 for row in model['neighbors']):raise ValueError('Análise inválida.')
     if any(type(j)!=int or not 0<=j<n for row in model['neighbors'] for j in row):raise ValueError('Análise inválida.')
 
+def loop_boundary(rows):
+    """Measure reachable loop spans using existing backward edges and sequential beats.
+
+    Overlapping backward intervals form mutually reachable regions. Merging them
+    avoids a dense transitive-closure matrix, including for cached analyses.
+    """
+    intervals=sorted((j,i) for i,row in enumerate(rows) for j in row if j<i-4)
+    regions=[]
+    for start,end in intervals:
+        if regions and start<=regions[-1][1]:
+            regions[-1]=(regions[-1][0],max(end,regions[-1][1]))
+        else:regions.append((start,end))
+    if not regions:return None
+    # Prefer a late return spanning at least half the track; otherwise keep the
+    # broadest reachable cycle instead of the final, potentially tiny loop.
+    broad=[(start,end) for start,end in regions if end-start>=len(rows)*.5]
+    return max(broad,key=lambda region:region[1])[1] if broad else max(regions,key=lambda region:(region[1]-region[0],region[1]))[1]
+
+
+def branch_probability(variation,wait):
+    amount=max(0,min(100,float(variation)))/100
+    minimum=.05+.13*amount;maximum=.18+.32*amount
+    return min(maximum,minimum+max(0,wait-4)*(.008+.01*amount))
+
+
+def variation_neighbors(rows,variation):
+    """Neighbors are ranked by musical similarity; widen the pool with variation."""
+    fraction=.2+.8*max(0,min(100,float(variation)))/100
+    return [row[:max(1,math.ceil(len(row)*fraction))] for row in rows]
+
+
 class Session:
     def __init__(self,cache,seed=None):
         self.base=Path(cache).resolve()
         if self.base.parent!=cache_root().resolve():raise ValueError('Cache inválido.')
         self.model=json.loads((self.base/'analysis.json').read_text());validate_model(self.model)
         self.sound=wave.open(str(self.base/'audio.wav'),'rb')
-        self.model=refine_energy(self.model,self.sound)
+        self.model=with_join_features(refine_energy(self.model,self.sound),self.sound)
+        self.boundary_levels=pcm_boundary_levels(self.sound,self.model['beats'])
         from jukebox_equalizer import Equalizer
         self.equalizer=Equalizer(RATE)
         self.index=0;self.since_jump=0;self.jumps=0;self.random=random.Random(seed);self.closed=False;self.fade_in=0
         n=len(self.model['neighbors']);self.visits=[0]*n;self.recent=[]
-        # Keep an established backward match before the ending. Cached analyses remain valid.
-        self.loop_end=next((i for i in range(min(n-1,int(n*.95)),max(3,n//4)-1,-1)
-                            if any(j<i-4 for j in self.model['neighbors'][i])),None)
+        self.loop_end=loop_boundary(self.model['neighbors'])
         with _active_lock:_active[str(self.base)]+=1
     def _read(self,start,count):
         start=max(0,min(start,self.sound.getnframes()));self.sound.setpos(start)
@@ -288,20 +391,34 @@ class Session:
         variation=max(0,min(100,float(variation)));smooth=max(0,min(100,float(smooth)));volume=max(0,min(100,float(volume)))
         i=self.index;beats=self.model['beats'];n=len(beats)-1
         next_index=(i+1)%n
-        options=self.model['neighbors'][i]
+        if getattr(self,'_variation',None)!=variation:
+            self._variation=variation;self._eligible=variation_neighbors(self.model['neighbors'],variation)
+            self.loop_end=loop_boundary(self._eligible)
+        options=self._eligible[i]
         if not normal:
             looping=self.loop_end is not None and i<=self.loop_end
             if looping:options=[j for j in options if j<=self.loop_end]
             returning=looping and i==self.loop_end
             if returning:options=[j for j in options if j<i-4]
             # Most faithful still loops: low probability, with a bounded wait for an eligible edge.
-            probability=.05+.30*variation/100
+            probability=branch_probability(variation,self.since_jump)
+            if (i+1)%4 and sustained_midrange(self.model,i,self.boundary_levels)>.6:probability*=.35
             if options and (returning or self.since_jump>=4 and (self.since_jump>=32 or self.random.random()<probability)):
                 # Prefer unexplored destinations, keeping all choices inside the validated graph.
                 candidates=([j for j in options if j not in self.recent]
                             or [j for j in options if j not in self.recent[-1:]] or options)
                 least=min(self.visits[j] for j in candidates)
-                next_index=self.random.choice([j for j in candidates if self.visits[j]==least])
+                candidates=[j for j in candidates if self.visits[j]==least]
+                # Keep exploration fair, then prefer the least abrupt volume seam.
+                def seam_cost(j):
+                    outgoing=self.boundary_levels[i][1];incoming=self.boundary_levels[j][0]
+                    return abs(20*math.log10(max(incoming,.0001)/max(outgoing,.0001)))
+                volumes={j:seam_cost(j) for j in candidates}
+                compatible=[j for j in candidates if volumes[j]<=6]
+                if compatible:candidates=compatible
+                costs={j:volumes[j]+join_context(self.model,i,j) for j in candidates};best=min(costs.values())
+                if returning or min(volumes[j] for j in candidates)<=6 or self.since_jump>=32:
+                    next_index=self.random.choice([j for j in candidates if costs[j]<=best+.35])
         self.visits[i]+=1
         jumped=next_index!=(i+1)%n
         if jumped:self.recent=(self.recent+[next_index])[-8:]
@@ -326,13 +443,13 @@ class Session:
                     k=len(data)-count*CHANNELS+frame*CHANNELS+channel;data[k]=round(data[k]*(1-(frame+1)/count))
             self.fade_in=count
         elif jumped and smooth:
-            fade=min(int(RATE*.16*smooth/100),len(data)//(CHANNELS*2),round(beats[next_index]*RATE))
+            fade=min(round(RATE*join_fade_seconds(self.model,i,next_index,self.boundary_levels,smooth)),len(data)//(CHANNELS*2),round((beats[next_index+1]-beats[next_index])*RATE/2),round(beats[next_index]*RATE))
             if fade:
                 incoming=array('h');incoming.frombytes(self._read(round(beats[next_index]*RATE)-fade,fade))
                 if os.sys.byteorder!='little':incoming.byteswap()
                 offset=len(data)-fade*CHANNELS
                 for frame in range(fade):
-                    alpha=(frame+1)/fade
+                    alpha=.5-.5*math.cos(math.pi*(frame+1)/fade)
                     for channel in range(CHANNELS):
                         k=frame*CHANNELS+channel
                         data[offset+k]=round(data[offset+k]*(1-alpha)+incoming[k]*alpha)

@@ -31,16 +31,18 @@ class BeatGraph(QQuickPaintedItem):
             angle=i/n*2*math.pi-math.pi/2;return center+QPointF(math.cos(angle)*radius,math.sin(angle)*radius)
         def curve(a,b):
             path=QPainterPath(point(a));path.quadTo(center,point(b));return path
+        allowed={tuple(edge) for edge in self._data.get('links',[])}
         ink=QColor(self._accent);ink.setAlphaF(.28);painter.setPen(QPen(ink,1.));painter.setBrush(QColor('transparent'))
         for a,b in self._data.get('links',[]):painter.drawPath(curve(a,b))
         ink=QColor(self._accent);ink.setAlphaF(.7);painter.setPen(QPen(ink,1.8))
         for a,b in self._data.get('used',[]):
-            if b!=(a+1)%n:painter.drawPath(curve(a,b))
+            if (a,b) in allowed and b!=(a+1)%n:painter.drawPath(curve(a,b))
         painter.setPen(QPen(self._muted,.7));painter.setBrush(self._muted)
         for i in range(0,n,max(1,n//160)):painter.drawEllipse(point(i),2.4,2.4)
         painter.setBrush(QColor('transparent'))
         flow=self._data.get('flow',[])
         for k,(a,b) in enumerate(flow):
+            if b!=(a+1)%n and (a,b) not in allowed:continue
             ink=QColor(self._accent);ink.setAlphaF(.75+.25*(k+1)/len(flow));painter.setPen(QPen(ink,2.7))
             if b==(a+1)%n:painter.drawArc(QRectF(w/2-radius,h/2-radius,radius*2,radius*2),round((90-a/n*360)*16),round(-360/n*16))
             else:

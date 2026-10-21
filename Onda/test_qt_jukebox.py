@@ -75,6 +75,14 @@ class QtJukeboxTests(unittest.TestCase):
         self.assertEqual(len(bridge.graph['used']),30)
         self.assertIn((0,12),bridge.graph['used'])
 
+    def test_variation_filters_connections_by_similarity(self):
+        bridge=self.bridge();bridge.model={'neighbors':[[12,14,16,18,20] for _ in range(32)]}
+        bridge.setParams(0,35,80,False);low=bridge.graph
+        bridge.setParams(100,35,80,False);high=bridge.graph
+        self.assertTrue(set(low['links'])<set(high['links']))
+        self.assertEqual(len(low['links']),32);self.assertEqual(len(high['links']),160)
+        self.assertEqual(low['variation'],0);self.assertEqual(high['variation'],100)
+
     def test_search_returns_choices_without_downloading(self):
         bridge=self.bridge()
         records=[{'title':'Choice','artists':['Artist'],'source_url':'https://www.deezer.com/track/1'}]

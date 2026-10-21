@@ -195,8 +195,9 @@ class JukeboxBridge(QObject):
         if self._graph_cache is not None:return self._graph_cache
         rows=self.model['neighbors'] if self.model else [[] for _ in range(64)]
         normal=self._params[3]
-        links=[] if normal else [(i,j) for i,row in enumerate(rows) for j in row]
-        self._graph_cache={'count':len(rows),'links':links,'flow':list(self.flow),'used':sorted(self.used_edges)}
+        from jukebox import variation_neighbors
+        links=[] if normal else [(i,j) for i,row in enumerate(variation_neighbors(rows,self._params[0])) for j in row]
+        self._graph_cache={'count':len(rows),'links':links,'flow':list(self.flow),'used':sorted(self.used_edges),'variation':self._params[0]}
         return self._graph_cache
     @Property('QVariantMap',notify=positionChanged)
     def cursor(self):

@@ -51,7 +51,7 @@ Rectangle {
                         Text { text: nav.modelData.icon || ""; font.family: "Segoe MDL2 Assets"; font.pixelSize: Math.round(18*bridge.fontScale); anchors.verticalCenter: parent.verticalCenter; color: nav.active ? bridge.palette.accent : bridge.palette.muted }
                         Text { text: bridge.translate(nav.modelData.name || ""); visible: !side.collapsed; font.pixelSize: Math.round(13*bridge.fontScale); font.weight: nav.active ? Font.DemiBold : Font.Normal; anchors.verticalCenter: parent.verticalCenter; color: nav.active ? bridge.palette.accent : bridge.palette.muted }
                     }
-                    MouseArea { id: navMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: nav.modelData.key ? Qt.PointingHandCursor : Qt.ArrowCursor; onClicked: if (nav.modelData.key) workspace.selectPage(nav.modelData.key) }
+                    MouseArea { id: navMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: nav.modelData.key ? Qt.PointingHandCursor : Qt.ArrowCursor; onClicked: if (nav.modelData.key) workspace.selectNavigationPage(nav.modelData.key) }
                     ToolTip.visible: navMouse.containsMouse && side.collapsed && !nav.modelData.group
                     ToolTip.text: bridge.translate(nav.modelData.name || "")
                 }

@@ -141,7 +141,7 @@ class App(UiMixin, tk.Tk):
         self.preference_defaults = {name: variable.get() for name, variable in self.preference_fields.items()}
         self.preference_defaults["language"] = "pt-BR"
         for name, value in {**(preferences or {}), **self.preference_store.load_display()}.items():
-            if name != "language":
+            if name != "language" and name in self.preference_fields:
                 self.preference_fields[name].set(value)
         from i18n import set_language
         set_language(self.language.get())

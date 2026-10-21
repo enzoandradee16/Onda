@@ -332,12 +332,16 @@ internal class JukeboxController(private val context:Context,private val scope:C
 @Composable internal fun PlaybackPage(vm:OndaViewModel) {
     val settings by OndaStore.settings.collectAsStateWithLifecycle()
     val modes=if(settings.optString("playback_tab_order")=="Jukebox infinito primeiro")listOf(1 to "Jukebox infinito",0 to "Efeitos") else listOf(0 to "Efeitos",1 to "Jukebox infinito")
-    var mode by rememberSaveable {mutableStateOf(if(vm.jukebox.state.value.model!=null)1 else 0)}
+    var mode by rememberSaveable(settings.optString("playback_tab_order")) {mutableStateOf(if(vm.jukebox.state.value.playing)1 else modes.first().first)}
     val jukeboxState by vm.jukebox.state.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) {if(jukeboxState.playing)mode=1}
     val incomingSource by vm.effectsSource.collectAsStateWithLifecycle()
     LaunchedEffect(jukeboxState.model) {jukeboxState.model?.optString("source")?.takeIf {it.isNotBlank()}?.let {vm.effectsSource.value=it}}
-    LaunchedEffect(incomingSource) {if(incomingSource.isNotBlank() && incomingSource!=jukeboxState.model?.optString("source"))mode=0}
+    var observedSource by remember {mutableStateOf(vm.effectsSource.value)}
+    LaunchedEffect(incomingSource) {
+        if(incomingSource!=observedSource && incomingSource.isNotBlank() && incomingSource!=jukeboxState.model?.optString("source"))mode=0
+        observedSource=incomingSource
+    }
     val owner=LocalLifecycleOwner.current
     DisposableEffect(owner) {
         val observer=LifecycleEventObserver {_,event->if(event==Lifecycle.Event.ON_STOP && !OndaStore.settings.value.optBoolean("jukebox_background"))vm.jukebox.pause()}
@@ -499,7 +503,8 @@ internal class JukeboxController(private val context:Context,private val scope:C
 @Composable private fun JukeboxGraph(model:JSONObject?,current:Int,phase:Float,playing:Boolean,flow:List<Pair<Int,Int>>,used:Set<Pair<Int,Int>>,variation:Float,smooth:Float,normal:Boolean,onSeek:(Int)->Unit,height:Dp=230.dp,nextIndex:Int=-1,jumpBlend:Float=0f) {
     val colors=MaterialTheme.colorScheme;val rows=model?.optJSONArray("neighbors");val n=max(1,rows?.length() ?: 64)
     val graphColors=jukeboxGraphColors(colors)
-    val visible=remember(model,normal){jukeboxVisibleLinks(model,normal)}
+    val visible=remember(model,normal,variation){jukeboxVisibleLinks(model,normal,variation)}
+    val allowed=remember(visible){visible.toSet()}
     Box(Modifier.fillMaxWidth().height(height),contentAlignment=androidx.compose.ui.Alignment.Center) {
         Canvas(Modifier.fillMaxSize().pointerInput(n,model) {
             detectTapGestures {position->
@@ -515,19 +520,20 @@ internal class JukeboxController(private val context:Context,private val scope:C
         }) {
             val radius=min(size.width,size.height)*.42f
             fun point(index:Double):Offset {val angle=index/n*2*PI-PI/2;return center+Offset((cos(angle)*radius).toFloat(),(sin(angle)*radius).toFloat())}
-            val strength=if(normal)0f else (variation/100).coerceIn(0f,1f)
             for((i,j) in visible) {
                 val a=point(i.toDouble());val b=point(j.toDouble())
-                drawPath(Path().apply {moveTo(a.x,a.y);quadraticTo(center.x,center.y,b.x,b.y)},colors.primary.copy(alpha=.28f+.12f*strength),style=androidx.compose.ui.graphics.drawscope.Stroke((.65f+.35f*smooth/100).dp.toPx()))
+                drawPath(Path().apply {moveTo(a.x,a.y);quadraticTo(center.x,center.y,b.x,b.y)},colors.primary.copy(alpha=.28f),style=androidx.compose.ui.graphics.drawscope.Stroke(1.dp.toPx()))
             }
             for((i,j) in used) {
-                if(j!=(i+1)%n) {
+                if((i to j) in allowed && j!=(i+1)%n) {
                     val a=point(i.toDouble());val b=point(j.toDouble())
                     drawPath(Path().apply {moveTo(a.x,a.y);quadraticTo(center.x,center.y,b.x,b.y)},colors.primary.copy(alpha=.7f),style=androidx.compose.ui.graphics.drawscope.Stroke(1.8.dp.toPx()))
                 }
             }
             for((k,edge) in flow.withIndex()) {
-                val (i,j)=edge;val ink=colors.primary.copy(alpha=.75f+.25f*(k+1)/flow.size)
+                val (i,j)=edge
+                if(j!=(i+1)%n && edge !in allowed)continue
+                val ink=colors.primary.copy(alpha=.75f+.25f*(k+1)/flow.size)
                 if(j==(i+1)%n) {
                     drawArc(ink,i.toFloat()/n*360-90,360f/n,false,topLeft=center-Offset(radius,radius),size=androidx.compose.ui.geometry.Size(radius*2,radius*2),style=androidx.compose.ui.graphics.drawscope.Stroke(4.dp.toPx()))
                 } else {
@@ -552,13 +558,14 @@ internal class JukeboxController(private val context:Context,private val scope:C
     }
 }
 
-internal fun jukeboxVisibleLinks(model:JSONObject?,normal:Boolean):List<Pair<Int,Int>> {
+internal fun jukeboxVisibleLinks(model:JSONObject?,normal:Boolean,variation:Float=100f):List<Pair<Int,Int>> {
     if(normal)return emptyList()
     val rows=model?.optJSONArray("neighbors") ?: return emptyList()
     return buildList {
         for(i in 0 until rows.length()) {
             val row=rows.optJSONArray(i) ?: continue
-            for(j in 0 until row.length())add(i to row.getInt(j))
+            val count=kotlin.math.ceil(row.length()*(.2+.8*variation.coerceIn(0f,100f)/100)).toInt().coerceAtLeast(1).coerceAtMost(row.length())
+            for(j in 0 until count)add(i to row.getInt(j))
         }
     }
 }

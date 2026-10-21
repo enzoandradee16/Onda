@@ -69,6 +69,13 @@ class NativeDesktopTests(unittest.TestCase):
         self.ws.setSetting('jukebox_transition_seconds',8)
         self.assertEqual(self.ws.settings['jukebox_transition_seconds'],8)
 
+    def test_playback_navigation_opens_first_configured_tab(self):
+        self.ws.setSetting('playback_tab_order','Jukebox infinito primeiro')
+        self.ws.selectNavigationPage('effects');self.assertEqual(self.ws.currentPage,'jukebox')
+        self.ws.selectPage('effects');self.assertEqual(self.ws.currentPage,'effects')
+        self.ws.setSetting('playback_tab_order','Efeitos primeiro')
+        self.ws.selectNavigationPage('effects');self.assertEqual(self.ws.currentPage,'effects')
+
     def test_settings_persist_preserve_and_disable_remembering(self):
         self.ws.setSetting('theme_accent','Turquesa');self.ws.setSetting('concurrent_downloads','3');self.ws.persist()
         data=self.store.load();self.assertEqual(data['theme_accent'],'Turquesa');self.assertEqual(data['concurrent_downloads'],'3')
