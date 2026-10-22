@@ -1823,5 +1823,14 @@
   "Mais informações": "Más información",
   "Menos informações": "Menos información",
   "{count} selecionados": "{count} seleccionados",
-  "{count} arquivos": "{count} archivos"
+  "{count} arquivos": "{count} archivos",
+  "Configure a API do Spotify": "Configura la API de Spotify",
+  "Configurar Spotify": "Configurar Spotify",
+  "Configure a API em Configurações → Contas para pesquisar músicas no Spotify.": "Configura la API en Configuración → Cuentas para buscar canciones en Spotify.",
+  "Para pesquisar músicas no Spotify, configure a API em Configurações → Contas. Informe o Client ID e conecte sua conta, ou preencha Client ID e Client Secret. Você também pode pesquisar no Deezer ou Apple / iTunes.": "Para buscar canciones en Spotify, configura la API en Configuración → Cuentas. Introduce el Client ID y conecta tu cuenta, o completa Client ID y Client Secret. También puedes buscar en Deezer o Apple / iTunes.",
+  "Pressione o atalho…": "Pulsa el atajo…",
+  "Escolher atalho": "Elegir atajo",
+  "Clique e pressione a combinação de teclas. Esc cancela.": "Haz clic y pulsa la combinación de teclas. Esc cancela.",
+  "Clique no atalho e pressione a combinação desejada. Esc cancela.": "Haz clic en un atajo y pulsa la combinación deseada. Esc cancela.",
+  "Restaurar todos os atalhos para o padrão": "Restaurar todos los atajos predeterminados"
 }

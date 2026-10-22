@@ -272,6 +272,9 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
     var comparison by remember { mutableStateOf(listOf<JSONObject>()) }
     var downloadTrack by rememberSaveable {mutableStateOf<String?>(null)}
     val busy by vm.busy.collectAsStateWithLifecycle()
+    val spotifyConnected by vm.spotifyConnected.collectAsStateWithLifecycle()
+    var spotifySecretConfigured by remember {mutableStateOf(false)}
+    LaunchedEffect(settings,spotifyConnected) {spotifySecretConfigured=kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {!SecureVault.get("spotify-api").isNullOrBlank()}}
     val keyboard=LocalSoftwareKeyboardController.current
     fun submitSearch() {
         val text=query.lineSequence().joinToString(" ").trim()
@@ -342,10 +345,10 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
             }}
         }}
         if(results.isNotEmpty())item {UiText("Resultados",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold)}
-        if(provider=="Spotify") item {
+        if(provider=="Spotify" && !spotifyConnected && !(settings.optString("spotify_client_id").isNotBlank() && spotifySecretConfigured)) item {
             Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(LayoutSpacing.controls),verticalAlignment=Alignment.CenterVertically) {
-                OutlinedButton(onClick=onConnectSpotify,modifier=Modifier.testTag("search-connect-spotify")) {UiText("Conectar Spotify")}
-                UiText("Client ID em Configurações → Contas.",Modifier.weight(1f),style=MaterialTheme.typography.bodySmall)
+                OutlinedButton(onClick=onConnectSpotify,modifier=Modifier.testTag("search-connect-spotify")) {UiText("Configurar Spotify")}
+                UiText("Configure a API em Configurações → Contas para pesquisar músicas no Spotify.",Modifier.weight(1f),style=MaterialTheme.typography.bodySmall)
             }
         }
         if(searchQueue.isNotEmpty())item {TextButton(onClick={vm.queueNavigation.value=true}){UiText("Ver fila")}}

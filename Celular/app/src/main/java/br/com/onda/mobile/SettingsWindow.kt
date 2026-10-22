@@ -266,6 +266,7 @@ val categories=linkedMapOf(
                         OutlinedTextField(settings.optString("spotify_client_id"),{put("spotify_client_id",it)},label={UiText("Client ID")},modifier=Modifier.fillMaxWidth(),singleLine=true)
                         SettingsDivider()
                         OutlinedTextField(secret,{secret=it;SecureVault.put("spotify-api",it)},label={UiText("Client Secret · opcional")},enabled=secretReady,visualTransformation=androidx.compose.ui.text.input.PasswordVisualTransformation(),modifier=Modifier.fillMaxWidth(),singleLine=true)
+                        if(spotifyConnected)TextButton(onClick={put("spotify_client_id","");secret="";SecureVault.remove("spotify-api")}){UiText("Remover credenciais")}
                         TextButton(onClick={runCatching {OndaStore.context.startActivity(Intent(Intent.ACTION_VIEW,android.net.Uri.parse("https://developer.spotify.com/dashboard")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))}.onFailure {vm.showNotice("Abrir Spotify Developers","Nenhum navegador disponível para abrir o Spotify Developers.")}}){UiText("Abrir Spotify Developers")}
                         UiText("No Spotify Developers, cadastre o retorno http://127.0.0.1:8765/callback. A conexão usa PKCE e abre o navegador do celular. A disponibilidade das playlists depende das permissões da API.",style=MaterialTheme.typography.bodySmall)
                         SettingsDivider()

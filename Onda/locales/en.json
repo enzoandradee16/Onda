@@ -1823,5 +1823,14 @@
   "Mais informações": "More information",
   "Menos informações": "Less information",
   "{count} selecionados": "{count} selected",
-  "{count} arquivos": "{count} files"
+  "{count} arquivos": "{count} files",
+  "Configure a API do Spotify": "Configure the Spotify API",
+  "Configurar Spotify": "Configure Spotify",
+  "Configure a API em Configurações → Contas para pesquisar músicas no Spotify.": "Configure the API in Settings → Accounts to search for songs on Spotify.",
+  "Para pesquisar músicas no Spotify, configure a API em Configurações → Contas. Informe o Client ID e conecte sua conta, ou preencha Client ID e Client Secret. Você também pode pesquisar no Deezer ou Apple / iTunes.": "To search for songs on Spotify, configure the API in Settings → Accounts. Enter your Client ID and connect your account, or enter both Client ID and Client Secret. You can also search Deezer or Apple / iTunes.",
+  "Pressione o atalho…": "Press the shortcut…",
+  "Escolher atalho": "Choose shortcut",
+  "Clique e pressione a combinação de teclas. Esc cancela.": "Click and press the key combination. Esc cancels.",
+  "Clique no atalho e pressione a combinação desejada. Esc cancela.": "Click a shortcut and press the desired key combination. Esc cancels.",
+  "Restaurar todos os atalhos para o padrão": "Restore all default shortcuts"
 }

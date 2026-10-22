@@ -65,8 +65,10 @@ class PreferenceStore:
         from jukebox_equalizer import clean as clean_equalizer
         from shortcut_options import load_overrides
         result_shortcuts=json.dumps(load_overrides(data.get("shortcut_keys","{}")))
+        client_id=data.get("spotify_client_id")
         from advanced_options import clean_advanced,PC_DEFAULTS
         result = {key:value for key,value in clean_advanced(data).items() if key in PC_DEFAULTS}
+        if isinstance(client_id,str) and len(client_id)<=4096:result["spotify_client_id"]=client_id.strip()
         result["confirm_version"]=False
         from performance import clean as clean_performance
         result.update(clean_performance(data))

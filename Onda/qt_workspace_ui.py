@@ -13,7 +13,7 @@ TAB_GROUPS=[('BIBLIOTECA',('catalog','downloads','queue','playlists','history'))
 CHOICES={'choose_flac','choose_media','choose_version','choose_catalog','choose_duplicate','review_metadata'}
 class DesktopWorkspace(QObject):
     changed=Signal();optionsChanged=Signal();settingsChanged=Signal();choiceChanged=Signal();statusChanged=Signal()
-    comparisonRequested=Signal(int);cropRequested=Signal();settingsRequested=Signal();shortcutsRequested=Signal();message=Signal(str,str);_event=Signal(str,object)
+    comparisonRequested=Signal(int);cropRequested=Signal();settingsRequested=Signal();settingsCategoryRequested=Signal(str);shortcutsRequested=Signal();message=Signal(str,str);_event=Signal(str,object)
     def __init__(self,bridge,parent=None):
         super().__init__(parent);self.bridge=bridge;self.window=None;self.prepare_tools=False;self.restart_requested=False;self.closed=False
         schema=json.loads((ROOT/'settings_schema/desktop.json').read_text(encoding='utf-8'));self.defaults=schema['defaults'];self.fields=schema['fields']
@@ -29,7 +29,7 @@ class DesktopWorkspace(QObject):
         try:identity,secret=self.credentials.load() or ('','')
         except CredentialError:identity,secret='',''
         self.saved_credentials=(identity,secret)
-        self.settings.update(spotify_client_id=os.environ.get('SPOTIFY_CLIENT_ID',identity),spotify_client_secret=os.environ.get('SPOTIFY_CLIENT_SECRET',secret))
+        self.settings.update(spotify_client_id=os.environ.get('SPOTIFY_CLIENT_ID',bridge.preferences.get('spotify_client_id',identity) if self.settings['remember_settings'] else ''),spotify_client_secret=os.environ.get('SPOTIFY_CLIENT_SECRET',secret if self.settings['remember_settings'] else ''))
         self._page='catalog';self._status=tr('Pronto para começar');self._choice={};self.choice_callbacks={};self.pending_choices=[];self.logs=[]
         self.models={key:RowsModel(self) for key in ('queue','catalog','playlists','history')}
         from queue_undo import QueueUndo
@@ -39,7 +39,7 @@ class DesktopWorkspace(QObject):
         self.preview_timer=QTimer(self);self.preview_timer.setSingleShot(True);self.preview_timer.setInterval(150);self.preview_timer.timeout.connect(self.play_effects_preview)
         self.options={'previewActive':False,'previewKind':'','previewSource':'','previewProcessed':False,'metadataFields':{},'lyricText':'','effectLyricsName':'','query':'','provider':self.settings.get('catalog_provider','Deezer'),'links':'','linksNotice':'','playlistUrl':'','playlistTitle':'','queueQuery':'','queueState':'Todos','historyQuery':'','silenceResults':[],'trimSilence':False,'converterSources':[],'converterFormat':'MP4','video_quality':'Equilibrada','video_resolution':'Original','video_bitrate':'Automático','audio_bitrate':'192k','video_fps':'Original','video_audio':'Manter áudio','effectsSource':'','effectsRecord':{},'effectsCover':'','speed':85,'reverb':25,'keep_pitch':self.settings.get('effects_keep_pitch',False),'effectFormat':'MP3','position':0,'duration':0,'imageInfo':{},'catalogSearched':False,'imageSource':'','imageUrl':'','imagePreview':'','metadataSources':[],'metadata':{},'cover_path':'','lyrics_path':'','normalize_volume':False,'overwrite_original':False,'comparison':{},'selectedCatalog':-1,'selectedPlaylist':-1,'filterArtist':'','filterAlbum':'','filterVersion':''}
         from audio_tools import PreviewPlayer
-        self.player=PreviewPlayer();self.tray=None;self.shell=None;self.shortcuts=[];self.tasks_threads=[]
+        self.player=PreviewPlayer();self.tray=None;self.shell=None;self.shortcuts=[];self.shortcuts_suspended=False;self.tasks_threads=[]
         self.shutdown_timer=QTimer(self);self.shutdown_timer.setSingleShot(True);self.shutdown_timer.setInterval(60000);self.shutdown_timer.timeout.connect(self.perform_shutdown)
         self.save_timer=QTimer(self);self.save_timer.setSingleShot(True);self.save_timer.setInterval(400);self.save_timer.timeout.connect(self.persist)
         self.timer=QTimer(self);self.timer.setInterval(300);self.timer.timeout.connect(self.tick)
@@ -71,7 +71,7 @@ class DesktopWorkspace(QObject):
     @Property('QVariantMap',notify=choiceChanged)
     def choice(self):return dict(self._choice)
     @Property('QVariantMap',notify=statusChanged)
-    def activity(self):return {'credentialsSaved':any(self.saved_credentials) and self.saved_credentials==(self.settings.get('spotify_client_id',''),self.settings.get('spotify_client_secret','')),'tools':dict(self.tool_progress),'selected':sum(bool(job.get('checked')) for job in self.jobs),'visibleSelected':sum(bool(row.get('checked')) for row in self.models['queue'].rows),'total':len(self.jobs),'undoCount':len(self.undo_history.entries),'running':self.running,'active':len(self.active),'background':list(self.background_tasks),'busy':list(dict.fromkeys(list(self.tasks)+[state['operation'] for state in self.active.values() if state.get('operation')]+[job['ui_operation'] for job in self.jobs if job.get('ui_operation') and job['state']=='Na fila'])),'logs':'\n'.join(self.logs[-200:]),'spotify':self.account.connected,'elapsed':self.timing.snapshot(sum(job['state'] in ('Na fila','Em andamento') for job in self.jobs))[0] if hasattr(self,'timing') else 0}
+    def activity(self):return {'spotifySearchReady':self.account.connected or bool(self.settings.get('spotify_client_id','').strip() and self.settings.get('spotify_client_secret','').strip()),'credentialsSaved':any(self.saved_credentials) and self.saved_credentials==(self.settings.get('spotify_client_id',''),self.settings.get('spotify_client_secret','')),'tools':dict(self.tool_progress),'selected':sum(bool(job.get('checked')) for job in self.jobs),'visibleSelected':sum(bool(row.get('checked')) for row in self.models['queue'].rows),'total':len(self.jobs),'undoCount':len(self.undo_history.entries),'running':self.running,'active':len(self.active),'background':list(self.background_tasks),'busy':list(dict.fromkeys(list(self.tasks)+[state['operation'] for state in self.active.values() if state.get('operation')]+[job['ui_operation'] for job in self.jobs if job.get('ui_operation') and job['state']=='Na fila'])),'logs':'\n'.join(self.logs[-200:]),'spotify':self.account.connected,'elapsed':self.timing.snapshot(sum(job['state'] in ('Na fila','Em andamento') for job in self.jobs))[0] if hasattr(self,'timing') else 0}
     @Property(QObject,constant=True)
     def queueModel(self):return self.models['queue']
     @Property(QObject,constant=True)
@@ -116,7 +116,7 @@ class DesktopWorkspace(QObject):
         if key not in self.defaults:return
         if key=='remember_settings':
             self.settings[key]=bool(value)
-            if not value:self.store.forget()
+            if not value:self.store.forget();self.credentials.forget();self.saved_credentials=('','')
         elif key in ('spotify_client_id','spotify_client_secret','social_cookies','youtube_cookies'):self.settings[key]=str(value);self.statusChanged.emit()
         elif key in ('tab_order','hidden_tabs'):
             from tab_order import normalize_hidden,normalize_order
@@ -146,8 +146,12 @@ class DesktopWorkspace(QObject):
         self.save_timer.stop()
         try:
             self.store.save_display(self.settings)
-            if self.settings.get('remember_settings'):self.store.save(self.settings)
-        except OSError as error:self.notify(error)
+            if self.settings.get('remember_settings'):
+                self.store.save(self.settings)
+                pair=(self.settings.get('spotify_client_id','').strip(),self.settings.get('spotify_client_secret','').strip())
+                if all(pair) and pair!=self.saved_credentials:
+                    self.credentials.save(*pair);self.saved_credentials=pair;self.statusChanged.emit()
+        except (OSError,ValueError) as error:self.notify(error)
     @Slot()
     def pause_background_jukebox(self):
         if not self.settings.get('jukebox_background',True) and self.bridge.state['playing'] and not self.bridge.state['paused']:self.bridge.playPause()
@@ -205,7 +209,12 @@ class DesktopWorkspace(QObject):
         try:self.dispatch(action,dict(params))
         except Exception as error:self.notify(error);self.message.emit(tr('ONDA'),str(error))
     def dispatch(self,action,p):
-        if action=='search':self.run_task('search',dict(query=self.options['query'],provider=self.options['provider'],refresh=p.get('refresh',False)),self.searched)
+        if action=='configure_spotify':self.settingsCategoryRequested.emit('Contas')
+        elif action=='search':
+            query=self.options['query'].strip()
+            if self.options['provider']=='Spotify' and not self.activity['spotifySearchReady'] and not query.startswith(('https://','http://','spotify:')):
+                self.message.emit(tr('Configure a API do Spotify'),tr('Para pesquisar músicas no Spotify, configure a API em Configurações → Contas. Informe o Client ID e conecte sua conta, ou preencha Client ID e Client Secret. Você também pode pesquisar no Deezer ou Apple / iTunes.'));return
+            self.run_task('search',dict(query=query,provider=self.options['provider'],refresh=p.get('refresh',False)),self.searched)
         elif action=='cancel_task':self.cancel_task(p['name'])
         elif action=='queue_copy_links':QGuiApplication.clipboard().setText('\n'.join(job['url'] for job in self.jobs if (job['id']==p['id'] if p.get('id') else job.get('checked'))))
         elif action=='queue_open_folder':QDesktopServices.openUrl(QUrl.fromLocalFile(self.settings['folder']))
@@ -294,7 +303,7 @@ class DesktopWorkspace(QObject):
         elif action=='history_clear':self.confirm('Limpar histórico','Limpar o histórico? Os arquivos serão preservados.',self.clear_history)
         elif action in ('export_playlist','import_playlist','export_settings','import_settings','restore_settings','export_history'):self.settings_file_action(action)
         elif action=='save_credentials':self.credentials.save(self.settings['spotify_client_id'],self.settings['spotify_client_secret']);self.saved_credentials=(self.settings['spotify_client_id'],self.settings['spotify_client_secret']);self.statusChanged.emit();self.notify('Credenciais salvas neste computador.')
-        elif action=='forget_credentials':self.credentials.forget();self.saved_credentials=('','');self.settings.update(spotify_client_id='',spotify_client_secret='');self.settingsChanged.emit();self.statusChanged.emit()
+        elif action=='forget_credentials':self.credentials.forget();self.saved_credentials=('','');self.settings.update(spotify_client_id='',spotify_client_secret='');self.persist();self.settingsChanged.emit();self.statusChanged.emit()
         elif action=='spotify_developers':QDesktopServices.openUrl(QUrl('https://developer.spotify.com/dashboard'))
         elif action=='spotify_connect':
             if not self.settings.get('spotify_client_id','').strip():self.notify('Informe o Client ID do Spotify.');return
@@ -316,6 +325,7 @@ class DesktopWorkspace(QObject):
                 offset=positions.index(values.index(p['key']));target=offset+int(p['direction'])
                 if 0<=target<len(positions):
                     source,destination=positions[offset],positions[target];values[source],values[destination]=values[destination],values[source];self.setSetting('tab_order',values)
+        elif action=='shortcuts_reset':self.setSetting('shortcut_keys','{}')
         elif action=='shortcut_set':
             from shortcut_options import validate_overrides
             values=json.loads(self.settings.get('shortcut_keys','{}'));sequence=p['sequence'];sequence=sequence if sequence.startswith('<') or not sequence else '<'+sequence.replace('Ctrl+','Control-').replace('Alt+','Alt-').replace('Shift+','Shift-').replace('Enter','Return').replace(',','comma')+'>';values[p['key']]=sequence;self.setSetting('shortcut_keys',json.dumps(validate_overrides(values)))
@@ -734,13 +744,34 @@ class DesktopWorkspace(QObject):
         from PySide6.QtWidgets import QSystemTrayIcon
         if reason in (QSystemTrayIcon.ActivationReason.Trigger,QSystemTrayIcon.ActivationReason.DoubleClick):
             self.restore()
+    @Slot(bool)
+    def suspendShortcuts(self,value):
+        self.shortcuts_suspended=value
+        for shortcut in self.shortcuts:shortcut.setEnabled(not value)
+
+    @Slot(str,int,int,result=bool)
+    def captureShortcut(self,action,key,modifiers):
+        from shortcut_options import canonical
+        keys={Qt.Key.Key_Return:'Return',Qt.Key.Key_Enter:'Return',Qt.Key.Key_Tab:'Tab',Qt.Key.Key_Backtab:'Tab',Qt.Key.Key_Up:'Up',Qt.Key.Key_Down:'Down',Qt.Key.Key_Left:'Left',Qt.Key.Key_Right:'Right',Qt.Key.Key_Home:'Home',Qt.Key.Key_End:'End',Qt.Key.Key_PageUp:'Prior',Qt.Key.Key_PageDown:'Next',Qt.Key.Key_Delete:'Delete',Qt.Key.Key_Backspace:'BackSpace',Qt.Key.Key_Comma:'comma',Qt.Key.Key_Space:'space'}
+        name=keys.get(key)
+        if Qt.Key.Key_F1<=key<=Qt.Key.Key_F24:name='F'+str(key-Qt.Key.Key_F1+1)
+        elif Qt.Key.Key_A<=key<=Qt.Key.Key_Z or Qt.Key.Key_0<=key<=Qt.Key.Key_9:name=chr(key).lower()
+        mods=[name for flag,name in ((Qt.KeyboardModifier.ControlModifier,'Control'),(Qt.KeyboardModifier.AltModifier,'Alt'),(Qt.KeyboardModifier.ShiftModifier,'Shift')) if modifiers & flag.value]
+        if key==Qt.Key.Key_Backtab and 'Shift' not in mods:mods.append('Shift')
+        try:
+            if not name or modifiers & Qt.KeyboardModifier.MetaModifier.value:raise ValueError('Atalho inválido.')
+            self.dispatch('shortcut_set',{'key':action,'sequence':canonical('<'+'-'.join(mods+[name])+'>')})
+            return True
+        except ValueError as error:
+            self.notify(error);self.message.emit(tr('Atalhos'),tr(str(error)));return False
+
     def bind_shortcuts(self):
         from shortcut_options import effective_bindings,display_shortcut
         for shortcut in self.shortcuts:shortcut.setEnabled(False);shortcut.deleteLater()
         self.shortcuts=[]
         if self.window is None:return
         for sequence,action in effective_bindings(self.settings.get('shortcut_keys','{}')).items():
-            shortcut=QShortcut(QKeySequence(display_shortcut(sequence).replace('Prior','PgUp').replace('Next','PgDown')),self.window);shortcut.activated.connect(lambda action=action:self.shortcut(action));self.shortcuts.append(shortcut)
+            shortcut=QShortcut(QKeySequence(display_shortcut(sequence).replace('Prior','PgUp').replace('Next','PgDown')),self.window);shortcut.activated.connect(lambda action=action:self.shortcut(action));shortcut.setEnabled(not self.shortcuts_suspended);self.shortcuts.append(shortcut)
     def shortcut(self,action):
         pages=self.settings.get('tab_order',list(PAGES));visible=[key for key in pages if key not in self.hiddenTabs]
         if action.startswith('tab:'):

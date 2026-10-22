@@ -206,6 +206,7 @@ Pane {
     }
     Connections { target: workspace
         function onSettingsRequested() { settings.open() }
+        function onSettingsCategoryRequested(category) { settings.category=category;settings.open() }
         function onShortcutsRequested() { shortcuts.open() }
         function onMessage(title,text) { messagePopup.heading=title;messagePopup.body=text;messagePopup.open() }
     }

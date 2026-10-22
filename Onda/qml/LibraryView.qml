@@ -19,6 +19,13 @@ ColumnLayout {
         TaskButton { objectName: "libraryLoadButton"; visible: !page.history; primary: true; idleText: bridge.translate(page.catalog ? "Pesquisar" : "Carregar"); operation: page.catalog ? "search" : "load_playlist"; taskNames: [page.catalog ? "search" : "collection"] }
         TaskButton { visible: page.catalog; idleText: bridge.translate("Atualizar busca"); operation: "search"; parameters: ({refresh:true}) }
     }
+    RowLayout {
+        objectName: "spotifySetupNotice"
+        visible: page.catalog && workspace.values.provider === "Spotify" && !workspace.activity.spotifySearchReady
+        Layout.fillWidth: true
+        Label { Layout.fillWidth: true; wrapMode: Text.Wrap; color: bridge.palette.muted; text: bridge.translate("Configure a API em Configurações → Contas para pesquisar músicas no Spotify.") }
+        ActionButton { text: bridge.translate("Configurar Spotify"); onClicked: workspace.invoke("configure_spotify",{}) }
+    }
     RowLayout { visible: page.catalog; Layout.fillWidth: true
         OndaTextField { Layout.fillWidth: true; placeholderText: bridge.translate("Artista"); onTextEdited: workspace.setOption("filterArtist",text) }
         OndaTextField { Layout.fillWidth: true; placeholderText: bridge.translate("Álbum"); onTextEdited: workspace.setOption("filterAlbum",text) }

@@ -70,10 +70,12 @@ class NativeDesktopTests(unittest.TestCase):
                 return walk(popup.property('contentItem'))
             self.assertIsNotNone(find('spotify_connect'))
             self.assertIsNone(find('spotify_disconnect'))
+            self.assertIsNone(find('forget_credentials'))
             self.assertIsNotNone(find('spotify_developers'))
             ws.account.connected=True;ws.statusChanged.emit();self.settle()
             self.assertIsNone(find('spotify_connect'))
             self.assertIsNotNone(find('spotify_disconnect'))
+            self.assertIsNotNone(find('forget_credentials'))
             popup.setProperty('category','Ferramentas')
             for action in ('prepare_tools','update_tools'):
                 ws.tasks={action:threading.Event()};ws.tool_progress={'action':action,'done':25,'total':100,'message':'Test'};ws.statusChanged.emit();self.settle()
@@ -84,6 +86,77 @@ class NativeDesktopTests(unittest.TestCase):
             ws.tasks.clear();ws.statusChanged.emit();self.settle()
             self.assertFalse(window.findChild(QObject,'toolsProgressCard').property('visible'))
         finally:close_application(engine,bridge)
+
+    def test_spotify_search_warns_before_starting_without_api(self):
+        from unittest.mock import Mock
+        self.ws.account=Mock(connected=False);self.ws.settings.update(spotify_client_id='',spotify_client_secret='')
+        self.ws.options.update(provider='Spotify',query='Song')
+        messages=[];self.ws.message.connect(lambda *values:messages.append(values))
+        with patch.object(self.ws,'run_task') as run:
+            self.ws.invoke('search',{});run.assert_not_called()
+        self.assertEqual(messages[0][0],'Configure a API do Spotify')
+        for connected,identity,secret in ((True,'',''),(False,'id','secret')):
+            self.ws.account.connected=connected;self.ws.settings.update(spotify_client_id=identity,spotify_client_secret=secret)
+            with patch.object(self.ws,'run_task') as run:
+                self.ws.invoke('search',{});run.assert_called_once()
+        self.ws.account.connected=False;self.ws.settings.update(spotify_client_id='',spotify_client_secret='')
+        for provider,query in (('Deezer','Song'),('Todos','Song'),('Spotify','https://open.spotify.com/track/'+'A'*22)):
+            self.ws.options.update(provider=provider,query=query)
+            with patch.object(self.ws,'run_task') as run:
+                self.ws.invoke('search',{});run.assert_called_once()
+
+    def test_spotify_id_autosaves_with_preferences_and_can_be_removed(self):
+        self.ws.setSetting('remember_settings',True)
+        self.ws.setSetting('spotify_client_id','public-client-id')
+        self.ws.persist()
+        self.assertEqual(self.store.load()['spotify_client_id'],'public-client-id')
+        from qt_jukebox_ui import JukeboxBridge
+        from qt_workspace_ui import DesktopWorkspace
+        restored_bridge=JukeboxBridge(self.store);restored=DesktopWorkspace(restored_bridge)
+        try:self.assertEqual(restored.settings['spotify_client_id'],'public-client-id')
+        finally:restored.shutdown();restored_bridge.shutdown()
+        self.assertNotIn('spotify_client_secret',self.store.load())
+        self.ws.invoke('forget_credentials',{})
+        self.assertEqual(self.store.load()['spotify_client_id'],'')
+        self.ws.setSetting('spotify_client_id','session-only')
+        self.ws.setSetting('remember_settings',False);self.ws.persist()
+        self.assertIsNone(self.store.load())
+
+    def test_shortcut_recorder_captures_keys_without_editing_text(self):
+        from qt_desktop_ui import create_application,close_application
+        from PySide6.QtCore import QObject,QMetaObject,QPointF,Qt
+        from PySide6.QtTest import QTest
+        app,engine,bridge=create_application(complete=False);ws=engine.workspace;window=engine.rootObjects()[0]
+        try:
+            ws.bind_shortcuts();popup=window.findChild(QObject,'shortcutsPopup')
+            QMetaObject.invokeMethod(popup,'open');self.settle()
+            self.assertTrue(all(not shortcut.isEnabled() for shortcut in ws.shortcuts))
+            def find(item):
+                if item.objectName()=='shortcutRecorder_links':return item
+                return next((result for child in item.childItems() if (result:=find(child)) is not None),None)
+            recorder=find(popup.property('contentItem'));self.assertTrue(recorder.property('readOnly'))
+            QTest.mouseClick(window,Qt.LeftButton,Qt.NoModifier,recorder.mapToScene(QPointF(15,15)).toPoint());self.settle()
+            self.assertTrue(recorder.property('recording'))
+            QTest.keyClick(window,Qt.Key_B,Qt.ControlModifier|Qt.AltModifier);self.settle()
+            self.assertEqual(json.loads(ws.settings['shortcut_keys'])['links'],'<Control-Alt-b>')
+            self.assertTrue(all(not shortcut.isEnabled() for shortcut in ws.shortcuts))
+            recorder=find(popup.property('contentItem'))
+            QTest.mouseClick(window,Qt.LeftButton,Qt.NoModifier,recorder.mapToScene(QPointF(15,15)).toPoint())
+            QTest.keyClick(window,Qt.Key_Escape);self.settle()
+            self.assertFalse(recorder.property('recording'));self.assertTrue(popup.property('opened'))
+            self.assertEqual(json.loads(ws.settings['shortcut_keys'])['links'],'<Control-Alt-b>')
+            QMetaObject.invokeMethod(popup,'close');self.settle()
+            self.assertTrue(all(shortcut.isEnabled() for shortcut in ws.shortcuts))
+        finally:close_application(engine,bridge)
+
+    def test_shortcut_capture_rejects_reserved_and_duplicate_combinations(self):
+        from PySide6.QtCore import Qt
+        previous=self.ws.settings['shortcut_keys']
+        self.assertFalse(self.ws.captureShortcut('links',Qt.Key_C,Qt.ControlModifier.value))
+        self.assertFalse(self.ws.captureShortcut('links',Qt.Key_J,Qt.ControlModifier.value))
+        self.assertEqual(self.ws.settings['shortcut_keys'],previous)
+        self.assertTrue(self.ws.captureShortcut('links',Qt.Key_F12,0))
+        self.assertEqual(json.loads(self.ws.settings['shortcut_keys'])['links'],'<F12>')
 
     def test_tray_context_menu_does_not_restore_window(self):
         from PySide6.QtWidgets import QSystemTrayIcon

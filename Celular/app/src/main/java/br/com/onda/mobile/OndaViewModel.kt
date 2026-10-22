@@ -252,8 +252,14 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
     private var searchRevision=0
     fun search(query: String, provider: String, refresh: Boolean=false) {
         if(busy.value)return
+        val config=OndaStore.config()
+        val configured=spotifyConnected.value || (config.optString("spotify_client_id").isNotBlank() && config.optString("spotify_client_secret").isNotBlank())
+        if(provider=="Spotify" && !configured && !query.trim().let {it.startsWith("https://") || it.startsWith("http://") || it.startsWith("spotify:")}) {
+            showNotice("Configure a API do Spotify","Para pesquisar músicas no Spotify, configure a API em Configurações → Contas. Informe o Client ID e conecte sua conta, ou preencha Client ID e Client Secret. Você também pode pesquisar no Deezer ou Apple / iTunes.")
+            return
+        }
         val revision=++searchRevision
-        operation("search",OndaStore.config().put("query",query).put("provider",provider).put("refresh_search",refresh)) {
+        operation("search",config.put("query",query).put("provider",provider).put("refresh_search",refresh)) {
             if(revision==searchRevision) {
                 searchResults.value=it.optJSONArray("tracks")?.objects() ?: emptyList()
                 status.value=listOf("${searchResults.value.size} resultado(s).",it.stringList("warnings"),it.stringList("suggestions")).filter {text->text.isNotBlank()}.joinToString(" ")
