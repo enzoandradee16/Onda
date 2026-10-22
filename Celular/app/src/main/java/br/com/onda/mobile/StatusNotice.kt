@@ -30,7 +30,7 @@ val noticeDurations=linkedMapOf("Fechar manualmente" to 0,"Após 3 segundos" to 
 }
 
 /** Kept in composition during exit so both automatic and manual dismissal slide up. */
-@Composable internal fun TopStatusNotice(status:String,visible:Boolean,busy:Boolean,animated:Boolean,onCancel:()->Unit,onDismiss:()->Unit,onOpenSettings:((String)->Unit)?=null) {
+@Composable internal fun TopStatusNotice(status:String,visible:Boolean,busy:Boolean,animated:Boolean,onCancel:()->Unit,onDismiss:()->Unit,onOpenSettings:((String)->Unit)?=null,cancellable:Boolean=true) {
     val destination=if(busy || onOpenSettings==null)null else noticeDestination(status)
     val actionLabel=destination?.let {if(it=="Sessão do YouTube")translateUi("Abrir sessão do YouTube") else translateUi("Abrir configurações de {category}").replace("{category}",translateUi(it))}
     val transition=remember {MutableTransitionState(false)}
@@ -44,8 +44,8 @@ val noticeDurations=linkedMapOf("Fechar manualmente" to 0,"Após 3 segundos" to 
             UiText(status.ifBlank {lastMessage},Modifier.weight(1f).testTag("app-status").then(
                 if(destination!=null)Modifier.clickable(role=Role.Button,onClickLabel=actionLabel) {onOpenSettings?.invoke(destination)} else Modifier
             ).semantics {if(!busy)liveRegion=LiveRegionMode.Polite},color=if(destination!=null)MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,style=MaterialTheme.typography.bodySmall,maxLines=2)
-            if(busy)TextButton(onClick=onCancel) {UiText("Cancelar")}
-            else TextButton(onClick=onDismiss) {AccessibleSymbol("×","Fechar aviso")}
+            if(busy && cancellable)TextButton(onClick=onCancel) {UiText("Cancelar")}
+            else if(!busy)TextButton(onClick=onDismiss) {AccessibleSymbol("×","Fechar aviso")}
         }
     }
 }

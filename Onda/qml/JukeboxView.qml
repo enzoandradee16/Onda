@@ -108,8 +108,8 @@ ScrollView {
                 ColumnLayout {
                     anchors.fill: parent; anchors.margins: 12; spacing: Math.round(4*bridge.spacing)
                     Item {
-                        id: graphArea; readonly property int beatCount: bridge.graph.count; Layout.fillWidth: true; Layout.fillHeight: true
-                        BeatGraph { id: graph; anchors.fill: parent; graphData: bridge.graph; accent: bridge.palette.accent; muted: bridge.palette.muted }
+                        id: graphArea; readonly property int beatCount: page.visible ? bridge.graph.count : 64; Layout.fillWidth: true; Layout.fillHeight: true
+                        BeatGraph { id: graph; anchors.fill: parent; graphData: page.visible ? bridge.graph : ({count:64,links:[],flow:[]}); accent: bridge.palette.accent; muted: bridge.palette.muted }
                         Rectangle {
                             id: marker
                             property real orbitRadius: Math.min(graphArea.width,graphArea.height)*0.42

@@ -60,6 +60,9 @@ def existing_folder(root=None):
     cached = cached_folder(root)
     if cached:
         return cached
+    bundled = Path(__file__).resolve().parent.parent / '_runtime' / 'ffmpeg'
+    if complete_folder(bundled):
+        return bundled
     paths = [shutil.which(name) for name in EXECUTABLES]
     if all(paths) and len({str(Path(path).parent) for path in paths}) == 1:
         return Path(paths[0]).parent

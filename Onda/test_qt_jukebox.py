@@ -83,6 +83,36 @@ class QtJukeboxTests(unittest.TestCase):
         self.assertEqual(len(low['links']),32);self.assertEqual(len(high['links']),160)
         self.assertEqual(low['variation'],0);self.assertEqual(high['variation'],100)
 
+    def test_dense_graph_is_bounded_and_topology_is_reused_during_playback(self):
+        from jukebox import variation_neighbors
+        bridge=self.bridge();rows=[list(range(80)) for _ in range(2000)]
+        bridge.model={'neighbors':rows};bridge.setParams(100,35,80,False)
+        with patch('jukebox.variation_neighbors',wraps=variation_neighbors) as topology:
+            first=bridge.graph
+            self.assertLessEqual(len(first['links']),1800)
+            bridge.handle_event(bridge.revision,'position',{'index':3,'phase':0,'elapsed':2.,'jumps':1,'edges':[(3,12)]})
+            second=bridge.graph
+            self.assertIs(first['links'],second['links'])
+            self.assertEqual(topology.call_count,1)
+            self.assertEqual(sum(map(len,rows)),160000)
+            self.assertEqual(second['flow'],[(3,12)])
+
+    def test_graph_static_image_is_reused_for_new_trail(self):
+        from qt_graph_ui import BeatGraph
+        from PySide6.QtGui import QImage,QPainter
+        graph=BeatGraph();graph.setWidth(400);graph.setHeight(320)
+        graph.graphData={'count':32,'links':[(0,12),(3,15)],'used':[],'flow':[]}
+        image=QImage(400,320,QImage.Format.Format_ARGB32_Premultiplied);image.fill(0)
+        painter=QPainter(image)
+        try:
+            graph.paint(painter);base=graph._base_image
+            graph.graphData={'count':32,'links':[(0,12),(3,15)],'used':[(3,15)],'flow':[(3,15)]}
+            graph.paint(painter)
+            self.assertIs(graph._base_image,base)
+            graph.setWidth(420);graph.paint(painter)
+            self.assertIsNot(graph._base_image,base)
+        finally:painter.end()
+
     def test_search_returns_choices_without_downloading(self):
         bridge=self.bridge()
         records=[{'title':'Choice','artists':['Artist'],'source_url':'https://www.deezer.com/track/1'}]

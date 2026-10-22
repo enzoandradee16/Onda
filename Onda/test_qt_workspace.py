@@ -35,6 +35,56 @@ class NativeDesktopTests(unittest.TestCase):
     def tone(self,name='source.wav'):
         from test_jukebox import song
         path=self.root/name;song(path);return path
+    def test_restore_unminimizes_existing_window(self):
+        from unittest.mock import Mock
+        self.ws.window=Mock();self.ws.restore()
+        self.ws.window.showNormal.assert_called_once()
+        self.ws.window.requestActivate.assert_called_once()
+
+    def test_tools_progress_ignores_stale_events_and_preserves_byte_counts(self):
+        self.ws.generations['prepare_tools']=2
+        self.ws.on_event('task_progress',{'action':'prepare_tools','revision':1,'event':{'done':99,'total':100}})
+        self.assertEqual(self.ws.activity['tools'],{})
+        self.ws.on_event('task_progress',{'action':'prepare_tools','revision':2,'event':{'done':25,'total':100,'message':'Download'}})
+        self.assertEqual(self.ws.activity['tools']['done'],25)
+        self.assertEqual(self.ws.activity['tools']['total'],100)
+
+    def test_spotify_developers_opens_official_dashboard(self):
+        with patch('qt_workspace_ui.QDesktopServices.openUrl') as opened:
+            self.ws.invoke('spotify_developers',{})
+        self.assertEqual(opened.call_args.args[0].toString(),'https://developer.spotify.com/dashboard')
+
+    def test_account_buttons_and_tools_progress_in_qml(self):
+        from unittest.mock import Mock
+        from qt_desktop_ui import create_application,close_application
+        from PySide6.QtCore import QObject,QMetaObject
+        app,engine,bridge=create_application(complete=False);ws=engine.workspace;window=engine.rootObjects()[0]
+        try:
+            popup=window.findChild(QObject,'settingsPopup')
+            QMetaObject.invokeMethod(popup,'open');popup.setProperty('category','Contas');self.settle()
+            ws.account=Mock(connected=False);ws.statusChanged.emit();self.settle()
+            def find(name):
+                def walk(item):
+                    if item.objectName()==name:return item
+                    return next((result for child in item.childItems() if (result:=walk(child)) is not None),None)
+                return walk(popup.property('contentItem'))
+            self.assertIsNotNone(find('spotify_connect'))
+            self.assertIsNone(find('spotify_disconnect'))
+            self.assertIsNotNone(find('spotify_developers'))
+            ws.account.connected=True;ws.statusChanged.emit();self.settle()
+            self.assertIsNone(find('spotify_connect'))
+            self.assertIsNotNone(find('spotify_disconnect'))
+            popup.setProperty('category','Ferramentas')
+            for action in ('prepare_tools','update_tools'):
+                ws.tasks={action:threading.Event()};ws.tool_progress={'action':action,'done':25,'total':100,'message':'Test'};ws.statusChanged.emit();self.settle()
+                button=find(action)
+                self.assertFalse(button.property('enabled'))
+                self.assertNotIn('Cancelar',button.property('text'))
+                self.assertTrue(window.findChild(QObject,'toolsProgressCard').property('visible'))
+            ws.tasks.clear();ws.statusChanged.emit();self.settle()
+            self.assertFalse(window.findChild(QObject,'toolsProgressCard').property('visible'))
+        finally:close_application(engine,bridge)
+
     def test_tray_context_menu_does_not_restore_window(self):
         from PySide6.QtWidgets import QSystemTrayIcon
         reasons=QSystemTrayIcon.ActivationReason
@@ -550,6 +600,7 @@ class NativeDesktopTests(unittest.TestCase):
         app,engine,bridge=create_application(complete=False);ws=engine.workspace;window=engine.rootObjects()[0]
         try:
             cover=io.BytesIO();Image.new('RGB',(100,100),'blue').save(cover,format='PNG')
+            window.resize(1360,900)
             ws.selectPage('metadata');ws.audio_loaded({'record':{'title':'Song','artists':['Stardust','Other Artist'],'album':'Album'},'cover':base64.b64encode(cover.getvalue()).decode()});self.settle()
             def find(item,name):
                 if item.objectName()==name:return item

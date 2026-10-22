@@ -85,6 +85,33 @@ class SpotifyPriorityTests(unittest.TestCase):
             account.get.reset_mock()
             backend.perform('download',{'url':'https://www.deezer.com/track/123','mode':'mp3'})
             self.assertNotIn('catalog_record',worker.call_args.args[0]);account.get.assert_not_called()
+    def test_worker_routes_cached_catalog_by_link_provider(self):
+        import tempfile
+        from engine import run_worker
+        cases = [
+            ('https://www.deezer.com/track/123', 'Deezer', '123'),
+            ('https://music.apple.com/us/song/123', 'Apple / iTunes', '123'),
+            (URL, 'Spotify', ID),
+        ]
+        for url, platform, identity in cases:
+            with self.subTest(platform=platform), tempfile.TemporaryDirectory() as folder:
+                record=base_record(platform,identity,url,'Test')
+                record.update(title='Song',artists=['Artist'])
+                client=Mock()
+                client.resolve.return_value=record
+                client.complete_spotify.return_value=record
+                with patch('metadata.MetadataClient',return_value=client), patch('engine.binaries',return_value=True), patch('engine.emit'), patch('lossless_source.download_flac',return_value=0) as download:
+                    self.assertEqual(run_worker(dict(url=url,mode='flac',folder=folder,catalog_record=record)),0)
+                self.assertEqual(download.call_args.args[1],record)
+                client.close.assert_called_once()
+                if platform=='Spotify':
+                    client.complete_spotify.assert_called_once()
+                    client.resolve.assert_not_called()
+                else:
+                    client.resolve.assert_called_once()
+                    self.assertEqual(client.resolve.call_args.args[0],url)
+                    client.complete_spotify.assert_not_called()
+
     def test_existing_supplement_provenance_is_not_relabelled_as_spotify(self):
         from spotify_metadata import original_metadata
         anchor=spotify_record(api_track(),ID,URL)

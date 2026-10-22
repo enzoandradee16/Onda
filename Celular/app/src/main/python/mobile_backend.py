@@ -554,6 +554,8 @@ def perform(action, config):
         if result.returncode:
             raise ValueError('Não foi possível ler o áudio.')
         return json.loads(result.stdout)
+    if action == 'spotify_status':
+        return {'connected': account().connected}
     if action == 'spotify_connect':
         from spotify_account import authorize
         def opener(url):
@@ -568,6 +570,7 @@ def perform(action, config):
         return {'connected': False}
     if action == 'update':
         import requests
+        emit('stage',message='Consultando atualização das ferramentas…',done=0,total=0)
         response = requests.get('https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest', timeout=30)
         response.raise_for_status()
         data = response.json()
@@ -590,7 +593,8 @@ def perform(action, config):
                             raise ValueError('Atualização acima do limite.')
                         digest.update(chunk)
                         stream.write(chunk)
-                        emit('stage', message='Baixando atualização do yt-dlp…')
+                        emit('stage', message='Baixando atualização do yt-dlp…',done=size,total=int(download.headers.get('Content-Length',0)))
+            emit('stage',message='Verificando atualização das ferramentas…',done=size,total=size)
             if digest.hexdigest() != expected:
                 raise ValueError('A verificação da atualização falhou.')
             with zipfile.ZipFile(tmp) as archive:

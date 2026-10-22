@@ -66,6 +66,8 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
     val collection=MutableStateFlow(JSONObject())
     val collectionComparison=MutableStateFlow<JSONObject?>(null)
     private var collectionSyncJob:Job?=null
+    val spotifyConnected=MutableStateFlow(false)
+
     val busy=MutableStateFlow(false)
     val status=MutableStateFlow("")
     val addingToQueue=MutableStateFlow(false)
@@ -85,6 +87,11 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
         }
         override fun onPlayerError(error:androidx.media3.common.PlaybackException) {previewActive.value=false;val text="Não foi possível reproduzir esta prévia. Tente novamente ou escolha outra faixa.";if(previewFromDialog) showNotice("Ouvir prévia",text) else status.value=text}
     })}
+    init {viewModelScope.launch {
+        runCatching {withContext(Dispatchers.IO) {MobileEngine.call(getApplication(),"startup-account","spotify_status",JSONObject(),EventCallback {})}}
+            .onSuccess {spotifyConnected.value=it.optBoolean("connected")}
+            .onFailure {status.value="Não foi possível preparar as ferramentas. Tente novamente nas Configurações."}
+    }}
     private var previewLimit: Job?=null
     val effectsPreviewEnabled=MutableStateFlow(false)
     private val effectRequests=kotlinx.coroutines.channels.Channel<Pair<Long,JSONObject>>(kotlinx.coroutines.channels.Channel.CONFLATED)
@@ -188,6 +195,7 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 if(result.has("error")) report(result.optString("error")) else {
                     report(result.optString("message","Concluído"))
+                    if(result.has("connected"))spotifyConnected.value=result.optBoolean("connected")
                     finished(result)
                 }
             } catch(error: Exception) { report(error.message ?: "Erro na operação") }
@@ -220,7 +228,7 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
         options.put("ui_messages",callbackMessages)
         operation("spotify_connect",options,dialog=true)
     }
-    fun cancel() { collectionSyncJob?.cancel();OndaStore.dismissQuestions(queryId.value);MobileEngine.cancel(queryId.value) }
+    fun cancel() { if(MobileEngine.toolsState.value.running)return;collectionSyncJob?.cancel();OndaStore.dismissQuestions(queryId.value);MobileEngine.cancel(queryId.value) }
     private val releaseDates=mutableMapOf<String,String>()
     private val releaseDateSlots=kotlinx.coroutines.sync.Semaphore(2)
     suspend fun releaseDate(record:JSONObject):String {

@@ -18,6 +18,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
@@ -505,8 +507,9 @@ internal class JukeboxController(private val context:Context,private val scope:C
     val colors=MaterialTheme.colorScheme;val rows=model?.optJSONArray("neighbors");val n=max(1,rows?.length() ?: 64)
     val graphColors=jukeboxGraphColors(colors)
     val visible=remember(model,normal,variation){jukeboxVisibleLinks(model,normal,variation)}
-    val allowed=remember(visible){visible.toSet()}
+    val highlighted=remember(used){used.toList().let {edges->edges.filterIndexed {index,_->index % max(1,ceil(edges.size/600.0).toInt())==0}}}
     Box(Modifier.fillMaxWidth().height(height),contentAlignment=androidx.compose.ui.Alignment.Center) {
+        JukeboxConnections(n,visible,if(normal)emptyList() else highlighted,colors.primary,graphColors.first)
         Canvas(Modifier.fillMaxSize().pointerInput(n,model) {
             detectTapGestures {position->
                 if(model!=null) {
@@ -521,19 +524,9 @@ internal class JukeboxController(private val context:Context,private val scope:C
         }) {
             val radius=min(size.width,size.height)*.42f
             fun point(index:Double):Offset {val angle=index/n*2*PI-PI/2;return center+Offset((cos(angle)*radius).toFloat(),(sin(angle)*radius).toFloat())}
-            for((i,j) in visible) {
-                val a=point(i.toDouble());val b=point(j.toDouble())
-                drawPath(Path().apply {moveTo(a.x,a.y);quadraticTo(center.x,center.y,b.x,b.y)},colors.primary.copy(alpha=.28f),style=androidx.compose.ui.graphics.drawscope.Stroke(1.dp.toPx()))
-            }
-            for((i,j) in used) {
-                if((i to j) in allowed && j!=(i+1)%n) {
-                    val a=point(i.toDouble());val b=point(j.toDouble())
-                    drawPath(Path().apply {moveTo(a.x,a.y);quadraticTo(center.x,center.y,b.x,b.y)},colors.primary.copy(alpha=.7f),style=androidx.compose.ui.graphics.drawscope.Stroke(1.8.dp.toPx()))
-                }
-            }
             for((k,edge) in flow.withIndex()) {
                 val (i,j)=edge
-                if(j!=(i+1)%n && edge !in allowed)continue
+                if(j!=(i+1)%n && normal)continue
                 val ink=colors.primary.copy(alpha=.75f+.25f*(k+1)/flow.size)
                 if(j==(i+1)%n) {
                     drawArc(ink,i.toFloat()/n*360-90,360f/n,false,topLeft=center-Offset(radius,radius),size=androidx.compose.ui.geometry.Size(radius*2,radius*2),style=androidx.compose.ui.graphics.drawscope.Stroke(4.dp.toPx()))
@@ -545,7 +538,7 @@ internal class JukeboxController(private val context:Context,private val scope:C
                     drawLine(ink,back+side,b,3.dp.toPx());drawLine(ink,back-side,b,3.dp.toPx())
                 }
             }
-            for(i in 0 until n step max(1,n/150))drawCircle(if(i==current)colors.primary else graphColors.first,3.dp.toPx(),point(i.toDouble()))
+            drawCircle(colors.primary,3.dp.toPx(),point(current.coerceIn(0,n-1).toDouble()))
             val origin=point(current.coerceIn(0,n-1).toDouble())
             val jumped=nextIndex in 0 until n && nextIndex!=(current+1)%n
             val cursor=if(jumped) {
@@ -559,14 +552,36 @@ internal class JukeboxController(private val context:Context,private val scope:C
     }
 }
 
+@Composable private fun JukeboxConnections(n:Int,links:List<Pair<Int,Int>>,used:List<Pair<Int,Int>>,ink:Color,ring:Color) {
+    val drawing=remember(n,links,used,ink,ring) {Modifier.fillMaxSize().graphicsLayer().drawWithCache {
+        val center=Offset(size.width/2,size.height/2)
+        val radius=min(size.width,size.height)*.42f
+        fun point(index:Int):Offset {val angle=index.toDouble()/n*2*PI-PI/2;return center+Offset((cos(angle)*radius).toFloat(),(sin(angle)*radius).toFloat())}
+        fun curves(edges:List<Pair<Int,Int>>)=Path().apply {
+            for((i,j) in edges) {val a=point(i);val b=point(j);moveTo(a.x,a.y);quadraticTo(center.x,center.y,b.x,b.y)}
+        }
+        val background=curves(links);val travelled=curves(used.filter {it.second!=(it.first+1)%n})
+        val dots=(0 until n step max(1,ceil(n/150.0).toInt())).map(::point)
+        onDrawBehind {
+            drawPath(background,ink.copy(alpha=.28f),style=androidx.compose.ui.graphics.drawscope.Stroke(1.dp.toPx()))
+            drawPath(travelled,ink.copy(alpha=.7f),style=androidx.compose.ui.graphics.drawscope.Stroke(1.8.dp.toPx()))
+            dots.forEach {drawCircle(ring,3.dp.toPx(),it)}
+        }
+    }}
+    Box(drawing)
+}
+
 internal fun jukeboxVisibleLinks(model:JSONObject?,normal:Boolean,variation:Float=100f):List<Pair<Int,Int>> {
     if(normal)return emptyList()
     val rows=model?.optJSONArray("neighbors") ?: return emptyList()
+    val counts=IntArray(rows.length()) {i->val count=rows.optJSONArray(i)?.length() ?: 0;ceil(count*(.2+.8*variation.coerceIn(0f,100f)/100)).toInt().coerceIn(0,count)}
+    val stride=max(1,ceil(counts.sum()/1800.0).toInt())
     return buildList {
-        for(i in 0 until rows.length()) {
+        var offset=0
+        for(i in counts.indices) {
             val row=rows.optJSONArray(i) ?: continue
-            val count=kotlin.math.ceil(row.length()*(.2+.8*variation.coerceIn(0f,100f)/100)).toInt().coerceAtLeast(1).coerceAtMost(row.length())
-            for(j in 0 until count)add(i to row.getInt(j))
+            for(j in (stride-offset%stride)%stride until counts[i] step stride)add(i to row.getInt(j))
+            offset+=counts[i]
         }
     }
 }

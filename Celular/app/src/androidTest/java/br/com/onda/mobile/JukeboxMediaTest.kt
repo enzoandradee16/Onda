@@ -25,6 +25,14 @@ class JukeboxMediaTest {
         assertTrue(jukeboxVisibleLinks(model,true).isEmpty())
         assertTrue(jukeboxVisibleLinks(null,false).isEmpty())
     }
+    @Test fun denseGraphIsBoundedWithoutChangingPlaybackConnections() {
+        val rows=JSONArray().apply {repeat(2000){put(JSONArray().apply {repeat(80){put(it)}})}}
+        val model=JSONObject().put("neighbors",rows)
+        val visible=jukeboxVisibleLinks(model,false,100f)
+        assertTrue(visible.isNotEmpty());assertTrue(visible.size<=1800)
+        assertEquals(160000,(0 until rows.length()).sumOf {rows.getJSONArray(it).length()})
+        assertTrue(visible.all {(i,j)->(0 until rows.getJSONArray(i).length()).any {rows.getJSONArray(i).getInt(it)==j}})
+    }
     @Test fun mediaNotificationControlsKeepInfiniteAudioInBackground() {
         val instrumentation=InstrumentationRegistry.getInstrumentation()
         val context=instrumentation.targetContext

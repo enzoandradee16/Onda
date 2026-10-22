@@ -3,6 +3,8 @@ from pathlib import Path
 import os
 import sys
 
+if os.name=='nt':
+    os.environ.setdefault('QT_QUICK_BACKEND',os.environ.get('ONDA_QT_BACKEND','software'))
 _style_initialized=False
 ROOT=Path(__file__).resolve().parent
 for packages in (ROOT.parent/'_runtime/qt',ROOT.parent/'.venv/qt-packages'):
@@ -62,14 +64,41 @@ def close_application(engine,bridge):
     QCoreApplication.sendPostedEvents(None,QEvent.Type.DeferredDelete)
     engine.deleteLater();QCoreApplication.sendPostedEvents(None,QEvent.Type.DeferredDelete)
 
+def packaged_self_test(target):
+    """Exercise the actual launcher/runtime without network or personal settings."""
+    import json,tempfile
+    from PySide6.QtCore import QTimer
+    report={'ok':False,'backend':os.environ.get('QT_QUICK_BACKEND','default')}
+    with tempfile.TemporaryDirectory(prefix='onda-qt-test-') as temporary:
+        previous={key:os.environ.get(key) for key in ('LOCALAPPDATA','ONDA_ALIAS_CACHE_ROOT')}
+        os.environ['LOCALAPPDATA']=temporary;os.environ['ONDA_ALIAS_CACHE_ROOT']=temporary
+        try:
+            app,engine,bridge=create_application(complete=False)
+            try:
+                QTimer.singleShot(0,engine.workspace.restore)
+                QTimer.singleShot(400,app.quit)
+                code=app.exec();window=engine.rootObjects()[0]
+                report.update(ok=code==0 and window.isVisible(),width=window.width(),height=window.height())
+            finally:close_application(engine,bridge)
+        except Exception as error:
+            report['error']=str(error)
+        finally:
+            for key,value in previous.items():
+                if value is None:os.environ.pop(key,None)
+                else:os.environ[key]=value
+    Path(target).write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    return 0 if report['ok'] else 1
+
 def main():
+    if len(sys.argv)==3 and sys.argv[1]=="--qt-self-test":return packaged_self_test(sys.argv[2])
     from single_instance import SingleInstance,already_open_message
     from PySide6.QtCore import QTimer
     with SingleInstance() as guard:
         if not guard.primary:
-            guard.notify();already_open_message();return 0
+            guard.notify();return 0
         while True:
             app,engine,bridge=create_application();workspace=engine.workspace;workspace.prepare_tools=True
+            QTimer.singleShot(0,workspace.restore)
             activation=QTimer();activation.setInterval(150)
             activation.timeout.connect(lambda:workspace.restore() if guard.activation_requested() else None);activation.start()
             try:code=app.exec()

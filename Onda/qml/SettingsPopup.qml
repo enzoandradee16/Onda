@@ -35,7 +35,7 @@ Popup {
                     ActionButton { visible: popup.category === "Geral" && !search.text; text: bridge.translate("Escolher quais configurações restaurar…"); onClicked: reset.open() }
                     Flow { visible: popup.category === "Geral" && !search.text; Layout.fillWidth: true; spacing: Math.round(8*bridge.spacing)
                         Repeater { model: [{name:"Exportar configurações…",key:"export_settings"},{name:"Importar configurações…",key:"import_settings"},{name:"Restaurar configurações",key:"restore_settings"}]
-                            TaskButton { required property var modelData; idleText: bridge.translate(modelData.name); operation: modelData.key }
+                            TaskButton { required property var modelData; objectName: modelData.key; idleText: bridge.translate(modelData.name); operation: modelData.key }
                         }
                     }
                     ColumnLayout { visible: popup.category === "Aparência" && !search.text; Layout.fillWidth: true
@@ -57,16 +57,15 @@ Popup {
                         ActionButton { text: bridge.translate("Escolher pasta"); onClicked: workspace.invoke("pick",{kind:"folder"}) }
                     }
                     Flow { visible: popup.category === "Contas" && !search.text; Layout.fillWidth: true; spacing: Math.round(8*bridge.spacing)
-                        Repeater { model: [{name:"Salvar credenciais",key:"save_credentials"},{name:"Remover credenciais",key:"forget_credentials"},{name:"Conectar Spotify",key:"spotify_connect"},{name:"Desconectar",key:"spotify_disconnect"}]
-                            TaskButton { required property var modelData; idleText: bridge.translate(modelData.name); operation: modelData.key }
+                        Repeater { model: [{name:workspace.activity.credentialsSaved ? "Remover credenciais" : "Salvar credenciais",key:workspace.activity.credentialsSaved ? "forget_credentials" : "save_credentials"},{name:workspace.activity.spotify ? "Desconectar Spotify" : "Conectar Spotify",key:workspace.activity.spotify ? "spotify_disconnect" : "spotify_connect"},{name:"Abrir Spotify Developers",key:"spotify_developers"}]
+                            TaskButton { required property var modelData; objectName: modelData.key; idleText: bridge.translate(modelData.name); operation: modelData.key }
                         }
-                        ActionButton { text: bridge.translate("Importar cookies do YouTube"); onClicked: workspace.invoke("pick",{kind:"youtube_cookies"}) }
-                        ActionButton { text: bridge.translate("Importar cookies.txt"); onClicked: workspace.invoke("pick",{kind:"social_cookies"}) }
-                        ActionButton { text: bridge.translate("Remover cookies"); onClicked: { workspace.setSetting("youtube_cookies","");workspace.setSetting("social_cookies","") } }
+                        ActionButton { text: bridge.translate(workspace.preferences.youtube_cookies ? "Remover cookies do YouTube" : "Importar cookies do YouTube"); onClicked: { if (workspace.preferences.youtube_cookies) workspace.setSetting("youtube_cookies",""); else workspace.invoke("pick",{kind:"youtube_cookies"}) } }
+                        ActionButton { text: bridge.translate(workspace.preferences.social_cookies ? "Remover cookies.txt" : "Importar cookies.txt"); onClicked: { if (workspace.preferences.social_cookies) workspace.setSetting("social_cookies",""); else workspace.invoke("pick",{kind:"social_cookies"}) } }
                     }
                     Flow { visible: popup.category === "Ferramentas" && !search.text; Layout.fillWidth: true; spacing: Math.round(8*bridge.spacing)
                         Repeater { model: [{name:"Preparar FFmpeg",key:"prepare_tools"},{name:"Verificar ferramentas",key:"verify_tools"},{name:"Atualizar ferramentas",key:"update_tools"},{name:"Verificar atualização do ONDA",key:"app_update"},{name:"Atualizar tamanho do cache",key:"cache_info"},{name:"Limpar cache",key:"cache_clear"}]
-                            TaskButton { required property var modelData; idleText: bridge.translate(modelData.name); operation: modelData.key }
+                            TaskButton { required property var modelData; objectName: modelData.key; idleText: bridge.translate(modelData.name); operation: modelData.key }
                         }
                     }
                     Item { Layout.preferredHeight: 20 }

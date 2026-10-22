@@ -17,6 +17,30 @@ class AndroidSessionTests(unittest.TestCase):
         self.assertEqual(options['http_headers']['Referer'],'https://youtube.com')
         self.assertEqual(params['cookiefile'],'stale.txt')
         self.assertNotIn('User-Agent',params['http_headers'])
+    def test_spotify_status_exposes_connection_without_credentials(self):
+        from unittest.mock import Mock,patch
+        for connected in (True,False):
+            with patch.object(backend,'account',return_value=Mock(connected=connected)):
+                self.assertEqual(backend.perform('spotify_status',{}),{'connected':connected})
+
+    def test_android_tools_update_reports_download_and_verification_progress(self):
+        import io,zipfile,hashlib,tempfile
+        from unittest.mock import Mock,MagicMock,patch
+        buffer=io.BytesIO()
+        with zipfile.ZipFile(buffer,'w') as archive:archive.writestr('yt_dlp/__init__.py','fixture')
+        data=buffer.getvalue();digest=hashlib.sha256(data).hexdigest()
+        release=Mock();release.json.return_value={'tag_name':'fixture','assets':[{'name':'yt-dlp','browser_download_url':'https://example.test/tool'},{'name':'SHA2-256SUMS','browser_download_url':'https://example.test/sums'}]}
+        sums=Mock(text=digest+'  yt-dlp')
+        download=MagicMock();download.__enter__.return_value=download
+        download.headers={'Content-Length':str(len(data))};download.iter_content.return_value=[data[:10],data[10:]]
+        with tempfile.TemporaryDirectory() as temporary,patch.object(backend,'_root',Path(temporary)),patch('requests.get',side_effect=[release,sums,download]),patch.object(backend,'emit') as emit:
+            result=backend.perform('update',{})
+            progress=[call.kwargs for call in emit.call_args_list]
+            self.assertTrue(any(row.get('done')==10 and row.get('total')==len(data) for row in progress))
+            self.assertEqual(progress[-1]['message'],'Verificando atualização das ferramentas…')
+            self.assertEqual((Path(temporary)/'tools/yt-dlp.zip').read_bytes(),data)
+            self.assertEqual(result['version'],'fixture')
+
     def test_general_cookie_import_remains_supported(self):
         self.assertEqual(backend.session_options({}, {'url':'https://youtube.com/watch?v=x','cookies_file':'import.txt'})['cookiefile'],'import.txt')
     def test_removing_session_does_not_reuse_stale_cookie_file(self):

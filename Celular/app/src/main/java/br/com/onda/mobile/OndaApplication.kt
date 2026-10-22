@@ -57,23 +57,45 @@ object SecureVault {
     fun clear() { context.getSharedPreferences("vault", 0).edit().clear().commit() }
 }
 
+data class ToolPreparation(val running:Boolean=false,val message:String="",val done:Long=0,val total:Long=0)
+
 object MobileEngine {
+    val toolsState=kotlinx.coroutines.flow.MutableStateFlow(ToolPreparation())
     @Volatile private var ready = false
     @Synchronized fun initialize(context: Context) {
         if (ready) return
-        val native = File(context.applicationInfo.nativeLibraryDir)
-        if (!Python.isStarted()) Python.start(AndroidPlatform(context.applicationContext))
-        Python.getInstance().getModule("mobile_backend").callAttr("configure", context.filesDir.absolutePath,
-            native.absolutePath, native.absolutePath)
-        // These folders contained only the superseded bundled native runtime.
-        File(context.noBackupFilesDir,"media-tools-v2").deleteRecursively()
-        File(context.noBackupFilesDir,"media-support-v1").deleteRecursively()
-        ready = true
+        toolsState.value=ToolPreparation(true,"Preparando ferramentas…",0,3)
+        try {
+            val native = File(context.applicationInfo.nativeLibraryDir)
+            if (!Python.isStarted()) Python.start(AndroidPlatform(context.applicationContext))
+            toolsState.value=ToolPreparation(true,"Carregando motor de mídia…",1,3)
+            Python.getInstance().getModule("mobile_backend").callAttr("configure", context.filesDir.absolutePath,native.absolutePath,native.absolutePath)
+            toolsState.value=ToolPreparation(true,"Finalizando preparação das ferramentas…",2,3)
+            File(context.noBackupFilesDir,"media-tools-v2").deleteRecursively()
+            File(context.noBackupFilesDir,"media-support-v1").deleteRecursively()
+            ready=true
+            toolsState.value=ToolPreparation(false,"Ferramentas prontas.",3,3)
+        } catch(error:Exception) {
+            toolsState.value=ToolPreparation(false,"Falha ao preparar ferramentas. Tente novamente.")
+            throw error
+        }
     }
     fun call(context: Context, identity: String, action: String, config: org.json.JSONObject, callback: EventCallback): org.json.JSONObject {
         initialize(context)
         if(action=="app_update") config.put("abi",android.os.Build.SUPPORTED_ABIS.firstOrNull { it in BuildConfig.ONDA_ABIS.split(",") } ?: BuildConfig.ONDA_ABIS.substringBefore(","))
-        return org.json.JSONObject(Python.getInstance().getModule("mobile_backend").callAttr("run",identity,action,config.toString(),callback).toString())
+        if(action=="update")toolsState.value=ToolPreparation(true,"Atualizando ferramentas…")
+        val observer=EventCallback {raw->
+            if(action=="update")runCatching {
+                val event=org.json.JSONObject(raw)
+                if(event.has("message"))toolsState.value=ToolPreparation(true,event.optString("message"),event.optLong("done"),event.optLong("total"))
+            }
+            callback.onEvent(raw)
+        }
+        try {
+            return org.json.JSONObject(Python.getInstance().getModule("mobile_backend").callAttr("run",identity,action,config.toString(),observer).toString())
+        } finally {
+            if(action=="update")toolsState.value=toolsState.value.copy(running=false)
+        }
     }
     fun reply(identity: String, value: org.json.JSONObject) {
         if (ready) Python.getInstance().getModule("mobile_backend").callAttr("reply",identity,value.toString())

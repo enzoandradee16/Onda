@@ -82,6 +82,7 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
     val settings by OndaStore.settings.collectAsStateWithLifecycle()
     val question by OndaStore.question.collectAsStateWithLifecycle()
     val busy by vm.busy.collectAsStateWithLifecycle()
+    val tools by MobileEngine.toolsState.collectAsStateWithLifecycle()
     val notice by vm.dialogNotice.collectAsStateWithLifecycle()
     val status by vm.status.collectAsStateWithLifecycle()
     var statusVisible by rememberStatusNotice(status,busy,settings.optString("notice_duration","Após 3 segundos"))
@@ -146,8 +147,16 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
             floatingActionButton={if(!showSettings && (tab=="Fila" || tab=="Links e fila"))FloatingActionButton(onClick={showLinks=true},containerColor=MaterialTheme.colorScheme.primary,shape=RoundedCornerShape(50)) {OndaIcon("add","Adicionar links",Modifier.size(24.dp))}}
         ) { padding ->
             Column(Modifier.fillMaxSize().padding(padding)) {
-                if(busy) LinearProgressIndicator(Modifier.fillMaxWidth())
-                TopStatusNotice(status,statusVisible,busy,settings.optBoolean("notice_animation",true),onCancel={vm.cancel()},onDismiss={statusVisible=false},onOpenSettings={category->if(category=="Sessão do YouTube")youtubeSession=true else {settingsCategory=category;showSettings=true}})
+                if(busy && !tools.running) LinearProgressIndicator(Modifier.fillMaxWidth())
+                if(tools.running)ToolCard(Modifier.padding(horizontal=LayoutSpacing.inset,vertical=8.dp).testTag("tools-preparation-progress")) {
+                    UiText(tools.message,style=MaterialTheme.typography.bodyMedium)
+                    if(tools.total>0) {
+                        val progress=(tools.done.toFloat()/tools.total).coerceIn(0f,1f)
+                        LinearProgressIndicator(progress={progress},modifier=Modifier.fillMaxWidth())
+                        UiText("${(progress*100).toInt()}%",style=MaterialTheme.typography.bodySmall)
+                    } else LinearProgressIndicator(Modifier.fillMaxWidth())
+                }
+                TopStatusNotice(status,statusVisible,busy,settings.optBoolean("notice_animation",true),onCancel={vm.cancel()},onDismiss={statusVisible=false},cancellable=!tools.running,onOpenSettings={category->if(category=="Sessão do YouTube")youtubeSession=true else {settingsCategory=category;showSettings=true}})
                 if(showSettings)Box(Modifier.weight(1f).fillMaxWidth()){SettingsWindow(vm,initialCategory=settingsCategory){showSettings=false}} else SwipePageHost(current=tab,pages=mainDestinations(tabs,bottomBarOrder(settings)),onNavigate={tab=it},modifier=Modifier.weight(1f).fillMaxWidth()) {
                     pages.SaveableStateProvider(tab) {when(tab) {
                         "Pesquisar"->SearchPage(vm,onConnectSpotify={settingsCategory="Contas";showSettings=true})
@@ -615,39 +624,52 @@ fun mediaClock(seconds:Long):String {val value=seconds.coerceAtLeast(0);return "
     }}
     fun effectName(): String {val name=if(speed<100) "Slowed" else if(speed>100) "Sped Up" else "";return if(reverb>0) if(name.isNotEmpty()) "$name + Reverb" else "Reverb" else name}
     Column(Modifier.verticalScroll(rememberScrollState()).padding(LayoutSpacing.inset),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
-        if(heading)PageTitle("Slowed · Sped Up · Reverb","Desacelere ou acelere sua música. Adicione reverb se quiser.")
-        OutlinedButton(onClick={choose.launch(arrayOf("audio/*"))},modifier=Modifier.fillMaxWidth()){UiText(if(source.isBlank()) "Abrir áudio" else importedAudioName(source),maxLines=2)}
-        TextButton(onClick={pickLyrics.launch(arrayOf("*/*"))},enabled=source.isNotBlank()){UiText("Importar letra LRC")}
-        if(lyricsName.isNotBlank())Text(lyricsName,style=MaterialTheme.typography.bodySmall)
-        if(lyricLine.isNotBlank())Text(lyricLine,style=MaterialTheme.typography.titleMedium)
-        val presets=remember {linkedMapOf("Original" to (100f to 0f),"Slowed leve" to (90f to 0f),"Slowed intenso" to (75f to 0f),"Sped Up leve" to (115f to 0f),"Sped Up intenso" to (130f to 0f),"Sped Up + Reverb" to (120f to 25f),"Só Reverb" to (100f to 30f),"Clássico" to (85f to 25f),"Atmosférico" to (75f to 50f))}
-        val preset=presets.entries.firstOrNull {it.value.first.toInt()==speed.toInt() && it.value.second.toInt()==reverb.toInt()}?.key ?: "Personalizado"
-        Select("Preset",preset,presets.keys.toList()) {val value=presets.getValue(it);speed=value.first;reverb=value.second}
-        UiText("Velocidade · ${speed.toInt()}% · ${if(speed<100) "Slowed" else if(speed>100) "Sped Up" else "original"}",fontWeight=FontWeight.Bold)
-        RoundSlider(speed,{speed=it.toInt().toFloat()},valueRange=50f..150f,modifier=Modifier.testTag("effects-speed").a11yLabel("Velocidade da música","${speed.toInt()}%"))
-        UiText("Reverb · ${reverb.toInt()}%${if(reverb==0f) " · desligado" else ""}",fontWeight=FontWeight.Bold)
-        RoundSlider(reverb,{reverb=it.toInt().toFloat()},valueRange=0f..100f,modifier=Modifier.testTag("effects-reverb").a11yLabel("Intensidade do reverb","${reverb.toInt()}%"))
-        Toggle("Manter tom (pitch) ao alterar a velocidade",pitch){pitch=it}
-        UiText("Posição na música · ${mediaClock(start.toLong())} / ${mediaClock(duration.toLong())}")
-        RoundSlider(start.coerceIn(0f,duration.coerceAtLeast(1f)),{start=it},valueRange=0f..duration.coerceAtLeast(1f),modifier=Modifier.a11yLabel("Posição inicial da prévia","${mediaClock(start.toLong())} de ${mediaClock(duration.toLong())}"))
-        Row(horizontalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
-        TextButton(onClick={vm.stopPreview();vm.preview(source,OndaStore.settings.value.optInt("effects_preview",25),start.toInt())},enabled=source.isNotBlank()){UiText("Ouvir original")}
-        Button(onClick={vm.previewEffects(source,speed.toInt(),reverb.toInt(),pitch,start.toInt())},enabled=source.isNotBlank()){UiText("Ouvir com efeitos")}
+        if(heading)ToolHeading("Efeitos")
+        ToolCard(Modifier.testTag("effects-source-card")) {
+            UiText("Sua música",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold)
+            UiText("Desacelere ou acelere sua música. Adicione reverb se quiser.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+            OutlinedButton(onClick={choose.launch(arrayOf("audio/*"))},modifier=Modifier.fillMaxWidth()){UiText(if(source.isBlank()) "Abrir áudio" else importedAudioName(source),maxLines=2)}
+            TextButton(onClick={pickLyrics.launch(arrayOf("*/*"))},enabled=source.isNotBlank()){UiText("Importar letra LRC")}
+            if(lyricsName.isNotBlank())Text(lyricsName,style=MaterialTheme.typography.bodySmall)
+            if(lyricLine.isNotBlank())Text(lyricLine,style=MaterialTheme.typography.titleMedium)
+        }
+        ToolCard(Modifier.testTag("effects-adjustments-card")) {
+            UiText("Ajustes",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold)
+            val presets=remember {linkedMapOf("Original" to (100f to 0f),"Slowed leve" to (90f to 0f),"Slowed intenso" to (75f to 0f),"Sped Up leve" to (115f to 0f),"Sped Up intenso" to (130f to 0f),"Sped Up + Reverb" to (120f to 25f),"Só Reverb" to (100f to 30f),"Clássico" to (85f to 25f),"Atmosférico" to (75f to 50f))}
+            val preset=presets.entries.firstOrNull {it.value.first.toInt()==speed.toInt() && it.value.second.toInt()==reverb.toInt()}?.key ?: "Personalizado"
+            Select("Preset",preset,presets.keys.toList()) {val value=presets.getValue(it);speed=value.first;reverb=value.second}
+            UiText("Velocidade · ${speed.toInt()}% · ${if(speed<100) "Slowed" else if(speed>100) "Sped Up" else "original"}",fontWeight=FontWeight.Bold)
+            RoundSlider(speed,{speed=it.toInt().toFloat()},valueRange=50f..150f,modifier=Modifier.testTag("effects-speed").a11yLabel("Velocidade da música","${speed.toInt()}%"))
+            UiText("Reverb · ${reverb.toInt()}%${if(reverb==0f) " · desligado" else ""}",fontWeight=FontWeight.Bold)
+            RoundSlider(reverb,{reverb=it.toInt().toFloat()},valueRange=0f..100f,modifier=Modifier.testTag("effects-reverb").a11yLabel("Intensidade do reverb","${reverb.toInt()}%"))
+            ToolSwitch("Manter tom",pitch,"Preservar o tom ao alterar a velocidade"){pitch=it}
+        }
+        ToolCard(Modifier.testTag("effects-preview-card")) {
+            UiText("Prévia",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold)
+            UiText("Posição na música · ${mediaClock(start.toLong())} / ${mediaClock(duration.toLong())}")
+            RoundSlider(start.coerceIn(0f,duration.coerceAtLeast(1f)),{start=it},valueRange=0f..duration.coerceAtLeast(1f),modifier=Modifier.a11yLabel("Posição inicial da prévia","${mediaClock(start.toLong())} de ${mediaClock(duration.toLong())}"))
+            Column(Modifier.fillMaxWidth(),verticalArrangement=Arrangement.spacedBy(8.dp)) {
+            TextButton(onClick={vm.stopPreview();vm.preview(source,OndaStore.settings.value.optInt("effects_preview",25),start.toInt())},enabled=source.isNotBlank(),modifier=Modifier.fillMaxWidth()){UiText("Ouvir original")}
+            Button(onClick={vm.previewEffects(source,speed.toInt(),reverb.toInt(),pitch,start.toInt())},enabled=source.isNotBlank(),modifier=Modifier.fillMaxWidth()){UiText("Ouvir com efeitos")}
         }
         val previewUrl by vm.previewUrl.collectAsStateWithLifecycle()
         if(previewUrl.isNotBlank()) PlayerControls(vm)
         UiText("Arraste a barra para escolher o trecho. A duração da prévia pode ser alterada em Configurações. Ajuste os efeitos enquanto ouve.",style=MaterialTheme.typography.bodySmall)
-        Select("Salvar como",format.uppercase(),listOf("MP3","M4A","FLAC","WAV")){format=it.lowercase()}
-        Button(onClick={
-            val name=importedAudioName(source).substringBeforeLast('.')
-            val suffix=effectName().let {if(it.isBlank()) "" else " - $it"}
-            val output=File(OndaStore.config().getString("folder"),"$name$suffix.$format")
-            val config=OndaStore.config().put("source",source).put("output",output.absolutePath).put("speed",speed.toInt()).put("reverb",reverb.toInt()).put("keep_pitch",pitch)
-            config.put("_operation","effects")
-            val id=OndaStore.enqueue(source,output.name,extra=config)
-            DownloadService.start(OndaStore.context,id)
-            vm.status.value="Exportação adicionada à fila. Acompanhe na aba Fila."
-        },enabled=source.isNotBlank()){UiText("Exportar música inteira")}
+        }
+        ToolCard(Modifier.testTag("effects-export-card")) {
+            UiText("Exportar",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold)
+            Select("Salvar como",format.uppercase(),listOf("MP3","M4A","FLAC","WAV")){format=it.lowercase()}
+            Button(onClick={
+                val name=importedAudioName(source).substringBeforeLast('.')
+                val suffix=effectName().let {if(it.isBlank()) "" else " - $it"}
+                val output=File(OndaStore.config().getString("folder"),"$name$suffix.$format")
+                val config=OndaStore.config().put("source",source).put("output",output.absolutePath).put("speed",speed.toInt()).put("reverb",reverb.toInt()).put("keep_pitch",pitch)
+                config.put("_operation","effects")
+                val id=OndaStore.enqueue(source,output.name,extra=config)
+                DownloadService.start(OndaStore.context,id)
+                vm.status.value="Exportação adicionada à fila. Acompanhe na aba Fila."
+            },enabled=source.isNotBlank(),modifier=Modifier.fillMaxWidth()){UiText("Exportar música inteira")}
+        }
     }
 }
 

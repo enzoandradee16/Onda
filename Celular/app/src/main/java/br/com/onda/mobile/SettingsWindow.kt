@@ -39,6 +39,8 @@ val categories=linkedMapOf(
 @Composable fun SettingsWindow(vm: OndaViewModel, initialCategory: String="Geral", close: ()->Unit) {
     val settings by OndaStore.settings.collectAsStateWithLifecycle()
     val busy by vm.busy.collectAsStateWithLifecycle()
+    val spotifyConnected by vm.spotifyConnected.collectAsStateWithLifecycle()
+    val tools by MobileEngine.toolsState.collectAsStateWithLifecycle()
     val status by vm.status.collectAsStateWithLifecycle()
     val names=remember {settingsCategoryOrder()+"Desempenho"}
     val pager=rememberPagerState(initialPage=names.indexOf(initialCategory).takeIf {it>=0} ?: 0,pageCount={names.size})
@@ -253,7 +255,7 @@ val categories=linkedMapOf(
                     "Contas"->{
                         UiText("Contas e acesso",style=MaterialTheme.typography.titleMedium)
                         UiText("Spotify · opcional",style=MaterialTheme.typography.titleSmall)
-                        Button(onClick={vm.connectSpotify()}){UiText("Conectar")}
+                        Button(onClick={if(spotifyConnected)vm.operation("spotify_disconnect",JSONObject(),dialog=true) else vm.connectSpotify()},enabled=!busy){UiText(if(spotifyConnected)"Desconectar" else "Conectar")}
                         var secret by remember {mutableStateOf("")}
                         var secretReady by remember {mutableStateOf(false)}
                         LaunchedEffect(Unit) {
@@ -265,15 +267,18 @@ val categories=linkedMapOf(
                         SettingsDivider()
                         OutlinedTextField(secret,{secret=it;SecureVault.put("spotify-api",it)},label={UiText("Client Secret · opcional")},enabled=secretReady,visualTransformation=androidx.compose.ui.text.input.PasswordVisualTransformation(),modifier=Modifier.fillMaxWidth(),singleLine=true)
                         TextButton(onClick={runCatching {OndaStore.context.startActivity(Intent(Intent.ACTION_VIEW,android.net.Uri.parse("https://developer.spotify.com/dashboard")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))}.onFailure {vm.showNotice("Abrir Spotify Developers","Nenhum navegador disponível para abrir o Spotify Developers.")}}){UiText("Abrir Spotify Developers")}
-                        TextButton(onClick={vm.operation("spotify_disconnect",JSONObject(),dialog=true)}){UiText("Desconectar")}
                         UiText("No Spotify Developers, cadastre o retorno http://127.0.0.1:8765/callback. A conexão usa PKCE e abre o navegador do celular. A disponibilidade das playlists depende das permissões da API.",style=MaterialTheme.typography.bodySmall)
                         SettingsDivider()
-                        OutlinedButton(onClick={youtubeCookies.launch(arrayOf("text/plain","application/octet-stream"))}){UiText("Importar cookies do YouTube")}
-                        OutlinedButton(onClick={cookies.launch(arrayOf("text/plain","application/octet-stream"))}){UiText("Importar cookies.txt")}
+                        OutlinedButton(onClick={
+                            if(settings.optString("youtube_cookies_file").isBlank())youtubeCookies.launch(arrayOf("text/plain","application/octet-stream"))
+                            else {java.io.File(settings.getString("youtube_cookies_file")).delete();put("youtube_cookies_file","");put("youtube_user_agent","");android.webkit.CookieManager.getInstance().removeAllCookies(null)}
+                        }){UiText(if(settings.optString("youtube_cookies_file").isBlank())"Importar cookies do YouTube" else "Remover sessão do YouTube")}
+                        OutlinedButton(onClick={
+                            val path=settings.optString("cookies_file")
+                            if(path.isBlank())cookies.launch(arrayOf("text/plain","application/octet-stream"))
+                            else {java.io.File(path).delete();put("cookies_file","")}
+                        }){UiText(if(settings.optString("cookies_file").isBlank())"Importar cookies.txt" else "Remover cookies")}
                         UiText(if(settings.optString("cookies_file").isBlank()) "Nenhum cookie importado" else "Cookies salvos no armazenamento privado do ONDA",style=MaterialTheme.typography.bodySmall)
-                        TextButton(onClick={val path=settings.optString("cookies_file");if(path.isNotBlank()) java.io.File(path).delete();put("cookies_file","")}){UiText("Remover cookies")}
-                        if(settings.optString("youtube_cookies_file").isNotBlank()) SettingsDivider()
-                        if(settings.optString("youtube_cookies_file").isNotBlank()) TextButton(onClick={java.io.File(settings.getString("youtube_cookies_file")).delete();put("youtube_cookies_file","");put("youtube_user_agent","");android.webkit.CookieManager.getInstance().removeAllCookies(null)}) {UiText("Remover sessão do YouTube")}
                     }
                     "Desempenho"->{
                         CacheControls(vm)
@@ -283,7 +288,7 @@ val categories=linkedMapOf(
                         SettingsDivider()
                         UiText("Ferramentas e atualizações",style=MaterialTheme.typography.titleMedium)
                         UiText("Python, FFmpeg, FFprobe e QuickJS já estão incluídos no aplicativo. Não é necessário instalar Termux.")
-                        Button(onClick={vm.operation("update",JSONObject(),dialog=true)}){UiText("Atualizar ferramentas")}
+                        Button(onClick={vm.operation("update",JSONObject(),dialog=true)},enabled=!busy && !tools.running){UiText(if(tools.running)"Em andamento…" else "Atualizar ferramentas")}
                         SettingsDivider()
                         OutlinedButton(onClick={vm.operation("self_test",JSONObject(),dialog=true){vm.showNotice("Verificar ferramentas","Ferramentas verificadas: ${it.optString("yt_dlp")}")}}){UiText("Verificar ferramentas")}
                         CacheControls(vm)

@@ -28,12 +28,13 @@ class DesktopWorkspace(QObject):
         self.credentials=CredentialStore()
         try:identity,secret=self.credentials.load() or ('','')
         except CredentialError:identity,secret='',''
+        self.saved_credentials=(identity,secret)
         self.settings.update(spotify_client_id=os.environ.get('SPOTIFY_CLIENT_ID',identity),spotify_client_secret=os.environ.get('SPOTIFY_CLIENT_SECRET',secret))
         self._page='catalog';self._status=tr('Pronto para começar');self._choice={};self.choice_callbacks={};self.pending_choices=[];self.logs=[]
         self.models={key:RowsModel(self) for key in ('queue','catalog','playlists','history')}
         from queue_undo import QueueUndo
         self.undo_history=QueueUndo()
-        self.jobs=[];self.active={};self.tasks={};self.background_tasks=set();self.generations={};self.callbacks={};self.running=False;self.closing=False;self.paused_all=False;self.schedule_blocked=False;self.clipboard_seen=set();self.syncing=False
+        self.jobs=[];self.active={};self.tasks={};self.background_tasks=set();self.tool_progress={};self.generations={};self.callbacks={};self.running=False;self.closing=False;self.paused_all=False;self.schedule_blocked=False;self.clipboard_seen=set();self.syncing=False
         self.lyrics=[];self.last_preview_processed=True;self.preview_kind='';self.preview_source=''
         self.preview_timer=QTimer(self);self.preview_timer.setSingleShot(True);self.preview_timer.setInterval(150);self.preview_timer.timeout.connect(self.play_effects_preview)
         self.options={'previewActive':False,'previewKind':'','previewSource':'','previewProcessed':False,'metadataFields':{},'lyricText':'','effectLyricsName':'','query':'','provider':self.settings.get('catalog_provider','Deezer'),'links':'','linksNotice':'','playlistUrl':'','playlistTitle':'','queueQuery':'','queueState':'Todos','historyQuery':'','silenceResults':[],'trimSilence':False,'converterSources':[],'converterFormat':'MP4','video_quality':'Equilibrada','video_resolution':'Original','video_bitrate':'Automático','audio_bitrate':'192k','video_fps':'Original','video_audio':'Manter áudio','effectsSource':'','effectsRecord':{},'effectsCover':'','speed':85,'reverb':25,'keep_pitch':self.settings.get('effects_keep_pitch',False),'effectFormat':'MP3','position':0,'duration':0,'imageInfo':{},'catalogSearched':False,'imageSource':'','imageUrl':'','imagePreview':'','metadataSources':[],'metadata':{},'cover_path':'','lyrics_path':'','normalize_volume':False,'overwrite_original':False,'comparison':{},'selectedCatalog':-1,'selectedPlaylist':-1,'filterArtist':'','filterAlbum':'','filterVersion':''}
@@ -70,7 +71,7 @@ class DesktopWorkspace(QObject):
     @Property('QVariantMap',notify=choiceChanged)
     def choice(self):return dict(self._choice)
     @Property('QVariantMap',notify=statusChanged)
-    def activity(self):return {'selected':sum(bool(job.get('checked')) for job in self.jobs),'visibleSelected':sum(bool(row.get('checked')) for row in self.models['queue'].rows),'total':len(self.jobs),'undoCount':len(self.undo_history.entries),'running':self.running,'active':len(self.active),'background':list(self.background_tasks),'busy':list(dict.fromkeys(list(self.tasks)+[state['operation'] for state in self.active.values() if state.get('operation')]+[job['ui_operation'] for job in self.jobs if job.get('ui_operation') and job['state']=='Na fila'])),'logs':'\n'.join(self.logs[-200:]),'spotify':self.account.connected,'elapsed':self.timing.snapshot(sum(job['state'] in ('Na fila','Em andamento') for job in self.jobs))[0] if hasattr(self,'timing') else 0}
+    def activity(self):return {'credentialsSaved':any(self.saved_credentials) and self.saved_credentials==(self.settings.get('spotify_client_id',''),self.settings.get('spotify_client_secret','')),'tools':dict(self.tool_progress),'selected':sum(bool(job.get('checked')) for job in self.jobs),'visibleSelected':sum(bool(row.get('checked')) for row in self.models['queue'].rows),'total':len(self.jobs),'undoCount':len(self.undo_history.entries),'running':self.running,'active':len(self.active),'background':list(self.background_tasks),'busy':list(dict.fromkeys(list(self.tasks)+[state['operation'] for state in self.active.values() if state.get('operation')]+[job['ui_operation'] for job in self.jobs if job.get('ui_operation') and job['state']=='Na fila'])),'logs':'\n'.join(self.logs[-200:]),'spotify':self.account.connected,'elapsed':self.timing.snapshot(sum(job['state'] in ('Na fila','Em andamento') for job in self.jobs))[0] if hasattr(self,'timing') else 0}
     @Property(QObject,constant=True)
     def queueModel(self):return self.models['queue']
     @Property(QObject,constant=True)
@@ -116,7 +117,7 @@ class DesktopWorkspace(QObject):
         if key=='remember_settings':
             self.settings[key]=bool(value)
             if not value:self.store.forget()
-        elif key in ('spotify_client_id','spotify_client_secret','social_cookies','youtube_cookies'):self.settings[key]=str(value)
+        elif key in ('spotify_client_id','spotify_client_secret','social_cookies','youtube_cookies'):self.settings[key]=str(value);self.statusChanged.emit()
         elif key in ('tab_order','hidden_tabs'):
             from tab_order import normalize_hidden,normalize_order
             self.settings[key]=(normalize_hidden if key=='hidden_tabs' else normalize_order)(value)
@@ -169,9 +170,12 @@ class DesktopWorkspace(QObject):
     @Slot()
     def showMetadata(self):self.selectPage('metadata')
     def run_task(self,action,overrides=None,callback=None,*,background=False):
+        if action in ('prepare_tools','update_tools') and any(name in self.tasks for name in ('prepare_tools','update_tools')):
+            self.notify('Aguarde a preparação ou atualização das ferramentas terminar.');return
         self.cancel_task(action);revision=self.generations.get(action,0)+1;self.generations[action]=revision;cancel=threading.Event();self.tasks[action]=cancel;self.callbacks[action]=callback
         if background:self.background_tasks.add(action)
         else:self.background_tasks.discard(action)
+        if action in ('prepare_tools','update_tools'):self.tool_progress={'action':action,'message':self.taskLabel(action),'done':0,'total':0}
         config=dict(self.config(),**(overrides or {}));self.statusChanged.emit()
         def work():
             try:
@@ -289,9 +293,12 @@ class DesktopWorkspace(QObject):
             row=self.models['history'].rows[p['index']];self.enqueue([row['source']],overrides={'mode':row.get('mode','mp3')},start=True)
         elif action=='history_clear':self.confirm('Limpar histórico','Limpar o histórico? Os arquivos serão preservados.',self.clear_history)
         elif action in ('export_playlist','import_playlist','export_settings','import_settings','restore_settings','export_history'):self.settings_file_action(action)
-        elif action=='save_credentials':self.credentials.save(self.settings['spotify_client_id'],self.settings['spotify_client_secret']);self.notify('Credenciais salvas neste computador.')
-        elif action=='forget_credentials':self.credentials.forget();self.settings.update(spotify_client_id='',spotify_client_secret='');self.settingsChanged.emit()
-        elif action=='spotify_connect':self.run_task(action,{},self.show_result)
+        elif action=='save_credentials':self.credentials.save(self.settings['spotify_client_id'],self.settings['spotify_client_secret']);self.saved_credentials=(self.settings['spotify_client_id'],self.settings['spotify_client_secret']);self.statusChanged.emit();self.notify('Credenciais salvas neste computador.')
+        elif action=='forget_credentials':self.credentials.forget();self.saved_credentials=('','');self.settings.update(spotify_client_id='',spotify_client_secret='');self.settingsChanged.emit();self.statusChanged.emit()
+        elif action=='spotify_developers':QDesktopServices.openUrl(QUrl('https://developer.spotify.com/dashboard'))
+        elif action=='spotify_connect':
+            if not self.settings.get('spotify_client_id','').strip():self.notify('Informe o Client ID do Spotify.');return
+            self.run_task(action,{},self.show_result)
         elif action=='spotify_disconnect':self.account.disconnect();self.statusChanged.emit()
         elif action=='logs':self.message.emit(tr('Detalhes'),'\n'.join(self.logs[-200:]) or tr('Sem registros.'))
         elif action=='failures':self.message.emit(tr('Falhas da fila'),'\n'.join(job.get('display_name',job['url'])+': '+job.get('last_error','') for job in self.jobs if job['state']=='Falhou') or tr('Nenhuma falha.'))
@@ -525,7 +532,11 @@ class DesktopWorkspace(QObject):
                     else:self.show_result(event['result'])
                 except Exception as error:self.notify(error)
             elif identity=='task_error':self.notify(event['error']);self.log(event['error'])
-            elif identity=='task_progress':self.notify(event['event'].get('message',''))
+            elif identity=='task_progress':
+                progress=event['event']
+                if action in ('prepare_tools','update_tools'):
+                    self.tool_progress=dict(progress,action=action);self.statusChanged.emit()
+                self.notify(progress.get('message',''))
             else:self.tasks.pop(action,None);self.background_tasks.discard(action);self.statusChanged.emit()
             return
         if identity=='process':
@@ -750,7 +761,7 @@ class DesktopWorkspace(QObject):
         elif action in ('log','failures'):self.dispatch('logs' if action=='log' else action,{})
     @Slot()
     def restore(self):
-        self.window.show();self.window.raise_();self.window.requestActivate()
+        self.window.showNormal();self.window.raise_();self.window.requestActivate()
         if self.tray:self.tray.hide()
     @Slot()
     @Slot(bool)

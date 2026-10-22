@@ -48,7 +48,19 @@ Pane {
                 }
             }
             Flow { Layout.fillWidth: true; Layout.leftMargin: 24; Layout.rightMargin: 24; spacing: Math.round(8*bridge.spacing); visible: app.remainingTasks.length > 0
-                Repeater { model: app.remainingTasks; ActionButton { required property string modelData; text: bridge.translate("Cancelar")+" "+workspace.taskLabel(modelData); onClicked: workspace.invoke("cancel_task",{name:modelData}) } }
+                Repeater { model: app.remainingTasks.filter(function(name) { return name !== "prepare_tools" && name !== "update_tools" }); ActionButton { required property string modelData; text: bridge.translate("Cancelar")+" "+workspace.taskLabel(modelData); onClicked: workspace.invoke("cancel_task",{name:modelData}) } }
+            }
+            Card {
+                objectName: "toolsProgressCard"
+                visible: workspace.activity.busy.indexOf("prepare_tools") >= 0 || workspace.activity.busy.indexOf("update_tools") >= 0
+                Layout.fillWidth: true; Layout.leftMargin: 24; Layout.rightMargin: 24; Layout.bottomMargin: 16
+                implicitHeight: toolProgressBody.implicitHeight+32
+                ColumnLayout {
+                    id: toolProgressBody; anchors.fill: parent; anchors.margins: 16; spacing: 10
+                    Label { Layout.fillWidth: true; wrapMode: Text.Wrap; color: bridge.palette.text; text: bridge.translate(workspace.activity.tools.message || "Preparando ferramentas…") }
+                    OndaProgressBar { Layout.fillWidth: true; from: 0; to: Math.max(1,workspace.activity.tools.total || 0); value: workspace.activity.tools.done || 0; indeterminate: !(workspace.activity.tools.total > 0) }
+                    Label { visible: workspace.activity.tools.total > 0; color: bridge.palette.muted; text: Math.min(100,Math.round(100*(workspace.activity.tools.done || 0)/Math.max(1,workspace.activity.tools.total || 0)))+"%" }
+                }
             }
             WorkspaceView { objectName: "workspaceArea"; visible: workspace.currentPage !== "jukebox"; active: visible; Layout.fillWidth: true; Layout.fillHeight: true; Layout.leftMargin: 24; Layout.rightMargin: 24; Layout.bottomMargin: 16 }
             JukeboxView { id: jukebox; visible: workspace.currentPage === "jukebox"; Layout.fillWidth: true; Layout.fillHeight: true; Layout.leftMargin: 24; Layout.rightMargin: 24; volume: volume.value }

@@ -39,6 +39,15 @@ Name: "desktopicon"; Description: "Criar atalho na Área de Trabalho"; GroupDesc
 [Files]
 Source: "{#PackageRoot}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "Onda-Portable*.zip,__pycache__\*,*.pyc,_runtime\ffmpeg\*"
 
+
+#ifdef ToolsRoot
+Source: "{#ToolsRoot}\ffmpeg.exe"; DestDir: "{app}\_runtime\ffmpeg"; Flags: ignoreversion
+Source: "{#ToolsRoot}\ffprobe.exe"; DestDir: "{app}\_runtime\ffmpeg"; Flags: ignoreversion
+Source: "{#ToolsRoot}\ffplay.exe"; DestDir: "{app}\_runtime\ffmpeg"; Flags: ignoreversion
+Source: "{#ToolsRoot}\LICENSE.txt"; DestDir: "{app}\_runtime\ffmpeg"; Flags: ignoreversion
+Source: "{#ToolsRoot}\README.txt"; DestDir: "{app}\_runtime\ffmpeg"; Flags: ignoreversion
+#endif
+
 [InstallDelete]
 ; Remove only the legacy bundled tools during upgrade; user downloads are untouched.
 Type: files; Name: "{app}\_runtime\ffmpeg\ffmpeg.exe"

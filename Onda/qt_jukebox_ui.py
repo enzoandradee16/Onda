@@ -39,7 +39,7 @@ class JukeboxBridge(QObject):
         self.clock_timer=QTimer(self);self.clock_timer.setInterval(500);self.clock_timer.timeout.connect(self.tick_sleep)
         self.workers=[];self.seeks=queue.SimpleQueue();self.model=None;self.records=[]
         self._state={'title':tr('Escolha sua música.'),'artist':'','album':'','cover':'','status':tr('Abra um arquivo ou pesquise uma música para começar.'),'busy':False,'playing':False,'paused':False,'ready':False,'progress':0,'results':[]}
-        self._graph_cache=None;self._position=0.;self._phase=0.;self._elapsed=0.;self._jumps=0;self.flow=[];self.used_edges=set()
+        self._topology_rows=None;self._topology_options=None;self._topology_links=[];self._graph_cache=None;self._position=0.;self._phase=0.;self._elapsed=0.;self._jumps=0;self.flow=[];self.used_edges=set()
         self._params=(45.,35.,80.,False);self._equalizer=clean(self.preferences.get('jukebox_equalizer'))
         self.config_provider=None;self.window=None;self.media=None;self.media_failed=False
         self.media_timer=QTimer(self);self.media_timer.setInterval(100);self.media_timer.timeout.connect(self.sync_media)
@@ -196,7 +196,16 @@ class JukeboxBridge(QObject):
         rows=self.model['neighbors'] if self.model else [[] for _ in range(64)]
         normal=self._params[3]
         from jukebox import variation_neighbors
-        links=[] if normal else [(i,j) for i,row in enumerate(variation_neighbors(rows,self._params[0])) for j in row]
+        options=(self._params[0],normal)
+        if self._topology_rows is not rows or self._topology_options!=options:
+            self._topology_rows=rows;self._topology_options=options
+            selected=[] if normal else variation_neighbors(rows,self._params[0])
+            total=sum(map(len,selected));stride=max(1,math.ceil(total/1800));offset=0;links=[]
+            for i,row in enumerate(selected):
+                links.extend((i,row[k]) for k in range((-offset)%stride,len(row),stride))
+                offset+=len(row)
+            self._topology_links=links
+        links=self._topology_links
         self._graph_cache={'count':len(rows),'links':links,'flow':list(self.flow),'used':sorted(self.used_edges),'variation':self._params[0]}
         return self._graph_cache
     @Property('QVariantMap',notify=positionChanged)

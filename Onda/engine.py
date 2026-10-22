@@ -351,7 +351,10 @@ def run_worker(config: dict) -> int:
             emit("stage", message="Consultando metadados da música…")
             client = MetadataClient(config.get("spotify_client_id", ""), config.get("spotify_client_secret", ""))
             try:
-                if config.get('catalog_record'):
+                from spotify_metadata import spotify_track
+                # Only Spotify records use Spotify cache validation. Other providers
+                # are fetched by their own canonical link and identity checks.
+                if config.get('catalog_record') and spotify_track(url):
                     from spotify_search import cached_record
                     record = client.complete_spotify(cached_record(config['catalog_record'], url),choose=ask_catalog,automatic=bool(config.get('auto_metadata')))
                 else:

@@ -124,7 +124,7 @@ def perform(action,config,cancel,emit):
         return (clear_cache if action=='cache_clear' else cache_info)(config['_root'])
     if action=='prepare_tools':
         from ffmpeg_runtime import download_tools
-        return str(download_tools(cancel=cancel,progress=lambda done,total,message:emit('stage',message=message)))
+        return str(download_tools(cancel=cancel,progress=lambda done,total,message:emit('stage',message=message,done=done,total=total)))
     if action=='verify_tools':
         from audio_tools import executable,process_options
         results=[]
@@ -137,6 +137,7 @@ def perform(action,config,cancel,emit):
         from advanced_options import release_update
         return release_update('windows','1.1.7')
     if action=='update_tools':
+        emit('stage',message='Atualizando ferramentas…',done=0,total=0)
         from audio_tools import process_options
         import sys
         python=Path(sys.executable).with_name('python.exe')
