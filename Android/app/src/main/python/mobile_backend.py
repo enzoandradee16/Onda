@@ -364,6 +364,10 @@ def perform(action, config):
         from cache_cleanup import cache_info,clear_cache
         return (clear_cache if action=='cache_clear' else cache_info)(_root)
 
+    if action == 'lyrics_online':
+        from lyrics_service import fetch_lyrics
+        return fetch_lyrics(config['source'],config.get('record'),_local.state['cancel'],alternatives=config.get('alternatives',False))
+
     if action == 'lyrics_read':
         from synced_lyrics import read_lrc
         return {'lines':read_lrc(config['source'])}

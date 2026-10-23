@@ -266,3 +266,11 @@ class ReviewRegressionTests(unittest.TestCase):
         self.ws.models['history'].replace([dict(id=i,path=str(path),checked=True) for i,path in enumerate(files)])
         with patch.object(self.ws,'accept_files') as accept:self.ws.dispatch('history_edit',{'index':0})
         accept.assert_called_once_with('metadata',[str(path.resolve()) for path in files])
+
+    def test_online_lyrics_without_song_warns_and_does_not_start_task(self):
+        for page in ('effects','jukebox'):
+            self.ws.selectPage(page)
+            with patch.object(self.ws,'run_task') as task,patch.object(self.ws,'notify') as notice:
+                self.ws.dispatch('lyrics_online',{})
+                task.assert_not_called()
+                notice.assert_called_once_with('Selecione uma música antes de buscar a letra online.')

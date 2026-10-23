@@ -48,7 +48,7 @@ def effects_filter(speed=100, reverb=0, keep_pitch=False):
         return (prefix+',asplit=2[direct][room];[room]highpass=f=160,'+
                 ','.join(stages)+',adelay=18:all=1[ambience];'+
                 "[direct][ambience]amix=inputs=2:duration=longest:dropout_transition=0:normalize=0:weights='1 "+
-                format(wet*2.4,'.4f')+"',alimiter=limit=0.95:level=false:latency=true")
+                format(wet*wet*2.4,'.4f')+"',alimiter=limit=0.95:level=false:latency=true")
     return ",".join(filters) or "anull"
 
 

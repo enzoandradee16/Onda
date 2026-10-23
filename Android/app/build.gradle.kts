@@ -81,6 +81,7 @@ chaquopy {
             install("yt-dlp-ejs==0.8.0")
             install("requests==2.32.5")
             install("mutagen==1.47.0")
+            install("PyYAML>=6.0.2,<7")
             install("gallery-dl==1.32.16")
             install("Pillow==11.0.0")
         }

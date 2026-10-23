@@ -13,7 +13,7 @@ TAB_GROUPS=[('BIBLIOTECA',('catalog','downloads','queue','playlists','history'))
 CHOICES={'choose_flac','choose_media','choose_version','choose_catalog','choose_duplicate','review_metadata'}
 class DesktopWorkspace(QObject):
     changed=Signal();optionsChanged=Signal();settingsChanged=Signal();choiceChanged=Signal();statusChanged=Signal()
-    comparisonRequested=Signal(int);cropRequested=Signal();settingsRequested=Signal();settingsCategoryRequested=Signal(str);shortcutsRequested=Signal();message=Signal(str,str);_event=Signal(str,object)
+    lyricsRequested=Signal();comparisonRequested=Signal(int);cropRequested=Signal();settingsRequested=Signal();settingsCategoryRequested=Signal(str);shortcutsRequested=Signal();message=Signal(str,str);_event=Signal(str,object)
     def __init__(self,bridge,parent=None):
         super().__init__(parent);self.bridge=bridge;self.window=None;self.prepare_tools=False;self.restart_requested=False;self.closed=False
         schema=json.loads((ROOT/'settings_schema/desktop.json').read_text(encoding='utf-8'));self.defaults=schema['defaults'];self.fields=schema['fields']
@@ -217,7 +217,35 @@ class DesktopWorkspace(QObject):
         try:self.dispatch(action,dict(params))
         except Exception as error:self.notify(error);self.message.emit(tr('ONDA'),str(error))
     def dispatch(self,action,p):
-        if action=='configure_spotify':self.settingsCategoryRequested.emit('Contas')
+        if action=='lyrics_online':
+            jukebox=p.get('jukebox',self._page=='jukebox')
+            automatic=p.get('automatic',False)
+            record=dict(self.bridge.model or {}) if jukebox else dict(self.options['effectsRecord'])
+            source=str(record.get('source','')) if jukebox else self.options['effectsSource']
+            if not str(source).strip():
+                text=tr('Selecione uma música antes de buscar a letra online.')
+                self.notify(text);self.message.emit(tr('Buscar letra online'),text);return
+            def loaded(result):
+                if not result:return
+                if 'candidates' in result:
+                    candidates=result['candidates']
+                    if not candidates:self.notify(tr('Letra não encontrada no LRCLIB para esta gravação.'));return
+                    def selected(reply):
+                        if reply.get('cancel'):return
+                        choice=next((row for row in candidates if row['id']==str(reply.get('selected_id'))),None)
+                        if choice:loaded(choice)
+                    self.present_choice(uuid.uuid4().hex,{'type':'choose_catalog','title':tr('Buscar letra online'),'candidates':candidates},selected);return
+                if jukebox:
+                    if str((self.bridge.model or {}).get('source',''))!=source:return
+                    if automatic and getattr(self,'_jukebox_lyrics',[]):return
+                    self._lyric_source=source;self._jukebox_lyrics=result['lines']
+                else:
+                    if self.options['effectsSource']!=source:return
+                    if automatic and self.lyrics:return
+                    self.lyrics=result['lines'];self.options['effectLyricsName']='LRCLIB';self.setSetting('synced_lyrics',True);self.optionsChanged.emit()
+                self.notify('LRCLIB' if result['synced'] else 'LRCLIB · '+tr('Letra sem sincronização.'))
+            self.run_task('lyrics_online',{'source':source,'record':record,'automatic':automatic,'alternatives':not automatic},loaded,background=automatic)
+        elif action=='configure_spotify':self.settingsCategoryRequested.emit('Contas')
         elif action=='search':
             query=self.options['query'].strip()
             if self.options['provider']=='Spotify' and not self.activity['spotifySearchReady'] and not query.startswith(('https://','http://','spotify:')):
@@ -730,6 +758,7 @@ class DesktopWorkspace(QObject):
         self.run_task('convert',config,self.show_result)
     def effects_loaded(self,result):
         self.options.update(effectsRecord=result['record'],effectsCover=('data:image/png;base64,'+result['cover']) if result.get('cover') else '',duration=result['duration'])
+        if not self.lyrics:self.dispatch('lyrics_online',{'automatic':True,'jukebox':False})
         self.optionsChanged.emit()
     def audio_loaded(self,result):
         cover=('data:image/png;base64,'+result['cover']) if result.get('cover') else ''
@@ -926,6 +955,8 @@ class DesktopWorkspace(QObject):
                 self.enqueue_tracks([self.models['playlists'].rows[item['index']] for item in value['items'] if item['state']=='missing'],start=True)
             self.run_task('compare_collection',{'url':self.options['playlistUrl'],'tracks':self.models['playlists'].rows,'history':self.library.comparison_history(),'queued':self.jobs,'database':str(self.library.path)},compared)
         self.run_task('collection',{'url':self.options['playlistUrl']},loaded)
+    @Slot()
+    def openLyrics(self):self.lyricsRequested.emit()
     @Slot(result='QVariantMap')
     def lyricsFrame(self):
         from synced_lyrics import karaoke_at
@@ -942,6 +973,7 @@ class DesktopWorkspace(QObject):
             from synced_lyrics import read_lrc
             try:self._jukebox_lyrics=read_lrc(str(Path(source).with_suffix('.lrc')))
             except (OSError,ValueError):self._jukebox_lyrics=[]
+            if not self._jukebox_lyrics and source:QTimer.singleShot(0,lambda:self.dispatch('lyrics_online',{'automatic':True,'jukebox':True}))
         rows=(getattr(self,'_jukebox_lyrics',[]) or (self.lyrics if source==self.options['effectsSource'] else [])) if jukebox else self.lyrics
         import bisect
         active=bisect.bisect_right(rows,position,key=lambda row:row[0])-1

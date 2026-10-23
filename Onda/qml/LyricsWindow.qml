@@ -14,6 +14,7 @@ Popup {
     contentItem: ColumnLayout {
         RowLayout { Layout.fillWidth: true
             Label { text: bridge.translate("Letra"); color: bridge.palette.text; Layout.fillWidth: true; font.pixelSize: 24 }
+            TaskButton { idleText: bridge.translate("Buscar letra online"); operation: "lyrics_online" }
             ActionButton { text: bridge.translate("Escolher letra"); onClicked: workspace.invoke("pick",{kind:popup.frame.jukebox ? "jukeboxLyrics" : "effectLyrics"}) }
             ActionButton { text: bridge.translate("Pronto"); onClicked: popup.close() }
         }
@@ -25,6 +26,7 @@ Popup {
             ScrollBar.vertical: ScrollBar {}
             delegate: Label {
                 required property var modelData; required property int index
+                TapHandler { onTapped: workspace.seekLyrics(modelData.time,popup.frame.jukebox) }
                 width: linesView.width; text: index===linesView.activeLine ? popup.frame.text : modelData.text
                 textFormat: index===linesView.activeLine ? Text.RichText : Text.PlainText
                 wrapMode: Text.Wrap; horizontalAlignment: Text.AlignHCenter

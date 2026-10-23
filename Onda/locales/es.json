@@ -1934,5 +1934,15 @@
   "Animação da letra": "Animación de la letra",
   "Desativada": "Desactivada",
   "Deslizar": "Deslizar",
-  "Zoom": "Zoom"
+  "Zoom": "Zoom",
+  "Buscar letra online": "Buscar letra en línea",
+  "Letra sem sincronização.": "Letra sin sincronización.",
+  "Informe título e artista nos metadados antes de buscar a letra.": "Indica título y artista en los metadatos antes de buscar la letra.",
+  "Busca de letra cancelada.": "Búsqueda de letra cancelada.",
+  "Letra não encontrada no LRCLIB para esta gravação.": "No se encontró letra en LRCLIB para esta grabación.",
+  "Resposta de letra muito grande.": "Respuesta de letra demasiado grande.",
+  "O LRCLIB identifica esta gravação como instrumental.": "LRCLIB identifica esta grabación como instrumental.",
+  "Selecione uma música antes de buscar a letra online.": "Selecciona una canción antes de buscar la letra en línea.",
+  "Mini player": "Minirreproductor",
+  "Fixar acima de todos": "Mantener por encima de todo"
 }

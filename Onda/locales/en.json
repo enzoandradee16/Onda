@@ -1934,5 +1934,15 @@
   "Animação da letra": "Lyrics animation",
   "Desativada": "Disabled",
   "Deslizar": "Slide",
-  "Zoom": "Zoom"
+  "Zoom": "Zoom",
+  "Buscar letra online": "Find lyrics online",
+  "Letra sem sincronização.": "Unsynchronized lyrics.",
+  "Informe título e artista nos metadados antes de buscar a letra.": "Enter title and artist in metadata before finding lyrics.",
+  "Busca de letra cancelada.": "Lyrics search cancelled.",
+  "Letra não encontrada no LRCLIB para esta gravação.": "No lyrics found on LRCLIB for this recording.",
+  "Resposta de letra muito grande.": "Lyrics response too large.",
+  "O LRCLIB identifica esta gravação como instrumental.": "LRCLIB identifies this recording as instrumental.",
+  "Selecione uma música antes de buscar a letra online.": "Select a song before searching for lyrics online.",
+  "Mini player": "Mini player",
+  "Fixar acima de todos": "Always on top"
 }

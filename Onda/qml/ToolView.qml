@@ -2,6 +2,9 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 ScrollView {
+    property var effectsLyricFrame: ({})
+    Timer { interval: 100; running: page.visible; repeat: true; onTriggered: page.effectsLyricFrame=workspace.lyricsFrame() }
+    signal lyricsRequested()
     id: page
     property string mode: workspace.currentPage
     property bool audioOnly: workspace.values.converterSources.some(function(path) { return /\.(mp3|m4a|aac|flac|wav|ogg|opus)$/i.test(path) })
@@ -81,8 +84,11 @@ ScrollView {
             Label { text: bridge.translate("Reverb")+" · "+Math.round(workspace.values.reverb)+"%"; color: bridge.palette.text }
             OndaSlider { Layout.fillWidth: true; value: workspace.values.reverb; onMoved: workspace.setOption("reverb",value) }
             OndaSwitch { text: bridge.translate("Manter tom (pitch) ao alterar a velocidade"); checked: workspace.values.keep_pitch; onToggled: workspace.setOption("keep_pitch",checked) }
-            AnimatedLyric { visible: workspace.preferences.synced_lyrics; text: workspace.values.lyricText || ""; Layout.fillWidth: true }
-            ActionButton { text: bridge.translate("Escolher letra"); onClicked: workspace.invoke("pick",{kind:"effectLyrics"}) }
+            AnimatedLyric { visible: workspace.preferences.synced_lyrics; text: effectsLyricFrame.text || ""; lineKey: String(effectsLyricFrame.active); textFormat: Text.RichText; Layout.fillWidth: true }
+            RowLayout { spacing: Math.round(10*bridge.spacing)
+                ActionButton { text: bridge.translate("Escolher letra"); onClicked: workspace.invoke("pick",{kind:"effectLyrics"}) }
+                ActionButton { text: bridge.translate("Letra"); onClicked: workspace.openLyrics() }
+            }
             Label { visible: !!workspace.values.effectLyricsName; text: workspace.values.effectLyricsName || ""; color: bridge.palette.muted; Layout.fillWidth: true; elide: Text.ElideMiddle }
             Label { text: bridge.translate("Posição na música")+" · "+Math.floor(workspace.values.position)+" / "+Math.floor(workspace.values.duration)+" s"; color: bridge.palette.muted }
             OndaSlider { Layout.fillWidth: true; enabled: workspace.values.duration > 0; from: 0; to: Math.max(1,workspace.values.duration); value: workspace.values.position; onMoved: workspace.setOption("position",value) }

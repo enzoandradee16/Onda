@@ -11,13 +11,13 @@ ScrollView {
     FileDialog { id: fileDialog; title: bridge.translate("Abrir arquivo"); nameFilters: [bridge.translate("Áudio")+" (*.mp3 *.m4a *.flac *.wav *.ogg *.opus *.aac *.webm)",bridge.translate("Todos os arquivos")+" (*)"]; onAccepted: bridge.openFile(selectedFile) }
     FileDialog { id: queueFiles; title: bridge.translate("Adicionar músicas à fila"); fileMode: FileDialog.OpenFiles; nameFilters: ["Áudio (*.mp3 *.m4a *.flac *.wav *.ogg *.opus *.aac *.webm)"]; onAccepted: { bridge.enqueueFiles(selectedFiles);page.queueExpanded=true } }
     property string currentLyric: ""
-    Timer { interval: 100; running: page.visible; repeat: true; onTriggered: page.currentLyric=workspace.lyricsFrame().text }
+    property string currentLine: ""
+    Timer { interval: 100; running: page.visible; repeat: true; onTriggered: {var frame=workspace.lyricsFrame();page.currentLyric=frame.text;page.currentLine=String(frame.active)} }
     property bool queueExpanded: false
     EqualizerPopup { id: equalizer }
     TimerPopup { id: timerPopup }
     ColumnLayout {
         width: page.availableWidth; spacing: Math.round(16*bridge.spacing)
-        AnimatedLyric { Layout.fillWidth: true; text: page.currentLyric; textFormat: Text.RichText; visible: text.length>0 }
         RowLayout {
             Layout.fillWidth: true; spacing: Math.round(10*bridge.spacing)
             ActionButton { primary: true; text: bridge.translate("Abrir arquivo"); enabled: !bridge.state.busy; onClicked: fileDialog.open() }
@@ -101,6 +101,7 @@ ScrollView {
                     Text { Layout.fillWidth: true; text: bridge.state.album; visible: text.length>0; elide: Text.ElideRight; color: bridge.palette.muted; font.pixelSize: Math.round(16*bridge.fontScale) }
                     Text { Layout.fillWidth: true; text: bridge.state.paused ? bridge.translate("Pausado.") : bridge.state.status; elide: Text.ElideRight; color: bridge.state.playing ? bridge.palette.accent : bridge.palette.muted; font.pixelSize: Math.round(14*bridge.fontScale) }
                 }
+                AnimatedLyric { Layout.fillWidth: true; Layout.preferredWidth: 300; lineKey: page.currentLine; text: page.currentLyric; textFormat: Text.RichText; visible: text.length>0 }
                 ActionButton { primary: true; text: bridge.translate("Equalizador"); onClicked: equalizer.open() }
             }
         }

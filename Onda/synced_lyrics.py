@@ -35,7 +35,8 @@ def karaoke_at(rows,seconds):
     raw=rows[index][1] if index>=0 else ''
     stamps=list(re.finditer(r'<(\d{1,3}):([0-5]\d)(?:[.:](\d{1,3}))?>',raw))
     if not stamps:return html.escape(raw)
-    parts=[html.escape(raw[:stamps[0].start()])]
+    prefix=html.escape(raw[:stamps[0].start()])
+    parts=['<b>'+prefix+'</b>' if prefix else '']
     for index,stamp in enumerate(stamps):
         fraction=stamp[3] or ''
         at=int(stamp[1])*60+int(stamp[2])+(int(fraction)/10**len(fraction) if fraction else 0)

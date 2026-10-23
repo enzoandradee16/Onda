@@ -19,6 +19,12 @@ def image_details(source):
     except (OSError,ValueError):return {}
 
 def perform(action,config,cancel,emit):
+    if action=="lyrics_online":
+        from lyrics_service import fetch_lyrics
+        try:return fetch_lyrics(config["source"],config.get("record"),cancel,alternatives=config.get('alternatives',False))
+        except Exception:
+            if config.get('automatic'):return {}
+            raise
     if action=='history_details':
         from audio_library import read_audio,cover_preview,AUDIO_TYPES
         rows=[]

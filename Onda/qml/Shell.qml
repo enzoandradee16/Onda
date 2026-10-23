@@ -3,6 +3,9 @@ import QtQuick.Controls
 import QtQuick.Layouts
 Pane {
     LyricsWindow { id: lyricsWindow }
+    MiniPlayer { id: floatingPlayer; mainWindow: app.Window.window; volumeValue: volume.value; onVolumeMoved: function(value){volume.value=value} }
+
+    Connections { target: workspace; function onLyricsRequested() {lyricsWindow.open()} }
     id: app
     width: 1360; height: 900
     readonly property var inlineTasks: ({catalog:["search"],playlists:["collection","compare_collection","check_matches"],converter:["convert","detect_silence"],effects:["effects_export"],images:["image_preview","image_export"],metadata:["audio_edit","normalize_preview"]})[workspace.currentPage] || []
@@ -27,7 +30,7 @@ Pane {
         opacity: 0
         Component.onCompleted: opacity=1
         Behavior on opacity { NumberAnimation { duration: bridge.animations ? 220 : 0; easing.type: Easing.OutCubic } }
-        Sidebar { id: sidebar; onSettingsRequested: workspace.showSettings() }
+        Sidebar { id: sidebar; resizing: resizeMouse.pressed; onSettingsRequested: workspace.showSettings() }
         Rectangle {
             Layout.preferredWidth: 6; Layout.fillHeight: true; color: resizeMouse.containsMouse ? bridge.palette.accent : bridge.palette.line
             MouseArea { id: resizeMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.SplitHCursor; property real initialX; property real initialWidth
@@ -52,7 +55,6 @@ Pane {
                     objectName: "playbackTabs"
                     layoutDirection: workspace.preferences.playback_tab_order === "Jukebox infinito primeiro" ? Qt.RightToLeft : Qt.LeftToRight
                     ActionButton { text: bridge.translate("Efeitos"); primary: workspace.currentPage === "effects"; onClicked: workspace.selectPage("effects"); Layout.preferredWidth: 130 }
-                    ActionButton { text: bridge.translate("Letra"); onClicked: lyricsWindow.open() }
                     ActionButton { text: bridge.translate("Jukebox infinito"); primary: workspace.currentPage === "jukebox"; onClicked: workspace.selectPage("jukebox"); Layout.preferredWidth: 178 }
                 }
             }
@@ -142,6 +144,7 @@ Pane {
                             }
                         }
                     }
+                    MicrophoneButton { onClicked: { if (lyricsWindow.visible) lyricsWindow.close(); else lyricsWindow.open() } }
                     ActionButton { text: bridge.translate("Timers"); onClicked: miniTimers.open() }
                     ActionButton { text: bridge.translate("Fila"); onClicked: {workspace.selectPage("jukebox");jukebox.queueExpanded=true} }
                 }
@@ -159,8 +162,10 @@ Pane {
                         onClicked: bridge.playPause()
                     }
                     ActionButton { text: bridge.translate(bridge.state.busy ? "Cancelar" : "Parar"); symbol: "■"; enabled: bridge.state.playing || bridge.state.busy; onClicked: bridge.stop() }
+                    MicrophoneButton { onClicked: { if (lyricsWindow.visible) lyricsWindow.close(); else lyricsWindow.open() } }
                     ActionButton { text: bridge.translate("Timers"); onClicked: miniTimers.open() }
                     Text { text: "\uE767"; font.family: "Segoe MDL2 Assets"; font.pixelSize: Math.round(20*bridge.fontScale); color: bridge.palette.text }
+                    ActionButton { text: "\uE8A7"; font.family: "Segoe MDL2 Assets"; Accessible.name: bridge.translate("Mini player"); ToolTip.visible: hovered; ToolTip.text: Accessible.name; onClicked: {floatingPlayer.show();floatingPlayer.raise();floatingPlayer.requestActivate();app.Window.window.hide()} }
                     OndaSlider { id: volume; Layout.fillWidth: true; Layout.maximumWidth: 250; Layout.minimumWidth: 70; value: 80; Accessible.name: bridge.translate("Volume") }
                     Item { Layout.fillWidth: true }
                     Column { spacing: Math.round(5*bridge.spacing); Text { text: bridge.translate("Tempo ouvido"); font.pixelSize: Math.round(11*bridge.fontScale); color: bridge.palette.muted } Text { text: bridge.elapsed; font.pixelSize: Math.round(14*bridge.fontScale); color: bridge.palette.text } }

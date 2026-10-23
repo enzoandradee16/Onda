@@ -3,7 +3,8 @@ import QtQuick.Controls
 Label {
     id: line
     color: bridge.palette.accent; font.pixelSize: Math.round(20*bridge.fontScale); wrapMode: Text.Wrap
-    onTextChanged: {
+    property string lineKey: text
+    onLineKeyChanged: {
         reveal.stop();opacity=1;scale=1;transformShift.y=0
         if(workspace.preferences.lyrics_animation !== "Desativada")reveal.start()
     }
