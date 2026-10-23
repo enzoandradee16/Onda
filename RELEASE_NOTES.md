@@ -1,19 +1,18 @@
-# ONDA 1.2.0-rc2
+# ONDA 1.2.0
 
-Pré-release para testes. Este pacote será mantido como rascunho no GitHub.
+Versão oficial preparada localmente para Windows e Android.
 
-- Android: Efeitos e Jukebox com músicas e filas independentes, reprodução integral e notificação de mídia de Efeitos.
-- Player compacto com capa, título, artista, fila e reprodução/pausa; ao tocar, abre a reprodução expandida com a capa do álbum.
-- Barra compacta com cores da capa e efeito liquid glass, adaptada a temas claros, escuros e alto contraste.
-- Letras com card de prévia, janela em tela cheia, acompanhamento dos versos, destaque por palavra, animações e navegação por toque.
-- Filas com metadados, reordenação e transição gradual. Controles de reprodução do PC centralizados e timer independente de Efeitos.
-- Pesquisa e abertura de arquivos na mesma linha; configurações de prévia e continuidade simplificadas. Volume Android controlado pelo sistema.
+- Android: navegação reorganizada por Pesquisar, Downloads, Reprodução e Mais; melhorias nas ferramentas, histórico e configurações.
+- Efeitos e Jukebox com músicas e filas independentes, reprodução integral e controles de mídia em segundo plano.
+- Player compacto e expandido com capa, cores do álbum e letras sincronizadas, com acompanhamento e navegação dos versos.
+- Filas com metadados, reordenação e transições graduais; correções de retomada após pausa/busca e de navegação durante transições.
+- Windows Qt: correções de cancelamento, troca de áudio no editor e exportação de arquivos locais no histórico.
+- Conversões de áudio, imagens e fotos com música preservam arquivos vizinhos e isolam temporários.
+- Android: recuperação de preferências inválidas, limpeza de importações incompletas e identificação ampliada de formatos.
 
-## Validação
+## Distribuição
 
-- 73 testes do PC aprovados, incluindo versão e regressões Qt.
-- 68 testes JVM do Android aprovados, incluindo cor da capa e contraste.
-- Testes instrumentados compilados; execução e conferência visual em aparelho pendentes.
-- Portátil rc2 aprovado no teste isolado de abertura.
+Windows 10/11 x64: portátil e instalador, versão 1.2.0.0, sem assinatura Authenticode. O FFmpeg é preparado no primeiro uso.
+Android 8+: APKs separados ARM64 e x86_64, versão 1.2.0/código 27, assinados com a chave de produção original.
 
-Windows 10/11 x64: versão 1.2.0-rc2, metadados numéricos 1.2.0.0, sem assinatura Authenticode. Android 8+: versão interna 1.2.0, código 26, APKs ARM64 e x86_64 com a assinatura de produção original. Os nomes dos arquivos identificam esta pré-release. Nenhum instalador foi executado contra uma instalação pessoal nesta preparação.
+Os testes e seus limites estão documentados em VALIDACAO.md e nos relatórios incluídos em docs. A preparação local não publica uma release no GitHub.

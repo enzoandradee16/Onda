@@ -1,9 +1,9 @@
-ONDA 1.1.7
+ONDA 1.2.0
 
-Pacotes oficiais preparados em Release/1.1.7.
+Pacotes oficiais preparados em Release/1.2.0.
 Portátil: extraia o ZIP inteiro e abra Onda.exe.
-Instalador: execute Onda-1.1.7-Setup-Windows-x64.exe.
-Android: instale ONDA-Android-1.1.7-arm64-v8a.apk em aparelhos ARM64 ou ONDA-Android-1.1.7-x86_64.apk em emuladores compatíveis.
+Instalador: execute Onda-1.2.0-Setup-Windows-x64.exe.
+Android: instale ONDA-Android-1.2.0-arm64-v8a.apk em aparelhos ARM64 ou ONDA-Android-1.2.0-x86_64.apk em emuladores compatíveis.
 
 Consulte README.md, RELEASE_NOTES.md e PUBLICAR_RELEASE.md.
 Licença GPL-2.0-only; veja LICENSE e os avisos de terceiros.

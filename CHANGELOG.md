@@ -1,5 +1,15 @@
 # Histórico de versões
 
+## 1.2.0 — 2026-10-23
+
+- Interface Android reorganizada com navegação por Pesquisar, Downloads, Reprodução e Mais; melhorias nas ferramentas, biblioteca e configurações.
+- Player compacto e expandido com capa, cores do álbum, filas independentes de Efeitos e Jukebox, controles de mídia e letras sincronizadas.
+- Correções na retomada após pausa e busca, e na navegação entre faixas durante transições da Jukebox.
+- Windows Qt: cancelamento descarta resultados antigos; troca de áudio limpa metadados anteriores; exportação M3U/TXT do histórico aceita arquivos locais.
+- Conversões de áudio, imagens e fotos com música usam temporários exclusivos e preservam arquivos vizinhos existentes.
+- Android: recuperação de preferências inválidas, limpeza de importações incompletas e identificação ampliada de tipos de mídia.
+- Validação adicional com pacote Windows isolado, instalação/desinstalação, 45 testes instrumentados Android e 72 testes JVM. Consulte os relatórios em docs.
+
 ## 1.1.7 — 2026-10-19
 
 - Jukebox Infinito no PC e Android, dentro de Reprodução e efeitos: arquivos locais, pesquisa e links com escolha explícita da música, análise em cache e saltos entre trechos compatíveis.

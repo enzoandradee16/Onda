@@ -1,7 +1,9 @@
-# Pré-release ONDA 1.2.0-rc2
+# Publicação do ONDA 1.2.0
 
-Pacotes em `Release/1.2.0-rc2`. Criar o rascunho com tag `v1.2.0-rc2`, `draft=true` e `prerelease=true`; não publicar automaticamente.
+Pacotes oficiais preparados em `Release/1.2.0`. As versões anteriores permanecem intactas. A publicação no GitHub é uma etapa separada da preparação local.
 
-Conferir MANIFEST.json, SOURCE_MANIFEST.json, SHA256SUMS.txt, as notas e os avisos de terceiros. Os pacotes incluem portátil e instalador Windows x64, APKs ARM64 e x86_64 e arquivos de fontes do aplicativo e componentes terceiros.
+1. Conferir o commit em SOURCE_MANIFEST.json e os sete pacotes: portátil e instalador Windows x64, APKs ARM64 e x86_64, fontes do aplicativo e dois arquivos de fontes de terceiros.
+2. Conferir MANIFEST.json, SHA256SUMS.txt, RELEASE_NOTES.md, VALIDACAO.md e os avisos de terceiros.
+3. Ao publicar a versão oficial, usar a tag `v1.2.0` e `prerelease=false`.
 
-Os APKs mantêm versão interna 1.2.0/código 26 e a assinatura original. A validação visual Android e a atualização em aparelho continuam pendentes. Nenhuma credencial, cookie, chave privada ou dado pessoal deve integrar os pacotes.
+Android: versão 1.2.0, código 27, assinatura de produção preservada. Windows: versão 1.2.0.0, sem Authenticode. Não incluir credenciais, cookies, chaves privadas ou configurações pessoais nos pacotes.
