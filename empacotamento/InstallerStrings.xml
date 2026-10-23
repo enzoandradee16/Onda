@@ -1,0 +1,353 @@
+<?xml version='1.0' encoding='utf-8'?>
+<translations>
+  <text key="title">
+    <value lang="pt-BR">Instalar ONDA</value>
+    <value lang="es">Instalar ONDA</value>
+    <value lang="en">Install ONDA</value>
+  </text>
+  <text key="language">
+    <value lang="pt-BR">Idioma</value>
+    <value lang="es">Idioma</value>
+    <value lang="en">Language</value>
+  </text>
+  <text key="minimize">
+    <value lang="pt-BR">Minimizar instalador</value>
+    <value lang="es">Minimizar instalador</value>
+    <value lang="en">Minimize installer</value>
+  </text>
+  <text key="close">
+    <value lang="pt-BR">Fechar instalador</value>
+    <value lang="es">Cerrar instalador</value>
+    <value lang="en">Close installer</value>
+  </text>
+  <text key="hero_prefix">
+    <value lang="pt-BR">Sua ONDA</value>
+    <value lang="es">Tu ONDA</value>
+    <value lang="en">Your ONDA</value>
+  </text>
+  <text key="hero_suffix">
+    <value lang="pt-BR">começa aqui.</value>
+    <value lang="es">empieza aquí.</value>
+    <value lang="en">starts here.</value>
+  </text>
+  <text key="subtitle">
+    <value lang="pt-BR">Músicas, vídeos e imagens do seu jeito.</value>
+    <value lang="es">Música, vídeos e imágenes a tu manera.</value>
+    <value lang="en">Music, videos and images, your way.</value>
+  </text>
+  <text key="heading_configure">
+    <value lang="pt-BR">Vamos instalar?</value>
+    <value lang="es">¿Lo instalamos?</value>
+    <value lang="en">Ready to install?</value>
+  </text>
+  <text key="heading_installing">
+    <value lang="pt-BR">Instalando seu ONDA</value>
+    <value lang="es">Instalando tu ONDA</value>
+    <value lang="en">Installing your ONDA</value>
+  </text>
+  <text key="heading_done">
+    <value lang="pt-BR">Tudo pronto!</value>
+    <value lang="es">¡Todo listo!</value>
+    <value lang="en">All set!</value>
+  </text>
+  <text key="destination">
+    <value lang="pt-BR">Onde instalar</value>
+    <value lang="es">Dónde instalar</value>
+    <value lang="en">Where to install</value>
+  </text>
+  <text key="destination_a11y">
+    <value lang="pt-BR">Pasta de instalação</value>
+    <value lang="es">Carpeta de instalación</value>
+    <value lang="en">Installation folder</value>
+  </text>
+  <text key="browse">
+    <value lang="pt-BR">Escolher pasta de instalação</value>
+    <value lang="es">Elegir carpeta de instalación</value>
+    <value lang="en">Choose installation folder</value>
+  </text>
+  <text key="folder_dialog">
+    <value lang="pt-BR">Escolha a pasta de instalação do ONDA</value>
+    <value lang="es">Elige la carpeta de instalación de ONDA</value>
+    <value lang="en">Choose the ONDA installation folder</value>
+  </text>
+  <text key="shortcut">
+    <value lang="pt-BR">Atalho na área de trabalho</value>
+    <value lang="es">Acceso directo en el escritorio</value>
+    <value lang="en">Desktop shortcut</value>
+  </text>
+  <text key="platform">
+    <value lang="pt-BR">Windows x64 · Instalação por usuário</value>
+    <value lang="es">Windows x64 · Instalación por usuario</value>
+    <value lang="en">Windows x64 · Per-user installation</value>
+  </text>
+  <text key="install">
+    <value lang="pt-BR">Instalar ONDA  →</value>
+    <value lang="es">Instalar ONDA  →</value>
+    <value lang="en">Install ONDA  →</value>
+  </text>
+  <text key="open">
+    <value lang="pt-BR">Abrir ONDA  →</value>
+    <value lang="es">Abrir ONDA  →</value>
+    <value lang="en">Open ONDA  →</value>
+  </text>
+  <text key="finish">
+    <value lang="pt-BR">Fechar</value>
+    <value lang="es">Cerrar</value>
+    <value lang="en">Close</value>
+  </text>
+  <text key="details">
+    <value lang="pt-BR">Ver detalhes</value>
+    <value lang="es">Ver detalles</value>
+    <value lang="en">View details</value>
+  </text>
+  <text key="footnote">
+    <value lang="pt-BR">Gratuito, de código aberto e sem anúncios.</value>
+    <value lang="es">Gratis, de código abierto y sin anuncios.</value>
+    <value lang="en">Free, open source and ad-free.</value>
+  </text>
+  <text key="step_configure">
+    <value lang="pt-BR">●  Configurar</value>
+    <value lang="es">●  Configurar</value>
+    <value lang="en">●  Configure</value>
+  </text>
+  <text key="step_install">
+    <value lang="pt-BR">○  Instalar</value>
+    <value lang="es">○  Instalar</value>
+    <value lang="en">○  Install</value>
+  </text>
+  <text key="step_done">
+    <value lang="pt-BR">○  Concluir</value>
+    <value lang="es">○  Finalizar</value>
+    <value lang="en">○  Finish</value>
+  </text>
+  <text key="preparing">
+    <value lang="pt-BR">Preparando os arquivos…</value>
+    <value lang="es">Preparando los archivos…</value>
+    <value lang="en">Preparing files…</value>
+  </text>
+  <text key="installing_files">
+    <value lang="pt-BR">Instalando os arquivos do ONDA…</value>
+    <value lang="es">Instalando los archivos de ONDA…</value>
+    <value lang="en">Installing ONDA files…</value>
+  </text>
+  <text key="finalizing">
+    <value lang="pt-BR">Concluindo a instalação…</value>
+    <value lang="es">Finalizando la instalación…</value>
+    <value lang="en">Finishing installation…</value>
+  </text>
+  <text key="wait">
+    <value lang="pt-BR">A instalação está em andamento. Aguarde a conclusão; você pode minimizar esta janela.</value>
+    <value lang="es">La instalación está en curso. Espera a que termine; puedes minimizar esta ventana.</value>
+    <value lang="en">Installation is in progress. Please wait until it finishes; you can minimize this window.</value>
+  </text>
+  <text key="done">
+    <value lang="pt-BR">O ONDA foi instalado. Sua próxima música já tem um lugar.</value>
+    <value lang="es">ONDA está instalado. Tu próxima canción ya tiene un lugar.</value>
+    <value lang="en">ONDA is installed. Your next song already has a home.</value>
+  </text>
+  <text key="restart">
+    <value lang="pt-BR">O ONDA foi instalado. Reinicie o Windows antes de abri-lo.</value>
+    <value lang="es">ONDA está instalado. Reinicia Windows antes de abrirlo.</value>
+    <value lang="en">ONDA is installed. Restart Windows before opening it.</value>
+  </text>
+  <text key="invalid_folder">
+    <value lang="pt-BR">Escolha uma pasta válida para instalar o ONDA.</value>
+    <value lang="es">Elige una carpeta válida para instalar ONDA.</value>
+    <value lang="en">Choose a valid folder to install ONDA.</value>
+  </text>
+  <text key="local_folder">
+    <value lang="pt-BR">Escolha uma pasta em uma unidade local.</value>
+    <value lang="es">Elige una carpeta en una unidad local.</value>
+    <value lang="en">Choose a folder on a local drive.</value>
+  </text>
+  <text key="system_folder">
+    <value lang="pt-BR">Escolha uma pasta própria para o ONDA, fora das pastas do sistema.</value>
+    <value lang="es">Elige una carpeta para ONDA fuera de las carpetas del sistema.</value>
+    <value lang="en">Choose a dedicated ONDA folder outside system folders.</value>
+  </text>
+  <text key="temp_failed">
+    <value lang="pt-BR">Não foi possível preparar uma pasta temporária exclusiva.</value>
+    <value lang="es">No se pudo preparar una carpeta temporal exclusiva.</value>
+    <value lang="en">Could not prepare a private temporary folder.</value>
+  </text>
+  <text key="incomplete">
+    <value lang="pt-BR">O instalador está incompleto ou foi alterado. Baixe novamente o pacote oficial.</value>
+    <value lang="es">El instalador está incompleto o fue modificado. Descarga de nuevo el paquete oficial.</value>
+    <value lang="en">The installer is incomplete or has been modified. Download the official package again.</value>
+  </text>
+  <text key="install_failed">
+    <value lang="pt-BR">A instalação não foi concluída (código {0}). Confira os detalhes e tente novamente.</value>
+    <value lang="es">La instalación no se completó (código {0}). Consulta los detalles e inténtalo de nuevo.</value>
+    <value lang="en">Installation did not complete (code {0}). Check the details and try again.</value>
+  </text>
+  <text key="missing_launcher">
+    <value lang="pt-BR">O programa não foi encontrado na pasta escolhida. Confira os detalhes da instalação.</value>
+    <value lang="es">No se encontró el programa en la carpeta elegida. Consulta los detalles de la instalación.</value>
+    <value lang="en">The application was not found in the selected folder. Check the installation details.</value>
+  </text>
+  <text key="open_failed">
+    <value lang="pt-BR">O ONDA foi instalado, mas não pôde abrir: {0}</value>
+    <value lang="es">ONDA está instalado, pero no se pudo abrir: {0}</value>
+    <value lang="en">ONDA is installed, but could not open: {0}</value>
+  </text>
+  <text key="arguments">
+    <value lang="pt-BR">Argumentos não reconhecidos. Abra o instalador sem parâmetros ou use /VERYSILENT para instalação silenciosa.</value>
+    <value lang="es">Argumentos no reconocidos. Abre el instalador sin parámetros o usa /VERYSILENT para una instalación silenciosa.</value>
+    <value lang="en">Unrecognized arguments. Open the installer without parameters or use /VERYSILENT for silent installation.</value>
+  </text>
+  <text key="already_open">
+    <value lang="pt-BR">O instalador do ONDA já está aberto.</value>
+    <value lang="es">El instalador de ONDA ya está abierto.</value>
+    <value lang="en">The ONDA installer is already open.</value>
+  </text>
+  <text key="u_title">
+    <value lang="pt-BR">Desinstalar ONDA</value>
+    <value lang="es">Desinstalar ONDA</value>
+    <value lang="en">Uninstall ONDA</value>
+  </text>
+  <text key="u_prefix">
+    <value lang="pt-BR">Até a próxima</value>
+    <value lang="es">Hasta la próxima</value>
+    <value lang="en">Until the next</value>
+  </text>
+  <text key="u_suffix">
+    <value lang="pt-BR">ONDA.</value>
+    <value lang="es">ONDA.</value>
+    <value lang="en">ONDA.</value>
+  </text>
+  <text key="u_subtitle">
+    <value lang="pt-BR">Obrigado por fazer parte dessa ONDA.</value>
+    <value lang="es">Gracias por formar parte de esta ONDA.</value>
+    <value lang="en">Thank you for being part of this ONDA.</value>
+  </text>
+  <text key="u_heading">
+    <value lang="pt-BR">Desinstalar o ONDA?</value>
+    <value lang="es">¿Desinstalar ONDA?</value>
+    <value lang="en">Uninstall ONDA?</value>
+  </text>
+  <text key="u_description">
+    <value lang="pt-BR">O aplicativo será removido deste computador.</value>
+    <value lang="es">La aplicación se eliminará de este equipo.</value>
+    <value lang="en">The application will be removed from this computer.</value>
+  </text>
+  <text key="u_folder">
+    <value lang="pt-BR">Pasta instalada</value>
+    <value lang="es">Carpeta instalada</value>
+    <value lang="en">Installation folder</value>
+  </text>
+  <text key="u_data">
+    <value lang="pt-BR">Apagar configurações, fila e histórico</value>
+    <value lang="es">Borrar configuración, cola e historial</value>
+    <value lang="en">Delete settings, queue and history</value>
+  </text>
+  <text key="u_tools">
+    <value lang="pt-BR">Remover ferramentas baixadas (FFmpeg)</value>
+    <value lang="es">Eliminar herramientas descargadas (FFmpeg)</value>
+    <value lang="en">Remove downloaded tools (FFmpeg)</value>
+  </text>
+  <text key="u_safety">
+    <value lang="pt-BR">Downloads e arquivos pessoais serão preservados.</value>
+    <value lang="es">Se conservarán las descargas y los archivos personales.</value>
+    <value lang="en">Downloads and personal files will be preserved.</value>
+  </text>
+  <text key="u_action">
+    <value lang="pt-BR">Desinstalar ONDA</value>
+    <value lang="es">Desinstalar ONDA</value>
+    <value lang="en">Uninstall ONDA</value>
+  </text>
+  <text key="u_cancel">
+    <value lang="pt-BR">Cancelar</value>
+    <value lang="es">Cancelar</value>
+    <value lang="en">Cancel</value>
+  </text>
+  <text key="u_confirm_step">
+    <value lang="pt-BR">●  Confirmar</value>
+    <value lang="es">●  Confirmar</value>
+    <value lang="en">●  Confirm</value>
+  </text>
+  <text key="u_remove_step">
+    <value lang="pt-BR">○  Remover</value>
+    <value lang="es">○  Eliminar</value>
+    <value lang="en">○  Remove</value>
+  </text>
+  <text key="u_done_step">
+    <value lang="pt-BR">○  Concluir</value>
+    <value lang="es">○  Finalizar</value>
+    <value lang="en">○  Finish</value>
+  </text>
+  <text key="u_removing">
+    <value lang="pt-BR">Removendo o ONDA…</value>
+    <value lang="es">Eliminando ONDA…</value>
+    <value lang="en">Removing ONDA…</value>
+  </text>
+  <text key="u_progress">
+    <value lang="pt-BR">Aguarde enquanto os arquivos do aplicativo são removidos.</value>
+    <value lang="es">Espera mientras se eliminan los archivos de la aplicación.</value>
+    <value lang="en">Please wait while application files are removed.</value>
+  </text>
+  <text key="u_done">
+    <value lang="pt-BR">ONDA desinstalado.</value>
+    <value lang="es">ONDA desinstalado.</value>
+    <value lang="en">ONDA uninstalled.</value>
+  </text>
+  <text key="u_finish">
+    <value lang="pt-BR">Concluir</value>
+    <value lang="es">Finalizar</value>
+    <value lang="en">Finish</value>
+  </text>
+  <text key="u_finished">
+    <value lang="pt-BR">A remoção foi concluída. Você pode reinstalar quando quiser.</value>
+    <value lang="es">La eliminación ha finalizado. Puedes reinstalar cuando quieras.</value>
+    <value lang="en">Removal is complete. You can reinstall whenever you like.</value>
+  </text>
+  <text key="u_error">
+    <value lang="pt-BR">Não foi possível concluir a desinstalação: {0}</value>
+    <value lang="es">No se pudo completar la desinstalación: {0}</value>
+    <value lang="en">Uninstallation could not be completed: {0}</value>
+  </text>
+  <text key="u_invalid">
+    <value lang="pt-BR">A instalação do ONDA não pôde ser validada. Reinstale o ONDA nesta pasta e tente novamente.</value>
+    <value lang="es">No se pudo validar la instalación de ONDA. Reinstala ONDA en esta carpeta e inténtalo de nuevo.</value>
+    <value lang="en">The ONDA installation could not be validated. Reinstall ONDA in this folder and try again.</value>
+  </text>
+  <text key="u_shared">
+    <value lang="pt-BR">Esses dados e ferramentas são compartilhados com a versão portátil neste PC.</value>
+    <value lang="es">Estos datos y herramientas se comparten con la versión portátil en este PC.</value>
+    <value lang="en">These data and tools are shared with the portable version on this PC.</value>
+  </text>
+  <text key="u_exit">
+    <value lang="pt-BR">O mecanismo retornou o código {0}. Feche o ONDA e tente novamente.</value>
+    <value lang="es">El motor devolvió el código {0}. Cierra ONDA e inténtalo de nuevo.</value>
+    <value lang="en">The engine returned code {0}. Close ONDA and try again.</value>
+  </text>
+  <text key="u_incomplete">
+    <value lang="pt-BR">O mecanismo de desinstalação não confirmou a remoção completa.</value>
+    <value lang="es">El motor de desinstalación no confirmó la eliminación completa.</value>
+    <value lang="en">The uninstall engine did not confirm complete removal.</value>
+  </text>
+  <text key="u_restart">
+    <value lang="pt-BR">A remoção foi concluída. Reinicie o Windows para finalizar a limpeza de arquivos em uso.</value>
+    <value lang="es">La eliminación ha finalizado. Reinicia Windows para terminar de limpiar los archivos en uso.</value>
+    <value lang="en">Removal is complete. Restart Windows to finish cleaning up files in use.</value>
+  </text>
+  <text key="u_partial">
+    <value lang="pt-BR">O aplicativo foi removido, mas alguns dados ou ferramentas não puderam ser apagados. Confira o log de desinstalação.</value>
+    <value lang="es">La aplicación se eliminó, pero no se pudieron borrar algunos datos o herramientas. Revisa el registro de desinstalación.</value>
+    <value lang="en">The application was removed, but some data or tools could not be deleted. Check the uninstall log.</value>
+  </text>
+  <text key="u_already">
+    <value lang="pt-BR">O desinstalador já está aberto.</value>
+    <value lang="es">El desinstalador ya está abierto.</value>
+    <value lang="en">The uninstaller is already open.</value>
+  </text>
+  <text key="u_close">
+    <value lang="pt-BR">Fechar desinstalador</value>
+    <value lang="es">Cerrar desinstalador</value>
+    <value lang="en">Close uninstaller</value>
+  </text>
+  <text key="u_minimize">
+    <value lang="pt-BR">Minimizar desinstalador</value>
+    <value lang="es">Minimizar desinstalador</value>
+    <value lang="en">Minimize uninstaller</value>
+  </text>
+</translations>

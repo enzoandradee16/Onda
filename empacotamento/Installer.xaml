@@ -5,6 +5,30 @@
         Background="#10151E" Foreground="#EDF5F5" FontFamily="Segoe UI" FontSize="14">
   <Window.Resources>
     <SolidColorBrush x:Key="Mint" Color="#79E2C4"/>
+    <Style TargetType="ComboBoxItem">
+      <Setter Property="Foreground" Value="#EDF5F5"/><Setter Property="Background" Value="#1A252E"/><Setter Property="Padding" Value="10,7"/>
+      <Style.Triggers><Trigger Property="IsHighlighted" Value="True"><Setter Property="Background" Value="#31524F"/></Trigger></Style.Triggers>
+    </Style>
+    <Style TargetType="ComboBox">
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ComboBox">
+        <Grid>
+          <ToggleButton Focusable="False" IsChecked="{Binding IsDropDownOpen,RelativeSource={RelativeSource TemplatedParent},Mode=TwoWay}" ClickMode="Press">
+            <ToggleButton.Template><ControlTemplate TargetType="ToggleButton">
+              <Border Background="#1A252E" BorderBrush="#40555F" BorderThickness="1" CornerRadius="7">
+                <Path Data="M 0 0 L 4 4 L 8 0" Stroke="#B5C7CE" StrokeThickness="1.5" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,10,0"/>
+              </Border>
+            </ControlTemplate></ToggleButton.Template>
+          </ToggleButton>
+          <ContentPresenter IsHitTestVisible="False" Content="{TemplateBinding SelectionBoxItem}" ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}" VerticalAlignment="Center" Margin="10,0,26,0"/>
+          <Popup IsOpen="{Binding IsDropDownOpen,RelativeSource={RelativeSource TemplatedParent},Mode=TwoWay}" Placement="Bottom" AllowsTransparency="True" Focusable="False">
+            <Border Background="#1A252E" BorderBrush="#40555F" BorderThickness="1" CornerRadius="7" MinWidth="{Binding ActualWidth,RelativeSource={RelativeSource TemplatedParent}}" Margin="0,3,0,0">
+              <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Contained" Margin="3"/>
+            </Border>
+          </Popup>
+        </Grid>
+        <ControlTemplate.Triggers><Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.5"/></Trigger></ControlTemplate.Triggers>
+      </ControlTemplate></Setter.Value></Setter>
+    </Style>
     <Style TargetType="Button">
       <Setter Property="Foreground" Value="#EDF5F5"/>
       <Setter Property="Background" Value="#25323D"/>
@@ -60,6 +84,12 @@
           </Border>
         </StackPanel>
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
+          <TextBlock x:Name="LanguageLabel" Text="Idioma" Foreground="#B5C7CE" VerticalAlignment="Center" Margin="0,0,8,0"/>
+          <ComboBox x:Name="LanguagePicker" Width="158" Height="30" Margin="0,0,12,0" VerticalAlignment="Center" Foreground="#EDF5F5" AutomationProperties.Name="Idioma">
+            <ComboBoxItem Tag="pt-BR" Content="Português (Brasil)"/>
+            <ComboBoxItem Tag="es" Content="Español"/>
+            <ComboBoxItem Tag="en" Content="English"/>
+          </ComboBox>
           <Button x:Name="MinimizeButton" Content="−" FontSize="22" Padding="12,2" Background="Transparent" AutomationProperties.Name="Minimizar instalador"/>
           <Button x:Name="CloseButton" Content="×" FontSize="24" Padding="12,0" Background="Transparent" AutomationProperties.Name="Fechar instalador"/>
         </StackPanel>
@@ -69,9 +99,9 @@
         <Grid Margin="0,22,32,8">
           <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
           <TextBlock FontSize="48" FontWeight="SemiBold" LineHeight="55" TextWrapping="Wrap">
-            <Run Text="Sua ONDA"/><LineBreak/><Run Text="começa aqui." Foreground="{StaticResource Mint}"/>
+            <Run x:Name="HeroPrefix" Text="Sua ONDA"/><LineBreak/><Run x:Name="HeroSuffix" Text="começa aqui." Foreground="{StaticResource Mint}"/>
           </TextBlock>
-          <TextBlock Grid.Row="1" Margin="0,20,0,0" Foreground="#AEBEC6" TextWrapping="Wrap" FontSize="16" LineHeight="24" Text="Músicas, vídeos e imagens do seu jeito."/>
+          <TextBlock x:Name="Subtitle" Grid.Row="1" Margin="0,20,0,0" Foreground="#AEBEC6" TextWrapping="Wrap" FontSize="16" LineHeight="24" Text="Músicas, vídeos e imagens do seu jeito."/>
           <Viewbox Grid.Row="2" Stretch="Uniform" Margin="-12,20,-12,4" VerticalAlignment="Center">
             <Canvas Width="440" Height="190" ClipToBounds="True">
               <Path Stroke="#143D3F" StrokeThickness="1.4" Data="M -10,130 C 55,30 85,165 150,92 S 245,25 290,112 S 390,160 450,95"/>
@@ -90,7 +120,7 @@
             <StackPanel>
               <TextBlock x:Name="PageHeading" Text="Vamos instalar?" FontSize="29" FontWeight="SemiBold" Margin="0,0,0,22"/>
               <StackPanel x:Name="OptionsPanel">
-                <Label Target="{Binding ElementName=DestinationBox}" Content="Onde instalar" Foreground="#EDF5F5" Padding="0,0,0,8"/>
+                <Label x:Name="DestinationLabel" Target="{Binding ElementName=DestinationBox}" Content="Onde instalar" Foreground="#EDF5F5" Padding="0,0,0,8"/>
                 <DockPanel LastChildFill="True">
                   <Button x:Name="BrowseButton" DockPanel.Dock="Right" Padding="12,4" Margin="8,0,0,0" AutomationProperties.Name="Escolher pasta de instalação">
                     <Path Width="21" Height="18" Stretch="Uniform" Stroke="#B5C7CE" StrokeThickness="1.5" Data="M 1,5 L 1,2 Q 1,1 2,1 L 8,1 L 10,4 L 19,4 Q 21,4 21,6 L 21,16 Q 21,18 19,18 L 3,18 Q 1,18 1,16 Z"/>
@@ -98,7 +128,7 @@
                   <TextBox x:Name="DestinationBox" AutomationProperties.Name="Pasta de instalação"/>
                 </DockPanel>
                 <CheckBox x:Name="ShortcutBox" Content="Atalho na área de trabalho" Foreground="#EDF5F5" IsChecked="True" Margin="0,22,0,16" VerticalContentAlignment="Center"/>
-                <TextBlock Text="Windows x64 · Instalação por usuário" Foreground="#9EB2BD" FontSize="12" Margin="0,0,0,22"/>
+                <TextBlock x:Name="PlatformLabel" Text="Windows x64 · Instalação por usuário" Foreground="#9EB2BD" FontSize="12" Margin="0,0,0,22" TextWrapping="Wrap"/>
               </StackPanel>
               <StackPanel x:Name="ProgressPanel" Visibility="Collapsed" Margin="0,0,0,18">
                 <TextBlock x:Name="ProgressText" Text="Preparando os arquivos…" TextWrapping="Wrap" Foreground="#B5C7CE" Margin="0,0,0,16"/>

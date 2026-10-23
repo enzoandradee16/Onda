@@ -33,6 +33,11 @@ build/
 # Ferramentas locais de empacotamento
 /empacotamento/*
 !/empacotamento/sync_version.py
+!/empacotamento/InstallerText.cs
+!/empacotamento/InstallerStrings.xml
+!/empacotamento/Uninstaller.cs
+!/empacotamento/Uninstaller.xaml
+!/empacotamento/test_uninstaller.py
 
 # Pacotes e relatorios locais de release
 /Release/

@@ -1,5 +1,9 @@
 # APKs Android 1.2.0
 
+A preparação oficial atual usa **código 27** nas duas ABIs, com os seletores de Downloads e Reprodução padronizados. Consulte o [relatório final](../../docs/VALIDACAO-RELEASE-1.2.0.md). Os resultados abaixo são históricos, da primeira preparação com código 26; a atualização instalada nela não equivale a testar os APKs finais.
+
+## Primeira preparação — histórico
+
 - versionName 1.2.0, versionCode 26, pacote br.com.onda.mobile.
 - Builds release ARM64 e x86_64 concluídos, incluindo lint vital.
 - APKs sem a flag debuggable, alinhados com zipalign para páginas de 16 KB.

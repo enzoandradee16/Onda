@@ -2,6 +2,12 @@
 
 ## 1.2.0 — 2026-10-23
 
+- Desinstalador Windows próprio, com “Até a próxima ONDA.”, português/espanhol/inglês e limpeza independente de dados e ferramentas, desativada por padrão. Preserva downloads e arquivos pessoais e mantém compatibilidade com o registro e as atualizações existentes.
+- Instalador em português, espanhol e inglês, com seleção desde a abertura e mensagens traduzidas de desinstalação.
+- PC: janela de formato e qualidade por faixa na pesquisa, com preferências salvas, confirmação para baixar/enfileirar e cancelamento sem iniciar.
+- PC: miniplayers de Efeitos e Jukebox padronizados, independentes da minimização principal e com cabeçalho ampliado para arraste. Restauração de tela cheia após minimizar também corrigida.
+- Android: seletores arredondados compartilhados em Downloads, Reprodução e Álbuns e playlists.
+- Documentação e READMEs PT/ES/EN revisados, com capturas reais novas do PC e celular; pacotes 1.2.0 sincronizados.
 - Instalador Windows próprio, com interface escura, ondas da marca e a frase “Sua ONDA começa aqui.”; escolha de pasta, atalho, progresso e conclusão. Atualizações preservam a identificação e o desinstalador das instalações anteriores.
 - Interface Android reorganizada com navegação por Pesquisar, Downloads, Reprodução e Mais; melhorias nas ferramentas, biblioteca e configurações.
 - Player compacto e expandido com capa, cores do álbum, filas independentes de Efeitos e Jukebox, controles de mídia e letras sincronizadas.

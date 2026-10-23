@@ -12,11 +12,19 @@ The project is still in development. Suggestions, contributions and bug reports 
 
 **Version 1.2.0 for Windows 10 or later (x64) and Android 8 or later (ARM64 and x86_64).**
 
-![ONDA on Windows: downloads in progress — pure black theme](docs/images/pc/en/downloads-preto-puro.png)
+![ONDA Windows 1.2.0](docs/images/pc%20novo/pesquisa-musicas-preto-puro.png)
 
 On Android, updates can download within ONDA, with progress and background continuation. When finished, tap Install update; the first time, allow installation from ONDA in Android settings. The system asks for confirmation and your data is preserved.
 
 On PC, right-click lists or cards to open the actions available in that tab. Shift+F10 and the menu key also open these options; an existing multiple selection is preserved when clicking one of its selected items.
+
+## What is new in 1.2.0
+
+- **Windows:** clicking Download now in search opens format and quality selection: MP3, M4A, FLAC or original audio. Saved preferences are preselected. Download immediately or add to the queue; cancelling starts nothing. The selection applies to that track.
+- **Desktop mini players:** Effects and Jukebox share the same design, each with its own artwork, album, transport, volume, lyrics and queue. They remain visible when ONDA is minimized. Appearance settings control whether ONDA minimizes when opening a mini player; drag the header, artwork or track information to move it.
+- **Android:** Search, Downloads, Playback and More navigation, with In progress / Completed and Effects / Jukebox using the same rounded selector as Saved / Import. Includes an expanded player, full-screen lyrics and independent playback queues.
+- **Custom installer:** “Sua ONDA começa aqui.”, folder and shortcut selection, progress and completion. Choose Portuguese, Spanish or English from the opening screen, including uninstaller messages. This does not change the language saved in the app.
+- **Custom uninstaller:** the same design as the installer, with “Até a próxima ONDA.”, three languages and independent options to delete settings/queue/history and remove downloaded tools. Both start off. Downloads, external cookies and personal tools are preserved.
 
 ## Library and organization
 
@@ -49,7 +57,7 @@ On Android, symbol buttons, selectors, checkboxes and playback/effects sliders e
 
 ## Queue and restart
 
-In **Links and queue**, choose compact or card view and adjust card size with the subtle control on the page. On Windows, **Ctrl + mouse wheel** also changes card size. Queue and history sizes are independent. Full cards show artwork, artist, album, duration and other metadata supplied by the source. In History, Clear history, view and size controls are aligned horizontally and centered below search. Display options are also available under Appearance. Queue and history views and card sizes are restored after reopening, even when “Remember settings” is disabled.
+In **Links** (Windows) or **Downloads** (Android), choose compact or card view and adjust card size with the subtle control on the page. On Windows, **Ctrl + mouse wheel** also changes card size. Queue and history sizes are independent. Full cards show artwork, artist, album, duration and other metadata supplied by the source. In History, Clear history, view and size controls are aligned horizontally and centered below search. Display options are also available under Appearance. Queue and history views and card sizes are restored after reopening, even when “Remember settings” is disabled.
 
 On Windows, **Restart** appears below Language only while a language change is pending. Returning to the current language clears the pending change. Restarting preserves the queue; ongoing operations must finish first. On Android, language and appearance changes apply immediately, without restarting.
 
@@ -67,83 +75,48 @@ On Windows, **Restart** appears below Language only while a language change is p
 
 ## ONDA on Windows
 
-Real screenshots of the English interface. Click to enlarge.
+Real screenshots of version 1.2.0 in Portuguese. Click to enlarge.
 
 <table>
   <tr>
-    <td align="center" width="50%">
-      <strong>Search music</strong><br>
-      <a href="docs/images/pc/en/pesquisa-escuro.png"><img src="docs/images/pc/en/pesquisa-escuro.png" width="460" alt="ONDA Windows: Search music — Dark · Teal"></a><br>
-      <sub>Dark · Teal</sub>
-    </td>
-    <td align="center" width="50%">
-      <strong>Edit metadata</strong><br>
-      <a href="docs/images/pc/en/metadados-preto-puro.png"><img src="docs/images/pc/en/metadados-preto-puro.png" width="460" alt="ONDA Windows: Edit metadata — Pure black · Red"></a><br>
-      <sub>Pure black · Red</sub><br><sub><a href="docs/images/pc/en/ajustar-capa.png">View cover adjustment</a></sub>
-    </td>
+    <td align="center" width="50%"><strong>Music search</strong><br><a href="docs/images/pc%20novo/pesquisa-musicas-preto-puro.png"><img src="docs/images/pc%20novo/pesquisa-musicas-preto-puro.png" width="460" alt="ONDA: Music search"></a></td>
+    <td align="center" width="50%"><strong>Metadata editor</strong><br><a href="docs/images/pc%20novo/editar-metadados-preto-puro.png"><img src="docs/images/pc%20novo/editar-metadados-preto-puro.png" width="460" alt="ONDA: Metadata editor"></a></td>
   </tr>
   <tr>
-    <td align="center" width="50%">
-      <strong>Images</strong><br>
-      <a href="docs/images/pc/en/imagens-claro.png"><img src="docs/images/pc/en/imagens-claro.png" width="460" alt="ONDA Windows: Images — Light · Gold"></a><br>
-      <sub>Light · Gold</sub>
-    </td>
-    <td align="center" width="50%">
-      <strong>Slowed, Sped Up and Reverb</strong><br>
-      <a href="docs/images/pc/en/efeitos-claro.png"><img src="docs/images/pc/en/efeitos-claro.png" width="460" alt="ONDA Windows: Slowed, Sped Up and Reverb — Light · Gold"></a><br>
-      <sub>Light · Gold</sub>
-    </td>
+    <td align="center" width="50%"><strong>Images</strong><br><a href="docs/images/pc%20novo/imagens-claro.png"><img src="docs/images/pc%20novo/imagens-claro.png" width="460" alt="ONDA: Images"></a></td>
+    <td align="center" width="50%"><strong>Download queue</strong><br><a href="docs/images/pc%20novo/fila-downloads-preto-puro.png"><img src="docs/images/pc%20novo/fila-downloads-preto-puro.png" width="460" alt="ONDA: Download queue"></a></td>
+  </tr>
+  <tr>
+    <td align="center" width="50%"><strong>Effects</strong><br><a href="docs/images/pc%20novo/reproducao-efeitos-claro.png"><img src="docs/images/pc%20novo/reproducao-efeitos-claro.png" width="460" alt="ONDA: Effects"></a></td>
+    <td align="center" width="50%"><strong>Infinite Jukebox</strong><br><a href="docs/images/pc%20novo/reproducao-jukebox-claro.png"><img src="docs/images/pc%20novo/reproducao-jukebox-claro.png" width="460" alt="ONDA: Infinite Jukebox"></a></td>
   </tr>
 </table>
 
-More screenshots: [albums and playlists](docs/images/pc/en/album-preto-puro.png) · [compact history](docs/images/pc/en/historico-escuro.png) · [history cards](docs/images/pc/en/historico-cards-escuro.png) · [appearance](docs/images/pc/en/aparencia-escuro.png).
+More screenshots: [Synchronized lyrics](docs/images/pc%20novo/letras-sincronizadas-claro.png) · [Mini player with lyrics](docs/images/pc%20novo/miniplayer-jukebox-letras-preto-puro.png).
 
 ## ONDA on Android
 
-Real screenshots of the app in light, dark and pure black themes. Screenshots show the English interface. Click an image to enlarge it.
+Real screenshots of version 1.2.0 in Portuguese. Click to enlarge.
 
 <table>
   <tr>
-    <td align="center" width="33%">
-      <strong>Search music</strong><br>
-      <a href="docs/images/android/en/pesquisa-escuro.png"><img src="docs/images/android/en/pesquisa-escuro.png" width="230" alt="ONDA Android: Search music — Dark theme · Aqua"></a><br>
-      <sub>Dark theme · Aqua</sub><br>
-      <sub><a href="docs/images/android/en/album-escuro.png">View albums and playlists</a></sub>
-    </td>
-    <td align="center" width="33%">
-      <strong>Choose a format</strong><br>
-      <a href="docs/images/android/en/escolher-formato-escuro.png"><img src="docs/images/android/en/escolher-formato-escuro.png" width="230" alt="ONDA Android: Choose a format — Dark theme · Aqua"></a><br>
-      <sub>Dark theme · Aqua</sub>
-    </td>
-    <td align="center" width="33%">
-      <strong>Links and queue</strong><br>
-      <a href="docs/images/android/en/fila-preto-puro.png"><img src="docs/images/android/en/fila-preto-puro.png" width="230" alt="ONDA Android: Links and queue — Pure black · Pink"></a><br>
-      <sub>Pure black · Pink</sub>
-    </td>
+    <td align="center" width="33%"><strong>Music search</strong><br><a href="docs/images/android%20novo/pesquisa-musicas-escuro.png"><img src="docs/images/android%20novo/pesquisa-musicas-escuro.png" width="230" alt="ONDA: Music search"></a></td>
+    <td align="center" width="33%"><strong>Downloads</strong><br><a href="docs/images/android%20novo/downloads-claro.png"><img src="docs/images/android%20novo/downloads-claro.png" width="230" alt="ONDA: Downloads"></a></td>
+    <td align="center" width="33%"><strong>Saved albums and playlists</strong><br><a href="docs/images/android%20novo/albuns-playlists-salvos-claro.png"><img src="docs/images/android%20novo/albuns-playlists-salvos-claro.png" width="230" alt="ONDA: Saved albums and playlists"></a></td>
   </tr>
   <tr>
-    <td align="center" width="33%">
-      <strong>Links and queue — full cards</strong><br>
-      <a href="docs/images/android/en/fila-claro.png"><img src="docs/images/android/en/fila-claro.png" width="230" alt="ONDA Android: Links and queue — full cards — Light theme · Purple"></a><br>
-      <sub>Light theme · Purple</sub>
-    </td>
-    <td align="center" width="33%">
-      <strong>Images</strong><br>
-      <a href="docs/images/android/en/imagens-claro.png"><img src="docs/images/android/en/imagens-claro.png" width="230" alt="ONDA Android: Images — Light theme · Purple"></a><br>
-      <sub>Light theme · Purple</sub>
-    </td>
-    <td align="center" width="33%">
-      <strong>Slowed, Sped Up and Reverb</strong><br>
-      <a href="docs/images/android/en/efeitos-claro.png"><img src="docs/images/android/en/efeitos-claro.png" width="230" alt="ONDA Android: Slowed, Sped Up and Reverb — Light theme · Red"></a><br>
-      <sub>Light theme · Red</sub>
-    </td>
+    <td align="center" width="33%"><strong>Effects</strong><br><a href="docs/images/android%20novo/reproducao-efeitos-claro.png"><img src="docs/images/android%20novo/reproducao-efeitos-claro.png" width="230" alt="ONDA: Effects"></a></td>
+    <td align="center" width="33%"><strong>Infinite Jukebox</strong><br><a href="docs/images/android%20novo/reproducao-jukebox-claro.png"><img src="docs/images/android%20novo/reproducao-jukebox-claro.png" width="230" alt="ONDA: Infinite Jukebox"></a></td>
+    <td align="center" width="33%"><strong>Expanded player</strong><br><a href="docs/images/android%20novo/player-efeitos-claro.png"><img src="docs/images/android%20novo/player-efeitos-claro.png" width="230" alt="ONDA: Expanded player"></a></td>
   </tr>
 </table>
+
+More screenshots: [Album and tracks](docs/images/android%20novo/album-discovery-escuro.png) · [Format selection](docs/images/android%20novo/escolha-formato-escuro.png) · [Full-screen lyrics](docs/images/android%20novo/letras-tela-cheia-escuro.png) · [Playback queue](docs/images/android%20novo/fila-reproducao-claro.png).
 
 ## Quick start
 
 1. Choose the destination folder in **Settings**.
-2. In **Links and queue**, paste a link, choose a format and select **Download now**, or add it to the queue.
+2. In **Links** (Windows) or **Downloads** (Android), paste a link, choose a format and select **Download now**, or add it to the queue.
 3. In **Albums and playlists**, load a link or import a file, select the items and choose the download options.
 4. Use **Images** to convert photos and **Effects** to edit a local track.
 

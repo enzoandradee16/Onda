@@ -121,7 +121,16 @@ class DesktopWorkspace(QObject):
             temporary.write_text(json.dumps(data),encoding='utf-8');temporary.replace(target)
         except OSError:pass
     def remember_window_state(self,state):
-        if state!=Qt.WindowState.WindowMinimized:self.restore_state=state
+        if state==Qt.WindowState.WindowMinimized:return
+        if state==Qt.WindowState.WindowNoState and self.restore_state==Qt.WindowState.WindowFullScreen:
+            # Windows briefly reports normal while minimizing a full-screen window.
+            window=self.window
+            def settled():
+                if self.closed or self.window is not window:return
+                current=window.windowState()
+                if current!=Qt.WindowState.WindowMinimized:self.restore_state=current
+            QTimer.singleShot(0,settled)
+        else:self.restore_state=state
     def start(self):
         self.timer.start();self.setup_shell();QGuiApplication.clipboard().dataChanged.connect(self.clipboard_changed)
         from ffmpeg_runtime import existing_folder
@@ -360,7 +369,11 @@ class DesktopWorkspace(QObject):
             self.options['selectedCatalog']=p['index'];self.optionsChanged.emit();record=self.models['catalog'].rows[p['index']]
             if (record.get('platform') or record.get('service'))=='Deezer' and not record.get('release_date'):self.run_task('release_date',{'record':record},lambda result:self.models['catalog'].update(p['index'],release_date=__import__('metadata').display_release_date(result) if result else ''))
         elif action in ('catalog_add','catalog_download'):
-            record=self.models['catalog'].rows[int(p.get('index',self.options['selectedCatalog']))];self.enqueue([record['source_url']],overrides=self.music_overrides(record),start=action=='catalog_download')
+            index=int(p.get('index',self.options['selectedCatalog']))
+            if not 0<=index<len(self.models['catalog'].rows):return
+            record=dict(self.models['catalog'].rows[index])
+            if action=='catalog_download':self.choose_download_format(record)
+            else:self.enqueue([record['source_url']],overrides=self.music_overrides(record))
         elif action=='jukebox_add':
             record=self.models['catalog'].rows[int(p.get('index',self.options['selectedCatalog']))];self.bridge.enqueueRecord(record);self.notify('Música adicionada à fila de reprodução do Jukebox.')
         elif action=='compare_results':self.comparisonRequested.emit(int(p.get('index',0)))
@@ -1074,7 +1087,9 @@ class DesktopWorkspace(QObject):
         state=self.window.windowState()
         if state!=Qt.WindowState.WindowMinimized:self.remember_window_state(state)
         if self.restore_state==Qt.WindowState.WindowMaximized:self.window.showMaximized()
-        elif self.restore_state==Qt.WindowState.WindowFullScreen:self.window.showFullScreen()
+        elif self.restore_state==Qt.WindowState.WindowFullScreen:
+            if state==Qt.WindowState.WindowMinimized:self.window.showNormal()
+            self.window.showFullScreen()
         else:self.window.showNormal()
         self.window.raise_();self.window.requestActivate()
         if self.tray:self.tray.hide()
@@ -1105,6 +1120,24 @@ class DesktopWorkspace(QObject):
         mode=MODES.get(self.settings.get('playlist_mode'),'mp3')
         if mode not in ('mp3','m4a','flac','original'):mode='mp3'
         return {'catalog_record':record,'display_name':self.record_name(record),'playlist':False,'mode':mode,'audio_quality':self.settings.get('playlist_m4a_quality','256 kbps') if mode=='m4a' else self.settings.get('playlist_mp3_quality','320 kbps')}
+    def choose_download_format(self,record):
+        from engine import MP3_QUALITIES,M4A_QUALITIES
+        defaults=self.music_overrides(record)
+        qualities={'mp3':list(MP3_QUALITIES),'m4a':list(M4A_QUALITIES)}
+        saved={mode:self.settings.get('playlist_'+mode+'_quality',choices[0]) for mode,choices in qualities.items()}
+        saved={mode:value if value in qualities[mode] else qualities[mode][0] for mode,value in saved.items()}
+        def chosen(reply):
+            if reply.get('cancel'):return
+            mode=reply.get('mode')
+            if mode not in ('mp3','m4a','flac','original'):return
+            overrides=dict(defaults,mode=mode,simple_download_ui=False)
+            if mode in qualities:
+                quality=reply.get('quality')
+                if quality not in qualities[mode]:return
+                overrides['audio_quality']=quality
+            self.enqueue([record['source_url']],overrides=overrides,start=reply.get('start') is True)
+        self.present_choice(uuid.uuid4().hex,{'type':'choose_download_format','record':record,
+            'mode':defaults['mode'],'qualities':qualities,'savedQualities':saved},chosen)
     def update_playlist(self):
         def loaded(result):
             self.collection_loaded(result)
@@ -1115,6 +1148,12 @@ class DesktopWorkspace(QObject):
         self.run_task('collection',{'url':self.options['playlistUrl']},loaded)
     @Slot(bool)
     def setMiniPlayerActive(self,active):self._mini_active=active
+    @Slot(QObject)
+    def openMiniPlayer(self,window):
+        # Owned windows are minimized with their owner on Windows.
+        window.setTransientParent(None)
+        if self.settings.get('minimize_on_miniplayer',True):self.window.showMinimized()
+        window.showNormal();window.raise_();window.requestActivate()
     @Slot(QObject,bool)
     def pinPlayer(self,window,pinned):
         if os.name=='nt':
@@ -1130,9 +1169,10 @@ class DesktopWorkspace(QObject):
     @Slot()
     def openLyrics(self):self.lyricsRequested.emit()
     @Slot(result='QVariantMap')
-    def lyricsFrame(self):
+    @Slot(bool,result='QVariantMap')
+    def lyricsFrame(self,jukebox=None):
         from synced_lyrics import karaoke_at
-        jukebox=self._page=='jukebox'
+        if jukebox is None:jukebox=self._page=='jukebox'
         source=str((self.bridge.model or {}).get('source','')) if jukebox else self.options['effectsSource']
         position=self.options['position'];duration=self.options['duration']
         if jukebox:

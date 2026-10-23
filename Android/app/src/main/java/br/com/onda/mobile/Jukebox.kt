@@ -373,12 +373,10 @@ internal class JukeboxController(private val context:Context,private val scope:C
     CompositionLocalProvider(LocalLayoutSpacing provides spacing.copy(controls=spacing.controls+2.dp,section=spacing.section+4.dp)) {
     Column(Modifier.fillMaxSize()) {
         UiText("Reprodução",modifier=Modifier.padding(horizontal=LayoutSpacing.inset,vertical=12.dp),style=MaterialTheme.typography.headlineMedium,fontWeight=androidx.compose.ui.text.font.FontWeight.Bold)
-        Row(Modifier.fillMaxWidth().padding(horizontal=LayoutSpacing.inset,vertical=12.dp),horizontalArrangement=Arrangement.spacedBy(LayoutSpacing.section)) {
-            modes.forEach {(index,label)->
-                val selected=index==mode
-                OutlinedButton(onClick={mode=index;vm.playbackMode.value=index},modifier=Modifier.weight(1f).heightIn(min=48.dp),shape=RoundedCornerShape(12.dp),
-                    colors=ButtonDefaults.outlinedButtonColors(containerColor=if(selected)MaterialTheme.colorScheme.primary else Color.Transparent,contentColor=if(selected)MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface),
-                    border=androidx.compose.foundation.BorderStroke(1.dp,if(selected)MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline)) {UiText(label,maxLines=1)}
+        Box(Modifier.fillMaxWidth().padding(horizontal=LayoutSpacing.inset,vertical=12.dp)) {
+            ToolTabs(modes.map {it.second},modes.indexOfFirst {it.first==mode}) {position->
+                mode=modes[position].first
+                vm.playbackMode.value=mode
             }
         }
         playbackPages.SaveableStateProvider(mode) {if(mode==0)EffectsPage(vm,heading=false) else JukeboxPage(vm)}

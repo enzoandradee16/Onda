@@ -33,7 +33,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -278,13 +277,8 @@ private val LocalPageSwipeExclusions=staticCompositionLocalOf<MutableMap<Any,Lay
             }}
         }
         if(advanced){QueuePage(vm);return@Column}
-        Row(Modifier.fillMaxWidth().padding(vertical=16.dp),horizontalArrangement=Arrangement.spacedBy(LayoutSpacing.section+4.dp)) {
-            listOf("Em andamento","Concluídos").forEachIndexed {i,label->
-                val selected=completed==(i==1)
-                OutlinedButton(onClick={completed=i==1},modifier=Modifier.weight(1f).heightIn(min=48.dp).semantics {this.selected=selected},shape=RoundedCornerShape(12.dp),
-                    colors=ButtonDefaults.outlinedButtonColors(containerColor=if(selected)MaterialTheme.colorScheme.primary else Color.Transparent,contentColor=if(selected)MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface),
-                    border=androidx.compose.foundation.BorderStroke(1.dp,if(selected)MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline)) {UiText(label,maxLines=1)}
-            }
+        Box(Modifier.fillMaxWidth().padding(vertical=16.dp)) {
+            ToolTabs(listOf("Em andamento","Concluídos"),if(completed)1 else 0){completed=it==1}
         }
         val finished=queue.filter {it.state=="Concluído"}
         val shown=if(completed)finished else queue.filter {it.state!="Concluído"}

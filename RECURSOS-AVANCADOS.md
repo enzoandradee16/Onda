@@ -1,5 +1,11 @@
 # Fila, biblioteca e ferramentas
 
+## Formato por música e miniplayers no PC — 1.2.0
+
+Na pesquisa, Baixar agora abre formato e qualidade, com a preferência de Álbuns e playlists selecionada. MP3 e M4A oferecem os bitrates compatíveis; FLAC e áudio original não mostram bitrate de recodificação. A janela preserva a faixa escolhida mesmo se a lista de pesquisa mudar. Confirmar baixa ou adiciona à fila; Voltar/Esc cancela. A seleção explícita não é substituída pelo modo simplificado de downloads e não altera as preferências globais.
+
+Efeitos e Jukebox compartilham o desenho do miniplayer, mantendo controles, filas, volume e letras independentes. Ambos permanecem visíveis ao minimizar o ONDA. A opção de minimizar ao abrir está em Aparência. O cabeçalho inteiro, incluindo capa e dados da faixa, permite arrastar; os botões de fixar, restaurar, minimizar e fechar continuam interativos.
+
 Os recursos abaixo estão disponíveis no Windows e no Android. Agendamento, retomada automática da fila e verificação de atualização ao abrir são opcionais; a retomada de arquivos interrompidos vem ativada. A fila já existente continua preservada.
 
 ## Fila e downloads
@@ -79,3 +85,7 @@ No PC, a edição é preparada em um arquivo temporário e substituída ao termi
 
 - A aba se chama Editar metadados nas duas versões. No Android, o formulário fica na própria página; o Histórico abre o arquivo nessa aba e os campos são preservados ao navegar entre abas.
 - Android: capa em uma área central de destaque, com prévia e Desfazer capa. PC: capa maior na área inferior direita do editor, com rolagem para telas menores.
+
+## Desinstalação no Windows — 1.2.0
+
+Em Aplicativos do Windows ou no atalho Desinstalar ONDA, a janela própria oferece **Apagar configurações, fila e histórico** e **Remover ferramentas baixadas (FFmpeg)**. As duas opções vêm desativadas e são independentes. Dados compartilhados com o portátil só são removidos se você marcar a opção correspondente. Downloads, cookies externos e ferramentas de outras pastas são preservados. Cancelar fecha sem remover; depois de confirmar, aguarde a conclusão. Consulte [o funcionamento e os testes](docs/INSTALADOR-WINDOWS.md).

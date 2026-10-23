@@ -12,11 +12,19 @@ El proyecto sigue en desarrollo. Las sugerencias, contribuciones e informes de e
 
 **Versión 1.2.0 para Windows 10 o superior (x64) y Android 8 o superior (ARM64 y x86_64).**
 
-![ONDA en Windows: descargas en curso — tema oscuro](docs/images/pc/es/downloads-escuro.png)
+![ONDA Windows 1.2.0](docs/images/pc%20novo/pesquisa-musicas-preto-puro.png)
 
 En Android, las actualizaciones pueden descargarse dentro de ONDA, con progreso y continuidad en segundo plano. Al terminar, toca Instalar actualización; la primera vez, permite la instalación desde ONDA en los ajustes de Android. El sistema pide confirmación y tus datos se conservan.
 
 En PC, haz clic derecho en las listas o tarjetas para abrir las acciones disponibles en esa pestaña. Mayús+F10 y la tecla de menú también abren estas opciones; la selección múltiple se conserva al hacer clic en uno de los elementos seleccionados.
+
+## Novedades de la versión 1.2.0
+
+- **Windows:** Descargar ahora en la búsqueda abre la elección de formato y calidad: MP3, M4A, FLAC o audio original. Parte de las preferencias guardadas. Permite descargar o añadir a la cola; cancelar no inicia nada. La elección se aplica a esa canción.
+- **Minirreproductores del PC:** Efectos y Jukebox comparten el diseño, cada uno con portada, álbum, controles, volumen, letras y cola propios. Siguen visibles al minimizar ONDA. Apariencia permite elegir si ONDA se minimiza al abrirlos; el encabezado, la portada y los datos de la canción permiten mover la ventana.
+- **Android:** navegación por Buscar, Descargas, Reproducción y Más, con En curso / Completados y Efectos / Jukebox usando el mismo selector redondeado de Guardados / Importar. Incluye reproductor ampliado, letras a pantalla completa y colas independientes.
+- **Instalador propio:** “Sua ONDA começa aqui.”, selección de carpeta y acceso directo, progreso y finalización. Portugués, español e inglés se eligen desde la apertura, incluidos los mensajes del desinstalador. No cambia el idioma guardado en la aplicación.
+- **Desinstalador propio:** el mismo diseño del instalador, con “Até a próxima ONDA.”, tres idiomas y opciones independientes para borrar configuración/cola/historial y eliminar herramientas descargadas. Ambas empiezan desactivadas. Se conservan descargas, cookies externos y herramientas personales.
 
 ## Biblioteca y organización
 
@@ -49,7 +57,7 @@ En Android, los controles con símbolos, selectores, casillas y barras de reprod
 
 ## Cola y reinicio
 
-En **Enlaces y cola**, elige la vista compacta o en tarjetas y ajusta su tamaño con el control discreto de la propia pestaña. En Windows, **Ctrl + rueda del ratón** también cambia el tamaño de las tarjetas. Los tamaños de la cola y del historial son independientes. Las tarjetas completas muestran portada, artista, álbum, duración y otros metadatos proporcionados por la fuente. En Historial, Borrar historial, vista y tamaño están alineados horizontalmente y centrados debajo de la búsqueda. Las opciones de visualización también están en Apariencia. La vista y el tamaño de las tarjetas de la cola y del historial se conservan al volver a abrir, aunque “Recordar configuración” esté desactivado.
+En **Enlaces** (Windows) o **Descargas** (Android), elige la vista compacta o en tarjetas y ajusta su tamaño con el control discreto de la propia pestaña. En Windows, **Ctrl + rueda del ratón** también cambia el tamaño de las tarjetas. Los tamaños de la cola y del historial son independientes. Las tarjetas completas muestran portada, artista, álbum, duración y otros metadatos proporcionados por la fuente. En Historial, Borrar historial, vista y tamaño están alineados horizontalmente y centrados debajo de la búsqueda. Las opciones de visualización también están en Apariencia. La vista y el tamaño de las tarjetas de la cola y del historial se conservan al volver a abrir, aunque “Recordar configuración” esté desactivado.
 
 En Windows, **Reiniciar** aparece debajo de Idioma solo cuando hay un cambio de idioma pendiente. Volver al idioma actual elimina el cambio pendiente. El reinicio conserva la cola; las operaciones en curso deben terminar primero. En Android, el idioma y la apariencia cambian de inmediato, sin reiniciar.
 
@@ -67,82 +75,48 @@ En Windows, **Reiniciar** aparece debajo de Idioma solo cuando hay un cambio de 
 
 ## ONDA en Windows
 
-Capturas reales de la interfaz en español. Haz clic para ampliarlas.
+Capturas reales de la versión 1.2.0 en portugués. Haz clic para ampliar.
 
 <table>
   <tr>
-    <td align="center" width="50%">
-      <strong>Buscar música</strong><br>
-      <a href="docs/images/pc/es/pesquisa-preto-puro.png"><img src="docs/images/pc/es/pesquisa-preto-puro.png" width="460" alt="ONDA Windows: Buscar música — Negro puro · Azul"></a><br>
-      <sub>Negro puro · Azul</sub>
-    </td>
-    <td align="center" width="50%">
-      <strong>Editar metadatos</strong><br>
-      <a href="docs/images/pc/es/metadados-preto-puro.png"><img src="docs/images/pc/es/metadados-preto-puro.png" width="460" alt="ONDA Windows: Editar metadatos — Negro puro · Rojo"></a><br>
-      <sub>Negro puro · Rojo</sub><br><sub><a href="docs/images/pc/es/ajustar-capa.png">Ver ajuste de portada</a></sub>
-    </td>
+    <td align="center" width="50%"><strong>Buscar música</strong><br><a href="docs/images/pc%20novo/pesquisa-musicas-preto-puro.png"><img src="docs/images/pc%20novo/pesquisa-musicas-preto-puro.png" width="460" alt="ONDA: Buscar música"></a></td>
+    <td align="center" width="50%"><strong>Editar metadatos</strong><br><a href="docs/images/pc%20novo/editar-metadados-preto-puro.png"><img src="docs/images/pc%20novo/editar-metadados-preto-puro.png" width="460" alt="ONDA: Editar metadatos"></a></td>
   </tr>
   <tr>
-    <td align="center" width="50%">
-      <strong>Imágenes</strong><br>
-      <a href="docs/images/pc/es/imagens-claro.png"><img src="docs/images/pc/es/imagens-claro.png" width="460" alt="ONDA Windows: Imágenes — Claro · Dorado"></a><br>
-      <sub>Claro · Dorado</sub>
-    </td>
-    <td align="center" width="50%">
-      <strong>Slowed, Sped Up y Reverb</strong><br>
-      <a href="docs/images/pc/es/efeitos-claro.png"><img src="docs/images/pc/es/efeitos-claro.png" width="460" alt="ONDA Windows: Slowed, Sped Up y Reverb — Claro · Dorado"></a><br>
-      <sub>Claro · Dorado</sub>
-    </td>
+    <td align="center" width="50%"><strong>Imágenes</strong><br><a href="docs/images/pc%20novo/imagens-claro.png"><img src="docs/images/pc%20novo/imagens-claro.png" width="460" alt="ONDA: Imágenes"></a></td>
+    <td align="center" width="50%"><strong>Cola de descargas</strong><br><a href="docs/images/pc%20novo/fila-downloads-preto-puro.png"><img src="docs/images/pc%20novo/fila-downloads-preto-puro.png" width="460" alt="ONDA: Cola de descargas"></a></td>
+  </tr>
+  <tr>
+    <td align="center" width="50%"><strong>Efectos</strong><br><a href="docs/images/pc%20novo/reproducao-efeitos-claro.png"><img src="docs/images/pc%20novo/reproducao-efeitos-claro.png" width="460" alt="ONDA: Efectos"></a></td>
+    <td align="center" width="50%"><strong>Jukebox infinito</strong><br><a href="docs/images/pc%20novo/reproducao-jukebox-claro.png"><img src="docs/images/pc%20novo/reproducao-jukebox-claro.png" width="460" alt="ONDA: Jukebox infinito"></a></td>
   </tr>
 </table>
 
-Más capturas: [álbumes y listas de reproducción](docs/images/pc/es/album-preto-puro.png) · [historial compacto](docs/images/pc/es/historico-escuro.png) · [historial en tarjetas](docs/images/pc/es/historico-cards-escuro.png) · [apariencia](docs/images/pc/es/aparencia-escuro.png).
+Más capturas: [Letras sincronizadas](docs/images/pc%20novo/letras-sincronizadas-claro.png) · [Minirreproductor con letras](docs/images/pc%20novo/miniplayer-jukebox-letras-preto-puro.png).
 
 ## ONDA en Android
 
-Capturas reales de la aplicación en los temas claro, oscuro y negro puro. Haz clic en una imagen para ampliarla.
+Capturas reales de la versión 1.2.0 en portugués. Haz clic para ampliar.
 
 <table>
   <tr>
-    <td align="center" width="33%">
-      <strong>Buscar música</strong><br>
-      <a href="docs/images/android/es/pesquisa-escuro.png"><img src="docs/images/android/es/pesquisa-escuro.png" width="230" alt="ONDA Android: Buscar música — Tema oscuro · Verde agua"></a><br>
-      <sub>Tema oscuro · Verde agua</sub>
-    </td>
-    <td align="center" width="33%">
-      <strong>Elige el formato</strong><br>
-      <a href="docs/images/android/es/escolher-formato-escuro.png"><img src="docs/images/android/es/escolher-formato-escuro.png" width="230" alt="ONDA Android: Elige el formato — Tema oscuro · Verde agua"></a><br>
-      <sub>Tema oscuro · Verde agua</sub>
-    </td>
-    <td align="center" width="33%">
-      <strong>Álbumes y listas de reproducción</strong><br>
-      <a href="docs/images/android/es/album-preto-puro.png"><img src="docs/images/android/es/album-preto-puro.png" width="230" alt="ONDA Android: Álbumes y listas de reproducción — Negro puro · Lila"></a><br>
-      <sub>Negro puro · Lila</sub>
-    </td>
+    <td align="center" width="33%"><strong>Buscar música</strong><br><a href="docs/images/android%20novo/pesquisa-musicas-escuro.png"><img src="docs/images/android%20novo/pesquisa-musicas-escuro.png" width="230" alt="ONDA: Buscar música"></a></td>
+    <td align="center" width="33%"><strong>Descargas</strong><br><a href="docs/images/android%20novo/downloads-claro.png"><img src="docs/images/android%20novo/downloads-claro.png" width="230" alt="ONDA: Descargas"></a></td>
+    <td align="center" width="33%"><strong>Álbumes y listas guardados</strong><br><a href="docs/images/android%20novo/albuns-playlists-salvos-claro.png"><img src="docs/images/android%20novo/albuns-playlists-salvos-claro.png" width="230" alt="ONDA: Álbumes y listas guardados"></a></td>
   </tr>
   <tr>
-    <td align="center" width="33%">
-      <strong>Enlaces y cola — tarjetas completas</strong><br>
-      <a href="docs/images/android/es/fila-claro.png"><img src="docs/images/android/es/fila-claro.png" width="230" alt="ONDA Android: Enlaces y cola — tarjetas completas — Tema claro · Rosa"></a><br>
-      <sub>Tema claro · Rosa</sub>
-    </td>
-    <td align="center" width="33%">
-      <strong>Imágenes</strong><br>
-      <a href="docs/images/android/es/imagens-claro.png"><img src="docs/images/android/es/imagens-claro.png" width="230" alt="ONDA Android: Imágenes — Tema claro · Morado"></a><br>
-      <sub>Tema claro · Morado</sub>
-    </td>
-    <td align="center" width="33%">
-      <strong>Slowed, Sped Up y Reverb</strong><br>
-      <a href="docs/images/android/es/efeitos-claro.png"><img src="docs/images/android/es/efeitos-claro.png" width="230" alt="ONDA Android: Slowed, Sped Up y Reverb — Tema claro · Rojo"></a><br>
-      <sub>Tema claro · Rojo</sub>
-    </td>
+    <td align="center" width="33%"><strong>Efectos</strong><br><a href="docs/images/android%20novo/reproducao-efeitos-claro.png"><img src="docs/images/android%20novo/reproducao-efeitos-claro.png" width="230" alt="ONDA: Efectos"></a></td>
+    <td align="center" width="33%"><strong>Jukebox infinito</strong><br><a href="docs/images/android%20novo/reproducao-jukebox-claro.png"><img src="docs/images/android%20novo/reproducao-jukebox-claro.png" width="230" alt="ONDA: Jukebox infinito"></a></td>
+    <td align="center" width="33%"><strong>Reproductor ampliado</strong><br><a href="docs/images/android%20novo/player-efeitos-claro.png"><img src="docs/images/android%20novo/player-efeitos-claro.png" width="230" alt="ONDA: Reproductor ampliado"></a></td>
   </tr>
 </table>
+
+Más capturas: [Álbum y canciones](docs/images/android%20novo/album-discovery-escuro.png) · [Elección de formato](docs/images/android%20novo/escolha-formato-escuro.png) · [Letras a pantalla completa](docs/images/android%20novo/letras-tela-cheia-escuro.png) · [Cola de reproducción](docs/images/android%20novo/fila-reproducao-claro.png).
 
 ## Inicio rápido
 
 1. Elige la carpeta de destino en **Configuración**.
-2. En **Enlaces y cola**, pega el enlace, elige el formato y pulsa **Descargar ahora**, o añádelo a la cola.
+2. En **Enlaces** (Windows) o **Descargas** (Android), pega el enlace, elige el formato y pulsa **Descargar ahora**, o añádelo a la cola.
 3. En **Álbumes y listas de reproducción**, carga un enlace o importa un archivo, selecciona los elementos y elige las opciones de descarga.
 4. Usa **Imágenes** para convertir fotos y **Efectos** para editar una canción local.
 

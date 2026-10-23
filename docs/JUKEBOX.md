@@ -1,5 +1,11 @@
 # Jukebox infinito
 
+## Miniplayer compartilhado com Efeitos — 1.2.0
+
+O Windows usa a mesma interface flutuante para Efeitos e Jukebox, com capa, álbum, posição, volume, letras e fila do player correspondente. A janela não acompanha a minimização da principal. A preferência **Minimizar ONDA ao abrir o miniplayer**, em Aparência, é consultada a cada abertura. É possível mover a janela pelo cabeçalho, capa e dados da faixa; controles não iniciam arraste. Fixar, restaurar, minimizar e fechar ficam no topo.
+
+No Android, o player compacto e expandido pertence à interface do app; as telas de Efeitos e Jukebox usam o mesmo seletor arredondado e mantêm filas independentes. Confira as [capturas atuais](../README.md).
+
 Disponível no código atual, na aba Reprodução e efeitos → Jukebox infinito, no PC e Android.
 
 - Abra um áudio local ou pesquise/cole um link e escolha a faixa explicitamente. Fontes online são obtidas pelos mecanismos existentes do ONDA e precisam estar disponíveis; não há um servidor Eternal Jukebox integrado.

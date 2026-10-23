@@ -1,5 +1,13 @@
 # ONDA — uso e desenvolvimento
 
+## Novidades e uso na versão 1.2.0
+
+Na pesquisa, **Baixar agora** abre a escolha de MP3, M4A, FLAC ou áudio original e da qualidade compatível. A seleção inicial vem de Configurações → Downloads → Formato de álbuns e playlists e das qualidades MP3/M4A dessa categoria. A escolha é aplicada somente à música; permite iniciar ou adicionar à fila, e Voltar/Esc cancela sem baixar. A opção direta de adicionar à fila continua usando as preferências salvas.
+
+Efeitos e Jukebox usam o mesmo miniplayer flutuante, com dados, letras, volume e filas próprios. Minimizar a janela principal não minimiza o player. Em Aparência, **Minimizar ONDA ao abrir o miniplayer** controla apenas a janela principal. Arraste pelo cabeçalho, capa ou informações; os botões continuam disponíveis. Fixar mantém o player acima de outras janelas.
+
+O instalador próprio oferece português, espanhol e inglês desde a abertura, além de pasta, atalho e progresso. O idioma escolhido vale também para as confirmações do desinstalador, sem alterar o idioma do app. Veja [o instalador](../docs/INSTALADOR-WINDOWS.md) e [a validação 1.2.0](../docs/VALIDACAO-RELEASE-1.2.0.md). As capturas atualizadas ficam no [README principal](../README.md).
+
 O [README principal](../README.md) apresenta o aplicativo e os pacotes 1.1.7 para Windows e Android.
 
 ## Executar o código-fonte

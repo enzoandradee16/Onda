@@ -18,7 +18,7 @@ Popup {
     background: Card {}
     Connections { target: workspace
         function onChoiceChanged() {
-            if (workspace.choice.identity) {
+            if (workspace.choice.identity && workspace.choice.type !== "choose_download_format") {
                 decisionDialog.selected=workspace.choice.type === "choose_media" && workspace.preferences.auto_select_media ? workspace.choice.candidates.map(function(item) { return item.id }) : []
                 decisionDialog.rejected=[];decisionDialog.modes={};decisionDialog.changes=Object.assign({},workspace.choice.record || {});decisionDialog.open()
             } else decisionDialog.close()

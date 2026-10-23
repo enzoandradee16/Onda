@@ -8,6 +8,32 @@ import subprocess
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def build_uninstaller(bundle, output, *, audit=False):
+    bundle, output = Path(bundle).resolve(), Path(output).resolve()
+    output.mkdir(parents=True, exist_ok=True)
+    version = re.search(r"^VERSION\s*=\s*'([^']+)'", (ROOT/'Onda/app_version.py').read_text(), re.M)[1]
+    numeric = '.'.join(re.match(r'(\d+)\.(\d+)\.(\d+)', version).groups())+'.0'
+    attributes = output/'UninstallerVersion.cs'
+    attributes.write_text('using System.Reflection;\n[assembly: AssemblyTitle("Desinstalar ONDA")]\n'
+        f'[assembly: AssemblyVersion("{numeric}")]\n[assembly: AssemblyFileVersion("{numeric}")]\n'
+        f'[assembly: AssemblyInformationalVersion("{version}")]\n', encoding='utf8')
+    manifest = output/'Uninstaller.manifest'
+    text = (ROOT/'empacotamento/Installer.manifest').read_text(encoding='utf8')
+    manifest.write_text(re.sub(r'(<assemblyIdentity[^>]*version=")[^"]+', lambda m:m[1]+numeric, text), encoding='utf8')
+    framework = Path('C:/Windows/Microsoft.NET/Framework64/v4.0.30319')
+    target = output/'Desinstalar ONDA.exe'
+    args = [str(framework/'csc.exe'), '/nologo', '/target:winexe', '/platform:x64', '/optimize+', '/main:UninstallerProgram',
+        '/reference:System.Windows.Forms.dll', '/reference:System.Drawing.dll', '/reference:System.Xaml.dll', '/reference:System.Xml.dll',
+        *['/reference:'+str(framework/'WPF'/name) for name in ('WindowsBase.dll','PresentationCore.dll','PresentationFramework.dll')],
+        '/win32icon:'+str(bundle/'onda.ico'), '/win32manifest:'+str(manifest),
+        '/resource:'+str(ROOT/'empacotamento/Uninstaller.xaml')+',Onda.UninstallerView',
+        '/resource:'+str(ROOT/'empacotamento/InstallerStrings.xml')+',Onda.InstallerStrings',
+        '/out:'+str(target), *(['/define:ONDA_AUDIT'] if audit else []),
+        str(ROOT/'empacotamento/Uninstaller.cs'),str(ROOT/'empacotamento/Installer.cs'),str(ROOT/'empacotamento/InstallerText.cs'),str(attributes)]
+    subprocess.run(args, check=True)
+    return target
+
+
 def build(bundle, output, *, audit=False):
     bundle = Path(bundle).resolve()
     output = Path(output).resolve()
@@ -16,6 +42,7 @@ def build(bundle, output, *, audit=False):
     numeric = '.'.join(re.match(r'(\d+)\.(\d+)\.(\d+)', version).groups())+'.0'
     work = output/'backend'
     work.mkdir(exist_ok=True)
+    uninstaller = build_uninstaller(bundle, output/'uninstaller', audit=audit)
     recipe = ROOT/'empacotamento/Onda.iss'
     if audit:
         # Every registry key, shortcut, mutex and personal-data path is isolated.
@@ -31,7 +58,7 @@ def build(bundle, output, *, audit=False):
         recipe = work/'InstallerAudit.iss'
         recipe.write_text(text, encoding='utf8')
     subprocess.run([str(ROOT/'Android/build/tools/inno/ISCC.exe'), '/Qp',
-        '/DPackageRoot='+str(bundle), '/DInstallerOutput='+str(work), str(recipe)], check=True)
+        '/DPackageRoot='+str(bundle), '/DInstallerOutput='+str(work), '/DUninstallerFrontend='+str(uninstaller), str(recipe)], check=True)
     backend = work/f'Onda-{version}-Setup-Windows-x64.exe'
     digest = hashlib.sha256(backend.read_bytes()).hexdigest()
     (work/'engine.sha256').write_text(digest, encoding='ascii')
@@ -45,14 +72,27 @@ def build(bundle, output, *, audit=False):
     (work/'Installer.manifest').write_text(manifest, encoding='utf8')
     framework = Path('C:/Windows/Microsoft.NET/Framework64/v4.0.30319')
     target = output/f'Onda-{version}-Setup-Windows-x64.exe'
+    frontend_source = ROOT/'empacotamento/Installer.cs'
+    if audit:
+        # An interactively opened audit frontend must also default to a test path.
+        text = frontend_source.read_text(encoding='utf8')
+        default = 'destination.Text = InstallerEngine.DefaultDestination();'
+        assert text.count(default) == 1
+        audit_path = str(output/'ui-install').replace('"', '""')
+        text = text.replace(default, 'destination.Text = @"'+audit_path+'";')
+        text = text.replace('Find<TextBlock>("VersionLabel").Text = InstallerEngine.Version;',
+            'Find<TextBlock>("VersionLabel").Text = InstallerEngine.Version + " · auditoria";')
+        frontend_source = work/'InstallerAudit.cs'
+        frontend_source.write_text(text, encoding='utf8')
     args = [str(framework/'csc.exe'), '/nologo', '/target:winexe', '/platform:x64', '/optimize+',
-        '/reference:System.Windows.Forms.dll', '/reference:System.Drawing.dll', '/reference:System.Xaml.dll',
+        '/reference:System.Windows.Forms.dll', '/reference:System.Drawing.dll', '/reference:System.Xaml.dll', '/reference:System.Xml.dll',
         *['/reference:'+str(framework/'WPF'/name) for name in ('WindowsBase.dll', 'PresentationCore.dll', 'PresentationFramework.dll')],
         '/win32icon:'+str(bundle/'onda.ico'), '/win32manifest:'+str(work/'Installer.manifest'),
         '/resource:'+str(backend)+',Onda.InstallEngine',
         '/resource:'+str(work/'engine.sha256')+',Onda.EngineHash',
         '/resource:'+str(ROOT/'empacotamento/Installer.xaml')+',Onda.InstallerView',
-        '/out:'+str(target), str(ROOT/'empacotamento/Installer.cs'), str(work/'InstallerVersion.cs')]
+        '/resource:'+str(ROOT/'empacotamento/InstallerStrings.xml')+',Onda.InstallerStrings',
+        '/out:'+str(target), str(frontend_source), str(ROOT/'empacotamento/InstallerText.cs'), str(work/'InstallerVersion.cs')]
     subprocess.run(args, check=True)
     return target
 

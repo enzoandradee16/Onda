@@ -1,5 +1,9 @@
 # Busca de músicas — revisão de 15/10/2026
 
+## Escolha de formato no PC — 1.2.0
+
+O botão **Baixar agora** dos resultados abre uma janela com capa, título, artista e álbum, formato e qualidade. O padrão vem das preferências de Álbuns e playlists. MP3 e M4A permitem escolher um bitrate compatível; FLAC e original não exigem essa escolha. **Baixar agora** confirma e inicia; **Adicionar à fila** confirma sem iniciar; **Voltar** ou Esc cancela. A escolha vale para a faixa, sem alterar as preferências salvas. A música é preservada mesmo se novos resultados substituírem a pesquisa. O menu direto Adicionar à fila continua oferecendo os destinos Downloads e Jukebox.
+
 ## Uso
 
 - Selecione **Todos** para consultar Deezer e Apple em paralelo. Spotify participa quando a conta ou as credenciais estão disponíveis.

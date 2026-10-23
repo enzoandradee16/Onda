@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 Pane {
+    DownloadFormatPopup {}
     LyricsWindow { id: lyricsWindow }
     EffectsQueueDrawer {parent: Overlay.overlay}
     EffectsMiniPlayer {id: effectsFloatingPlayer; mainWindow: app.Window.window}
@@ -130,7 +131,7 @@ Pane {
                     }
                     MicrophoneButton { onClicked: { if (lyricsWindow.visible) lyricsWindow.close(); else lyricsWindow.open() } }
                     TimerButton { onClicked: miniTimers.open() }
-                    PlaybackButton { glyph: "mini"; Accessible.name: bridge.translate("Mini player"); ToolTip.visible: hovered; ToolTip.text: Accessible.name; onClicked: {floatingPlayer.show();floatingPlayer.raise();floatingPlayer.requestActivate();if(workspace.preferences.minimize_on_miniplayer !== false)app.Window.window.showMinimized()} }
+                    PlaybackButton { glyph: "mini"; Accessible.name: bridge.translate("Mini player"); ToolTip.visible: hovered; ToolTip.text: Accessible.name; onClicked: {floatingPlayer.openPlayer()} }
                     ActionButton { text: bridge.translate("Fila"); onClicked: {workspace.selectPage("jukebox");jukebox.queueExpanded=true} }
                 }
             }
@@ -159,7 +160,7 @@ Pane {
                         anchors.right: parent.right; anchors.rightMargin: 24; anchors.verticalCenter: parent.verticalCenter
                         width: Math.max(180,parent.width/2-effectsTransport.width/2-48); spacing: Math.round(12*bridge.spacing)
                     PlaybackButton {glyph:"queue";Accessible.name:bridge.translate("Fila");onClicked:workspace.setOption("effectsQueueOpen",true)}
-                    PlaybackButton {glyph:"mini";Accessible.name:bridge.translate("Mini player");onClicked:{effectsFloatingPlayer.show();effectsFloatingPlayer.raise();if(workspace.preferences.minimize_on_miniplayer !== false)app.Window.window.showMinimized()}}
+                    PlaybackButton {glyph:"mini";Accessible.name:bridge.translate("Mini player");onClicked:{effectsFloatingPlayer.openPlayer()}}
                     LineIcon { glyph: "volume"; Layout.preferredWidth: 24; Layout.preferredHeight: 24 }
                     OndaSlider { Layout.fillWidth: true; Layout.preferredWidth: 250; Layout.maximumWidth: 250; Layout.minimumWidth: 70; value: workspace.values.effectsVolume; Accessible.name: bridge.translate("Volume"); onMoved: workspace.setOption("effectsVolume",value) }
                     }
@@ -204,7 +205,7 @@ Pane {
                         anchors.right: parent.right; anchors.rightMargin: 24; anchors.verticalCenter: parent.verticalCenter
                         width: Math.max(180,parent.width/2-jukeboxTransport.width/2-48); spacing: Math.round(12*bridge.spacing)
                     PlaybackButton {glyph:"queue";Accessible.name:bridge.translate("Fila");onClicked:{workspace.selectPage("jukebox");jukebox.queueExpanded=true}}
-                    PlaybackButton { glyph: "mini"; Accessible.name: bridge.translate("Mini player"); ToolTip.visible: hovered; ToolTip.text: Accessible.name; onClicked: {floatingPlayer.show();floatingPlayer.raise();floatingPlayer.requestActivate();if(workspace.preferences.minimize_on_miniplayer !== false)app.Window.window.showMinimized()} }
+                    PlaybackButton { glyph: "mini"; Accessible.name: bridge.translate("Mini player"); ToolTip.visible: hovered; ToolTip.text: Accessible.name; onClicked: {floatingPlayer.openPlayer()} }
                     LineIcon { glyph: "volume"; Layout.preferredWidth: 24; Layout.preferredHeight: 24 }
                     OndaSlider { id: volume; Layout.fillWidth: true; Layout.preferredWidth: 250; Layout.maximumWidth: 250; Layout.minimumWidth: 70; value: 80; Accessible.name: bridge.translate("Volume") }
                     }

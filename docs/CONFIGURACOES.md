@@ -1,5 +1,13 @@
 # Organização das configurações
 
+## Preferências usadas nas novas janelas — 1.2.0
+
+**Downloads → Formato de álbuns e playlists:** esse formato e as qualidades MP3/M4A da mesma categoria fornecem a seleção inicial da janela de download da pesquisa no PC. Escolher outro valor nessa janela afeta somente a faixa confirmada.
+
+**Aparência → Minimizar ONDA ao abrir o miniplayer:** ativada minimiza a principal e mantém o miniplayer visível; desativada abre o miniplayer sem minimizar a principal. Alterações são aplicadas na próxima abertura do player. Não controla o botão de minimizar do próprio miniplayer.
+
+O seletor de idioma do instalador é independente da preferência de idioma do aplicativo.
+
 PC e Android usam a ordem de categorias definida em `Onda/settings_schema/layout.json`.
 
 | Categoria | Ordem dos grupos |

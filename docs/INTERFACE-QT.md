@@ -1,5 +1,11 @@
 # Interface Qt do ONDA para Windows
 
+## Atualizações da interface 1.2.0
+
+A pesquisa abre a escolha de formato ao solicitar Baixar agora: MP3, M4A, FLAC ou original, com qualidade compatível, padrão salvo e confirmação para iniciar ou enfileirar. Cancelar não cria uma tarefa. O componente `DownloadFormatPopup.qml` usa a fila de decisões do controlador e impede a exibição simultânea do diálogo genérico.
+
+`MiniPlayer.qml` implementa os dois miniplayers; `EffectsMiniPlayer.qml` configura o modo Efeitos. As janelas são independentes da principal, com área de arraste em todo o cabeçalho. As letras consultam explicitamente o player correspondente, mesmo ao trocar a aba principal. A abertura consulta a preferência atual no controlador Qt.
+
 Execute `Portatil/Onda.exe`. Todas as áreas visíveis usam Qt Quick/QML: catálogo, links, fila, álbuns e playlists, histórico, conversor, imagens, efeitos, Jukebox, metadados, configurações e diálogos. Não existe incorporação de janelas Tk nem processo de interface auxiliar.
 
 ## Estrutura

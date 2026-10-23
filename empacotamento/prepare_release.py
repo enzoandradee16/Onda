@@ -38,8 +38,12 @@ def run(args, **kwargs):
 
 
 def tracked():
-    return [ROOT/name.decode('utf8') for name in subprocess.check_output(
-        ['git', 'ls-files', '-z'], cwd=ROOT).split(b'\0') if name]
+    # A local preparation must include new sources/screenshots and omit deletions.
+    names={name.decode('utf8') for name in subprocess.check_output(
+        ['git', 'ls-files', '--cached', '--others', '--exclude-standard', '-z'], cwd=ROOT).split(b'\0') if name}
+    names.update(('empacotamento/InstallerText.cs','empacotamento/InstallerStrings.xml',
+        'empacotamento/Uninstaller.cs','empacotamento/Uninstaller.xaml','empacotamento/test_uninstaller.py'))
+    return [ROOT/name for name in sorted(names) if (ROOT/name).is_file()]
 
 
 def safe(path):
@@ -60,7 +64,8 @@ def windows():
             target = BUNDLE/relative
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source, target)
-    for name in ('LICENSE', 'THIRD_PARTY_NOTICES.md', 'CHANGELOG.md', 'RELEASE_NOTES.md', 'Leia-me.txt'):
+    for name in ('LICENSE', 'THIRD_PARTY_NOTICES.md', 'CHANGELOG.md', 'RELEASE_NOTES.md', 'Leia-me.txt',
+            'README.md', 'README.en.md', 'README.es.md', 'RECURSOS-AVANCADOS.md'):
         shutil.copy2(ROOT/name, BUNDLE/name)
     shutil.copytree(ROOT/'docs', BUNDLE/'docs')
     shutil.copy2(ROOT/'Portatil/onda.ico', BUNDLE/'onda.ico')
@@ -80,19 +85,37 @@ def windows():
     run([output/f'Onda-{VERSION}-Setup-Windows-x64.exe', '--self-test', installer_report], timeout=120)
     assert json.loads(installer_report.read_text(encoding='utf8'))['ok']
     assert (output/f'Onda-{VERSION}-Setup-Windows-x64.exe').is_file()
+    uninstall_report = WORK/'uninstaller-self-test.json'
+    run([output/'uninstaller/Desinstalar ONDA.exe','--self-test',uninstall_report],timeout=120)
+    assert json.loads(uninstall_report.read_text(encoding='utf-8-sig'))['ok']
     print('Windows bundle, launcher test and installer ready.', flush=True)
 
 
-def finalize(prior, reuse_android_from=None, installer_validation=None):
+def finalize(prior, reuse_android_from=None, installer_validation=None, allow_uncommitted=False, base_commit=None, uninstaller_validation=None):
     assert not RELEASE.exists(), 'Never replace an existing release directory.'
-    assert not subprocess.check_output(['git', 'status', '--porcelain'], cwd=ROOT).strip(), 'Commit source changes first.'
-    commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
+    dirty = bool(subprocess.check_output(['git', 'status', '--porcelain'], cwd=ROOT).strip())
+    head = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
+    commit = subprocess.check_output(['git', 'rev-parse', '--verify', (base_commit or 'HEAD')+'^{commit}'],
+        cwd=ROOT, text=True).strip()
+    uncommitted = dirty or commit != head
+    assert allow_uncommitted or not uncommitted, 'Use --allow-uncommitted to explicitly prepare a local source snapshot.'
     frontend_check = json.loads((WORK/'installer-self-test.json').read_text(encoding='utf8'))
     assert frontend_check['ok'] and frontend_check['embedded_backend_verified'] and frontend_check['version'] == VERSION
+    assert frontend_check['languages'] == ['pt-BR', 'es', 'en']
+    uninstaller_check=json.loads((WORK/'uninstaller-self-test.json').read_text(encoding='utf-8-sig'))
+    assert uninstaller_check['ok'] and uninstaller_check['keeps_data_and_tools_by_default']
+    uninstaller_checks=None
+    if uninstaller_validation:
+        uninstaller_checks=json.loads(Path(uninstaller_validation).read_text(encoding='utf8'))
+        assert uninstaller_checks['ok'] and all(c['ok'] for c in uninstaller_checks['checks'])
     installer_checks = None
     if installer_validation:
         installer_checks = json.loads(Path(installer_validation).read_text(encoding='utf8'))
         assert installer_checks['ok'] and all(c['ok'] for c in installer_checks['checks'])
+    current_validation = None
+    if (WORK/'current-validation.json').is_file():
+        current_validation = json.loads((WORK/'current-validation.json').read_text(encoding='utf8'))
+        assert current_validation['ok']
     previous = ROOT/'Release'/prior
     previous_manifest = json.loads((previous/'MANIFEST.json').read_text(encoding='utf-8-sig'))
     previous_sources = json.loads((previous/'SOURCE_MANIFEST.json').read_text(encoding='utf-8-sig'))
@@ -110,6 +133,7 @@ def finalize(prior, reuse_android_from=None, installer_validation=None):
         assert validation['apks'][abi]['certificate_sha256'] == previous_manifest['android_certificate_sha256']
         assert validation['apks'][abi]['verified'] and validation['apks'][abi]['aligned_16kb']
     android_source_commit = commit
+    android_uncommitted = uncommitted
     if reuse_android_from:
         # A Windows-only packaging change can preserve the already verified APKs.
         reuse_android_from = Path(reuse_android_from).resolve()
@@ -125,6 +149,7 @@ def finalize(prior, reuse_android_from=None, installer_validation=None):
             expected = next(a['sha256'] for a in original['artifacts'] if a['filename'] == name)
             assert sha(reuse_android_from/name) == expected == sha(android/name)
         android_source_commit = original.get('android_binary_source_commit', original['git_commit'])
+        android_uncommitted = original.get('android_binary_contains_uncommitted_changes', original.get('contains_uncommitted_preparation',False))
     RELEASE.mkdir()
     for kind in ('Fontes-de-terceiros', 'Fontes-nativos-Android'):
         source = previous/f'Onda-{prior}-{kind}.zip'
@@ -143,7 +168,7 @@ def finalize(prior, reuse_android_from=None, installer_validation=None):
     for path in files:
         safe(path)
         assert path.suffix.lower() not in {'.apk', '.exe'}
-    source_manifest = {'version': VERSION, 'git_commit': commit, 'contains_uncommitted_changes': False,
+    source_manifest = {'version': VERSION, 'git_commit': commit, 'contains_uncommitted_changes': uncommitted,
         'files': [{'path': p.relative_to(ROOT).as_posix(), 'bytes': p.stat().st_size, 'sha256': sha(p)} for p in files]}
     write_json(RELEASE/'SOURCE_MANIFEST.json', source_manifest)
     with zipfile.ZipFile(RELEASE/f'Onda-{VERSION}-Fontes.zip', 'w', zipfile.ZIP_DEFLATED, compresslevel=6) as archive:
@@ -167,15 +192,23 @@ def finalize(prior, reuse_android_from=None, installer_validation=None):
         for p in sorted(RELEASE.iterdir()) if p.suffix in {'.zip', '.apk', '.exe'}]
     assert len(artifacts) == 7
     write_json(RELEASE/'MANIFEST.json', {'version': VERSION, 'git_commit': commit, 'prepared_on': '2026-10-23',
+        'contains_uncommitted_preparation': uncommitted,
         'status': 'official-prepared-local-not-published', 'android_version': VERSION, 'android_version_code': 27,
         'android_certificate_sha256': previous_manifest['android_certificate_sha256'],
         'android_binary_source_commit': android_source_commit,
+        'android_binary_contains_uncommitted_changes': android_uncommitted,
         'android_shared_sources_verified_unchanged': bool(reuse_android_from),
         'android_release_apks_verified': validation, 'windows_numeric_version': VERSION+'.0',
         'windows_authenticode_signed': False, 'windows_launcher_self_test': True,
         'windows_installer_interface': 'ONDA standalone WPF frontend',
+        'windows_installer_languages': frontend_check['languages'],
+        'windows_installer_translation_keys': frontend_check['translation_keys'],
         'windows_installer_backend': 'embedded Inno Setup; original production AppId',
         'windows_installer_validation': installer_checks,
+        'windows_uninstaller_interface': 'ONDA standalone WPF frontend; original Inno backend',
+        'windows_uninstaller_self_test': uninstaller_check,
+        'windows_uninstaller_validation': uninstaller_checks,
+        'current_validation': current_validation,
         'prior_validation': {'pc_passed': 149, 'pc_skipped': 4, 'android_jvm_passed': 72,
             'android_instrumented_debug_x86_64_passed': 45}, 'physical_arm64_validation': False,
         'validation': 'VALIDACAO.md', 'artifacts': artifacts})
@@ -192,6 +225,9 @@ if __name__ == '__main__':
     parser.add_argument('--release-output', type=Path, help='Fresh candidate directory for reviewing a replacement')
     parser.add_argument('--reuse-android-from', type=Path, help='Verify Android/shared sources and preserve the APK provenance from this release')
     parser.add_argument('--installer-validation', type=Path, help='Integration report from an isolated audit build')
+    parser.add_argument('--uninstaller-validation',type=Path,help='Custom uninstaller audit report')
+    parser.add_argument('--allow-uncommitted', action='store_true', help='Explicitly mark local changes in the source and release manifests')
+    parser.add_argument('--base-commit', help='Base commit for a local source snapshot; requires --allow-uncommitted when different from HEAD')
     args = parser.parse_args()
     if args.work:
         WORK = args.work.resolve()
@@ -201,4 +237,4 @@ if __name__ == '__main__':
     if args.stage == 'windows':
         windows()
     else:
-        finalize(args.prior, args.reuse_android_from, args.installer_validation)
+        finalize(args.prior, args.reuse_android_from, args.installer_validation, args.allow_uncommitted, args.base_commit,args.uninstaller_validation)

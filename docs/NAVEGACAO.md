@@ -1,5 +1,9 @@
 # Navegação e configurações
 
+## Navegação Android 1.2.0
+
+A barra principal contém Pesquisar, Downloads, Reprodução e Mais. Downloads alterna Em andamento / Concluídos; Reprodução alterna Efeitos / Jukebox infinito, respeitando a ordem configurada. Os dois usam o mesmo seletor arredondado de Salvos / Importar. O player compacto permanece disponível durante a navegação e abre a reprodução expandida. As [capturas da versão atual](../README.md) mostram esses fluxos.
+
 Atualização de 12/10/2026.
 
 ## O que mudou

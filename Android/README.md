@@ -1,5 +1,13 @@
 # ONDA para Android
 
+## Interface da versão oficial 1.2.0
+
+A navegação principal usa **Pesquisar**, **Downloads**, **Reprodução** e **Mais**. Em Downloads, Em andamento / Concluídos usa o mesmo seletor arredondado de Salvos / Importar em Álbuns e playlists. Reprodução aplica esse estilo a Efeitos / Jukebox infinito e respeita a ordem configurada.
+
+O player compacto acompanha a navegação; toque nele para abrir capa, controles e letras, que também podem ocupar a tela inteira. Efeitos e Jukebox têm filas próprias. As capturas do celular foram recortadas apenas nas barras do sistema e estão em `docs/images/android novo`, na raiz do projeto; a navegação do ONDA foi preservada.
+
+Os dois APKs oficiais usam versão **1.2.0**, código **27**, com a assinatura de produção original. A validação física ARM64 continua pendente. Consulte [o relatório atual](../docs/VALIDACAO-RELEASE-1.2.0.md).
+
 Projeto Android separado da distribuição Windows. Kotlin/Compose fornece a interface e os serviços; Python/Chaquopy executa o motor compartilhado do ONDA. O build copia os módulos necessários de `../Onda`, sem editar o programa de PC.
 
 Versão de desenvolvimento **1.2.0**, conforme `app/build.gradle.kts`, para Android 8 ou superior, ARM64 e x86_64. Kotlin/Compose e o motor compartilhado fornecem busca, downloads, histórico, edição de metadados, imagens e efeitos. Consulte [FUNCIONALIDADES.md](FUNCIONALIDADES.md) e a [auditoria de paridade com o PC](PARIDADE-PC-ANDROID.md).

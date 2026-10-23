@@ -608,17 +608,79 @@ class NativeDesktopTests(unittest.TestCase):
         from PySide6.QtCore import QObject,QMetaObject
         app,engine,bridge=create_application(complete=False)
         try:
-            mini=engine.rootObjects()[0].findChild(QObject,'miniPlayer')
-            QMetaObject.invokeMethod(mini,'show');self.settle()
-            for mode in ('lyricsVisible','queueVisible','lyricsVisible','queueVisible'):
-                mini.setProperty(mode,True);self.settle()
-                self.assertGreaterEqual(mini.height(),450)
-                if mode=='lyricsVisible':
-                    lyrics=mini.findChild(QObject,'miniPlayerLyrics')
-                    self.assertGreater(lyrics.property('height'),100)
-                    self.assertLess(lyrics.property('y')+lyrics.property('height'),mini.height())
-                mini.setProperty(mode,False);self.settle()
-                self.assertLessEqual(mini.height(),310)
+            for name in ('miniPlayer','effectsFloatingPlayer'):
+                mini=engine.rootObjects()[0].findChild(QObject,name)
+                QMetaObject.invokeMethod(mini,'show');self.settle()
+                for mode in ('lyricsVisible','queueVisible','lyricsVisible','queueVisible'):
+                    mini.setProperty(mode,True);self.settle()
+                    self.assertGreaterEqual(mini.height(),450)
+                    if mode=='lyricsVisible':
+                        lyrics=mini.findChild(QObject,'miniPlayerLyrics')
+                        self.assertGreater(lyrics.property('height'),100)
+                        self.assertLess(lyrics.property('y')+lyrics.property('height'),mini.height())
+                    mini.setProperty(mode,False);self.settle()
+                    self.assertLessEqual(mini.height(),310)
+        finally:close_application(engine,bridge)
+    def test_miniplayers_remain_independent_and_obey_current_minimize_setting(self):
+        from qt_desktop_ui import create_application,close_application
+        from preferences import PreferenceStore
+        from PySide6.QtCore import QObject,QMetaObject,Qt
+        app,engine,bridge=create_application(complete=False);ws=engine.workspace;window=engine.rootObjects()[0]
+        try:
+            for name in ('miniPlayer','effectsFloatingPlayer'):
+                mini=window.findChild(QObject,name)
+                for minimize in (True,False,True,False):
+                    window.showNormal();mini.hide();ws.setSetting('minimize_on_miniplayer',minimize);self.settle()
+                    QMetaObject.invokeMethod(mini,'openPlayer');self.settle()
+                    self.assertIsNone(mini.transientParent())
+                    self.assertEqual(window.windowState()==Qt.WindowMinimized,minimize)
+                    self.assertTrue(mini.isVisible());self.assertEqual(mini.windowState(),Qt.WindowNoState)
+                    window.showMinimized();self.settle()
+                    self.assertTrue(mini.isVisible());self.assertEqual(mini.windowState(),Qt.WindowNoState)
+                    if os.name=='nt' and os.environ.get('QT_QPA_PLATFORM')=='windows':
+                        import ctypes
+                        from ctypes import wintypes
+                        user32=ctypes.windll.user32
+                        user32.GetWindow.argtypes=[wintypes.HWND,wintypes.UINT];user32.GetWindow.restype=wintypes.HWND
+                        user32.IsWindowVisible.argtypes=[wintypes.HWND];user32.IsWindowVisible.restype=wintypes.BOOL
+                        user32.IsIconic.argtypes=[wintypes.HWND];user32.IsIconic.restype=wintypes.BOOL
+                        handle=int(mini.winId())
+                        self.assertFalse(user32.GetWindow(handle,4))  # GW_OWNER
+                        self.assertTrue(user32.IsWindowVisible(handle));self.assertFalse(user32.IsIconic(handle))
+                    QMetaObject.invokeMethod(mini,'restoreMain');self.settle()
+                    self.assertFalse(mini.isVisible());self.assertNotEqual(window.windowState(),Qt.WindowMinimized)
+            ws.persist()
+            self.assertIs(PreferenceStore.clean({'minimize_on_miniplayer':False})['minimize_on_miniplayer'],False)
+        finally:close_application(engine,bridge)
+    def test_miniplayers_share_header_and_effects_use_their_own_track(self):
+        from qt_desktop_ui import create_application,close_application
+        from PySide6.QtCore import QObject,QMetaObject
+        app,engine,bridge=create_application(complete=False);ws=engine.workspace;window=engine.rootObjects()[0]
+        try:
+            ws.options.update(effectsRecord={'title':'Effects song','artists':['Effects artist'],'album':'Effects album'},position=42,duration=180)
+            ws.optionsChanged.emit();ws.selectPage('jukebox')
+            bridge.update_state(title='Jukebox song',artist='Jukebox artist',album='Jukebox album')
+            for name,effects in (('miniPlayer',False),('effectsFloatingPlayer',True)):
+                mini=window.findChild(QObject,name);QMetaObject.invokeMethod(mini,'show');self.settle()
+                drag=mini.findChild(QObject,'miniPlayerDragArea')
+                self.assertEqual(drag.property('x'),0);self.assertEqual(drag.property('y'),0)
+                self.assertEqual(drag.property('width'),mini.width());self.assertGreaterEqual(drag.property('height'),150)
+                self.assertEqual(mini.property('trackTitle'),'Effects song' if effects else 'Jukebox song')
+                self.assertEqual(mini.property('trackAlbum'),'Effects album' if effects else 'Jukebox album')
+                if effects:
+                    def frame():
+                        value=mini.property('frame')
+                        return value.toVariant() if hasattr(value,'toVariant') else value
+                    self.wait_for(lambda:frame()['position']==42)
+                    self.assertFalse(frame()['jukebox'])
+                    with patch.object(ws,'play_effects_entry') as play:
+                        QMetaObject.invokeMethod(mini.findChild(QObject,'miniNext'),'clicked')
+                        play.assert_called_once_with(0)
+                    volume=mini.findChild(QObject,'miniVolume');volume.setProperty('value',33)
+                    QMetaObject.invokeMethod(volume,'moved');self.settle()
+                    self.assertEqual(ws.options['effectsVolume'],33)
+                    QMetaObject.invokeMethod(mini.findChild(QObject,'miniStop'),'clicked');self.settle()
+                    self.assertEqual(ws.options['position'],0)
         finally:close_application(engine,bridge)
     def test_qml_all_pages_settings_and_decisions_have_no_runtime_warnings(self):
         from qt_desktop_ui import create_application,close_application
@@ -789,6 +851,57 @@ class NativeDesktopTests(unittest.TestCase):
             self.ws.invoke('jukebox_add',{'index':0});prepare.assert_called_once()
         entry=self.bridge.queuedTracks[0];self.assertEqual(entry['kind'],'catalog');self.assertEqual(entry['artist'],'Artist');self.assertEqual(entry['album'],'Album');self.assertEqual(entry['cover'],record['cover_url']);self.assertEqual(entry['duration'],180);self.assertEqual(self.ws.jobs,[])
         self.ws.invoke('catalog_add',{'index':0});row=self.ws.queueModel.rows[0];self.assertEqual(row['track_title'],'Remote song');self.assertEqual(row['track_artist'],'Artist');self.assertEqual(row['track_album'],'Album');self.assertEqual(row['track_cover'],record['cover_url'])
+    def test_download_format_uses_saved_defaults_and_keeps_the_selected_track(self):
+        self.ws.settings.update(playlist_mode='Áudio · M4A (AAC)',playlist_m4a_quality='192 kbps',simple_download_ui=True)
+        record={'title':'Selected song','artists':['Artist'],'source_url':'https://www.deezer.com/track/1'}
+        self.ws.searched({'tracks':[record]});self.ws.invoke('catalog_download',{'index':0})
+        self.assertEqual(self.ws.jobs,[])
+        choice=self.ws.choice
+        self.assertEqual(choice['mode'],'m4a');self.assertEqual(choice['savedQualities']['m4a'],'192 kbps')
+        self.ws.models['catalog'].replace([])
+        self.ws.replyChoice(choice['identity'],{'mode':'m4a','quality':'128 kbps','start':False})
+        self.assertEqual(len(self.ws.jobs),1)
+        job=self.ws.jobs[0]
+        self.assertEqual((job['mode'],job['audio_quality'],job['url']),('m4a','128 kbps',record['source_url']))
+        self.assertEqual(job['catalog_record']['title'],'Selected song')
+        self.assertEqual(self.ws.settings['playlist_m4a_quality'],'192 kbps')
+    def test_download_format_cancel_validation_and_start_only_after_confirmation(self):
+        record={'title':'Song','artists':[],'source_url':'https://www.deezer.com/track/1'}
+        for reply in ({'cancel':True},{'mode':'video','start':True},{'mode':'m4a','quality':'320 kbps','start':True}):
+            self.ws.choose_download_format(record)
+            self.ws.replyChoice(self.ws.choice['identity'],reply)
+            self.assertEqual(self.ws.jobs,[])
+        self.ws.invoke('catalog_download',{'index':-1});self.assertEqual(self.ws.choice,{})
+        for mode,quality in (('mp3','96 kbps'),('flac',''),('original','')):
+            self.ws.choose_download_format(record)
+            with patch.object(self.ws,'start_queue') as start:
+                self.ws.replyChoice(self.ws.choice['identity'],{'mode':mode,'quality':quality,'start':True})
+                start.assert_called_once_with({self.ws.jobs[-1]['id']})
+            self.assertEqual(self.ws.jobs[-1]['mode'],mode)
+    def test_download_format_qml_selection_queue_and_cancel(self):
+        from qt_desktop_ui import create_application,close_application
+        from PySide6.QtCore import QObject,QMetaObject,Q_ARG,qInstallMessageHandler
+        warnings=[];old=qInstallMessageHandler(lambda kind,context,msg:warnings.append(msg))
+        app,engine,bridge=create_application(complete=False);ws=engine.workspace;window=engine.rootObjects()[0]
+        try:
+            ws.settings.update(playlist_mode='Áudio · M4A (AAC)',playlist_m4a_quality='192 kbps')
+            ws.searched({'tracks':[{'title':'Song','artists':['Artist'],'album':'Album','source_url':'https://www.deezer.com/track/1'}]})
+            ws.invoke('catalog_download',{'index':0});self.settle()
+            popup=window.findChild(QObject,'downloadFormatPopup')
+            self.assertTrue(popup.property('visible'));self.assertFalse(window.findChild(QObject,'decisionPopup').property('visible'))
+            self.assertLessEqual(popup.property('height'),window.height()-48)
+            formatbox=popup.findChild(QObject,'downloadFormatChoice');qualitybox=popup.findChild(QObject,'downloadQualityChoice')
+            self.assertEqual(formatbox.property('currentIndex'),1);self.assertEqual(qualitybox.property('currentText'),'192 kbps')
+            formatbox.setProperty('currentIndex',0);QMetaObject.invokeMethod(formatbox,'activated',Q_ARG(int,0));self.settle()
+            qualitybox.setProperty('currentIndex',3);QMetaObject.invokeMethod(qualitybox,'activated',Q_ARG(int,3))
+            QMetaObject.invokeMethod(popup.findChild(QObject,'queueTrackDownload'),'clicked');self.settle()
+            self.assertFalse(popup.property('visible'));self.assertEqual(len(ws.jobs),1)
+            self.assertEqual((ws.jobs[0]['mode'],ws.jobs[0]['audio_quality']),('mp3','128 kbps'))
+            ws.invoke('catalog_download',{'index':0});self.settle()
+            QMetaObject.invokeMethod(popup.findChild(QObject,'cancelTrackDownload'),'clicked');self.settle()
+            self.assertEqual(len(ws.jobs),1);self.assertFalse(popup.property('visible'))
+        finally:close_application(engine,bridge);qInstallMessageHandler(old)
+        self.assertEqual(warnings,[])
     def test_queue_destination_menu_routes_playback_and_download_separately(self):
         from qt_desktop_ui import create_application,close_application
         from PySide6.QtCore import QObject,QUrl,QMetaObject
