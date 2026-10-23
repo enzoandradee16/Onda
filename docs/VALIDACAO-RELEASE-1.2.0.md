@@ -26,7 +26,7 @@ Data: 23/10/2026. Destino exclusivo: `Release/1.2.0`. As pastas das versões ant
 
 ## Validação funcional anterior do mesmo código corrigido
 
-A rodada descrita em [VALIDACAO-RELEASE-2026-10-23.md](VALIDACAO-RELEASE-2026-10-23.md) aprovou **149 testes do pacote Windows, com 4 ignorados**, e **45 testes instrumentados Android** em BlueStacks/Android 11/x86_64, usando o pacote debug isolado `.uitest`. A preparação posterior acrescenta versão, documentação e o novo instalador Windows. Os APKs assinados são preservados nesta atualização do instalador; os 45 testes não foram repetidos como se fossem testes dos APKs finais assinados.
+A rodada descrita em [VALIDACAO-RELEASE-2026-10-23.md](VALIDACAO-RELEASE-2026-10-23.md) aprovou **149 testes do pacote Windows, com 4 ignorados**, e **45 testes instrumentados Android** em BlueStacks/Android 11/x86_64, usando o pacote debug isolado `.uitest`. A preparação posterior acrescenta versão, documentação, o novo instalador Windows e botões separados para os filtros de downloads Android. Os APKs foram recompilados com esse ajuste e assinados novamente; os 45 testes instrumentados se referem à rodada anterior, e não a uma nova execução dos APKs finais assinados.
 
 Também passaram consultas públicas reais de catálogos, letras e metadados online. Esses resultados não garantem disponibilidade futura de serviços externos.
 
