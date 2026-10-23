@@ -2,6 +2,7 @@
 
 Versão oficial preparada localmente para Windows e Android.
 
+- Instalador Windows com interface própria do ONDA: “Sua ONDA começa aqui.”, escolha de pasta, atalho, progresso e abertura ao concluir, preservando a compatibilidade com instalações anteriores.
 - Android: navegação reorganizada por Pesquisar, Downloads, Reprodução e Mais; melhorias nas ferramentas, histórico e configurações.
 - Efeitos e Jukebox com músicas e filas independentes, reprodução integral e controles de mídia em segundo plano.
 - Player compacto e expandido com capa, cores do álbum e letras sincronizadas, com acompanhamento e navegação dos versos.

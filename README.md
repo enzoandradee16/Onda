@@ -31,7 +31,7 @@ No Android, a identificação por origem no histórico é registrada nos novos d
 Baixe os pacotes oficiais em [Releases](https://github.com/enzoandradee16/Onda/releases). Escolha a versão Windows ou Android; o código-fonte e as instruções de construção também estão disponíveis neste repositório.
 
 - **Portátil:** extraia o ZIP inteiro e abra `Onda.exe`. Mantenha as pastas `Onda` e `_runtime` junto dele. Não precisa instalar Python. No primeiro uso, o ONDA baixa o FFmpeg diretamente de gyan.dev, com barra de progresso e verificação SHA-256; é necessário acesso à internet nessa preparação.
-- **Instalador:** execute o arquivo `Onda-…-Setup-Windows-x64.exe` e siga o assistente. A instalação é por usuário, com atalhos e desinstalador. O FFmpeg também é preparado automaticamente no primeiro uso.
+- **Instalador:** execute o arquivo `Onda-…-Setup-Windows-x64.exe`. A interface própria do ONDA permite escolher a pasta, criar um atalho e acompanhar a instalação. A instalação é por usuário, com desinstalador e compatibilidade com versões anteriores. O FFmpeg também é preparado automaticamente no primeiro uso.
 - **Android:** o APK usa assinatura de produção e requer Android 8 ou superior, em aparelho ARM64. As fontes das ferramentas nativas recompiladas são disponibilizadas no pacote Fontes-nativos-Android da mesma release.
 - **Código-fonte:** consulte [as instruções de desenvolvimento](Onda/README.md).
 

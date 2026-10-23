@@ -31,7 +31,7 @@ On Android, source identification in history is recorded for new downloads; olde
 Download the official packages from [Releases](https://github.com/enzoandradee16/Onda/releases). Choose the Windows or Android version; source code and build instructions are also available in this repository.
 
 - **Portable:** extract the entire ZIP and open `Onda.exe`. Keep the `Onda` and `_runtime` folders alongside it. You do not need to install Python. On first use, ONDA downloads FFmpeg directly from gyan.dev, with a progress bar and SHA-256 verification; this initial setup requires an internet connection.
-- **Installer:** run `Onda-…-Setup-Windows-x64.exe` and follow the wizard. Installation is per user, with shortcuts and an uninstaller. FFmpeg is also prepared automatically on first use.
+- **Installer:** run `Onda-…-Setup-Windows-x64.exe`. ONDA's own interface lets you choose the folder, create a shortcut and follow installation progress. Installation is per user, with an uninstaller and compatibility with earlier versions. FFmpeg is also prepared automatically on first use.
 - **Android:** the APK is signed with the production key and requires an ARM64 device running Android 8 or later. Source code for the rebuilt native tools is provided in the Fontes-nativos-Android package attached to the same release.
 - **Source code:** see the [development instructions](Onda/README.md) (in Portuguese).
 

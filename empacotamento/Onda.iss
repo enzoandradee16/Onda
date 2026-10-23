@@ -37,7 +37,7 @@ Name: "brazilianportuguese"; MessagesFile: "compiler:Languages\BrazilianPortugue
 Name: "desktopicon"; Description: "Criar atalho na Área de Trabalho"; GroupDescription: "Atalhos:"
 
 [Files]
-Source: "{#PackageRoot}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "Onda-Portable*.zip,__pycache__\*,*.pyc,_runtime\ffmpeg\*"
+Source: "{#PackageRoot}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "Onda-Portable*.zip,__pycache__\*,*.pyc,*.obj,*.pdb,*.lib,*.exp,_runtime\ffmpeg\*"
 
 
 #ifdef ToolsRoot
@@ -66,6 +66,16 @@ Filename: "{app}\Onda.exe"; Description: "Abrir Onda"; Flags: nowait postinstall
 var
   DeleteUserData: Boolean;
   DeleteDownloadedTools: Boolean;
+
+procedure CurInstallProgressChanged(CurProgress, MaxProgress: Integer);
+var
+  ProgressFile: String;
+begin
+  { Optional local progress channel for the ONDA installer frontend. }
+  ProgressFile := ExpandConstant('{param:ONDAPROGRESS|}');
+  if ProgressFile <> '' then
+    SaveStringToFile(ProgressFile, IntToStr(CurProgress) + '/' + IntToStr(MaxProgress), False);
+end;
 
 function AskDeleteUserData: Integer;
 begin

@@ -2,6 +2,7 @@
 
 ## 1.2.0 — 2026-10-23
 
+- Instalador Windows próprio, com interface escura, ondas da marca e a frase “Sua ONDA começa aqui.”; escolha de pasta, atalho, progresso e conclusão. Atualizações preservam a identificação e o desinstalador das instalações anteriores.
 - Interface Android reorganizada com navegação por Pesquisar, Downloads, Reprodução e Mais; melhorias nas ferramentas, biblioteca e configurações.
 - Player compacto e expandido com capa, cores do álbum, filas independentes de Efeitos e Jukebox, controles de mídia e letras sincronizadas.
 - Correções na retomada após pausa e busca, e na navegação entre faixas durante transições da Jukebox.
