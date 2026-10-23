@@ -51,7 +51,7 @@ private val equalizerFrequencies=listOf(31.25f,62.5f,125f,250f,500f,1000f,2000f,
             }
             UiText(translateUi("Pré-amplificação")+" · %.1f dB".format(preamp))
             RoundSlider(preamp,{preamp=it},valueRange=-24f..0f,onValueChangeFinished={save()})
-            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(4.dp)) {
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
                 equalizerFrequencies.indices.forEach {i->
                     Column(Modifier.width(56.dp),horizontalAlignment=Alignment.CenterHorizontally) {
                         UiText("%+.1f".format(gains[i]),style=MaterialTheme.typography.labelSmall)

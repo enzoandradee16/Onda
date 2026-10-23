@@ -10,7 +10,7 @@ ScrollView {
     ColumnLayout { width: page.availableWidth; spacing: Math.round(18*bridge.spacing)
         Card { Layout.fillWidth: true; implicitHeight: sourceBody.implicitHeight+36
             ColumnLayout { id: sourceBody; anchors.fill: parent; anchors.margins: 18; spacing: Math.round(12*bridge.spacing)
-                RowLayout { Layout.fillWidth: true
+                RowLayout { Layout.fillWidth: true; spacing: Math.round(10*bridge.spacing)
                     ActionButton { primary: true; text: bridge.translate("Escolher arquivo"); onClicked: workspace.invoke("pick",{kind: page.mode === "effects" ? "effects" : page.mode === "images" ? "image" : page.mode}) }
                     Label { Layout.fillWidth: true; wrapMode: Text.Wrap; color: bridge.palette.muted; text: page.mode === "converter" ? workspace.values.converterSources.join(" · ") : page.mode === "metadata" ? workspace.values.metadataSources.join(" · ") : page.mode === "effects" ? workspace.values.effectsSource : workspace.values.imageSource }
                 }
@@ -61,7 +61,7 @@ ScrollView {
                 }
             }
 
-            RowLayout { Layout.fillWidth: true
+            RowLayout { Layout.fillWidth: true; spacing: Math.round(10*bridge.spacing)
                 Label { text: bridge.translate("Preset"); color: bridge.palette.text }
                 ChoiceBox { id: effectsPreset; objectName: "effectsPreset"; Layout.preferredWidth: Math.round(240*bridge.fontScale); Layout.maximumWidth: Math.max(80,page.availableWidth-80); model: ["Original","Slowed leve","Slowed intenso","Sped Up leve","Sped Up intenso","Sped Up + Reverb","Só Reverb","Clássico","Atmosférico"]
                     delegate: ItemDelegate {
@@ -81,28 +81,28 @@ ScrollView {
             Label { text: bridge.translate("Reverb")+" · "+Math.round(workspace.values.reverb)+"%"; color: bridge.palette.text }
             OndaSlider { Layout.fillWidth: true; value: workspace.values.reverb; onMoved: workspace.setOption("reverb",value) }
             OndaSwitch { text: bridge.translate("Manter tom (pitch) ao alterar a velocidade"); checked: workspace.values.keep_pitch; onToggled: workspace.setOption("keep_pitch",checked) }
-            Label { visible: workspace.preferences.synced_lyrics; text: workspace.values.lyricText || ""; color: bridge.palette.accent; font.pixelSize: Math.round(20*bridge.fontScale); Layout.fillWidth: true; wrapMode: Text.Wrap }
+            AnimatedLyric { visible: workspace.preferences.synced_lyrics; text: workspace.values.lyricText || ""; Layout.fillWidth: true }
             ActionButton { text: bridge.translate("Escolher letra"); onClicked: workspace.invoke("pick",{kind:"effectLyrics"}) }
             Label { visible: !!workspace.values.effectLyricsName; text: workspace.values.effectLyricsName || ""; color: bridge.palette.muted; Layout.fillWidth: true; elide: Text.ElideMiddle }
             Label { text: bridge.translate("Posição na música")+" · "+Math.floor(workspace.values.position)+" / "+Math.floor(workspace.values.duration)+" s"; color: bridge.palette.muted }
             OndaSlider { Layout.fillWidth: true; enabled: workspace.values.duration > 0; from: 0; to: Math.max(1,workspace.values.duration); value: workspace.values.position; onMoved: workspace.setOption("position",value) }
-            Flow { Layout.fillWidth: true; spacing: Math.round(8*bridge.spacing)
+            Flow { Layout.fillWidth: true; spacing: Math.round(10*bridge.spacing)
                 ActionButton { text: bridge.translate(workspace.values.previewActive && workspace.values.previewKind === "effects" && !workspace.values.previewProcessed ? "Parar prévia" : "Ouvir original"); enabled: !!workspace.values.effectsSource; onClicked: workspace.invoke("effects_preview",{processed:false}) }
                 ActionButton { primary: true; text: bridge.translate(workspace.values.previewActive && workspace.values.previewKind === "effects" && workspace.values.previewProcessed ? "Parar prévia" : "Ouvir com efeitos"); enabled: !!workspace.values.effectsSource; onClicked: workspace.invoke("effects_preview",{processed:true}) }
                 ChoiceBox { model: ["MP3","M4A","FLAC","WAV"]; onActivated: workspace.setOption("effectFormat",currentText) }
-                TaskButton { idleText: bridge.translate("Exportar música inteira"); enabled: taskRunning || !!workspace.values.effectsSource; operation: "effects_export"; taskNames: ["effects_export"] }
+                TaskButton { primary: true; idleText: bridge.translate("Exportar música"); enabled: taskRunning || !!workspace.values.effectsSource; operation: "effects_export"; taskNames: ["effects_export"] }
             }
         }
         ColumnLayout { visible: page.mode === "images"; Layout.fillWidth: true; spacing: Math.round(14*bridge.spacing)
             OndaTextField { Layout.fillWidth: true; placeholderText: bridge.translate("Link da imagem ou publicação"); text: workspace.values.imageUrl; onTextEdited: workspace.setOption("imageUrl",text) }
-            RowLayout { Layout.fillWidth: true
+            RowLayout { Layout.fillWidth: true; spacing: Math.round(10*bridge.spacing)
                 OptionField { Layout.fillWidth: true; settings: true; field: ({key:"image_format",label:"Formato",kind:"select",choices:["Original","JPG","PNG","WebP","SVG"]}) }
                 OptionField { Layout.fillWidth: true; settings: true; field: ({key:"image_size",label:"Tamanho máximo",kind:"select",choices:["Original","Até 1920 × 1080","Até 1280 × 720","Até 1080 × 1080","Personalizado"]}) }
                 OptionField { visible: workspace.preferences.image_size === "Personalizado"; settings: true; field: ({key:"image_width",label:"Largura",kind:"text"}) }
                 OptionField { visible: workspace.preferences.image_size === "Personalizado"; settings: true; field: ({key:"image_height",label:"Altura",kind:"text"}) }
             }
             OndaSwitch { text: bridge.translate("Manter proporção"); checked: workspace.preferences.image_keep_ratio; onToggled: workspace.setSetting("image_keep_ratio",checked) }
-            RowLayout { TaskButton { idleText: bridge.translate("Visualizar"); operation: "image_preview"; taskNames: ["image_preview"] } TaskButton { primary: true; idleText: bridge.translate("Exportar / baixar"); operation: "image_export"; taskNames: ["image_export"] } }
+            RowLayout { spacing: Math.round(10*bridge.spacing); TaskButton { idleText: bridge.translate("Visualizar"); operation: "image_preview"; taskNames: ["image_preview"] } TaskButton { primary: true; idleText: bridge.translate("Exportar / baixar"); operation: "image_export"; taskNames: ["image_export"] } }
             Label {
                 objectName: "imageInformation"
                 readonly property var original: (workspace.values.imageInfo || {}).source || ({})
@@ -129,14 +129,14 @@ ScrollView {
             }
             RowLayout { Layout.fillWidth: true; spacing: 22; Layout.alignment: Qt.AlignTop
                 ColumnLayout { id: metadataControls; Layout.minimumWidth: 0; Layout.maximumWidth: Layout.preferredWidth; Layout.preferredWidth: Math.min(520,page.availableWidth-(workspace.values.metadataCover ? Math.min(220,page.availableWidth*0.33)+22 : 0)); Layout.alignment: Qt.AlignTop; spacing: 14
-            Flow { Layout.fillWidth: true; spacing: Math.round(8*bridge.spacing)
+            Flow { Layout.fillWidth: true; spacing: Math.round(10*bridge.spacing)
                 ActionButton { text: bridge.translate("Escolher capa"); onClicked: workspace.invoke("pick",{kind:"cover_path"}) }
                 ActionButton { text: bridge.translate("Escolher letra"); onClicked: workspace.invoke("pick",{kind:"lyrics_path"}) }
                 ActionButton { text: bridge.translate("Ajustar capa"); enabled: !!workspace.values.cover_path; onClicked: workspace.invoke("crop_cover",{}) }
                 ActionButton { text: bridge.translate("Desfazer capa"); enabled: !!workspace.values.cover_path; onClicked: workspace.invoke("undo_cover",{}) }
                 Label { visible: !!workspace.values.cover_path || !!workspace.values.lyrics_path; width: Math.min(implicitWidth,metadataControls.width); wrapMode: Text.WrapAnywhere; text: [workspace.values.cover_path,workspace.values.lyrics_path].filter(function(value) { return !!value }).join(" · "); color: bridge.palette.muted }
             }
-            Flow { Layout.fillWidth: true; spacing: Math.round(8*bridge.spacing)
+            Flow { Layout.fillWidth: true; spacing: Math.round(10*bridge.spacing)
                 ActionButton { text: bridge.translate(workspace.values.previewActive && workspace.values.previewKind === "metadata" && !workspace.values.previewProcessed ? "Parar prévia" : "Ouvir original"); enabled: workspace.values.metadataSources.length > 0; onClicked: workspace.invoke("metadata_preview",{normalized:false}) }
                 TaskButton { idleText: bridge.translate(workspace.values.previewActive && workspace.values.previewKind === "metadata" && workspace.values.previewProcessed ? "Parar prévia" : "Ouvir normalizado"); enabled: taskRunning || workspace.values.metadataSources.length > 0; operation: "metadata_preview"; parameters: ({normalized:true}); taskNames: ["normalize_preview"] }
                 ActionButton { text: bridge.translate("Parar"); onClicked: workspace.invoke("stop_preview",{}) }

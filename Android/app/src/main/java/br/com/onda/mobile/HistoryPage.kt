@@ -49,7 +49,10 @@ import org.json.JSONObject
         if(selectionMode)item {ToolCard {
             TextButton(onClick={selected=visible.filter {historyKind(it.mode)=="Áudio"}.map {it.id}.toSet()}){UiText("Selecionar áudios visíveis")}
             TextButton(onClick={selected=emptySet()}){UiText("Limpar seleção")}
-            OutlinedButton(enabled=selected.isNotEmpty(),onClick={batch=history.filter {it.id in selected && historyKind(it.mode)=="Áudio"}.map {it.uri}.distinct()}){UiText("Editar metadados em lote")}
+            OutlinedButton(enabled=history.any {it.id in selected && historyKind(it.mode)=="Áudio"},onClick={
+                val audio=history.filter {it.id in selected && historyKind(it.mode)=="Áudio"}.distinctBy {it.uri}
+                if(audio.size==1)onEditMetadata(audio.single()) else if(audio.isNotEmpty())batch=audio.map {it.uri}
+            }){UiText("Editar metadados")}
         }}
         if(visible.isEmpty())item {ToolEmpty("history",if(history.isEmpty())"Seu histórico está vazio" else "Nenhum resultado","Os arquivos baixados e convertidos aparecem aqui.")}
         visible.forEachIndexed {index,item->

@@ -323,11 +323,8 @@ class App(UiMixin, tk.Tk):
             self.write_log("FFmpeg pronto para uso neste computador.")
 
     def download_cookies(self,url):
-        from urllib.parse import urlsplit
-        from metadata import is_streaming_link
-        host=(urlsplit(url).hostname or '').lower()
-        youtube=host in ('youtube.com','www.youtube.com','m.youtube.com','music.youtube.com','youtu.be')
-        return (self.youtube_cookies.get().strip() if youtube or is_streaming_link(url) else '') or self.social_cookies.get().strip()
+        from download_defaults import download_cookies
+        return download_cookies(url,self.social_cookies.get().strip(),self.youtube_cookies.get().strip())
 
     def choose_social_cookies(self):
         path = filedialog.askopenfilename(title=tr("Cookies no formato Netscape"), filetypes=[("Cookies", "*.txt"), (tr("Todos os arquivos"), "*.*")])

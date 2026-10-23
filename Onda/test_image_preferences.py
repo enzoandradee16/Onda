@@ -8,9 +8,9 @@ from preferences import PreferenceStore
 class ImagePreferenceValidationTests(unittest.TestCase):
     def test_invalid_values_are_ignored_and_valid_dimensions_normalized(self):
         invalid={'image_format':'EXE','image_size':'random','image_width':'9999999999999999999','image_height':'-1','image_keep_ratio':'false'}
-        self.assertEqual(PreferenceStore.clean(invalid),{})
+        self.assertEqual(PreferenceStore.clean(invalid),{'confirm_version':False})
         valid={'image_format':'SVG','image_size':'Personalizado','image_width':'00500','image_height':'300','image_keep_ratio':False}
-        self.assertEqual(PreferenceStore.clean(valid),dict(valid,image_width='500'))
+        self.assertEqual(PreferenceStore.clean(valid),dict(dict(valid,image_width='500'),confirm_version=False))
 
 
 @unittest.skipUnless(os.environ.get('ONDA_UI_TESTS'),'Tk integration')

@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 Pane {
+    LyricsWindow { id: lyricsWindow }
     id: app
     width: 1360; height: 900
     readonly property var inlineTasks: ({catalog:["search"],playlists:["collection","compare_collection","check_matches"],converter:["convert","detect_silence"],effects:["effects_export"],images:["image_preview","image_export"],metadata:["audio_edit","normalize_preview"]})[workspace.currentPage] || []
@@ -27,6 +28,13 @@ Pane {
         Component.onCompleted: opacity=1
         Behavior on opacity { NumberAnimation { duration: bridge.animations ? 220 : 0; easing.type: Easing.OutCubic } }
         Sidebar { id: sidebar; onSettingsRequested: workspace.showSettings() }
+        Rectangle {
+            Layout.preferredWidth: 6; Layout.fillHeight: true; color: resizeMouse.containsMouse ? bridge.palette.accent : bridge.palette.line
+            MouseArea { id: resizeMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.SplitHCursor; property real initialX; property real initialWidth
+                onPressed: function(mouse) { initialX=mapToGlobal(mouse.x,mouse.y).x;initialWidth=sidebar.width }
+                onPositionChanged: function(mouse) { if(pressed) { var requested=initialWidth+mapToGlobal(mouse.x,mouse.y).x-initialX;sidebar.collapsed=requested<160;if(!sidebar.collapsed)workspace.setSetting("sidebar_width",Math.max(160,Math.min(420,requested))) } }
+            }
+        }
         ColumnLayout {
             Layout.fillWidth: true; Layout.fillHeight: true; spacing: Math.round(0*bridge.spacing)
             ColumnLayout {
@@ -40,10 +48,11 @@ Pane {
                 }
                 Text { visible: workspace.currentPage === "effects" || workspace.currentPage === "jukebox"; text: bridge.translate("Sua música, do seu jeito."); font.pixelSize: Math.round(15*bridge.fontScale); color: bridge.palette.muted }
                 RowLayout {
-                    visible: workspace.currentPage === "effects" || workspace.currentPage === "jukebox"; Layout.topMargin: 12; spacing: Math.round(0*bridge.spacing)
+                    visible: workspace.currentPage === "effects" || workspace.currentPage === "jukebox"; Layout.topMargin: 16; spacing: Math.round(12*bridge.spacing)
                     objectName: "playbackTabs"
                     layoutDirection: workspace.preferences.playback_tab_order === "Jukebox infinito primeiro" ? Qt.RightToLeft : Qt.LeftToRight
                     ActionButton { text: bridge.translate("Efeitos"); primary: workspace.currentPage === "effects"; onClicked: workspace.selectPage("effects"); Layout.preferredWidth: 130 }
+                    ActionButton { text: bridge.translate("Letra"); onClicked: lyricsWindow.open() }
                     ActionButton { text: bridge.translate("Jukebox infinito"); primary: workspace.currentPage === "jukebox"; onClicked: workspace.selectPage("jukebox"); Layout.preferredWidth: 178 }
                 }
             }

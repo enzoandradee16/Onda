@@ -39,7 +39,7 @@ class ChoiceTests(unittest.TestCase):
 
     def test_preferences_include_only_valid_audio_qualities(self):
         cleaned = PreferenceStore.clean({"mp3_quality": "192 kbps", "m4a_quality": "96 kbps", "client_secret": "private"})
-        self.assertEqual(cleaned, {"mp3_quality": "192 kbps", "m4a_quality": "96 kbps"})
+        self.assertEqual(cleaned, {'confirm_version':False,"mp3_quality": "192 kbps", "m4a_quality": "96 kbps"})
 
     @unittest.skipUnless(os.environ.get("ONDA_FFMPEG"), "Requires FFmpeg")
     def test_aac_source_is_reencoded_at_requested_quality(self):

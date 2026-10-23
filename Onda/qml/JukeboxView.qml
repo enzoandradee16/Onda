@@ -10,11 +10,14 @@ ScrollView {
     clip: true
     FileDialog { id: fileDialog; title: bridge.translate("Abrir arquivo"); nameFilters: [bridge.translate("Áudio")+" (*.mp3 *.m4a *.flac *.wav *.ogg *.opus *.aac *.webm)",bridge.translate("Todos os arquivos")+" (*)"]; onAccepted: bridge.openFile(selectedFile) }
     FileDialog { id: queueFiles; title: bridge.translate("Adicionar músicas à fila"); fileMode: FileDialog.OpenFiles; nameFilters: ["Áudio (*.mp3 *.m4a *.flac *.wav *.ogg *.opus *.aac *.webm)"]; onAccepted: { bridge.enqueueFiles(selectedFiles);page.queueExpanded=true } }
+    property string currentLyric: ""
+    Timer { interval: 100; running: page.visible; repeat: true; onTriggered: page.currentLyric=workspace.lyricsFrame().text }
     property bool queueExpanded: false
     EqualizerPopup { id: equalizer }
     TimerPopup { id: timerPopup }
     ColumnLayout {
         width: page.availableWidth; spacing: Math.round(16*bridge.spacing)
+        AnimatedLyric { Layout.fillWidth: true; text: page.currentLyric; textFormat: Text.RichText; visible: text.length>0 }
         RowLayout {
             Layout.fillWidth: true; spacing: Math.round(10*bridge.spacing)
             ActionButton { primary: true; text: bridge.translate("Abrir arquivo"); enabled: !bridge.state.busy; onClicked: fileDialog.open() }

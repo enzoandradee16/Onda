@@ -54,8 +54,8 @@ class LocalizationTests(unittest.TestCase):
             store.save_language("en")
             self.assertIsNone(store.load())
             self.assertEqual(store.load_language(),"en")
-            self.assertEqual(PreferenceStore.clean({"language":"en"}),{"language":"en"})
-            self.assertEqual(PreferenceStore.clean({"language":"invalid"}),{})
+            self.assertEqual(PreferenceStore.clean({"language":"en"}),{'confirm_version':False,"language":"en"})
+            self.assertEqual(PreferenceStore.clean({"language":"invalid"}),{'confirm_version':False})
             with self.assertRaises(ValueError):store.save_language("invalid")
     def test_import_export_keeps_canonical_language(self):
         from advanced_options import export_settings,import_settings

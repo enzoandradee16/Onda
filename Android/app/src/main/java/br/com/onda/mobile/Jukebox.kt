@@ -346,14 +346,14 @@ internal class JukeboxController(private val context:Context,private val scope:C
     }
     val owner=LocalLifecycleOwner.current
     DisposableEffect(owner) {
-        val observer=LifecycleEventObserver {_,event->if(event==Lifecycle.Event.ON_STOP && !OndaStore.settings.value.optBoolean("jukebox_background"))vm.jukebox.pause()}
+        val observer=LifecycleEventObserver {_,event->if(event==Lifecycle.Event.ON_STOP && !OndaStore.settings.value.optBoolean("jukebox_background",true))vm.jukebox.pause()}
         owner.lifecycle.addObserver(observer)
-        onDispose {owner.lifecycle.removeObserver(observer);if(!OndaStore.settings.value.optBoolean("jukebox_background"))vm.jukebox.pause()}
+        onDispose {owner.lifecycle.removeObserver(observer);if(!OndaStore.settings.value.optBoolean("jukebox_background",true))vm.jukebox.pause()}
     }
     Column(Modifier.fillMaxSize()) {
         UiText("Reprodução",modifier=Modifier.padding(horizontal=24.dp,vertical=8.dp),style=MaterialTheme.typography.headlineMedium,fontWeight=androidx.compose.ui.text.font.FontWeight.Bold)
         SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal=24.dp,vertical=8.dp)) {
-            modes.forEach {(index,label)->SegmentedButton(selected=index==mode,shape=RoundedCornerShape(12.dp),icon={},colors=SegmentedButtonDefaults.colors(activeContainerColor=MaterialTheme.colorScheme.primary,activeContentColor=MaterialTheme.colorScheme.onPrimary),onClick={vm.stopPreview(!OndaStore.settings.value.optBoolean("jukebox_background"));mode=index;if(index==1 && incomingSource.isNotBlank() && incomingSource!=jukeboxState.model?.optString("source"))vm.jukebox.prepare(incomingSource)}){UiText(label)}}
+            modes.forEach {(index,label)->SegmentedButton(selected=index==mode,shape=RoundedCornerShape(12.dp),icon={},colors=SegmentedButtonDefaults.colors(activeContainerColor=MaterialTheme.colorScheme.primary,activeContentColor=MaterialTheme.colorScheme.onPrimary),onClick={vm.stopPreview(!OndaStore.settings.value.optBoolean("jukebox_background",true));mode=index;if(index==1 && incomingSource.isNotBlank() && incomingSource!=jukeboxState.model?.optString("source"))vm.jukebox.prepare(incomingSource)}){UiText(label)}}
         }
         if(mode==0)EffectsPage(vm,heading=false) else JukeboxPage(vm)
     }
@@ -413,6 +413,15 @@ internal class JukeboxController(private val context:Context,private val scope:C
             }
         }
         if(state.model==null || state.busy || chooseMusic)UiText(state.message,style=MaterialTheme.typography.bodySmall)
+        LyricsButton(vm,state.model?.optString("source").orEmpty(),{
+            val beats=state.model?.optJSONArray("beats")
+            val a=beats?.optDouble(state.index,0.0) ?: 0.0
+            val b=beats?.optDouble(state.index+1,a) ?: a
+            a+(b-a)*state.phase
+        },state.model?.optDouble("duration",0.0) ?: 0.0,{seconds->
+            val beats=state.model?.optJSONArray("beats")
+            if(beats!=null)vm.jukebox.seek((0 until (beats.length()-1).coerceAtLeast(0)).lastOrNull {beats.optDouble(it)<=seconds} ?: 0)
+        },{vm.jukebox.playPause()})
         JukeboxGraph(state.model,state.index,state.phase,state.playing,state.flow,state.used,variation,smooth,normal,controller::seek,height=graphHeight,nextIndex=state.nextIndex,jumpBlend=state.jumpBlend)
         UiText("Variação",style=MaterialTheme.typography.labelLarge)
         Row(Modifier.fillMaxWidth(),verticalAlignment=androidx.compose.ui.Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)) {

@@ -45,7 +45,7 @@ class SpanishTests(unittest.TestCase):
             store.save_language('es')
             self.assertEqual(store.load_language(),'es')
             self.assertIsNone(store.load())
-            self.assertEqual(PreferenceStore.clean({'language':'es'}),{'language':'es'})
+            self.assertEqual(PreferenceStore.clean({'language':'es'}),{'confirm_version':False,'language':'es'})
         payload=export_settings({'language':'es'},'windows')
         self.assertEqual(import_settings(payload,'windows')['language'],'es')
 

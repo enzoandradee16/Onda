@@ -40,5 +40,5 @@ class SizeAndFpsTests(unittest.TestCase):
             build_options({**config, "fps": 17})
 
     def test_fps_preferences_validate_labels(self):
-        self.assertEqual(PreferenceStore.clean({"fps": "60 fps"}), {"fps": "60 fps"})
+        self.assertEqual(PreferenceStore.clean({"fps": "60 fps"}), {'confirm_version':False,"fps": "60 fps"})
         self.assertNotIn("fps", PreferenceStore.clean({"fps": "999 fps"}))

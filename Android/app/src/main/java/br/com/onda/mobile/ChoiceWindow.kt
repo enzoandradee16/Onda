@@ -15,6 +15,9 @@ import org.json.JSONObject
 @Composable fun ChoiceWindow(question: Question, vm: OndaViewModel) {
     val event=question.event
     val kind=event.optString("type")
+    DisposableEffect(question) {
+        onDispose {if(kind=="choose_version")vm.stopPreview(stopJukebox=false)}
+    }
     var selected by remember(question) {mutableStateOf(
         if(kind=="choose_media") {
             val rows=event.optJSONArray("candidates")?.objects() ?: emptyList()

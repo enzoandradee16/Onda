@@ -236,10 +236,13 @@ val categories=linkedMapOf(
                         UiText("Reprodução e prévias",style=MaterialTheme.typography.titleMedium)
                         Toggle("Continuar prévia dos efeitos em outras abas",settings.optBoolean("keep_preview")){put("keep_preview",it)}
                         UiText("Mantém a prévia dos efeitos ao trocar de página. Não controla a reprodução do Jukebox.",style=MaterialTheme.typography.bodySmall)
-                        Toggle("Continuar Jukebox em outras abas e em segundo plano",settings.optBoolean("jukebox_background")){put("jukebox_background",it)}
+                        Toggle("Continuar Jukebox em outras abas e em segundo plano",settings.optBoolean("jukebox_background",true)){put("jukebox_background",it)}
+                        Select("Animação da letra",settings.optString("lyrics_animation","Suave"),listOf("Desativada","Suave","Deslizar","Zoom")){put("lyrics_animation",it)}
                         Toggle("Mostrar letra sincronizada (LRC)",settings.optBoolean("synced_lyrics")){put("synced_lyrics",it)}
                         SettingsDivider()
-                        Select("Duração da transição entre músicas (segundos)",settings.optInt("jukebox_transition_seconds",2).toString(),(1..10).map {it.toString()}){put("jukebox_transition_seconds",it.toInt())}
+                        UiText("Duração da transição entre músicas (segundos)")
+                        Text("${settings.optInt("jukebox_transition_seconds",2)} s")
+                        Slider(value=settings.optInt("jukebox_transition_seconds",2).coerceIn(1,10).toFloat(),onValueChange={put("jukebox_transition_seconds",kotlin.math.round(it).toInt())},valueRange=1f..10f,steps=8)
                         UiText("Tempo de sobreposição entre a música atual e a próxima. Vale para trocas pelo timer e pela fila.",style=MaterialTheme.typography.bodySmall)
                         SettingsDivider()
                         UiText("Duração das prévias",style=MaterialTheme.typography.titleSmall)

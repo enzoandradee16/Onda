@@ -37,7 +37,8 @@ class NativeDesktopTests(unittest.TestCase):
         path=self.root/name;song(path);return path
     def test_restore_unminimizes_existing_window(self):
         from unittest.mock import Mock
-        self.ws.window=Mock();self.ws.restore()
+        from PySide6.QtCore import Qt
+        self.ws.window=Mock();self.ws.window.windowState.return_value=Qt.WindowMinimized;self.ws.restore()
         self.ws.window.showNormal.assert_called_once()
         self.ws.window.requestActivate.assert_called_once()
 
@@ -72,6 +73,9 @@ class NativeDesktopTests(unittest.TestCase):
             self.assertIsNone(find('spotify_disconnect'))
             self.assertIsNone(find('forget_credentials'))
             self.assertIsNotNone(find('spotify_developers'))
+            ws.saved_credentials=('id','secret');ws.statusChanged.emit();self.settle()
+            self.assertIsNone(find('forget_credentials'))
+            ws.saved_credentials=('','')
             ws.account.connected=True;ws.statusChanged.emit();self.settle()
             self.assertIsNone(find('spotify_connect'))
             self.assertIsNotNone(find('spotify_disconnect'))
@@ -131,9 +135,9 @@ class NativeDesktopTests(unittest.TestCase):
             ws.bind_shortcuts();popup=window.findChild(QObject,'shortcutsPopup')
             QMetaObject.invokeMethod(popup,'open');self.settle()
             self.assertTrue(all(not shortcut.isEnabled() for shortcut in ws.shortcuts))
-            def find(item):
-                if item.objectName()=='shortcutRecorder_links':return item
-                return next((result for child in item.childItems() if (result:=find(child)) is not None),None)
+            def find(item,name='shortcutRecorder_links'):
+                if item.objectName()==name:return item
+                return next((result for child in item.childItems() if (result:=find(child,name)) is not None),None)
             recorder=find(popup.property('contentItem'));self.assertTrue(recorder.property('readOnly'))
             QTest.mouseClick(window,Qt.LeftButton,Qt.NoModifier,recorder.mapToScene(QPointF(15,15)).toPoint());self.settle()
             self.assertTrue(recorder.property('recording'))
@@ -145,6 +149,14 @@ class NativeDesktopTests(unittest.TestCase):
             QTest.keyClick(window,Qt.Key_Escape);self.settle()
             self.assertFalse(recorder.property('recording'));self.assertTrue(popup.property('opened'))
             self.assertEqual(json.loads(ws.settings['shortcut_keys'])['links'],'<Control-Alt-b>')
+            recorder.forceActiveFocus();QTest.keyClick(window,Qt.Key_Return);self.settle()
+            self.assertTrue(recorder.property('recording'));QTest.keyClick(window,Qt.Key_Escape)
+            disable=find(popup.property('contentItem'),'disableShortcut_links')
+            QMetaObject.invokeMethod(disable,'clicked');self.settle()
+            self.assertEqual(json.loads(ws.settings['shortcut_keys'])['links'],'')
+            reset=find(popup.property('contentItem'),'resetShortcut_links')
+            QMetaObject.invokeMethod(reset,'clicked');self.settle()
+            self.assertNotIn('links',json.loads(ws.settings['shortcut_keys']))
             QMetaObject.invokeMethod(popup,'close');self.settle()
             self.assertTrue(all(shortcut.isEnabled() for shortcut in ws.shortcuts))
         finally:close_application(engine,bridge)

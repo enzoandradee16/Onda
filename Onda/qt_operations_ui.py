@@ -19,6 +19,27 @@ def image_details(source):
     except (OSError,ValueError):return {}
 
 def perform(action,config,cancel,emit):
+    if action=='history_details':
+        from audio_library import read_audio,cover_preview,AUDIO_TYPES
+        rows=[]
+        for row in config['rows']:
+            if cancel.is_set():break
+            path=Path(row['path'])
+            if path.suffix.lower() not in AUDIO_TYPES:continue
+            try:
+                cover=cover_preview(path)
+                try:record=read_audio(path)
+                except (OSError,ValueError):record={'title':path.stem,'artists':[],'album':''}
+                cover_url='data:image/png;base64,'+cover if cover else ''
+                if not cover_url:
+                    for candidate in (path.with_suffix('.jpg'),path.with_suffix('.png'),path.parent/'cover.jpg',path.parent/'folder.jpg'):
+                        if candidate.is_file():
+                            from PySide6.QtCore import QUrl
+                            cover_url=QUrl.fromLocalFile(str(candidate)).toString();break
+                rows.append(dict(id=row['id'],title=record['title'],artist=', '.join(record['artists']),album=record['album'],cover_url=cover_url))
+            except (OSError,ValueError):continue
+        return rows
+
     if cancel.is_set():raise ValueError('Operação cancelada.')
     if action in ('search','collection','check_matches','release_date'):
         value=client(config,cancel)
@@ -135,7 +156,8 @@ def perform(action,config,cancel,emit):
         return {'message':'\n'.join(results)}
     if action=='app_update':
         from advanced_options import release_update
-        return release_update('windows','1.1.7')
+        from app_version import VERSION
+        return release_update('windows',VERSION)
     if action=='update_tools':
         emit('stage',message='Atualizando ferramentas…',done=0,total=0)
         from audio_tools import process_options

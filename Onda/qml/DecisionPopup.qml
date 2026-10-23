@@ -32,16 +32,16 @@ Popup {
         }
         OndaSwitch { id: remember; visible: decisionDialog.decision.type === "choose_version"; text: bridge.translate("Lembrar esta escolha"); checked: false }
         ActionButton { visible: decisionDialog.media; text: bridge.translate(decisionDialog.selected.length === (decisionDialog.decision.candidates || []).length ? "Desmarcar todas" : "Selecionar todas"); onClicked: decisionDialog.selected=decisionDialog.selected.length === decisionDialog.decision.candidates.length ? [] : decisionDialog.decision.candidates.map(function(item) { return item.id }) }
-        ScrollView { visible: !decisionDialog.compact; Layout.fillWidth: true; Layout.fillHeight: true; clip: true; contentWidth: availableWidth
-            ColumnLayout { width: parent.availableWidth; spacing: Math.round(9*bridge.spacing)
+        ScrollView { id: candidatesScroll; visible: !decisionDialog.compact; Layout.fillWidth: true; Layout.fillHeight: true; clip: true; contentWidth: availableWidth
+            ColumnLayout { width: candidatesScroll.availableWidth; spacing: Math.round(9*bridge.spacing)
                 Repeater { model: decisionDialog.decision.candidates || []
-                    Card { required property var modelData; visible: decisionDialog.rejected.indexOf(modelData.id) < 0; Layout.fillWidth: true; implicitHeight: 124
-                        RowLayout { anchors.fill: parent; anchors.margins: 12
+                    Card { required property var modelData; visible: decisionDialog.rejected.indexOf(modelData.id) < 0; Layout.fillWidth: true; Layout.minimumWidth: 0; implicitHeight: Math.max(124,candidateRow.implicitHeight+24)
+                        RowLayout { id: candidateRow; objectName: "decisionCandidateRow"; anchors.fill: parent; anchors.margins: 12; spacing: 12
                             CheckBox { visible: decisionDialog.media; checked: decisionDialog.selected.indexOf(modelData.id) >= 0
                                 onToggled: { var values=decisionDialog.selected.slice(); if (checked && values.indexOf(modelData.id)<0) values.push(modelData.id); else if (!checked) values.splice(values.indexOf(modelData.id),1);decisionDialog.selected=values }
                             }
                             Image { visible: decisionDialog.media; Layout.preferredWidth: 100; Layout.preferredHeight: 100; source: modelData.thumbnail || modelData.preview_url || modelData.url || ""; fillMode: Image.PreserveAspectFit; asynchronous: true }
-                            Label { Layout.fillWidth: true; text: modelData.title || modelData.name || modelData.id || ""; wrapMode: Text.Wrap; color: bridge.palette.text }
+                            Label { Layout.fillWidth: true; Layout.minimumWidth: 0; text: modelData.title || modelData.name || modelData.id || ""; wrapMode: Text.Wrap; color: bridge.palette.text }
                             ChoiceBox { visible: decisionDialog.media && (modelData.outputLabels || []).length > 0; model: modelData.outputLabels || []; onActivated: { var values=Object.assign({},decisionDialog.modes);values[modelData.id]=modelData.outputCodes[index];decisionDialog.modes=values } }
                             ActionButton { visible: decisionDialog.decision.type === "choose_version"; text: bridge.translate("Versão errada"); onClicked: { var ids=decisionDialog.rejected.slice();ids.push(modelData.id);decisionDialog.rejected=ids } }
                             ActionButton { visible: !decisionDialog.media; text: bridge.translate("Escolher"); primary: true; onClicked: decisionDialog.reply({selected_id:modelData.id || modelData.source_url,remember_choice:remember.checked,rejected_ids:decisionDialog.rejected}) }

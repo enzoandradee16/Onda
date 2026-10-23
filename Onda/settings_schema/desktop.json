@@ -91,7 +91,9 @@
     "social_cookies": "",
     "youtube_cookies": "",
     "notifications_enabled": true,
-    "jukebox_background": true
+    "jukebox_background": true,
+    "sidebar_width": 220,
+    "lyrics_animation": "Suave"
   },
   "fields": [
     {
@@ -1020,6 +1022,18 @@
         "192 kbps",
         "128 kbps",
         "96 kbps"
+      ]
+    },
+    {
+      "category": "Áudio",
+      "key": "lyrics_animation",
+      "label": "Animação da letra",
+      "kind": "select",
+      "choices": [
+        "Desativada",
+        "Suave",
+        "Deslizar",
+        "Zoom"
       ]
     }
   ]

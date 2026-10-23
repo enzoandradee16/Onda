@@ -93,6 +93,7 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
             .onFailure {status.value="Não foi possível preparar as ferramentas. Tente novamente nas Configurações."}
     }}
     private var previewLimit: Job?=null
+    private val previewRequest=PreviewRequest(viewModelScope) {MobileEngine.cancel(it)}
     val effectsPreviewEnabled=MutableStateFlow(false)
     private val effectRequests=kotlinx.coroutines.channels.Channel<Pair<Long,JSONObject>>(kotlinx.coroutines.channels.Channel.CONFLATED)
     private var effectRevision=0L
@@ -123,7 +124,7 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
             if(!effectsPreviewEnabled.value || revision!=effectRevision) continue
             val id=UUID.randomUUID().toString();effectRenderId=id
             try {
-                val position=if(player.isPlaying && previewUrl.value==effectOutput) effectAnchor+player.currentPosition/1000.0*effectSpeed/100.0 else payload.optDouble("start")
+                val position=if(payload.optBoolean("continue_position") && player.isPlaying && previewUrl.value==effectOutput) effectAnchor+player.currentPosition/1000.0*effectSpeed/100.0 else payload.optDouble("start")
                 payload.put("start",position).put("preview_id",id)
                 val result=withContext(Dispatchers.IO) {MobileEngine.call(getApplication(),id,"preview",payload,EventCallback {})}
                 val path=result.optString("path")
@@ -160,7 +161,7 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
         effectsPreviewEnabled.value=true
         effectRevision++
         if(effectRenderId.isNotBlank()) MobileEngine.cancel(effectRenderId)
-        effectRequests.trySend(effectRevision to JSONObject().put("source",source).put("speed",speed).put("reverb",reverb).put("keep_pitch",pitch).put("start",start).put("duration",OndaStore.settings.value.optInt("effects_preview",25)))
+        effectRequests.trySend(effectRevision to JSONObject().put("source",source).put("speed",speed).put("reverb",reverb).put("keep_pitch",pitch).put("start",start).put("continue_position",continuing).put("duration",OndaStore.settings.value.optInt("effects_preview",25)))
     }
     fun operation(action: String, payload: JSONObject, dialog: Boolean=false, finished: (JSONObject)->Unit = {}) {
         fun report(text:String) {if(dialog) showNotice(operationNoticeTitle(action),text) else status.value=text}
@@ -353,6 +354,7 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
     fun preview(url: String, seconds: Int=25, startSeconds: Int=0, effects:Boolean=false) {
+        previewRequest.cancel()
         if(!effects) {effectsPreviewEnabled.value=false;effectRevision++;if(effectRenderId.isNotBlank()) MobileEngine.cancel(effectRenderId)}
         previewFromDialog=false
         jukebox.stop()
@@ -361,15 +363,15 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
         player.setMediaItem(MediaItem.fromUri(url),startSeconds.coerceAtLeast(0)*1000L); player.prepare(); player.play()
         previewLimit=viewModelScope.launch { delay(seconds*1000L); player.pause();effectsPreviewEnabled.value=false }
     }
-    fun stopPreview(stopJukebox:Boolean=true) { if(stopJukebox)jukebox.stop(); effectsPreviewEnabled.value=false;effectRevision++;if(effectRenderId.isNotBlank()) MobileEngine.cancel(effectRenderId);previewLimit?.cancel(); player.stop();previewActive.value=false;previewUrl.value="" }
+    fun stopPreview(stopJukebox:Boolean=true) { previewRequest.cancel();if(stopJukebox)jukebox.stop(); effectsPreviewEnabled.value=false;effectRevision++;if(effectRenderId.isNotBlank()) MobileEngine.cancel(effectRenderId);previewLimit?.cancel(); player.stop();previewActive.value=false;previewUrl.value="" }
     @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
     fun previewYouTube(url: String) {
         stopPreview();previewFromDialog=true;previewUrl.value=url
-        viewModelScope.launch {
-            status.value="Preparando prévia da versão escolhida…"
-            try {
-                val result=withContext(Dispatchers.IO) {MobileEngine.call(getApplication(),UUID.randomUUID().toString(),"resolve_preview",OndaStore.config().put("url",url),EventCallback {})}
-                if(result.has("error")) {showNotice("Ouvir prévia",result.getString("error"));return@launch}
+        status.value="Preparando prévia da versão escolhida…"
+        previewRequest.start(
+            resolve={id->withContext(Dispatchers.IO) {MobileEngine.call(getApplication(),id,"resolve_preview",OndaStore.config().put("url",url),EventCallback {})}},
+            onResult={result->
+                if(result.has("error"))throw IllegalStateException(result.getString("error"))
                 val headers=result.optJSONObject("headers") ?: JSONObject()
                 val properties=headers.keys().asSequence().associateWith {headers.getString(it)}
                 val http=DefaultHttpDataSource.Factory().setDefaultRequestProperties(properties)
@@ -378,8 +380,9 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
                 previewLimit?.cancel()
                 previewLimit=viewModelScope.launch {delay(OndaStore.settings.value.optInt("search_preview",25)*1000L);player.pause()}
                 status.value="Prévia da versão selecionada"
-            } catch(error: Exception) {showNotice("Ouvir prévia",error.message ?: "Não foi possível ouvir a prévia")}
-        }
+            },
+            onError={error->showNotice("Ouvir prévia",error.message ?: "Não foi possível ouvir a prévia")}
+        )
     }
     fun queueTrack(record: JSONObject, options: JSONObject=OndaStore.settings.value, group: String?=null, origin: String="", immediate: Boolean=false): String {
         val url=record.optString("source_url")
@@ -427,5 +430,5 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
             finally {addingToQueue.value=false}
         }
     }
-    override fun onCleared() { if(!OndaStore.settings.value.optBoolean("jukebox_background"))jukebox.close();jukebox.stopOtherAudio={};stopPreview(false);cancel();effectRequests.close(); player.release(); super.onCleared() }
+    override fun onCleared() { if(!OndaStore.settings.value.optBoolean("jukebox_background",true))jukebox.close();jukebox.stopOtherAudio={};stopPreview(false);cancel();effectRequests.close(); player.release(); super.onCleared() }
 }

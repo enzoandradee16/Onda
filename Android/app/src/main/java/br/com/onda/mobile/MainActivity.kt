@@ -53,7 +53,7 @@ class MainActivity : ComponentActivity() {
         receive(intent)
         setContent { OndaApp(model) }
     }
-    override fun onStop() {super.onStop();if(!OndaStore.settings.value.optBoolean("jukebox_background"))model.jukebox.pause()}
+    override fun onStop() {super.onStop();if(!OndaStore.settings.value.optBoolean("jukebox_background",true))model.jukebox.pause()}
     override fun onNewIntent(intent: Intent) { super.onNewIntent(intent); setIntent(intent); receive(intent) }
     // Public Activity override; AndroidX's bridge carries an internal annotation.
     @android.annotation.SuppressLint("RestrictedApi")
@@ -133,7 +133,7 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
     LaunchedEffect(tab) {
         if(tab!="Efeitos") {
             if(!settings.optBoolean("keep_preview"))vm.stopPreview(stopJukebox=false)
-            if(!settings.optBoolean("jukebox_background"))vm.jukebox.pause()
+            if(!settings.optBoolean("jukebox_background",true))vm.jukebox.pause()
         }
     }
     val typography=remember(settings.optString("interface_font"),settings.optString("interface_font_size")) {interfaceTypography(settings.optString("interface_font",DEFAULT_INTERFACE_FONT),settings.optString("interface_font_size","100%"))}
@@ -480,6 +480,23 @@ internal fun displayReleaseDate(value:String):String {
     val actionsAtTop=settings.optBoolean("queue_actions_at_top",true)
     val logs by OndaStore.messages.collectAsStateWithLifecycle()
     var selected by remember {mutableStateOf(setOf<String>())}
+    val metadataHistory by OndaStore.history.collectAsStateWithLifecycle()
+    var metadataBatch by remember {mutableStateOf<List<String>?>(null)}
+    metadataBatch?.let {sources->
+        if(sources.size>1)BatchMetadataEditor(vm,sources){metadataBatch=null}
+        else Dialog(onDismissRequest={metadataBatch=null}) {
+            Surface(shape=MaterialTheme.shapes.large) {
+                Column(Modifier.fillMaxWidth().fillMaxHeight(0.9f)) {
+                    TextButton(onClick={metadataBatch=null}){UiText("Pronto")}
+                    Box(Modifier.weight(1f)){MetadataPage(vm,sources.single())}
+                }
+            }
+        }
+    }
+    val metadataUris=metadataHistory.filter {record->historyKind(record.mode)=="Áudio" && OndaStore.items.value.any {item->
+        item.id in selected && item.state=="Concluído" && jobSource(item.config).isNotBlank() && jobSource(item.config)==record.source && item.config.optString("mode").equals(record.mode,true)
+    }}.map {it.uri}.distinct()
+
     var showLogs by remember {mutableStateOf(false)}
     var clear by remember {mutableStateOf(false)}
     LaunchedEffect(visibleIds) {selected=selected.intersect(visibleIds);OndaStore.selectAll.collect {selected=visible.filterNot {it.config.optBoolean("_immediate")}.map {it.id}.toSet()}}
@@ -516,6 +533,7 @@ internal fun displayReleaseDate(value:String):String {
             TextButton(onClick={OndaStore.remove(selected);selected=emptySet()}) {UiText("Remover selecionados")}
             TextButton(onClick={clear=true}) {UiText("Limpar fila")}
             TextButton(onClick={OndaStore.retry(selected)}) {UiText("Tentar novamente")}
+            TextButton(enabled=metadataUris.isNotEmpty(),onClick={metadataBatch=metadataUris}) {UiText("Editar metadados")}
         }}
         item {UiText("Concluídos: $completed/${queue.size} · Restantes: ${queue.size-completed}",style=MaterialTheme.typography.labelMedium,modifier=Modifier.testTag("queue-count"))}
         item {UiText("Tempo decorrido: ${queueDuration(queueTimes.elapsed)} · Tempo restante: $remainingTime",style=MaterialTheme.typography.labelSmall,modifier=Modifier.testTag("queue-time"))}
@@ -633,6 +651,7 @@ fun mediaClock(seconds:Long):String {val value=seconds.coerceAtLeast(0);return "
             UiText("Desacelere ou acelere sua música. Adicione reverb se quiser.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
             OutlinedButton(onClick={choose.launch(arrayOf("audio/*"))},modifier=Modifier.fillMaxWidth()){UiText(if(source.isBlank()) "Abrir áudio" else importedAudioName(source),maxLines=2)}
             TextButton(onClick={pickLyrics.launch(arrayOf("*/*"))},enabled=source.isNotBlank()){UiText("Importar letra LRC")}
+            LyricsButton(vm,source,{vm.lyricsPosition()},duration.toDouble(),{start=it.toFloat();if(liveEffects)vm.previewEffects(source,speed.toInt(),reverb.toInt(),pitch,start.toInt())},{if(liveEffects)vm.stopPreview() else vm.previewEffects(source,speed.toInt(),reverb.toInt(),pitch,start.toInt())})
             if(lyricsName.isNotBlank())Text(lyricsName,style=MaterialTheme.typography.bodySmall)
             if(lyricLine.isNotBlank())Text(lyricLine,style=MaterialTheme.typography.titleMedium)
         }
@@ -671,7 +690,7 @@ fun mediaClock(seconds:Long):String {val value=seconds.coerceAtLeast(0);return "
                 val id=OndaStore.enqueue(source,output.name,extra=config)
                 DownloadService.start(OndaStore.context,id)
                 vm.status.value="Exportação adicionada à fila. Acompanhe na aba Fila."
-            },enabled=source.isNotBlank(),modifier=Modifier.fillMaxWidth()){UiText("Exportar música inteira")}
+            },enabled=source.isNotBlank(),modifier=Modifier.fillMaxWidth()){UiText("Exportar música")}
         }
     }
 }

@@ -36,10 +36,19 @@ def effects_filter(speed=100, reverb=0, keep_pitch=False):
             filters += ["aresample=48000", f"asetrate={round(48000 * speed / 100)}", "aresample=48000"]
     if reverb:
         wet = reverb / 100
-        delays = [round((23 + i * 29 + (i % 3) * 7) * (0.6 + wet)) for i in range(32)]
-        decays = [wet * .14 * math.exp(-i / 9) for i in range(32)]
-        filters.append("aecho=1:0.75:" + "|".join(map(str, delays)) + ":" + "|".join(f"{d:.5f}" for d in decays))
-        filters.append("alimiter=limit=0.95:level=false:latency=true")
+        # Diffuse the wet signal through unequal reflection stages. Keep the
+        # original signal separate so damping never dulls the source itself.
+        # A dense, non-periodic reflection field without cascaded comb stages.
+        import random
+        rng=random.Random(7301)
+        delays=sorted(rng.sample(range(19,round(850+wet*1400)),192))
+        gains=[.24*math.exp(-delay/(180+wet*550)) for delay in delays]
+        stages=['aecho=0:1:'+ '|'.join(map(str,delays))+':'+ '|'.join(format(gain,'.6f') for gain in gains),'lowpass=f=5200']
+        prefix=','.join(filters) or 'anull'
+        return (prefix+',asplit=2[direct][room];[room]highpass=f=160,'+
+                ','.join(stages)+',adelay=18:all=1[ambience];'+
+                "[direct][ambience]amix=inputs=2:duration=longest:dropout_transition=0:normalize=0:weights='1 "+
+                format(wet*2.4,'.4f')+"',alimiter=limit=0.95:level=false:latency=true")
     return ",".join(filters) or "anull"
 
 
@@ -101,7 +110,7 @@ class PreviewPlayer:
             process = None
             try:
                 ffplay = executable("ffplay", folder)
-                filters = effects_filter(speed, reverb, keep_pitch)
+                filters = "asetpts=PTS-STARTPTS," + effects_filter(speed, reverb, keep_pitch)
                 headers = {}
                 url = source
                 if youtube:
@@ -135,7 +144,7 @@ class PreviewPlayer:
                         if position is not None:
                             with self.lock:
                                 if generation == self.generation:
-                                    self.position = max(self.position, position)
+                                    self.position = max(self.position, max(0, float(start)) + position)
                     elif len(line) < 4096:
                         line.extend(chunk)
                 process.stderr.close()

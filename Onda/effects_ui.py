@@ -116,7 +116,7 @@ class EffectsPane(ttk.Frame):
         export.grid(row=7, column=0, sticky="ew", pady=8)
         ttk.Label(export, text=tr("Salvar como")).pack(side="left")
         TranslatedCombobox(export, textvariable=self.mode, values=("MP3", "M4A", "FLAC", "WAV"), state="readonly", width=9).pack(side="left", padx=10)
-        self.export_button = ttk.Button(export, text=tr("Exportar música inteira"), command=self.export)
+        self.export_button = ttk.Button(export, text=tr("Exportar música"), style="Accent.TButton", command=self.export)
         self.export_button.pack(side="left")
         self.cancel_button = ttk.Button(export, text=tr("Cancelar exportação"), command=self.cancel, state="disabled")
         self.cancel_button.pack(side="right")

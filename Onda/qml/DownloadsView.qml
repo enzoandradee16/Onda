@@ -18,6 +18,7 @@ ColumnLayout {
         OndaMenuItem { text: bridge.translate("Pausar"); enabled: queueContext.targetId !== ""; onTriggered: workspace.invoke("queue_action",{id:queueContext.actionId,name:"pause"}) }
         OndaMenuItem { text: bridge.translate("Retomar"); enabled: queueContext.targetId !== ""; onTriggered: workspace.invoke("queue_action",{id:queueContext.actionId,name:"resume"}) }
         OndaMenuItem { text: bridge.translate("Tentar novamente"); enabled: queueContext.targetId !== ""; onTriggered: workspace.invoke("queue_action",{id:queueContext.actionId,name:"retry"}) }
+        OndaMenuItem { text: bridge.translate("Editar metadados"); enabled: queueContext.targetId !== ""; onTriggered: workspace.invoke("queue_edit",{id:queueContext.actionId}) }
         MenuSeparator {}
         OndaMenuItem { text: bridge.translate("Mover para cima"); enabled: queueContext.targetId !== ""; onTriggered: workspace.invoke("queue_action",{id:queueContext.actionId,name:"up"}) }
         OndaMenuItem { text: bridge.translate("Mover para baixo"); enabled: queueContext.targetId !== ""; onTriggered: workspace.invoke("queue_action",{id:queueContext.actionId,name:"down"}) }
@@ -85,6 +86,7 @@ ColumnLayout {
             ActionButton { text: bridge.translate(workspace.queueModel.count>0 && workspace.activity.visibleSelected === workspace.queueModel.count ? "Desmarcar todas" : "Selecionar todas"); enabled: workspace.queueModel.count>0; onClicked: workspace.invoke("check_all",{model:"queue",checked:workspace.activity.visibleSelected !== workspace.queueModel.count}) }
             CardSizeControl { settingKey: "queue_card_size" }
             Label { text: bridge.translate("Selecionados")+": "+workspace.activity.selected; color: bridge.palette.muted; padding: 12 }
+            ActionButton { text: bridge.translate("Editar metadados"); enabled: workspace.activity.selected>0; onClicked: workspace.invoke("queue_edit",{}) }
             ActionButton { text: bridge.translate("Pausar"); enabled: workspace.activity.selected>0; onClicked: workspace.invoke("queue_action",{name:"pause"}) }
             ActionButton { text: bridge.translate("Retomar"); enabled: workspace.activity.selected>0; onClicked: workspace.invoke("queue_action",{name:"resume"}) }
             ActionButton { text: bridge.translate("Remover"); enabled: workspace.activity.selected>0; onClicked: workspace.invoke("queue_action",{name:"remove"}) }

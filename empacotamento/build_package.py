@@ -11,6 +11,8 @@ parser.add_argument('--node', required=True, type=Path)
 parser.add_argument('--source', required=True, type=Path)
 parser.add_argument('--output', required=True, type=Path)
 args = parser.parse_args()
+from sync_version import sync_version
+sync_version(args.source.resolve().parent)
 out = args.output.resolve()
 out.mkdir(parents=True, exist_ok=True)
 runtime = out / '_runtime' / 'python'

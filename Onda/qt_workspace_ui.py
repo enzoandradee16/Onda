@@ -34,7 +34,8 @@ class DesktopWorkspace(QObject):
         self.models={key:RowsModel(self) for key in ('queue','catalog','playlists','history')}
         from queue_undo import QueueUndo
         self.undo_history=QueueUndo()
-        self.jobs=[];self.active={};self.tasks={};self.background_tasks=set();self.tool_progress={};self.generations={};self.callbacks={};self.running=False;self.closing=False;self.paused_all=False;self.schedule_blocked=False;self.clipboard_seen=set();self.syncing=False
+        self.jobs=[];self.active={};self.tasks={};self.background_tasks=set();self.tool_progress={};self.generations={};self.callbacks={};self.running=False;self.closing=False;self.paused_all=False;self.schedule_blocked=False;self.manual_queue=False;self.clipboard_seen=set();self.syncing=False
+        self.memory_waiting=False;self.queue_scope=None;self.queue_attempted=set();self.restore_state=Qt.WindowState.WindowNoState
         self.lyrics=[];self.last_preview_processed=True;self.preview_kind='';self.preview_source=''
         self.preview_timer=QTimer(self);self.preview_timer.setSingleShot(True);self.preview_timer.setInterval(150);self.preview_timer.timeout.connect(self.play_effects_preview)
         self.options={'previewActive':False,'previewKind':'','previewSource':'','previewProcessed':False,'metadataFields':{},'lyricText':'','effectLyricsName':'','query':'','provider':self.settings.get('catalog_provider','Deezer'),'links':'','linksNotice':'','playlistUrl':'','playlistTitle':'','queueQuery':'','queueState':'Todos','historyQuery':'','silenceResults':[],'trimSilence':False,'converterSources':[],'converterFormat':'MP4','video_quality':'Equilibrada','video_resolution':'Original','video_bitrate':'Automático','audio_bitrate':'192k','video_fps':'Original','video_audio':'Manter áudio','effectsSource':'','effectsRecord':{},'effectsCover':'','speed':85,'reverb':25,'keep_pitch':self.settings.get('effects_keep_pitch',False),'effectFormat':'MP3','position':0,'duration':0,'imageInfo':{},'catalogSearched':False,'imageSource':'','imageUrl':'','imagePreview':'','metadataSources':[],'metadata':{},'cover_path':'','lyrics_path':'','normalize_volume':False,'overwrite_original':False,'comparison':{},'selectedCatalog':-1,'selectedPlaylist':-1,'filterArtist':'','filterAlbum':'','filterVersion':''}
@@ -71,7 +72,7 @@ class DesktopWorkspace(QObject):
     @Property('QVariantMap',notify=choiceChanged)
     def choice(self):return dict(self._choice)
     @Property('QVariantMap',notify=statusChanged)
-    def activity(self):return {'spotifySearchReady':self.account.connected or bool(self.settings.get('spotify_client_id','').strip() and self.settings.get('spotify_client_secret','').strip()),'credentialsSaved':any(self.saved_credentials) and self.saved_credentials==(self.settings.get('spotify_client_id',''),self.settings.get('spotify_client_secret','')),'tools':dict(self.tool_progress),'selected':sum(bool(job.get('checked')) for job in self.jobs),'visibleSelected':sum(bool(row.get('checked')) for row in self.models['queue'].rows),'total':len(self.jobs),'undoCount':len(self.undo_history.entries),'running':self.running,'active':len(self.active),'background':list(self.background_tasks),'busy':list(dict.fromkeys(list(self.tasks)+[state['operation'] for state in self.active.values() if state.get('operation')]+[job['ui_operation'] for job in self.jobs if job.get('ui_operation') and job['state']=='Na fila'])),'logs':'\n'.join(self.logs[-200:]),'spotify':self.account.connected,'elapsed':self.timing.snapshot(sum(job['state'] in ('Na fila','Em andamento') for job in self.jobs))[0] if hasattr(self,'timing') else 0}
+    def activity(self):return {'hasCredentials':any(self.saved_credentials) or bool(self.settings.get('spotify_client_id','') or self.settings.get('spotify_client_secret','')),'spotifySearchReady':self.account.connected or bool(self.settings.get('spotify_client_id','').strip() and self.settings.get('spotify_client_secret','').strip()),'credentialsSaved':any(self.saved_credentials) and self.saved_credentials==(self.settings.get('spotify_client_id',''),self.settings.get('spotify_client_secret','')),'tools':dict(self.tool_progress),'selected':sum(bool(job.get('checked')) for job in self.jobs),'visibleSelected':sum(bool(row.get('checked')) for row in self.models['queue'].rows),'total':len(self.jobs),'undoCount':len(self.undo_history.entries),'running':self.running,'active':len(self.active),'background':list(self.background_tasks),'busy':list(dict.fromkeys(list(self.tasks)+[state['operation'] for state in self.active.values() if state.get('operation')]+[job['ui_operation'] for job in self.jobs if job.get('ui_operation') and job['state']=='Na fila'])),'logs':'\n'.join(self.logs[-200:]),'spotify':self.account.connected,'elapsed':self.timing.snapshot(sum(job['state'] in ('Na fila','Em andamento') for job in self.jobs))[0] if hasattr(self,'timing') else 0}
     @Property(QObject,constant=True)
     def queueModel(self):return self.models['queue']
     @Property(QObject,constant=True)
@@ -80,7 +81,12 @@ class DesktopWorkspace(QObject):
     def playlistModel(self):return self.models['playlists']
     @Property(QObject,constant=True)
     def historyModel(self):return self.models['history']
-    def attach(self,window,area=None):self.window=window
+    def attach(self,window,area=None):
+        self.window=window
+        self.remember_window_state(window.windowState())
+        window.windowStateChanged.connect(self.remember_window_state)
+    def remember_window_state(self,state):
+        if state!=Qt.WindowState.WindowMinimized:self.restore_state=state
     def start(self):
         self.timer.start();self.setup_shell();QGuiApplication.clipboard().dataChanged.connect(self.clipboard_changed)
         from ffmpeg_runtime import existing_folder
@@ -151,6 +157,8 @@ class DesktopWorkspace(QObject):
                 pair=(self.settings.get('spotify_client_id','').strip(),self.settings.get('spotify_client_secret','').strip())
                 if all(pair) and pair!=self.saved_credentials:
                     self.credentials.save(*pair);self.saved_credentials=pair;self.statusChanged.emit()
+                elif not all(pair) and any(self.saved_credentials):
+                    self.credentials.forget();self.saved_credentials=('','');self.statusChanged.emit()
         except (OSError,ValueError) as error:self.notify(error)
     @Slot()
     def pause_background_jukebox(self):
@@ -221,11 +229,11 @@ class DesktopWorkspace(QObject):
         elif action=='undo_queue':self.jobs=self.undo_history.restore(self.jobs,self.active);self.refresh_queue();self.save_queue();self.statusChanged.emit();self.notify('Ação desfeita.')
         elif action=='add_links':
             if not self.options['links'].strip():return
-            added=self.enqueue(self.options['links'].splitlines())
+            added=self.enqueue(self.options['links'].splitlines(),start=bool(p.get('start')))
             self.options['linksNotice']=(str(len(added))+' '+tr('itens adicionados à fila')) if added else tr('Nenhum novo item adicionado à fila.')
             self.optionsChanged.emit()
             if added and p.get('start'):
-                self.selectPage('queue');self.start_queue()
+                self.selectPage('queue')
         elif action=='start_queue':self.start_queue()
         elif action=='stop_queue':self.stop_queue()
         elif action=='queue_action':self.queue_action(p['name'],p.get('id',''))
@@ -250,9 +258,7 @@ class DesktopWorkspace(QObject):
         elif action=='stop_preview':self.stop_preview()
         elif action=='load_playlist':self.run_task('collection',{'url':self.options['playlistUrl']},self.collection_loaded)
         elif action=='playlist_add':
-            for row in self.models['playlists'].rows:
-                if row.get('checked'):self.enqueue([row['source_url']],overrides=dict(self.music_overrides(row),playlist_title=self.options['playlistTitle']))
-            if p.get('start'):self.start_queue()
+            self.enqueue_tracks([row for row in self.models['playlists'].rows if row.get('checked')],start=bool(p.get('start')))
         elif action=='compare_playlist':self.run_task('compare_collection',{'url':self.options['playlistUrl'],'tracks':self.models['playlists'].rows,'history':self.library.comparison_history(),'queued':self.jobs,'database':str(self.library.path)},self.collection_compared)
         elif action=='playlist_missing':
             for i,row in enumerate(self.models['playlists'].rows):self.models['playlists'].update(i,checked=row.get('comparison')=='missing')
@@ -294,9 +300,23 @@ class DesktopWorkspace(QObject):
                 if key in self.defaults:self.setSetting(key,self.defaults[key])
         elif action=='check_matches':self.run_task('check_matches',{'tracks':[row for row in self.models['playlists'].rows if row.get('checked')]},self.matches_checked)
         elif action=='update_playlist':self.update_playlist()
-        elif action=='history_edit':
-            sources=[row['path'] for row in self.models['history'].rows if row.get('checked')]
+        elif action in ('history_edit','queue_edit'):
+            sources=[]
+            if action=='history_edit':
+                rows=self.models['history'].rows
+                selected=[row for row in rows if row.get('checked')]
+                sources=[row['path'] for row in selected] if len(selected)>1 or 'index' not in p else [rows[p['index']]['path']]
+            else:
+                selected=[job for job in self.jobs if job['id']==p.get('id')] if p.get('id') else [job for job in self.jobs if job.get('checked')]
+                for job in selected:
+                    if job['id'] in self.active:continue
+                    sources.extend(job.get('output_files',[]))
+                    if not job.get('output_files'):
+                        saved=self.library.find_duplicate(job['url'],job['mode'])
+                        if saved:sources.append(saved)
+            sources=list(dict.fromkeys(str(Path(path).resolve()) for path in sources if Path(path).is_file() and Path(path).suffix.lower() in ('.mp3','.flac','.m4a','.ogg','.opus','.wav','.aac','.wma','.aiff','.aif')))
             if sources:self.accept_files('metadata',sources);self.selectPage('metadata')
+            else:self.notify('Escolha um arquivo de áudio.')
         elif action=='history_effects':self.accept_files('effects',[self.models['history'].rows[p['index']]['path']]);self.selectPage('effects')
         elif action=='history_retry':
             row=self.models['history'].rows[p['index']];self.enqueue([row['source']],overrides={'mode':row.get('mode','mp3')},start=True)
@@ -326,6 +346,9 @@ class DesktopWorkspace(QObject):
                 if 0<=target<len(positions):
                     source,destination=positions[offset],positions[target];values[source],values[destination]=values[destination],values[source];self.setSetting('tab_order',values)
         elif action=='shortcuts_reset':self.setSetting('shortcut_keys','{}')
+        elif action=='shortcut_reset':
+            from shortcut_options import validate_overrides
+            values=json.loads(self.settings.get('shortcut_keys','{}'));values.pop(p['key'],None);self.setSetting('shortcut_keys',json.dumps(validate_overrides(values)))
         elif action=='shortcut_set':
             from shortcut_options import validate_overrides
             values=json.loads(self.settings.get('shortcut_keys','{}'));sequence=p['sequence'];sequence=sequence if sequence.startswith('<') or not sequence else '<'+sequence.replace('Ctrl+','Control-').replace('Alt+','Alt-').replace('Shift+','Shift-').replace('Enter','Return').replace(',','comma')+'>';values[p['key']]=sequence;self.setSetting('shortcut_keys',json.dumps(validate_overrides(values)))
@@ -368,7 +391,19 @@ class DesktopWorkspace(QObject):
             lines.extend([tr('Adicionadas à playlist')+': '+str(result.get('new_count',0)),tr('Removidas da playlist')+': '+str(result.get('removed_count',0))])
         self.notify('Conferência concluída.')
         if self.settings.get('notifications_enabled',True):self.message.emit(tr('Conferência de arquivos locais'),'\n'.join(lines))
-    def refresh_history(self):self.models['history'].replace(self.library.history(self.options.get('historyQuery','')))
+    def refresh_history(self):
+        from datetime import datetime
+        rows=self.library.history(self.options.get('historyQuery',''))
+        for row in rows:
+            try:row['date_display']=datetime.fromisoformat(row['date']).astimezone().strftime('%d/%m/%Y %H:%M')
+            except (ValueError,TypeError):row['date_display']=row['date']
+        self.models['history'].replace(rows)
+        if rows:self.run_task('history_details',{'rows':rows},self.history_details_loaded,background=True)
+    def history_details_loaded(self,rows):
+        details={row['id']:row for row in rows}
+        for index,row in enumerate(self.models['history'].rows):
+            if row['id'] in details:self.models['history'].update(index,**details[row['id']])
+
     def clear_history(self):self.library.clear_history();self.refresh_history()
     def toggle_row(self,model,index,checked,notify=True):
         row=self.models[model].rows[index];self.models[model].update(index,checked=checked)
@@ -389,7 +424,13 @@ class DesktopWorkspace(QObject):
         artists=info.get('artists') or []
         return dict(job,track_title=info.get('title') or job.get('display_name') or job['url'],track_artist=', '.join(artists) if isinstance(artists,list) else str(artists),track_album=info.get('album') or '',track_cover=info.get('cover_url') or '',track_duration=int(info.get('duration') or float(info.get('duration_ms') or 0)/1000))
     def save_queue(self):self.library.save_queue(self.jobs)
-    def enqueue(self,urls,overrides=None,start=False):
+    def enqueue_tracks(self,records,start=False):
+        added=[]
+        for record in records:
+            added.extend(self.enqueue([record['source_url']],overrides=dict(self.music_overrides(record),playlist_title=self.options['playlistTitle']),start=start,defer_start=True))
+        if start:self.start_queue({job['id'] for job in added})
+        return added
+    def enqueue(self,urls,overrides=None,start=False,*,defer_start=False):
         from engine import validate_url
         from metadata import is_streaming_link
         from download_defaults import effective_download
@@ -410,34 +451,60 @@ class DesktopWorkspace(QObject):
             if not job.get('catalog_record') and supports_lookup(url):self.title_lookup.submit(job['id'],url,(self.settings.get('spotify_client_id',''),self.settings.get('spotify_client_secret','')),config.get('cookies_file',''))
         self.refresh_queue();self.save_queue()
         if added:self.notify(str(len(added))+' '+tr('itens adicionados à fila'))
-        if start:self.start_queue()
+        if start and added and not defer_start:self.start_queue({job['id'] for job in added})
         return added
     def add_duplicate(self,job,start):
         self.jobs.append(job);self.refresh_queue();self.save_queue()
-        if start:self.start_queue()
+        if start:self.start_queue({job['id']})
     @Slot()
-    def start_queue(self):
+    def start_queue(self,scope=None):
         from queue_control import storage_report
-        total,unknown,required,low=storage_report([job for job in self.jobs if job['state']=='Na fila'],int(self.settings.get('concurrent_downloads',1)))
-        if low:self.confirm('Espaço em disco','O espaço livre pode não ser suficiente. Continuar?',self.begin_queue)
-        else:self.begin_queue()
-    def begin_queue(self):self.schedule_blocked=False;self.running=True;self.paused_all=False;self.timing.set_running(True);self.fill_queue()
+        scope=None if scope is None else set(scope)
+        if scope==set():return
+        total,unknown,required,low=storage_report([job for job in self.jobs if job['state']=='Na fila' and (scope is None or job['id'] in scope)],int(self.settings.get('concurrent_downloads',1)))
+        if low:self.confirm('Espaço em disco','O espaço livre pode não ser suficiente. Continuar?',lambda:self.begin_queue(scope,manual=True))
+        else:self.begin_queue(scope,manual=True)
+    def begin_queue(self,scope=None,*,manual=False):
+        self.manual_queue=manual or (self.running and self.manual_queue)
+        if not self.running:
+            self.queue_scope=None if scope is None else set(scope)
+            self.queue_attempted=set()
+        elif self.queue_scope is not None:
+            if scope is None:self.queue_scope=None
+            else:self.queue_scope.update(scope)
+        self.schedule_blocked=False;self.running=True;self.paused_all=False;self.timing.set_running(True);self.fill_queue()
+    def in_queue_scope(self,job):return self.queue_scope is None or job['id'] in self.queue_scope
     def fill_queue(self):
         from advanced_options import schedule_allowed
         from performance import available_memory_mb,RESERVES
-        if not self.running or not schedule_allowed(self.settings):return
-        reserve=RESERVES.get(self.settings.get('memory_reserve'),0)
-        if reserve and (available_memory_mb() or reserve)<reserve:self.notify('Aguardando memória livre para iniciar o próximo download.');return
+        if not self.running or (not self.manual_queue and not schedule_allowed(self.settings)):return
         limit=int(self.settings.get('concurrent_downloads',1));started=False
+        pending=any(job['state']=='Na fila' and self.in_queue_scope(job) for job in self.jobs)
+        reserve=RESERVES.get(self.settings.get('memory_reserve'),0)
+        available=available_memory_mb() if reserve and pending and len(self.active)<limit else None
+        waiting=available is not None and available<reserve
+        if waiting:
+            if not self.memory_waiting:self.notify('Aguardando memória livre para iniciar o próximo download.')
+            self.memory_waiting=True
+            return
+        self.memory_waiting=False
         for job in self.jobs:
             if len(self.active)>=limit:break
-            if job['state']!='Na fila':continue
+            if job['state']!='Na fila' or not self.in_queue_scope(job):continue
             started=True;identity=job['id'];cancel=threading.Event();self.active[identity]={'cancel':cancel,'process':None,'operation':job.get('ui_operation','')};job['state']='Em andamento';job.pop('last_error',None)
+            self.queue_attempted.add(identity)
+            for key in ('_paused','_pause_reason','_resume_requested'):job.pop(key,None)
             config=dict(job);config.update({key:value for key,value in self.config().items() if key in ('auto_metadata','auto_match','confirm_version','ffmpeg','cookies_file','youtube_cookies_file','spotify_client_id','spotify_client_secret','worker_priority','conversion_threads')});config['_cleanup_work']=True
-            if config.get('youtube_cookies_file'):config['cookies_file']=config['youtube_cookies_file']
+            from download_defaults import download_cookies
+            config['cookies_file']=download_cookies(config['url'],config.get('cookies_file',''),config.get('youtube_cookies_file',''))
             self.launch_thread(lambda identity=identity,config=config,cancel=cancel:self.process_worker(identity,config,cancel,'engine.py'))
         if started:self.refresh_queue();self.save_queue()
-        if not self.active and not any(job['state']=='Na fila' for job in self.jobs):self.running=False;self.timing.set_running(False);self.notify('Fila finalizada');self.queue_finished()
+        if not self.active and not any(job['state']=='Na fila' and self.in_queue_scope(job) for job in self.jobs):
+            self.running=False;self.timing.set_running(False)
+            states={job['id']:job['state'] for job in self.jobs}
+            paused=any(job['state']=='Pausado' and self.in_queue_scope(job) for job in self.jobs)
+            if not paused and self.queue_attempted and all(states.get(identity) in ('Concluído','Falhou') for identity in self.queue_attempted):
+                self.notify('Fila finalizada');self.queue_finished()
     def process_worker(self,identity,config,cancel,script):
         from audio_tools import process_options
         from performance import priority_flags
@@ -483,7 +550,9 @@ class DesktopWorkspace(QObject):
             threading.Thread(target=stop_process,args=(process,),daemon=True).start()
     def queue_action(self,action,identity=''):
         selected=[job for job in self.jobs if job['id']==identity] if identity else [job for job in self.jobs if job.get('checked')]
+        if action=='resume':selected=[job for job in selected if job['state'] in ('Na fila','Pausado','Cancelado','Falhou') or job.get('_paused')]
         if action in ('clear','cancel_all'):selected=list(self.jobs)
+        if action in ('cancel','cancel_all'):selected=[job for job in selected if job['id'] in self.active or job['state'] in ('Na fila','Pausado')]
         undo_before=None
         if self.jobs and (action.startswith('sort') or action in ('up','down','priority','remove','clear','cancel','cancel_all')) and (selected or action.startswith('sort')):
             from copy import deepcopy
@@ -492,20 +561,35 @@ class DesktopWorkspace(QObject):
             from queue_control import sorted_keys
             jobs={job['id']:job for job in self.jobs};order=action.partition(':')[2] or 'Título';keys=sorted_keys(list(jobs),jobs,order);self.jobs=[jobs[key] for key in keys]
         elif action in ('up','down','priority'):
-            for job in selected:
-                index=self.jobs.index(job);target=0 if action=='priority' else max(0,min(len(self.jobs)-1,index+(-1 if action=='up' else 1)));self.jobs.insert(target,self.jobs.pop(index))
+            identities={job['id'] for job in selected}
+            if action=='priority':self.jobs=selected+[job for job in self.jobs if job['id'] not in identities]
+            else:
+                step=-1 if action=='up' else 1
+                positions=range(len(self.jobs)) if step<0 else range(len(self.jobs)-1,-1,-1)
+                for index in positions:
+                    target=index+step
+                    if self.jobs[index]['id'] in identities and 0<=target<len(self.jobs) and self.jobs[target]['id'] not in identities:
+                        self.jobs[index],self.jobs[target]=self.jobs[target],self.jobs[index]
         else:
             for job in selected:
                 if action in ('cancel','cancel_all','remove','clear'):
+                    for key in ('_paused','_pause_reason','_resume_requested'):job.pop(key,None)
                     if job['id'] in self.active:job['_remove']=action in ('remove','clear');self.stop_job(job['id'])
                     elif action in ('remove','clear'):self.jobs.remove(job)
                     else:job['state']='Cancelado'
-                elif action=='pause':job['_paused']=True;self.stop_job(job['id'])
-                elif action in ('retry','resume') and job['id'] not in self.active:job['state']='Na fila'
+                elif action=='pause' and job['state'] in ('Na fila','Em andamento','Pausado'):
+                    job['_pause_reason']='manual';job.pop('_resume_requested',None)
+                    if job['id'] in self.active:job['_paused']=True;self.stop_job(job['id'])
+                    else:job['state']='Pausado'
+                elif action in ('retry','resume'):
+                    if job['id'] not in self.active:
+                        for key in ('_paused','_pause_reason','_resume_requested'):job.pop(key,None)
+                        job['state']='Na fila'
+                    elif action=='resume' and job.get('_paused'):job['_resume_requested']=True
         if undo_before is not None and undo_before!=self.jobs:
             self.undo_history.remember(undo_before,action,[job['id'] for job in selected]);self.statusChanged.emit()
         self.refresh_queue();self.save_queue()
-        if action=='resume':self.start_queue()
+        if action=='resume':self.start_queue({job['id'] for job in selected})
 
     @Slot(str,'QVariantMap')
     def replyChoice(self,identity,reply):
@@ -557,6 +641,8 @@ class DesktopWorkspace(QObject):
             if job:
                 if event['success']:self.timing.record_completion()
                 job['state']='Pausado' if job.pop('_paused',False) else 'Cancelado' if event['cancelled'] else 'Concluído' if event['success'] else 'Falhou'
+                if job.pop('_resume_requested',False):job['state']='Na fila'
+                if job['state']!='Pausado':job.pop('_pause_reason',None)
                 if job.pop('_remove',False):self.undo_history.record_finished_removal(job,event['success']);self.jobs.remove(job)
             self.pending_choices=[row for row in self.pending_choices if row['identity']!=key]
             if self._choice.get('identity')==key:self._choice={};self.choiceChanged.emit();self.next_choice()
@@ -575,6 +661,10 @@ class DesktopWorkspace(QObject):
         if kind in CHOICES:self.present_choice(identity,event);return
         if kind=='done' and event.get('path') and job is None:self.library.add_history(event['path'],Path(event['path']).suffix.lstrip('.'));self.refresh_history();self.notify('Arquivo exportado.')
         if kind=='file' and event.get('path'):
+            if job:
+                paths=job.setdefault('output_files',[])
+                if event['path'] not in paths:paths.append(event['path'])
+                self.save_queue()
             self.library.add_history(event['path'],event.get('mode') or (job or {}).get('mode',''),(job or {}).get('url',''));self.refresh_history()
         if job:
             if kind=='progress':
@@ -600,7 +690,7 @@ class DesktopWorkspace(QObject):
             if path:self.setSetting(kind,path)
             return
         multiple=kind in ('converter','metadata')
-        filters={'converter':'Mídia (*.mp3 *.m4a *.aac *.flac *.wav *.ogg *.opus *.mp4 *.mkv *.mov *.avi *.webm);;Todos os arquivos (*)','effects':'Áudio (*.mp3 *.m4a *.aac *.flac *.wav *.ogg *.opus)','metadata':'Áudio (*.mp3 *.m4a *.flac *.ogg *.opus *.wav)','image':'Imagens (*.png *.jpg *.jpeg *.webp *.gif *.svg)','cover_path':'Imagens (*.png *.jpg *.jpeg *.webp)','effectLyrics':'Letras sincronizadas (*.lrc *.txt);;Todos os arquivos (*)','lyrics_path':'Letras (*.lrc *.txt)','youtube_cookies':'Cookies (*.txt)','social_cookies':'Cookies (*.txt)'}
+        filters={'converter':'Mídia (*.mp3 *.m4a *.aac *.flac *.wav *.ogg *.opus *.mp4 *.mkv *.mov *.avi *.webm);;Todos os arquivos (*)','effects':'Áudio (*.mp3 *.m4a *.aac *.flac *.wav *.ogg *.opus)','metadata':'Áudio (*.mp3 *.m4a *.flac *.ogg *.opus *.wav)','image':'Imagens (*.png *.jpg *.jpeg *.webp *.gif *.svg)','cover_path':'Imagens (*.png *.jpg *.jpeg *.webp)','jukeboxLyrics':'Letras sincronizadas (*.lrc *.txt);;Todos os arquivos (*)','effectLyrics':'Letras sincronizadas (*.lrc *.txt);;Todos os arquivos (*)','lyrics_path':'Letras (*.lrc *.txt)','youtube_cookies':'Cookies (*.txt)','social_cookies':'Cookies (*.txt)'}
         if multiple:paths,_=QFileDialog.getOpenFileNames(None,tr('Escolher arquivo'),'',filters.get(kind,'Todos os arquivos (*)'))
         else:
             path,_=QFileDialog.getOpenFileName(None,tr('Escolher arquivo'),'',filters.get(kind,'Todos os arquivos (*)'));paths=[path] if path else []
@@ -617,6 +707,9 @@ class DesktopWorkspace(QObject):
             self.stop_preview();self.options.update(effectsSource=paths[0],effectsRecord={'title':Path(paths[0]).stem},effectsCover='',position=0,duration=0);self.load_lyrics(str(Path(paths[0]).with_suffix('.lrc')));self.run_task('effects_info',{'source':paths[0]},self.effects_loaded)
         elif kind=='cover_path':
             self.options['cover_path']=paths[0];self.options['metadataCover']=QUrl.fromLocalFile(paths[0]).toString()
+        elif kind=='jukeboxLyrics':
+            from synced_lyrics import read_lrc
+            self._jukebox_lyrics=read_lrc(paths[0]);self._lyric_source=str((self.bridge.model or {}).get('source',''))
         elif kind=='effectLyrics':self.load_lyrics(paths[0],selected=True)
         elif kind=='metadata':self.options['metadataFields']={};self.options['metadataSources']=paths;self.run_task('audio_read',{'source':paths[0]},self.audio_loaded)
         elif kind=='image':
@@ -658,7 +751,7 @@ class DesktopWorkspace(QObject):
         from PySide6.QtWidgets import QFileDialog
         source=self.options['effectsSource']
         if not source:raise ValueError('Abra um arquivo de áudio primeiro.')
-        fmt=self.options['effectFormat'].lower();target,_=QFileDialog.getSaveFileName(None,tr('Exportar música inteira'),str(Path(source).with_name(Path(source).stem+' - efeitos.'+fmt)),'Áudio (*.'+fmt+')')
+        fmt=self.options['effectFormat'].lower();target,_=QFileDialog.getSaveFileName(None,tr('Exportar música'),str(Path(source).with_name(Path(source).stem+' - efeitos.'+fmt)),'Áudio (*.'+fmt+')')
         if not target:return
         if Path(source).resolve()==Path(target).resolve():raise ValueError('Escolha outro nome para preservar o original.')
         identity=uuid.uuid4().hex;cancel=threading.Event();self.active[identity]={'cancel':cancel,'process':None,'operation':'effects_export'};self.statusChanged.emit()
@@ -713,21 +806,24 @@ class DesktopWorkspace(QObject):
             except queue.Empty:break
             self.on_event(identity,event)
         from advanced_options import schedule_allowed
-        if not schedule_allowed(self.settings):self.schedule_blocked=False
-        if self.running and not schedule_allowed(self.settings):
+        allowed=schedule_allowed(self.settings)
+        if not allowed:self.schedule_blocked=False
+        if self.running and not allowed and not self.manual_queue:
             for job in self.jobs:
-                if job['id'] in self.active:job['_paused']=True;self.stop_job(job['id'])
-        elif self.settings.get('schedule_enabled') and not self.schedule_blocked and schedule_allowed(self.settings) and any(job['state'] in ('Na fila','Pausado') for job in self.jobs):
+                if job['id'] in self.active and not job.get('_paused'):
+                    job['_paused']=True;job['_pause_reason']='schedule';self.stop_job(job['id'])
+        elif (allowed or (self.running and self.manual_queue)) and not self.schedule_blocked:
             for job in self.jobs:
-                if job['state']=='Pausado':job['state']='Na fila'
-            self.running=True;self.fill_queue()
-        elif self.running:self.fill_queue()
+                if allowed and job['state']=='Pausado' and job.get('_pause_reason')=='schedule':
+                    job['state']='Na fila';job.pop('_pause_reason',None)
+            if self.running:self.fill_queue()
+            elif self.settings.get('schedule_enabled') and any(job['state']=='Na fila' for job in self.jobs):self.begin_queue()
         if self.shell:
             active=[job['percent'] for job in self.jobs if job['id'] in self.active];self.shell.progress(sum(active)/len(active) if active else None,self.paused_all,self.settings.get('taskbar_progress',True))
         for text in self.player.messages():self.notify(text)
         if self.options['previewActive']!=self.player.active:self.options['previewActive']=self.player.active;self.optionsChanged.emit()
         if self.shutdown_timer.isActive() and (self.active or self.tasks):self.shutdown_timer.stop()
-        if self.player.active and self.preview_kind=='effects':
+        if self.player.active and self.preview_kind=='effects' and not self.preview_timer.isActive():
             self.options['position']=self.player.position_snapshot()
             from synced_lyrics import line_at
             self.options['lyricText']=line_at(self.lyrics,self.options['position']) if self.settings.get('synced_lyrics') else '';self.optionsChanged.emit()
@@ -792,7 +888,12 @@ class DesktopWorkspace(QObject):
         elif action in ('log','failures'):self.dispatch('logs' if action=='log' else action,{})
     @Slot()
     def restore(self):
-        self.window.showNormal();self.window.raise_();self.window.requestActivate()
+        state=self.window.windowState()
+        if state!=Qt.WindowState.WindowMinimized:self.remember_window_state(state)
+        if self.restore_state==Qt.WindowState.WindowMaximized:self.window.showMaximized()
+        elif self.restore_state==Qt.WindowState.WindowFullScreen:self.window.showFullScreen()
+        else:self.window.showNormal()
+        self.window.raise_();self.window.requestActivate()
         if self.tray:self.tray.hide()
     @Slot()
     @Slot(bool)
@@ -822,12 +923,38 @@ class DesktopWorkspace(QObject):
             self.collection_loaded(result)
             def compared(value):
                 self.collection_compared(value)
-                for item in value['items']:
-                    if item['state']=='missing':
-                        record=self.models['playlists'].rows[item['index']];self.enqueue([record['source_url']],overrides=dict(self.music_overrides(record),playlist_title=self.options['playlistTitle']))
-                self.start_queue()
+                self.enqueue_tracks([self.models['playlists'].rows[item['index']] for item in value['items'] if item['state']=='missing'],start=True)
             self.run_task('compare_collection',{'url':self.options['playlistUrl'],'tracks':self.models['playlists'].rows,'history':self.library.comparison_history(),'queued':self.jobs,'database':str(self.library.path)},compared)
         self.run_task('collection',{'url':self.options['playlistUrl']},loaded)
+    @Slot(result='QVariantMap')
+    def lyricsFrame(self):
+        from synced_lyrics import karaoke_at
+        jukebox=self._page=='jukebox'
+        source=str((self.bridge.model or {}).get('source','')) if jukebox else self.options['effectsSource']
+        position=self.options['position'];duration=self.options['duration']
+        if jukebox:
+            model=self.bridge.model or {};beats=model.get('beats',[]);index=min(int(self.bridge._position),max(0,len(beats)-2))
+            position=beats[index]+(beats[index+1]-beats[index])*self.bridge._phase if len(beats)>1 else 0
+            duration=model.get('duration',0)
+        key=source if jukebox else 'effects'
+        if jukebox and getattr(self,'_lyric_source',None)!=key:
+            self._lyric_source=key
+            from synced_lyrics import read_lrc
+            try:self._jukebox_lyrics=read_lrc(str(Path(source).with_suffix('.lrc')))
+            except (OSError,ValueError):self._jukebox_lyrics=[]
+        rows=(getattr(self,'_jukebox_lyrics',[]) or (self.lyrics if source==self.options['effectsSource'] else [])) if jukebox else self.lyrics
+        import bisect
+        active=bisect.bisect_right(rows,position,key=lambda row:row[0])-1
+        import re
+        lines=[dict(time=row[0],text=re.sub(r'<[^>]+>','',row[1])) for index,row in enumerate(rows)]
+        return dict(text=karaoke_at(rows,position),lines=lines,active=active,position=position,duration=duration,jukebox=jukebox)
+    @Slot(float,bool)
+    def seekLyrics(self,seconds,jukebox):
+        if jukebox:
+            import bisect
+            beats=(self.bridge.model or {}).get('beats',[])
+            if beats:self.bridge.seek(max(0,bisect.bisect_right(beats,seconds)-1))
+        else:self.setOption('position',seconds)
     def load_lyrics(self,path,selected=False):
         from synced_lyrics import read_lrc,line_at
         try:

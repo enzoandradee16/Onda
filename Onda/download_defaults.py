@@ -2,6 +2,13 @@
 from urllib.parse import urlsplit
 SOCIAL_BEST_HOSTS=('instagram.com','tiktok.com','kwai.com','kwai-video.com','kw.ai','kuaishou.com')
 
+def download_cookies(url,social='',youtube=''):
+    """Select the session for the source, not whichever cookie file was set last."""
+    from metadata import is_streaming_link
+    host=(urlsplit(url).hostname or '').lower().rstrip('.')
+    uses_youtube=host=='youtu.be' or host=='youtube.com' or host.endswith('.youtube.com') or is_streaming_link(url)
+    return (youtube if uses_youtube else '') or social
+
 def supported_social(url):
     host=(urlsplit(url).hostname or '').lower().rstrip('.')
     return any(host==domain or host.endswith('.'+domain) for domain in SOCIAL_BEST_HOSTS)

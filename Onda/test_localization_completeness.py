@@ -1,4 +1,4 @@
-import ast, re, unittest
+import ast, json, re, unittest
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock
@@ -15,13 +15,16 @@ class CatalogCompletenessTests(unittest.TestCase):
             self.assertEqual(tr("ONDA",lang),"ONDA")
     def test_every_literal_translated_ui_call_is_covered(self):
         unchanged={"Zoom","Slowed · Sped Up · Reverb","Preset","Cards","Client ID","Client Secret","TXT (links)","Slowed / Sped Up","ONDA","LINKS"}
+        missing=[]
         for path in Path(__file__).parent.glob("*.py"):
             if path.name.startswith("test_"): continue
             for node in ast.walk(ast.parse(path.read_text(encoding="utf-8-sig"))):
                 if isinstance(node,ast.Call) and isinstance(node.func,ast.Name) and node.func.id=="tr" and node.args and isinstance(node.args[0],ast.Constant) and isinstance(node.args[0].value,str):
                     text=node.args[0].value
                     if len(text)>3 and re.search("[A-Za-z]",text) and text not in unchanged:
-                        for lang in ("en","es"): self.assertIn(text,catalog(lang),(path.name,node.lineno,lang,text))
+                        for lang in ("en","es"):
+                            if text not in catalog(lang):missing.append((path.name,node.lineno,lang,text))
+        self.assertFalse(missing,"Missing translations: "+repr(missing))
     def test_reset_labels_and_live_backend_messages(self):
         from reset_settings import GROUPS
         for lang in ("en","es"):
@@ -47,6 +50,7 @@ class CatalogCompletenessTests(unittest.TestCase):
         root=Path(__file__).resolve().parents[1]
         def covered(text,language):
             return text in catalog(language) or any(pattern.fullmatch(text) for pattern,_,_ in patterns(language))
+        missing=[]
         for path in list((root/"Onda").glob("*.py"))+list((root/"Celular/app/src/main/python").glob("*.py")):
             if path.name.startswith("test_"): continue
             for node in ast.walk(ast.parse(path.read_text(encoding="utf-8-sig"))):
@@ -56,12 +60,27 @@ class CatalogCompletenessTests(unittest.TestCase):
                 elif isinstance(value,ast.JoinedStr): text="".join(part.value if isinstance(part,ast.Constant) else "{argument}" for part in value.values)
                 else: continue
                 if len(text)>3:
-                    for language in ("en","es"): self.assertTrue(covered(text,language),(path.name,node.lineno,language,text))
+                    for language in ("en","es"):
+                        if not covered(text,language):missing.append((path.name,node.lineno,language,text))
         for path in (root/"Celular/app/src/main/java").rglob("*.kt"):
             for match in re.finditer(r'UiText\("([^"$]*)"',path.read_text(encoding="utf8")):
                 text=match.group(1)
                 if len(text)>3 and text not in {"Zoom","ONDA","Client ID"}:
-                    for language in ("en","es"): self.assertTrue(covered(text,language),(path.name,language,text))
+                    for language in ("en","es"):
+                        if not covered(text,language):missing.append((path.name,language,text))
+        self.assertFalse(missing,"Missing translations: "+repr(missing))
+
+    def test_qml_literal_translations_are_covered(self):
+        from i18n import patterns
+        missing=[]
+        for path in (Path(__file__).parent/'qml').glob('*.qml'):
+            for match in re.finditer(r'bridge\.translate\("((?:[^"\\]|\\.)*)"\)',path.read_text(encoding='utf-8')):
+                text=json.loads('"'+match[1]+'"')
+                if len(text)<=3:continue
+                for language in ('en','es'):
+                    if text not in catalog(language) and not any(pattern.fullmatch(text) for pattern,_,_ in patterns(language)):
+                        missing.append((path.name,language,text))
+        self.assertFalse(missing,'Missing QML translations: '+repr(missing))
 
     def test_update_confirmation_translates_question_and_preserves_asset_name(self):
         import queue

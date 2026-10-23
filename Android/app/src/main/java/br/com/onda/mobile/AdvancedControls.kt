@@ -39,8 +39,8 @@ import java.io.File
     Toggle("Agendar downloads",settings.optBoolean("schedule_enabled")){put("schedule_enabled",it)}
     SettingsDivider()
     Row(horizontalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
-        OutlinedTextField(settings.optString("schedule_start","22:00"),{put("schedule_start",it)},label={UiText("Começar · HH:MM")},singleLine=true,modifier=Modifier.weight(1f))
-        OutlinedTextField(settings.optString("schedule_stop","07:00"),{put("schedule_stop",it)},label={UiText("Parar · HH:MM")},singleLine=true,modifier=Modifier.weight(1f))
+        ScheduleTimeButton("Começar · HH:MM",settings.optString("schedule_start","22:00"),"22:00",Modifier.weight(1f)){put("schedule_start",it)}
+        ScheduleTimeButton("Parar · HH:MM",settings.optString("schedule_stop","07:00"),"07:00",Modifier.weight(1f)){put("schedule_stop",it)}
     }
     if(settings.optBoolean("schedule_enabled")) {
         val valid=runCatching {java.time.LocalTime.parse(settings.optString("schedule_start"))!=java.time.LocalTime.parse(settings.optString("schedule_stop"))}.getOrDefault(false)
@@ -185,5 +185,23 @@ import java.io.File
             if(busy)LinearProgressIndicator(Modifier.fillMaxWidth())
         Button(enabled=loaded && !busy,onClick={vm.operation("audio_edit",config(),dialog=false){if(overwrite)finish();vm.status.value=if(overwrite) "Arquivo original atualizado." else "Cópia editada salva na pasta de destino."}},modifier=Modifier.fillMaxWidth()){UiText("Salvar alterações")}
         Spacer(Modifier.height(LayoutSpacing.section))
+    }
+}
+
+@Composable private fun ScheduleTimeButton(label:String,value:String,fallback:String,modifier:Modifier=Modifier,onChange:(String)->Unit) {
+    val context=androidx.compose.ui.platform.LocalContext.current
+    val time=runCatching {java.time.LocalTime.parse(value)}.getOrElse {java.time.LocalTime.parse(fallback)}
+    var open by remember {mutableStateOf(false)}
+    Column(modifier) {
+        UiText(label,style=MaterialTheme.typography.labelMedium)
+        OutlinedButton(onClick={open=true},modifier=Modifier.fillMaxWidth()) {Text(time.format(java.time.format.DateTimeFormatter.ofPattern("HH:mm")))}
+    }
+    if(open)DisposableEffect(context) {
+        val dialog=android.app.TimePickerDialog(context,{_,hour,minute->
+            onChange(String.format(java.util.Locale.ROOT,"%02d:%02d",hour,minute));open=false
+        },time.hour,time.minute,true)
+        dialog.setOnDismissListener {open=false}
+        dialog.show()
+        onDispose {dialog.setOnDismissListener(null);dialog.dismiss()}
     }
 }

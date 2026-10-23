@@ -6,7 +6,7 @@ Rectangle {
     objectName: "sidebar"
     signal settingsRequested()
     property bool collapsed: false
-    property real panelWidth: collapsed ? 76 : 220
+    property real panelWidth: collapsed ? 76 : (workspace.preferences.sidebar_width || 220)
     Layout.preferredWidth: panelWidth
     Layout.fillHeight: true
     color: bridge.palette.bg

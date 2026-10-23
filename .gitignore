@@ -31,7 +31,8 @@ build/
 /Instalador/
 
 # Ferramentas locais de empacotamento
-/empacotamento/
+/empacotamento/*
+!/empacotamento/sync_version.py
 
 # Pacotes e relatorios locais de release
 /Release/

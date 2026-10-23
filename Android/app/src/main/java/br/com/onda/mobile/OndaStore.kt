@@ -93,7 +93,7 @@ object OndaStore {
         .put("detect_duplicates",true).put("filename_template","Original").put("duplicate_policy","ask").put("organization","Pasta de destino").put("interface_font",DEFAULT_INTERFACE_FONT).put("interface_font_size","100%").put("interface_spacing","Padrão").put("theme","Seguir o sistema").put("accent","Verde-Água")
         .put("concurrent_downloads","1").put("resume_downloads",true).put("resume_queue",false).put("normalize_volume",false)
         .put("schedule_enabled",false).put("schedule_start","22:00").put("schedule_stop","07:00").put("check_updates",true).put("notice_duration","Após 3 segundos").put("notice_animation",true)
-        .put("playback_tab_order","Efeitos primeiro").put("jukebox_transition_seconds",2).put("jukebox_gradual_transition",true).put("jukebox_equalizer",JSONObject()).put("jukebox_background",false).put("synced_lyrics",false).put("search_preview",25).put("effects_preview",25).put("keep_preview",false).put("remember",true)
+        .put("playback_tab_order","Efeitos primeiro").put("jukebox_transition_seconds",2).put("jukebox_gradual_transition",true).put("jukebox_equalizer",JSONObject()).put("jukebox_background",true).put("synced_lyrics",false).put("search_preview",25).put("effects_preview",25).put("keep_preview",false).put("remember",true)
         .put("image_format","Original").put("image_size","Original").put("image_width",0).put("image_height",0).put("keep_ratio",true)
         .put("bottom_bar_order",JSONArray(bottomBarDefaults))
         .put("hidden_tabs",JSONArray())

@@ -16,7 +16,7 @@ class PaletteTests(unittest.TestCase):
         self.assertNotEqual(separated['input'],separated['bg'])
         self.assertNotEqual(separated['line'],separated['bg'])
         self.assertEqual(flat['accent'],separated['accent'])
-        self.assertEqual(PreferenceStore.clean({'pure_black_separators':True}),{'pure_black_separators':True})
+        self.assertEqual(PreferenceStore.clean({'pure_black_separators':True}),{'confirm_version':False,'pure_black_separators':True})
 
     def test_all_accents_have_readable_button_text_in_both_modes(self):
         def luminance(color):
@@ -34,13 +34,13 @@ class PaletteTests(unittest.TestCase):
                 self.assertGreaterEqual(contrast(c['muted'],c['bg']),4.5)
 
     def test_old_accent_spelling_is_migrated(self):
-        self.assertEqual(PreferenceStore.clean({"theme_accent":"Verde-água"}),{"theme_accent":"Verde-Água"})
+        self.assertEqual(PreferenceStore.clean({"theme_accent":"Verde-água"}),{'confirm_version':False,"theme_accent":"Verde-Água"})
 
     def test_persistence_rejects_unknown_modes_and_colors(self):
-        self.assertEqual(PreferenceStore.clean({'theme_mode':'Other','theme_accent':['Azul']}),{})
+        self.assertEqual(PreferenceStore.clean({'theme_mode':'Other','theme_accent':['Azul']}),{'confirm_version':False})
         for mode in THEME_MODES:
             self.assertEqual(PreferenceStore.clean({'theme_mode':mode,'theme_accent':'Roxo'}),
-                             {'theme_mode':mode,'theme_accent':'Roxo'})
+                             {'confirm_version':False,'theme_mode':mode,'theme_accent':'Roxo'})
 
 
 @unittest.skipUnless(os.environ.get('ONDA_UI_TESTS'),'Tk integration')

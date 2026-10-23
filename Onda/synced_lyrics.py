@@ -26,4 +26,19 @@ def read_lrc(path):
 
 def line_at(rows,seconds):
     index=bisect.bisect_right(rows,seconds,key=lambda row:row[0])-1
-    return rows[index][1] if index>=0 else ''
+    return re.sub(r'<\d{1,3}:[0-5]\d(?:[.:]\d{1,3})?>','',rows[index][1]) if index>=0 else ''
+
+
+def karaoke_at(rows,seconds):
+    import html
+    index=bisect.bisect_right(rows,seconds,key=lambda row:row[0])-1
+    raw=rows[index][1] if index>=0 else ''
+    stamps=list(re.finditer(r'<(\d{1,3}):([0-5]\d)(?:[.:](\d{1,3}))?>',raw))
+    if not stamps:return html.escape(raw)
+    parts=[html.escape(raw[:stamps[0].start()])]
+    for index,stamp in enumerate(stamps):
+        fraction=stamp[3] or ''
+        at=int(stamp[1])*60+int(stamp[2])+(int(fraction)/10**len(fraction) if fraction else 0)
+        word=html.escape(raw[stamp.end():stamps[index+1].start() if index+1<len(stamps) else len(raw)])
+        parts.append('<b>'+word+'</b>' if seconds>=at else word)
+    return ''.join(parts)
