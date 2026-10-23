@@ -1,5 +1,7 @@
 package br.com.onda.mobile
 
+import androidx.compose.ui.draw.clip
+
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.*
@@ -65,7 +67,7 @@ import org.json.JSONObject
                     }){UiText("Abrir serviço")}
                 }
                 "review_metadata"->{
-                    AsyncImage(if(coverPath.isNotBlank()) java.io.File(coverPath) else cover,translateUi("Capa",LocalUiLanguage.current),Modifier.size(140.dp))
+                    AsyncImage(if(coverPath.isNotBlank()) java.io.File(coverPath) else cover,translateUi("Capa",LocalUiLanguage.current),Modifier.size(140.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp)))
                     OutlinedTextField(title,{title=it},label={UiText("Música")},singleLine=true)
                     OutlinedTextField(artist,{artist=it},label={UiText("Artistas (separados por ;)")},singleLine=true)
                     OutlinedTextField(album,{album=it},label={UiText("Álbum")},singleLine=true)

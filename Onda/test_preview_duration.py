@@ -24,6 +24,15 @@ class PreviewDurationTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     preview_seconds(value)
 
+    def test_full_track_transport_keeps_long_duration_and_own_volume(self):
+        player=PreviewPlayer();process=Mock(stderr=io.BytesIO(),returncode=0)
+        with patch('audio_tools.executable',return_value='ffplay'),patch('audio_tools.subprocess.Popen',return_value=process) as launch:
+            player.play('song.wav',duration=600,full_track=True,volume=35)
+            player.events.get(timeout=5);player.events.get(timeout=5)
+            command=launch.call_args.args[0]
+            self.assertEqual(command[command.index('-volume')+1],'35')
+            self.assertEqual(float(command[command.index('-t')+1]),600)
+        player.close()
     def test_output_duration_is_independent_of_speed(self):
         for speed in (50, 100, 150):
             player = PreviewPlayer()

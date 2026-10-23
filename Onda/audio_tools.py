@@ -97,9 +97,9 @@ class PreviewPlayer:
                     process.wait()
             threading.Thread(target=reap, daemon=True).start()
 
-    def play(self, source, folder="", speed=100, reverb=0, start=0, youtube=False, duration=25, keep_pitch=False):
+    def play(self, source, folder="", speed=100, reverb=0, start=0, youtube=False, duration=25, keep_pitch=False, full_track=False, volume=100, fade_in=0, fade_out=0):
         duration = float(duration)
-        if not math.isfinite(duration) or not 10 <= duration <= 180:
+        if not math.isfinite(duration) or not (0 < duration <= 86400 if full_track else 10 <= duration <= 180):
             raise ValueError("A prévia deve durar entre 10 e 180 segundos.")
         self.stop()
         with self.lock:
@@ -111,6 +111,8 @@ class PreviewPlayer:
             try:
                 ffplay = executable("ffplay", folder)
                 filters = "asetpts=PTS-STARTPTS," + effects_filter(speed, reverb, keep_pitch)
+                if fade_in:filters+=f",afade=t=in:st=0:d={min(float(fade_in),duration):g}"
+                if fade_out:filters+=f",afade=t=out:st={max(0,duration-float(fade_out)):g}:d={min(float(fade_out),duration):g}"
                 headers = {}
                 url = source
                 if youtube:
@@ -124,14 +126,14 @@ class PreviewPlayer:
                 command = [ffplay, "-nodisp", "-autoexit", "-loglevel", "info", "-stats", "-ss", str(max(0, float(start)))]
                 if headers:
                     command += ["-headers", "".join(f"{key}: {value}\r\n" for key, value in headers.items() if "\n" not in str(value))]
-                command += ["-i", url, "-t", str(duration * float(speed) / 100), "-af", filters + f",atrim=duration={duration:g}"]
+                command += ["-volume", str(round(max(0,min(100,float(volume))))), "-i", url, "-t", str(duration * float(speed) / 100), "-af", filters + f",atrim=duration={duration:g}"]
                 with self.lock:
                     if self.closed or generation != self.generation:
                         return
                     process = subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                                                stderr=subprocess.PIPE, **process_options())
                     self.process = process
-                self.events.put((generation, f"Ouvindo prévia de até {duration:g} segundos…"))
+                self.events.put((generation, "Reproduzindo música com efeitos…" if full_track else f"Ouvindo prévia de até {duration:g} segundos…"))
                 # Stats use carriage returns rather than newline-delimited records.
                 line = bytearray()
                 while True:
@@ -155,7 +157,7 @@ class PreviewPlayer:
                         self.process = None
                         self.active = False
                 if current:
-                    message = "Prévia encerrada." if process.returncode == 0 else "Não foi possível ouvir a prévia. A fonte pode estar indisponível; tente Abrir no YouTube."
+                    message = ("Reprodução encerrada." if full_track else "Prévia encerrada.") if process.returncode == 0 else "Não foi possível ouvir a prévia. A fonte pode estar indisponível; tente Abrir no YouTube."
                     self.events.put((generation, message))
             except Exception:
                 with self.lock:

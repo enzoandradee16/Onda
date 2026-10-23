@@ -60,7 +60,7 @@ import org.json.JSONObject
                     val requestedSource=source
                     vm.operation("lyrics_online",JSONObject().put("source",source).put("alternatives",true),dialog=true) {result->
                         if(requestedSource==latestSource)alternatives=result.optJSONArray("candidates")?.let {array->(0 until array.length()).map {array.getJSONObject(it)}} ?: emptyList()
-                        vm.status.value="LRCLIB"
+                        vm.status.value=translateUi("Letra carregada.")
                     }
                     }
                 }){UiText("Buscar letra online")}

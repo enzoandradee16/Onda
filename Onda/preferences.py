@@ -63,6 +63,7 @@ class PreferenceStore:
         if not isinstance(data, dict):
             return {}
         extras={}
+        if type(data.get("minimize_on_miniplayer")) is bool:extras["minimize_on_miniplayer"]=data["minimize_on_miniplayer"]
         if data.get('lyrics_animation') in ('Desativada','Suave','Deslizar','Zoom'):extras['lyrics_animation']=data['lyrics_animation']
         if isinstance(data.get('sidebar_width'),(int,float)):extras['sidebar_width']=max(160,min(420,int(data['sidebar_width'])))
         from jukebox_equalizer import clean as clean_equalizer

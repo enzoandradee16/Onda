@@ -129,7 +129,7 @@ ColumnLayout {
                     indicator: Rectangle { implicitWidth: 20; implicitHeight: 20; x: queueCheck.leftPadding; y: (queueCheck.height-height)/2; radius: 4; color: queueCheck.checked ? bridge.palette.accent : bridge.palette.input; border.color: queueCheck.checked || queueCheck.activeFocus ? bridge.palette.accent : bridge.palette.muted; Label { anchors.centerIn: parent; text: "✓"; visible: queueCheck.checked; color: bridge.palette.accent_text } }
                 }
                 Rectangle { Layout.preferredWidth: Math.min(page.smallCards ? 56 : page.cardSize === "Médio" ? 96 : 132,card.height-24); Layout.preferredHeight: Layout.preferredWidth; radius: 8; color: bridge.palette.input
-                    Image { id: queueCover; objectName: "downloadQueueArtwork"; anchors.fill: parent; source: card.entry.track_cover || ""; sourceSize.width: 264; sourceSize.height: 264; fillMode: Image.PreserveAspectFit; asynchronous: true }
+                    RoundedArtwork { id: queueCover; objectName: "downloadQueueArtwork"; anchors.fill: parent; source: card.entry.track_cover || ""; sourceSize.width: 264; sourceSize.height: 264; fillMode: Image.PreserveAspectFit; asynchronous: true }
                     Label { anchors.centerIn: parent; visible: queueCover.status !== Image.Ready; text: "♪"; color: bridge.palette.muted; font.pixelSize: 30 }
                 }
                 ColumnLayout { id: queueDetails; Layout.fillWidth: true; spacing: page.smallCards ? 3 : 5
@@ -141,7 +141,7 @@ ColumnLayout {
                     OndaProgressBar { Layout.fillWidth: true; from: 0; to: 100; value: card.entry.percent || 0; visible: card.entry.state === "Em andamento" }
                     Label { visible: workspace.preferences.queue_view === "Completa"; text: card.entry.last_error || card.entry.url; color: card.entry.last_error ? bridge.palette.error : bridge.palette.muted; wrapMode: Text.Wrap; Layout.fillWidth: true; maximumLineCount: 2 }
                 }
-                ActionButton { text: "×"; onClicked: workspace.invoke("queue_action",{name:"remove",id:card.entry.id}) }
+                PlaybackButton { glyph: "close"; Accessible.name: bridge.translate("Remover"); onClicked: workspace.invoke("queue_action",{name:"remove",id:card.entry.id}) }
             }
         }
         EmptyState { anchors.fill: parent; visible: workspace.queueModel.count === 0; heading: bridge.translate("Nenhum item na fila"); description: bridge.translate(workspace.values.queueQuery || workspace.values.queueState !== "Todos" ? "Nenhum item corresponde à busca ou ao filtro selecionado." : "Adicione links ou músicas para organizar seus próximos downloads.") }

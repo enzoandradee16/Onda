@@ -1,5 +1,7 @@
 package br.com.onda.mobile
 
+import androidx.compose.ui.draw.clip
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -30,7 +32,7 @@ import java.util.Locale
     AlertDialog(containerColor=ondaDialogContainerColor(),onDismissRequest=onDismiss,title={UiText("Escolha o formato")},text={
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
             Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(LayoutSpacing.section)) {
-                AsyncImage(record.cleanString("cover_url"),translateUi("Capa do álbum",LocalUiLanguage.current),Modifier.size(64.dp))
+                AsyncImage(record.cleanString("cover_url"),translateUi("Capa do álbum",LocalUiLanguage.current),Modifier.size(64.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(10.dp)))
                 Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.text)) {
                     Text(record.cleanString("title"),style=MaterialTheme.typography.titleMedium)
                     Text(record.stringList("artists"),style=MaterialTheme.typography.bodySmall)

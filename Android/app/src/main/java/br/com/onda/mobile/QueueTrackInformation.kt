@@ -1,5 +1,7 @@
 package br.com.onda.mobile
 
+import androidx.compose.ui.draw.clip
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -17,7 +19,7 @@ import coil.compose.AsyncImage
     val side=if(small)56.dp else if(size=="Médio")76.dp else 96.dp
     Row(modifier,horizontalArrangement=Arrangement.spacedBy(10.dp)) {
         val cover=info?.cleanString("cover_url").orEmpty()
-        if(cover.isNotBlank()) AsyncImage(model=cover,contentDescription=translateUi("Capa do álbum"),modifier=Modifier.size(side).testTag("queue-cover-${item.id}"),contentScale=androidx.compose.ui.layout.ContentScale.Fit)
+        if(cover.isNotBlank()) AsyncImage(model=cover,contentDescription=translateUi("Capa do álbum"),modifier=Modifier.size(side).clip(androidx.compose.foundation.shape.RoundedCornerShape(10.dp)).testTag("queue-cover-${item.id}"),contentScale=androidx.compose.ui.layout.ContentScale.Fit)
         else Box(Modifier.size(side)) {Text("♫",style=MaterialTheme.typography.headlineMedium)}
         Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.text)) {
             Text(item.title,maxLines=if(small)2 else 3,overflow=TextOverflow.Ellipsis,fontWeight=FontWeight.Bold,style=if(small)MaterialTheme.typography.bodyMedium else MaterialTheme.typography.titleSmall)

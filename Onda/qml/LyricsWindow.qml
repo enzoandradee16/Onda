@@ -40,8 +40,10 @@ Popup {
         OndaSlider { Layout.fillWidth: true; from: 0; to: Math.max(1,popup.frame.duration); value: popup.frame.position; onMoved: workspace.seekLyrics(value,popup.frame.jukebox) }
         RowLayout { Layout.fillWidth: true
             Label { text: Math.floor(popup.frame.position/60)+":"+String(Math.floor(popup.frame.position%60)).padStart(2,"0"); color: bridge.palette.muted; Layout.fillWidth: true }
-            ActionButton { text: bridge.translate("Reproduzir"); onClicked: { if(popup.frame.jukebox)bridge.playPause();else workspace.invoke("effects_preview",{}) } }
-            ActionButton { text: bridge.translate("Parar"); onClicked: { if(popup.frame.jukebox)bridge.stop();else workspace.invoke("stop_preview",{}) } }
+            PlaybackButton { glyph: "previous"; Accessible.name: bridge.translate("Retroceder"); enabled: popup.frame.jukebox ? bridge.state.ready : popup.frame.duration>0; onClicked: { if(popup.frame.jukebox)bridge.previousTrack();else workspace.seekLyrics(0,false) } }
+            PlaybackButton { glyph: (popup.frame.jukebox ? bridge.state.playing && !bridge.state.paused : workspace.values.previewActive && workspace.values.previewKind==="effects") ? "pause" : "play"; primary: true; Accessible.name: bridge.translate((popup.frame.jukebox ? bridge.state.playing && !bridge.state.paused : workspace.values.previewActive && workspace.values.previewKind==="effects") ? "Pausar" : "Reproduzir"); onClicked: { if(popup.frame.jukebox)bridge.playPause();else workspace.invoke("effects_play_pause",{}) } }
+            PlaybackButton { glyph: "next"; Accessible.name: bridge.translate("Avançar"); enabled: popup.frame.jukebox && bridge.playback.current+1<bridge.queuedTracks.length; onClicked: bridge.nextTrack() }
+            PlaybackButton { glyph: "stop"; Accessible.name: bridge.translate("Parar"); onClicked: { if(popup.frame.jukebox)bridge.stop();else workspace.invoke("effects_stop",{}) } }
         }
     }
 }

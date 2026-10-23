@@ -350,6 +350,12 @@ def jukebox_action(action, config):
         return part
 
 def perform(action, config):
+    if action=='effects_load':
+        import jukebox
+        return jukebox.fetch_audio(config,config.get('record'),_local.state['cancel'].is_set,lambda value:emit('progress',percent=value),analyze=False)
+    if action=='effects_search':
+        action='search';config=dict(config,auto_metadata=True)
+
     if action in ('jukebox_prepare','jukebox_open','jukebox_chunk','jukebox_close','jukebox_switch'):
         return jukebox_action(action,config)
     if action == 'collection_compare':

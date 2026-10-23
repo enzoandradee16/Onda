@@ -6,12 +6,14 @@ ScrollView {
     Timer { interval: 100; running: page.visible; repeat: true; onTriggered: page.effectsLyricFrame=workspace.lyricsFrame() }
     signal lyricsRequested()
     id: page
+    property bool effectsQueueExpanded: false
     property string mode: workspace.currentPage
+    readonly property bool effectsSearching: workspace.activity.busy.indexOf("effects_search")>=0 || workspace.activity.busy.indexOf("effects_load")>=0 || workspace.activity.busy.indexOf("effects_queue_info")>=0
     property bool audioOnly: workspace.values.converterSources.some(function(path) { return /\.(mp3|m4a|aac|flac|wav|ogg|opus)$/i.test(path) })
     clip: true
     contentWidth: availableWidth
     ColumnLayout { width: page.availableWidth; spacing: Math.round(18*bridge.spacing)
-        Card { Layout.fillWidth: true; implicitHeight: sourceBody.implicitHeight+36
+        Card { visible: page.mode !== "effects"; Layout.fillWidth: true; implicitHeight: sourceBody.implicitHeight+36
             ColumnLayout { id: sourceBody; anchors.fill: parent; anchors.margins: 18; spacing: Math.round(12*bridge.spacing)
                 RowLayout { Layout.fillWidth: true; spacing: Math.round(10*bridge.spacing)
                     ActionButton { primary: true; text: bridge.translate("Escolher arquivo"); onClicked: workspace.invoke("pick",{kind: page.mode === "effects" ? "effects" : page.mode === "images" ? "image" : page.mode}) }
@@ -19,6 +21,72 @@ ScrollView {
                 }
                 Label { text: bridge.translate(page.mode === "converter" ? "Selecione um ou vários arquivos para converter em lote." : page.mode === "metadata" ? "Edite os metadados e a capa do áudio." : page.mode === "images" ? "Converta imagens ou baixe fotos por link." : "Ajuste os efeitos e exporte a música inteira."); color: bridge.palette.muted; Layout.fillWidth: true; wrapMode: Text.Wrap }
             }
+        }
+        ColumnLayout { visible: page.mode === "effects"; Layout.fillWidth: true; spacing: 16
+            RowLayout { Layout.fillWidth: true; spacing: Math.round(10*bridge.spacing)
+                ActionButton { primary: true; text: bridge.translate("Abrir arquivo"); enabled: !page.effectsSearching; onClicked: workspace.invoke("pick",{kind:"effects"}) }
+                OndaTextField {
+                    id: effectsQuery; Layout.fillWidth: true; implicitHeight: 44; placeholderText: bridge.translate("Pesquise uma música ou cole um link"); selectByMouse: true
+                    color: bridge.palette.text; placeholderTextColor: bridge.palette.muted; font.pixelSize: Math.round(14*bridge.fontScale)
+                    background: Rectangle { radius: 8; color: bridge.palette.surface; border.color: effectsQuery.activeFocus ? bridge.palette.accent : bridge.palette.line; border.width: effectsQuery.activeFocus ? 2 : 1 }
+                    text: workspace.values.effectsQuery || ""; onTextEdited: workspace.setOption("effectsQuery",text)
+                    onAccepted: if(!page.effectsSearching && text.trim().length)workspace.invoke("effects_search",{})
+                }
+                TaskButton { objectName: "effectsSearchButton"; idleText: bridge.translate("Pesquisar"); primary: true; operation: "effects_search"; taskNames: ["effects_search","effects_load","effects_queue_info"]; enabled: taskRunning || !!(workspace.values.effectsQuery || "").trim() }
+            }
+            Flow { Layout.fillWidth: true; spacing: 8
+                ActionButton {text: bridge.translate("Adicionar arquivos à fila"); enabled: !page.effectsSearching; onClicked: workspace.invoke("pick",{kind:"effects_queue"})}
+                ActionButton {text: bridge.translate("Fila de reprodução")+" ("+workspace.values.effectsQueue.length+")"; onClicked: page.effectsQueueExpanded=!page.effectsQueueExpanded}
+                ActionButton {text: bridge.translate("Próxima"); enabled: workspace.values.effectsQueueIndex+1<workspace.values.effectsQueue.length; onClicked: workspace.invoke("effects_next",{})}
+                OndaSwitch {text: bridge.translate("Transição gradual"); checked: workspace.preferences.jukebox_gradual_transition; onToggled: workspace.setSetting("jukebox_gradual_transition",checked)}
+            }
+            Card { objectName: "effectsQueuePanel"; Layout.fillWidth: true; visible: page.effectsQueueExpanded; implicitHeight: effectsQueueBody.implicitHeight+20
+                ColumnLayout {id: effectsQueueBody; anchors.fill: parent; anchors.margins: 10; spacing: 10
+                    RowLayout {Layout.fillWidth: true; Label {text: bridge.translate("Fila de reprodução");color: bridge.palette.text;Layout.fillWidth: true} ActionButton {text: bridge.translate("Limpar");onClicked: workspace.invoke("effects_queue_clear",{})}}
+                    ListView {id: effectsQueueList; Layout.fillWidth: true; Layout.preferredHeight: workspace.values.effectsQueue.length ? Math.min(320,contentHeight) : 48; clip: true; spacing: 10; model: workspace.values.effectsQueue; ScrollBar.vertical: ScrollBar {}
+                        delegate: RowLayout {required property var modelData;required property int index; width: effectsQueueList.width; height: 92
+                            RoundedArtwork {source: modelData.cover_url || ""; Layout.preferredWidth: 80;Layout.preferredHeight: 80;fillMode: Image.PreserveAspectFit}
+                            ColumnLayout {Layout.fillWidth: true;Layout.minimumWidth: 0
+                                Label {text: modelData.record.title;Layout.fillWidth: true;elide: Text.ElideRight;color: index===workspace.values.effectsQueueIndex ? bridge.palette.accent : bridge.palette.text}
+                                Label {text: (modelData.record.artists || []).join(", ");Layout.fillWidth: true;elide: Text.ElideRight;color: bridge.palette.muted}
+                                Label {text: workspace.clock(modelData.duration);color: bridge.palette.muted}
+                            }
+                            ActionButton {text: bridge.translate("Tocar");onClicked: workspace.invoke("effects_queue_play",{index:index})}
+                            PlaybackButton {glyph:"up";Accessible.name:bridge.translate("Mover para cima");enabled:index>0;onClicked:workspace.invoke("effects_queue_move",{index:index,direction:-1})}
+                            PlaybackButton {glyph:"down";Accessible.name:bridge.translate("Mover para baixo");enabled:index+1<workspace.values.effectsQueue.length;onClicked:workspace.invoke("effects_queue_move",{index:index,direction:1})}
+                            PlaybackButton {glyph:"close";Accessible.name:bridge.translate("Remover da fila");onClicked:workspace.invoke("effects_queue_remove",{index:index})}
+                        }
+                        Label {anchors.centerIn: parent;visible: !workspace.values.effectsQueue.length;text:bridge.translate("Adicione arquivos ou músicas dos resultados.");color:bridge.palette.muted}
+                    }
+                }
+            }
+            Card {
+                Layout.fillWidth: true; visible: (workspace.values.effectsResults || []).length>0
+                implicitHeight: Math.min(282,effectsResultsList.contentHeight+58); clip: true
+                Behavior on implicitHeight { NumberAnimation { duration: bridge.animations ? 160 : 0; easing.type: Easing.OutCubic } }
+                RowLayout { anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right; anchors.margins: 8
+                    Label { Layout.fillWidth: true; text: bridge.translate("Resultados"); color: bridge.palette.text }
+                    PlaybackButton { glyph: "close"; Accessible.name: bridge.translate("Fechar pesquisa"); onClicked: workspace.setOption("effectsResults",[]) }
+                }
+                ListView {
+                    id: effectsResultsList; anchors.fill: parent; anchors.margins: 6; anchors.topMargin: 56; clip: true
+                    model: workspace.values.effectsResults || []; ScrollBar.vertical: ScrollBar {}
+                    delegate: ItemDelegate {
+                        required property var modelData; required property int index
+                        width: effectsResultsList.width; height: 50
+                        contentItem: RowLayout {
+                            ColumnLayout { Layout.fillWidth: true; Layout.minimumWidth: 0
+                                Label { Layout.fillWidth: true; text: modelData.title; color: bridge.palette.text; elide: Text.ElideRight }
+                                Label { Layout.fillWidth: true; text: (modelData.artists || []).join(", "); color: bridge.palette.muted; elide: Text.ElideRight }
+                            }
+                            ActionButton { text: bridge.translate("Adicionar à fila"); enabled: workspace.activity.busy.indexOf("effects_load")<0; onClicked: {workspace.invoke("effects_enqueue_result",{index:index});page.effectsQueueExpanded=true} }
+                        }
+                        enabled: workspace.activity.busy.indexOf("effects_load")<0
+                        onClicked: workspace.invoke("effects_load",{index:index})
+                    }
+                }
+            }
+            OndaProgressBar { objectName: "effectsSearchProgress"; Layout.fillWidth: true; visible: page.effectsSearching; from: 0; to: 100; indeterminate: true }
         }
         ColumnLayout { visible: page.mode === "converter"; Layout.fillWidth: true; spacing: Math.round(16*bridge.spacing)
             GridLayout { Layout.fillWidth: true; columns: page.availableWidth > 800 ? 3 : 2; columnSpacing: 16; rowSpacing: 16
@@ -51,7 +119,7 @@ ScrollView {
                     anchors.fill: parent; anchors.margins: 10; spacing: 16
                     Rectangle {
                         Layout.preferredWidth: 146; Layout.preferredHeight: 146; radius: 8; color: bridge.palette.input
-                        Image { id: effectsArtwork; objectName: "effectsArtwork"; anchors.fill: parent; source: workspace.values.effectsCover || ""; sourceSize.width: 292; sourceSize.height: 292; fillMode: Image.PreserveAspectFit }
+                        RoundedArtwork { id: effectsArtwork; objectName: "effectsArtwork"; anchors.fill: parent; source: workspace.values.effectsCover || ""; sourceSize.width: 292; sourceSize.height: 292; fillMode: Image.PreserveAspectFit }
                         Label { anchors.centerIn: parent; visible: !workspace.values.effectsCover; text: "♪"; color: bridge.palette.muted; font.pixelSize: 40 }
                     }
                     ColumnLayout {
@@ -85,18 +153,13 @@ ScrollView {
             OndaSlider { Layout.fillWidth: true; value: workspace.values.reverb; onMoved: workspace.setOption("reverb",value) }
             OndaSwitch { text: bridge.translate("Manter tom (pitch) ao alterar a velocidade"); checked: workspace.values.keep_pitch; onToggled: workspace.setOption("keep_pitch",checked) }
             AnimatedLyric { visible: workspace.preferences.synced_lyrics; text: effectsLyricFrame.text || ""; lineKey: String(effectsLyricFrame.active); textFormat: Text.RichText; Layout.fillWidth: true }
-            RowLayout { spacing: Math.round(10*bridge.spacing)
-                ActionButton { text: bridge.translate("Escolher letra"); onClicked: workspace.invoke("pick",{kind:"effectLyrics"}) }
-                ActionButton { text: bridge.translate("Letra"); onClicked: workspace.openLyrics() }
-            }
             Label { visible: !!workspace.values.effectLyricsName; text: workspace.values.effectLyricsName || ""; color: bridge.palette.muted; Layout.fillWidth: true; elide: Text.ElideMiddle }
-            Label { text: bridge.translate("Posição na música")+" · "+Math.floor(workspace.values.position)+" / "+Math.floor(workspace.values.duration)+" s"; color: bridge.palette.muted }
-            OndaSlider { Layout.fillWidth: true; enabled: workspace.values.duration > 0; from: 0; to: Math.max(1,workspace.values.duration); value: workspace.values.position; onMoved: workspace.setOption("position",value) }
-            Flow { Layout.fillWidth: true; spacing: Math.round(10*bridge.spacing)
-                ActionButton { text: bridge.translate(workspace.values.previewActive && workspace.values.previewKind === "effects" && !workspace.values.previewProcessed ? "Parar prévia" : "Ouvir original"); enabled: !!workspace.values.effectsSource; onClicked: workspace.invoke("effects_preview",{processed:false}) }
-                ActionButton { primary: true; text: bridge.translate(workspace.values.previewActive && workspace.values.previewKind === "effects" && workspace.values.previewProcessed ? "Parar prévia" : "Ouvir com efeitos"); enabled: !!workspace.values.effectsSource; onClicked: workspace.invoke("effects_preview",{processed:true}) }
-                ChoiceBox { model: ["MP3","M4A","FLAC","WAV"]; onActivated: workspace.setOption("effectFormat",currentText) }
-                TaskButton { primary: true; idleText: bridge.translate("Exportar música"); enabled: taskRunning || !!workspace.values.effectsSource; operation: "effects_export"; taskNames: ["effects_export"] }
+            Card { Layout.fillWidth: true; implicitHeight: exportRow.implicitHeight+32
+                RowLayout { id: exportRow; anchors.fill: parent; anchors.margins: 16; spacing: 12
+                    Label { text: bridge.translate("Exportar música"); color: bridge.palette.text; Layout.fillWidth: true }
+                    ChoiceBox { model: ["MP3","M4A","FLAC","WAV"]; onActivated: workspace.setOption("effectFormat",currentText) }
+                    TaskButton { primary: true; idleText: bridge.translate("Exportar música"); enabled: taskRunning || !!workspace.values.effectsSource; operation: "effects_export"; taskNames: ["effects_export"] }
+                }
             }
         }
         ColumnLayout { visible: page.mode === "images"; Layout.fillWidth: true; spacing: Math.round(14*bridge.spacing)
@@ -137,7 +200,6 @@ ScrollView {
                 ColumnLayout { id: metadataControls; Layout.minimumWidth: 0; Layout.maximumWidth: Layout.preferredWidth; Layout.preferredWidth: Math.min(520,page.availableWidth-(workspace.values.metadataCover ? Math.min(220,page.availableWidth*0.33)+22 : 0)); Layout.alignment: Qt.AlignTop; spacing: 14
             Flow { Layout.fillWidth: true; spacing: Math.round(10*bridge.spacing)
                 ActionButton { text: bridge.translate("Escolher capa"); onClicked: workspace.invoke("pick",{kind:"cover_path"}) }
-                ActionButton { text: bridge.translate("Escolher letra"); onClicked: workspace.invoke("pick",{kind:"lyrics_path"}) }
                 ActionButton { text: bridge.translate("Ajustar capa"); enabled: !!workspace.values.cover_path; onClicked: workspace.invoke("crop_cover",{}) }
                 ActionButton { text: bridge.translate("Desfazer capa"); enabled: !!workspace.values.cover_path; onClicked: workspace.invoke("undo_cover",{}) }
                 Label { visible: !!workspace.values.cover_path || !!workspace.values.lyrics_path; width: Math.min(implicitWidth,metadataControls.width); wrapMode: Text.WrapAnywhere; text: [workspace.values.cover_path,workspace.values.lyrics_path].filter(function(value) { return !!value }).join(" · "); color: bridge.palette.muted }
@@ -151,7 +213,7 @@ ScrollView {
             OndaSwitch { text: bridge.translate("Substituir arquivo original"); checked: workspace.values.overwrite_original; onToggled: workspace.setOption("overwrite_original",checked) }
             TaskButton { primary: true; idleText: bridge.translate("Salvar alterações"); enabled: taskRunning || workspace.values.metadataSources.length > 0; operation: "audio_edit"; taskNames: ["audio_edit"] }
                 }
-                Image { objectName: "metadataArtwork"; visible: !!workspace.values.metadataCover; source: workspace.values.metadataCover || ""; Layout.preferredWidth: Math.min(220,page.availableWidth*0.33); Layout.preferredHeight: Layout.preferredWidth; Layout.alignment: Qt.AlignTop; fillMode: Image.PreserveAspectFit }
+                RoundedArtwork { objectName: "metadataArtwork"; visible: !!workspace.values.metadataCover; source: workspace.values.metadataCover || ""; Layout.preferredWidth: Math.min(220,page.availableWidth*0.33); Layout.preferredHeight: Layout.preferredWidth; Layout.alignment: Qt.AlignTop; fillMode: Image.PreserveAspectFit }
                 Item { Layout.fillWidth: true }
             }
         }

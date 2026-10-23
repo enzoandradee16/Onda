@@ -1,5 +1,7 @@
 package br.com.onda.mobile
 
+import androidx.compose.ui.draw.clip
+
 import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -90,7 +92,7 @@ import java.io.File
                     }
                     OutlinedButton(onClick={pickCover()},enabled=!locked){UiText("Aplicar uma capa aos arquivos")}
                     if(cover.isNotBlank()) {
-                        coil.compose.AsyncImage(model=File(cover),contentDescription=translateUi("Capa do álbum",LocalUiLanguage.current),modifier=Modifier.size(120.dp))
+                        coil.compose.AsyncImage(model=File(cover),contentDescription=translateUi("Capa do álbum",LocalUiLanguage.current),modifier=Modifier.size(120.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp)))
                         TextButton(onClick={File(cover).delete();cover=""},enabled=!locked){UiText("Remover capa selecionada")}
                     }
                     Row(verticalAlignment=Alignment.CenterVertically) {Checkbox(overwrite,{overwrite=it},enabled=!locked,modifier=Modifier.padding(end=LayoutSpacing.checkboxLabel).a11yLabel("Sobrescrever arquivo original"));UiText("Sobrescrever arquivo original")}

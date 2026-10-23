@@ -93,7 +93,8 @@
     "notifications_enabled": true,
     "jukebox_background": true,
     "sidebar_width": 220,
-    "lyrics_animation": "Suave"
+    "lyrics_animation": "Suave",
+    "minimize_on_miniplayer": true
   },
   "fields": [
     {
@@ -1035,6 +1036,12 @@
         "Deslizar",
         "Zoom"
       ]
+    },
+    {
+      "category": "Aparência",
+      "key": "minimize_on_miniplayer",
+      "label": "Minimizar ONDA ao abrir o miniplayer",
+      "kind": "bool"
     }
   ]
 }

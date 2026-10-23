@@ -65,7 +65,7 @@ def fetch_lyrics(source,record=None,cancel=None,session=None,alternatives=False)
     if duration and not alternatives:params['duration']=round(float(duration))
     client=session or requests
     with client.get('https://lrclib.net/api/'+('search' if alternatives else 'get'),params=params,headers={'User-Agent':'ONDA/1.2 (https://github.com/enzoandradee16/Onda)'},timeout=(10,20),stream=True) as response:
-        if response.status_code==404:raise ValueError('Letra não encontrada no LRCLIB para esta gravação.')
+        if response.status_code==404:raise ValueError('Letra não encontrada para esta gravação.')
         response.raise_for_status()
         data=bytearray()
         for block in response.iter_content(16384):
@@ -79,11 +79,11 @@ def fetch_lyrics(source,record=None,cancel=None,session=None,alternatives=False)
             timed,word_sync=timed_record(row)
             plain=row.get('plainLyrics') or ''
             if row.get('instrumental') or not (timed or plain):continue
-            candidates.append(dict(id=str(row['id']),source_url=str(row['id']),title=str(row.get('trackName') or title)+' · '+str(row.get('artistName') or artist)+' · '+str(row.get('albumName') or '')+' · '+str(round(row.get('duration') or 0))+' s',lines=timed or [(0,plain)],synced=bool(timed),word_synced=word_sync,provider='LRCLIB'))
+            candidates.append(dict(id=str(row['id']),source_url=str(row['id']),title=str(row.get('trackName') or title)+' · '+str(row.get('artistName') or artist)+' · '+str(row.get('albumName') or '')+' · '+str(round(row.get('duration') or 0))+' s',lines=timed or [(0,plain)],synced=bool(timed),word_synced=word_sync,provider='Letras online'))
         return {'candidates':candidates}
-    if result.get('instrumental'):raise ValueError('O LRCLIB identifica esta gravação como instrumental.')
+    if result.get('instrumental'):raise ValueError('Esta gravação foi identificada como instrumental.')
     synced=result.get('syncedLyrics') or ''
     rows,word_sync=timed_record(result)
     plain=result.get('plainLyrics') or ''
-    if not rows and not plain:raise ValueError('Letra não encontrada no LRCLIB para esta gravação.')
-    return {'lines':rows or [(0,plain)],'synced':bool(rows),'word_synced':word_sync,'provider':'LRCLIB'}
+    if not rows and not plain:raise ValueError('Letra não encontrada para esta gravação.')
+    return {'lines':rows or [(0,plain)],'synced':bool(rows),'word_synced':word_sync,'provider':'Letras online'}

@@ -497,6 +497,98 @@ class NativeDesktopTests(unittest.TestCase):
         self.ws.launch_thread(lambda:self.ws.process_worker(identity,{},cancel,str(fixture)))
         self.wait_for(lambda:bool(self.ws.choice));self.ws.replyChoice(identity,{'selected_ids':['a']});self.wait_for(lambda:not self.ws.active)
         self.assertEqual(job['state'],'Concluído')
+    def test_effects_queue_auto_advance_waits_for_transition_boundary(self):
+        row={'source':'next.mp3','record':{'title':'Next'},'duration':120}
+        self.ws.options.update(effectsQueue=[row,row],effectsQueueIndex=0,duration=100,speed=50,previewActive=True,effectsPaused=False)
+        self.ws.effects_transport=True;self.ws.preview_kind='effects';self.ws.player.active=True
+        self.ws.settings.update(jukebox_gradual_transition=True,jukebox_transition_seconds=3)
+        with patch.object(self.ws,'play_effects_entry') as advance,patch.object(self.ws.player,'position_snapshot',return_value=98):
+            self.ws.tick();advance.assert_not_called()
+        with patch.object(self.ws,'play_effects_entry') as advance,patch.object(self.ws.player,'position_snapshot',return_value=99):
+            self.ws.tick();advance.assert_called_once_with(1)
+        self.ws.settings['jukebox_gradual_transition']=False
+        with patch.object(self.ws,'play_effects_entry') as advance,patch.object(self.ws.player,'position_snapshot',return_value=99):
+            self.ws.tick();advance.assert_not_called()
+            self.ws.player.active=False;self.ws.tick();advance.assert_called_once_with(1)
+    def test_effects_queue_switch_respects_gradual_setting(self):
+        from audio_tools import PreviewPlayer
+        for gradual in (False,True):
+            self.ws.stop_preview();self.ws.settings.update(jukebox_gradual_transition=gradual,jukebox_transition_seconds=3)
+            row={'source':'next.mp3','record':{'title':'Next','artists':[]},'duration':120,'cover_url':''}
+            self.ws.options.update(effectsQueue=[row],effectsQueueIndex=-1,effectsSource='old.mp3',effectsRecord={'title':'Old'},duration=100,position=20)
+            self.ws.preview_kind='effects';old=self.ws.player;old.active=True;old.position=20
+            incoming=PreviewPlayer()
+            def play(*args,**kwargs):self.ws.player.active=True
+            with patch('audio_tools.PreviewPlayer',return_value=incoming),patch.object(old,'play') as outgoing,patch.object(self.ws,'run_task'),patch.object(incoming if gradual else old,'play',side_effect=play) as started:
+                self.ws.play_effects_entry(0)
+                self.assertEqual(self.ws.options['effectsQueueIndex'],0)
+                self.assertEqual(self.ws.options['effectsSource'],'next.mp3')
+                self.assertEqual(started.call_args.kwargs['fade_in'],3 if gradual else 0)
+                self.assertEqual(started.call_args.kwargs['fade_out'],3 if gradual else 0)
+                self.assertEqual(len(self.ws.effects_tails),1 if gradual else 0)
+                if gradual:self.assertEqual(outgoing.call_args.kwargs['fade_out'],3)
+            self.ws.stop_preview();incoming.close()
+    def test_effects_transport_resumes_and_stops_without_using_jukebox_queue(self):
+        self.ws.options.update(effectsSource='song.mp3',duration=300,position=40,speed=100)
+        def play(*args,**kwargs):self.ws.player.active=True
+        with patch.object(self.ws.player,'play',side_effect=play) as playing,patch.object(self.bridge,'nextTrack') as next_track,patch.object(self.bridge,'previousTrack') as previous:
+            self.ws.invoke('effects_play_pause',{})
+            self.assertTrue(playing.call_args.kwargs['full_track'])
+            self.assertEqual(playing.call_args.kwargs['duration'],260)
+            with patch.object(self.ws.player,'position_snapshot',return_value=65):self.ws.invoke('effects_play_pause',{})
+            self.assertFalse(self.ws.player.active);self.assertTrue(self.ws.options['effectsPaused'])
+            self.ws.invoke('effects_skip',{'seconds':10});self.assertEqual(self.ws.options['position'],75)
+            self.ws.invoke('effects_play_pause',{});self.assertEqual(playing.call_args.kwargs['start'],75)
+            self.ws.invoke('effects_stop',{});self.assertEqual(self.ws.options['position'],0)
+            self.assertFalse(self.ws.player.active)
+            next_track.assert_not_called();previous.assert_not_called()
+    def test_effects_search_has_inline_progress_and_cancellation(self):
+        from qt_desktop_ui import create_application,close_application
+        from PySide6.QtCore import QObject,QMetaObject
+        app,engine,bridge=create_application(complete=False);ws=engine.workspace
+        try:
+            ws.selectPage('effects');self.settle()
+            window=engine.rootObjects()[0]
+            button=window.findChild(QObject,'effectsSearchButton')
+            progress=window.findChild(QObject,'effectsSearchProgress')
+            self.assertFalse(progress.property('visible'))
+            for operation in ('effects_search','effects_load'):
+                cancel=threading.Event();ws.tasks[operation]=cancel;ws.statusChanged.emit();self.settle()
+                self.assertTrue(progress.property('visible'))
+                self.assertTrue(button.property('enabled'))
+                self.assertEqual(button.property('text'),bridge.translate('Cancelar'))
+                QMetaObject.invokeMethod(button,'clicked');self.settle()
+                self.assertTrue(cancel.is_set())
+                ws.tasks.pop(operation);ws.statusChanged.emit();self.settle()
+                self.assertFalse(progress.property('visible'))
+        finally:
+            ws.tasks.clear();close_application(engine,bridge)
+    def test_window_layout_is_persisted_independently_of_settings(self):
+        from PySide6.QtGui import QWindow
+        window=QWindow();window.setGeometry(40,50,600,400)
+        self.ws.attach(window);self.ws.capture_window_layout();self.ws.save_window_layout()
+        data=json.loads(self.ws.store.path.with_name('window.json').read_text())
+        self.assertEqual((data['x'],data['y'],data['width'],data['height']),(40,50,600,400))
+        restored=QWindow();self.ws.attach(restored)
+        self.assertEqual((restored.x(),restored.y(),restored.width(),restored.height()),(40,50,600,400))
+        self.ws.window_save_timer.stop()
+    def test_miniplayer_lyrics_and_queue_resize_without_clipping(self):
+        from qt_desktop_ui import create_application,close_application
+        from PySide6.QtCore import QObject,QMetaObject
+        app,engine,bridge=create_application(complete=False)
+        try:
+            mini=engine.rootObjects()[0].findChild(QObject,'miniPlayer')
+            QMetaObject.invokeMethod(mini,'show');self.settle()
+            for mode in ('lyricsVisible','queueVisible','lyricsVisible','queueVisible'):
+                mini.setProperty(mode,True);self.settle()
+                self.assertGreaterEqual(mini.height(),450)
+                if mode=='lyricsVisible':
+                    lyrics=mini.findChild(QObject,'miniPlayerLyrics')
+                    self.assertGreater(lyrics.property('height'),100)
+                    self.assertLess(lyrics.property('y')+lyrics.property('height'),mini.height())
+                mini.setProperty(mode,False);self.settle()
+                self.assertLessEqual(mini.height(),310)
+        finally:close_application(engine,bridge)
     def test_qml_all_pages_settings_and_decisions_have_no_runtime_warnings(self):
         from qt_desktop_ui import create_application,close_application
         from PySide6.QtCore import QObject,QMetaObject,qInstallMessageHandler

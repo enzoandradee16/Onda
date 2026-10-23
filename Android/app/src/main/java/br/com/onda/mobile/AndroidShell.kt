@@ -56,7 +56,7 @@ import org.json.JSONObject
             "download"->{line(12f,3f,12f,16f);path(7f to 11f,12f to 16f,17f to 11f);path(4f to 18f,4f to 21f,20f to 21f,20f to 18f)}
             "play"->path(7f to 4f,20f to 12f,7f to 20f,close=true)
             "pause"->{line(8f,5f,8f,19f);line(16f,5f,16f,19f)}
-            "stop"->drawRect(tint,Offset(6*u,6*v),androidx.compose.ui.geometry.Size(12*u,12*v))
+            "stop"->drawRect(tint,Offset(6*u,6*v),androidx.compose.ui.geometry.Size(12*u,12*v),style=Stroke(stroke))
             "more-vertical"->listOf(5f,12f,19f).forEach {drawCircle(tint,1.5f*u,Offset(12*u,it*v))}
             "more"->listOf(5f,12f,19f).forEach {drawCircle(tint,1.5f*u,Offset(it*u,12*v))}
             "add"->{line(12f,4f,12f,20f);line(4f,12f,20f,12f)}

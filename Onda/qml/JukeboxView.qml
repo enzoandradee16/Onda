@@ -33,29 +33,28 @@ ScrollView {
             ActionButton { text: bridge.translate("Adicionar arquivos à fila"); onClicked: queueFiles.open() }
             ActionButton { text: bridge.translate("Fila de reprodução")+" ("+bridge.queuedTracks.length+")"; onClicked: page.queueExpanded=!page.queueExpanded }
             ActionButton { text: bridge.translate("Próxima"); enabled: bridge.queuedTracks.length>0; onClicked: bridge.nextTrack() }
-            ActionButton { text: bridge.translate("Timers"); onClicked: timerPopup.open() }
 
         }
-        Card { visible: page.queueExpanded; Layout.fillWidth: true; implicitHeight: bridge.queuedTracks.length ? Math.min(340,bridge.queuedTracks.length*92+64) : 110
-            ColumnLayout { anchors.fill: parent; anchors.margins: 10
+        Card { objectName: "playbackQueuePanel"; visible: page.queueExpanded; Layout.fillWidth: true; implicitHeight: queueBody.implicitHeight+20; Layout.minimumHeight: implicitHeight
+            ColumnLayout { id: queueBody; anchors.fill: parent; anchors.margins: 10; spacing: 10
                 RowLayout { Layout.fillWidth: true; Label { Layout.fillWidth: true; text: bridge.translate("Fila de reprodução"); color: bridge.palette.text } ActionButton { text: bridge.translate("Limpar"); enabled: bridge.queuedTracks.length>0; onClicked: bridge.clearPlaybackQueue() } }
-                ListView { id: queueList; Layout.fillWidth: true; Layout.fillHeight: true; clip: true; model: bridge.queuedTracks; ScrollBar.vertical: ScrollBar {}
-                    delegate: RowLayout { required property var modelData; required property int index; width: queueList.width; height: 92
+                ListView { id: queueList; Layout.fillWidth: true; Layout.preferredHeight: bridge.queuedTracks.length ? Math.min(320,contentHeight) : 48; Layout.minimumHeight: Layout.preferredHeight; clip: true; spacing: 10; model: bridge.queuedTracks; ScrollBar.vertical: ScrollBar {}
+                    delegate: RowLayout { required property var modelData; required property int index; width: queueList.width; height: Math.max(80,queueTrackInfo.implicitHeight,queuePlayButton.implicitHeight)+12
                         Rectangle { Layout.preferredWidth: 80; Layout.preferredHeight: 80; radius: 6; color: bridge.palette.input
-                            Image { id: playbackCover; objectName: "playbackQueueArtwork"; anchors.fill: parent; source: modelData.cover || ""; fillMode: Image.PreserveAspectFit; sourceSize.width: 160; sourceSize.height: 160; asynchronous: true }
+                            RoundedArtwork { id: playbackCover; objectName: "playbackQueueArtwork"; anchors.fill: parent; source: modelData.cover || ""; fillMode: Image.PreserveAspectFit; sourceSize.width: 160; sourceSize.height: 160; asynchronous: true }
                             Label { anchors.centerIn: parent; visible: playbackCover.status !== Image.Ready; text: "♪"; color: bridge.palette.muted; font.pixelSize: 30 }
                         }
-                        ColumnLayout { Layout.fillWidth: true; spacing: 3
+                        ColumnLayout { id: queueTrackInfo; Layout.fillWidth: true; Layout.minimumWidth: 0; spacing: 3
                             Label { Layout.fillWidth: true; text: (modelData.current ? "▶ " : "")+modelData.title; color: modelData.current ? bridge.palette.accent : bridge.palette.text; elide: Text.ElideRight }
                             Label { Layout.fillWidth: true; visible: !!modelData.artist; text: modelData.artist || ""; color: bridge.palette.muted; elide: Text.ElideRight }
                             Label { Layout.fillWidth: true; visible: !!modelData.album; text: modelData.album || ""; color: bridge.palette.muted; elide: Text.ElideRight }
                             Label { Layout.fillWidth: true; elide: Text.ElideRight; text: bridge.translate(({pending:"Aguardando análise",preparing:"Analisando ritmo e trechos…",ready:"Pronta para reproduzir",error:"Erro na análise"})[modelData.analysis] || ""); color: modelData.analysis === "error" ? bridge.palette.accent : bridge.palette.muted }
                             Label { visible: modelData.duration > 0; text: workspace.clock(modelData.duration || 0); color: bridge.palette.muted }
                         }
-                        ActionButton { text: bridge.translate(modelData.analysis === "error" ? "Tentar novamente" : "Tocar"); onClicked: bridge.playQueued(index) }
-                        ActionButton { text: "↑"; enabled: index>0; onClicked: bridge.moveQueued(index,-1) }
-                        ActionButton { text: "↓"; enabled: index+1<bridge.queuedTracks.length; onClicked: bridge.moveQueued(index,1) }
-                        ActionButton { text: "×"; Accessible.name: bridge.translate("Remover da fila"); onClicked: bridge.removeQueued(index) }
+                        ActionButton { id: queuePlayButton; text: bridge.translate(modelData.analysis === "error" ? "Tentar novamente" : "Tocar"); onClicked: bridge.playQueued(index) }
+                        PlaybackButton { glyph: "up"; Accessible.name: bridge.translate("Mover para cima"); enabled: index>0; onClicked: bridge.moveQueued(index,-1) }
+                        PlaybackButton { glyph: "down"; Accessible.name: bridge.translate("Mover para baixo"); enabled: index+1<bridge.queuedTracks.length; onClicked: bridge.moveQueued(index,1) }
+                        PlaybackButton { glyph: "close"; Accessible.name: bridge.translate("Remover da fila"); onClicked: bridge.removeQueued(index) }
                     }
                     Label { anchors.centerIn: parent; visible: bridge.queuedTracks.length===0; text: bridge.translate("Adicione arquivos ou músicas dos resultados."); color: bridge.palette.muted }
                 }
@@ -69,7 +68,7 @@ ScrollView {
             RowLayout {
                 anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right; anchors.margins: 8
                 Label { Layout.fillWidth: true; text: bridge.translate("Resultados"); color: bridge.palette.text }
-                ActionButton { objectName: "closeJukeboxSearch"; text: "×"; Accessible.name: bridge.translate("Fechar pesquisa"); ToolTip.visible: hovered; ToolTip.text: Accessible.name; onClicked: bridge.closeSearch() }
+                PlaybackButton { objectName: "closeJukeboxSearch"; glyph: "close"; Accessible.name: bridge.translate("Fechar pesquisa"); ToolTip.visible: hovered; ToolTip.text: Accessible.name; onClicked: bridge.closeSearch() }
             }
             ListView {
                 id: resultList; anchors.fill: parent; anchors.margins: 6; anchors.topMargin: 56; clip: true; model: bridge.state.results
@@ -91,7 +90,7 @@ ScrollView {
                 anchors.fill: parent; anchors.margins: 10; spacing: Math.round(16*bridge.spacing)
                 Rectangle {
                     Layout.preferredWidth: 146; Layout.preferredHeight: 146; radius: 8; color: bridge.palette.input; clip: true
-                    Image { anchors.fill: parent; source: bridge.state.cover; sourceSize.width: 292; sourceSize.height: 292; fillMode: Image.PreserveAspectCrop; visible: source.toString().length>0 }
+                    RoundedArtwork { anchors.fill: parent; source: bridge.state.cover; sourceSize.width: 292; sourceSize.height: 292; fillMode: Image.PreserveAspectCrop; visible: source.toString().length>0 }
                     Text { anchors.centerIn: parent; visible: bridge.state.cover.length===0; text: "♪"; color: bridge.palette.muted; font.pixelSize: Math.round(38*bridge.fontScale) }
                 }
                 ColumnLayout {

@@ -22,13 +22,13 @@ Rectangle {
             Text { text: "ONDA"; color: bridge.palette.accent; font.family: "Century Gothic"; font.pixelSize: Math.min(34,Math.max(22,(side.width-72)*0.23)); font.weight: Font.Bold; font.letterSpacing: -1; opacity: side.collapsed ? 0 : 1; visible: opacity > 0; Behavior on opacity { NumberAnimation { duration: bridge.animations ? 120 : 0 } } }
             Item { Layout.fillWidth: true }
         }
-        Button {
+        PlaybackButton {
             objectName: "sidebarToggle"
-            Layout.preferredWidth: 48; Layout.alignment: Qt.AlignLeft; implicitHeight: 32; text: side.collapsed ? "\uE700" : "\uE76B"
-            font.family: "Segoe MDL2 Assets"; palette.buttonText: bridge.palette.muted
+            Layout.preferredWidth: 48; Layout.alignment: Qt.AlignLeft; implicitHeight: 32; glyph: side.collapsed ? "menu" : "back"
             background: Rectangle { radius: 6; color: parent.hovered ? bridge.palette.hover : "transparent" }
             onClicked: side.collapsed = !side.collapsed
-            Accessible.name: bridge.translate("Recolher menu")
+            Accessible.name: bridge.translate(side.collapsed ? "Expandir menu" : "Recolher menu")
+            ToolTip.visible: hovered; ToolTip.text: Accessible.name
         }
         Column {
             Layout.fillWidth: true; spacing: Math.round(3*bridge.spacing)
@@ -50,7 +50,7 @@ Rectangle {
                     }
                     Row {
                         visible: !nav.modelData.group; anchors.left: parent.left; anchors.leftMargin: side.collapsed ? 15 : 12; width: parent.width-(side.collapsed ? 30 : 24); height: parent.height; spacing: Math.round(12*bridge.spacing)
-                        Text { text: nav.modelData.icon || ""; font.family: "Segoe MDL2 Assets"; font.pixelSize: Math.round(18*bridge.fontScale); anchors.verticalCenter: parent.verticalCenter; color: nav.active ? bridge.palette.accent : bridge.palette.muted }
+                        LineIcon { glyph: nav.modelData.key || ""; width: Math.round(20*bridge.fontScale); height: width; anchors.verticalCenter: parent.verticalCenter; ink: nav.active ? bridge.palette.accent : bridge.palette.muted }
                         Text { text: bridge.translate(nav.modelData.name || ""); width: Math.max(0,parent.width-30); elide: Text.ElideRight; visible: !side.collapsed; font.pixelSize: Math.round(13*bridge.fontScale); font.weight: nav.active ? Font.DemiBold : Font.Normal; anchors.verticalCenter: parent.verticalCenter; color: nav.active ? bridge.palette.accent : bridge.palette.muted }
                     }
                     MouseArea { id: navMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: nav.modelData.key ? Qt.PointingHandCursor : Qt.ArrowCursor; onClicked: if (nav.modelData.key) workspace.selectNavigationPage(nav.modelData.key) }
@@ -60,6 +60,6 @@ Rectangle {
             }
         }
         Item { Layout.fillHeight: true }
-        ActionButton { Layout.fillWidth: true; text: side.collapsed ? "⚙" : bridge.translate("Configurações"); onClicked: side.settingsRequested() }
+        PlaybackButton { Layout.fillWidth: true; glyph: "settings"; Accessible.name: bridge.translate("Configurações"); text: side.collapsed ? "" : bridge.translate("Configurações"); onClicked: side.settingsRequested() }
     }
 }

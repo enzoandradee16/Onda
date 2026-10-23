@@ -644,13 +644,30 @@ fun mediaClock(seconds:Long):String {val value=seconds.coerceAtLeast(0);return "
         }
     }}
     fun effectName(): String {val name=if(speed<100) "Slowed" else if(speed>100) "Sped Up" else "";return if(reverb>0) if(name.isNotEmpty()) "$name + Reverb" else "Reverb" else name}
+    var effectsQuery by rememberSaveable {mutableStateOf("")}
+    var effectsResults by remember {mutableStateOf<List<JSONObject>>(emptyList())}
+    val searchBusy by vm.busy.collectAsStateWithLifecycle()
     Column(Modifier.verticalScroll(rememberScrollState()).padding(LayoutSpacing.inset),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
         if(heading)ToolHeading("Efeitos")
         ToolCard(Modifier.testTag("effects-source-card")) {
             UiText("Sua música",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold)
             UiText("Desacelere ou acelere sua música. Adicione reverb se quiser.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-            OutlinedButton(onClick={choose.launch(arrayOf("audio/*"))},modifier=Modifier.fillMaxWidth()){UiText(if(source.isBlank()) "Abrir áudio" else importedAudioName(source),maxLines=2)}
-            TextButton(onClick={pickLyrics.launch(arrayOf("*/*"))},enabled=source.isNotBlank()){UiText("Importar letra LRC")}
+            OutlinedButton(enabled=!searchBusy,onClick={choose.launch(arrayOf("audio/*"))},modifier=Modifier.fillMaxWidth()){UiText(if(source.isBlank()) "Abrir áudio" else importedAudioName(source),maxLines=2)}
+            OutlinedTextField(effectsQuery,{effectsQuery=it},label={UiText("Pesquise uma música ou cole um link")},singleLine=true,modifier=Modifier.fillMaxWidth())
+            OutlinedButton(enabled=searchBusy || effectsQuery.isNotBlank(),onClick={
+                if(searchBusy)vm.cancel() else
+                vm.operation("effects_search",JSONObject().put("query",effectsQuery).put("provider",OndaStore.settings.value.optString("catalog_provider","Deezer")),dialog=false) {result->
+                    effectsResults=result.optJSONArray("tracks")?.let {array->(0 until array.length()).map {array.getJSONObject(it)}} ?: emptyList()
+                }
+            }){UiText(if(searchBusy) "Cancelar" else "Pesquisar")}
+            if(searchBusy)LinearProgressIndicator(Modifier.fillMaxWidth())
+            effectsResults.forEach {record->
+                OutlinedButton(enabled=!searchBusy,onClick={
+                    vm.operation("effects_load",JSONObject().put("record",record),dialog=false) {result->
+                        vm.stopPreview();vm.effectsSource.value=result.getString("source");effectsResults=emptyList()
+                    }
+                },modifier=Modifier.fillMaxWidth()){Text(record.optString("title")+" · "+record.stringList("artists"))}
+            }
             LyricsButton(vm,source,{vm.lyricsPosition()},duration.toDouble(),{start=it.toFloat();if(liveEffects)vm.previewEffects(source,speed.toInt(),reverb.toInt(),pitch,start.toInt())},{if(liveEffects)vm.stopPreview() else vm.previewEffects(source,speed.toInt(),reverb.toInt(),pitch,start.toInt())})
             if(lyricsName.isNotBlank())Text(lyricsName,style=MaterialTheme.typography.bodySmall)
             if(lyricLine.isNotBlank())Text(lyricLine,style=MaterialTheme.typography.titleMedium)

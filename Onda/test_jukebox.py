@@ -30,6 +30,21 @@ class JukeboxTests(unittest.TestCase):
         model['beats'][-1]=1201
         with self.assertRaises(ValueError):jukebox.validate_model(model)
 
+    def test_low_rhythm_confidence_uses_verified_phrase_links(self):
+        mono=Path(self.temp.name)/'unaccented.wav'
+        with wave.open(str(mono),'wb') as output:
+            output.setparams((1,2,8000,0,'NONE',''));output.writeframes(array('h',[1000]*80000).tobytes())
+        vector=[1.0]+[0.0]*11+[1.0]+[0.0]*7
+        with patch('jukebox._features',return_value=(vector,.1)):
+            model=jukebox.analyse_wave(mono)
+        self.assertEqual(model['beat_confidence'],0)
+        self.assertEqual(model['matching_mode'],'conservative_phrase')
+        self.assertGreater(model['links'],0)
+        self.assertIsNotNone(jukebox.loop_boundary(model['neighbors']))
+        with patch('jukebox._features',return_value=(vector,0)):
+            silent=jukebox.analyse_wave(mono)
+        self.assertEqual(silent['links'],0)
+
     def test_normal_mode_preserves_all_samples(self):
         for variation,normal in [(0,True),(100,True)]:
             player=jukebox.Session(self.base,seed=1)
@@ -112,7 +127,7 @@ class JukeboxTests(unittest.TestCase):
             self.assertLessEqual(values[-1],.5)
             self.assertEqual(jukebox.branch_probability(variation,0),values[0])
 
-    def test_reachable_cycle_does_not_enter_later_short_dead_end(self):
+    def test_repeated_return_eventually_continues_through_later_sections(self):
         model=dict(self.model,neighbors=[[] for _ in range(32)])
         model['neighbors'][22]=[2];model['neighbors'][30]=[24]
         (self.base/'analysis.json').write_text(json.dumps(model))
@@ -120,9 +135,9 @@ class JukeboxTests(unittest.TestCase):
         try:
             parts=[player.chunk(100,0,100) for _ in range(150)]
             self.assertEqual(player.loop_end,22)
-            self.assertTrue(all(part['index']<=22 for part in parts))
-            self.assertGreaterEqual(sum(part['jumped'] for part in parts),5)
-            self.assertTrue(all(part['next']==2 for part in parts if part['jumped']))
+            self.assertTrue(any(part['index']==31 for part in parts))
+            self.assertGreaterEqual(sum(part['jumped'] for part in parts),4)
+            self.assertTrue(all(part['next'] in model['neighbors'][part['index']] for part in parts if part['jumped']))
         finally:player.close()
 
     def test_jump_prefers_matching_pcm_edge_volume_among_unvisited_matches(self):
@@ -188,7 +203,7 @@ class JukeboxTests(unittest.TestCase):
             parts=[player.chunk(45,35,100) for _ in range(120)]
             self.assertTrue(all(part['pcm'] for part in parts))
             self.assertGreater(sum(part['seconds'] for part in parts),self.model['duration']*3)
-            self.assertTrue(all(part['index']<=27 for part in parts))
+            self.assertTrue(any(part['index']==31 for part in parts))
             self.assertTrue(any(part['next']==8 and part['jumped'] for part in parts))
             self.assertTrue(any(part['next']==12 and part['jumped'] for part in parts))
             for part in parts:
@@ -202,9 +217,9 @@ class JukeboxTests(unittest.TestCase):
         try:
             parts=[player.chunk(0,0,100) for _ in range(80)]
             jumps=[part for part in parts if part['jumped']]
-            self.assertGreaterEqual(len(jumps),3)
+            self.assertGreaterEqual(len(jumps),2)
             self.assertTrue(all(part['index']==27 and part['next']==8 for part in jumps))
-            self.assertTrue(all(part['index']<=27 for part in parts))
+            self.assertTrue(any(part['index']==31 for part in parts))
         finally:player.close()
         for variation in (0,100):
             player=jukebox.Session(self.base,seed=1)
@@ -242,6 +257,32 @@ class JukeboxTests(unittest.TestCase):
             parts=[player.chunk(100,35,100) for _ in range(96)]
             self.assertEqual(sum(part['next']==0 for part in parts),3)
             self.assertFalse(any(part['jumped'] for part in parts))
+        finally:player.close()
+
+    def test_short_cycle_escapes_even_with_minimum_variation(self):
+        model=dict(self.model,neighbors=[[] for _ in range(32)])
+        model['neighbors'][9]=[2]
+        (self.base/'analysis.json').write_text(json.dumps(model))
+        for variation in (0,45,100):
+            player=jukebox.Session(self.base,seed=1)
+            player.random=SimpleNamespace(random=lambda:0,choice=lambda rows:rows[0])
+            try:
+                parts=[player.chunk(variation,0,100) for _ in range(55)]
+                self.assertTrue(any(part['index']==31 for part in parts))
+                self.assertLessEqual(sum(part['jumped'] for part in parts),2)
+            finally:player.close()
+
+    def test_reprise_finishes_phrase_before_another_optional_jump(self):
+        model=dict(self.model,neighbors=[[] for _ in range(32)])
+        model['neighbors'][12]=[4];model['neighbors'][8]=[2];model['neighbors'][29]=[2]
+        (self.base/'analysis.json').write_text(json.dumps(model))
+        player=jukebox.Session(self.base,seed=1)
+        player.random=SimpleNamespace(random=lambda:0,choice=lambda rows:rows[0])
+        try:
+            player.index=12;player.since_jump=4
+            self.assertEqual(player.chunk(100,0,100)['next'],4)
+            parts=[player.chunk(100,0,100) for _ in range(17)]
+            self.assertEqual([part['index'] for part in parts],list(range(4,21)))
         finally:player.close()
 
     def test_manual_seek_plays_selected_beat_without_counting_jump(self):
@@ -304,10 +345,13 @@ class JukeboxTests(unittest.TestCase):
             path=Path(options['outtmpl'].replace('%(ext)s','wav'));song(path);saved.append(str(path));return 0
         with patch('matching.resolve_youtube',side_effect=resolve),patch('engine.download_with_recovery',side_effect=download),patch('jukebox.prepare',return_value={'cache':str(self.base)}):
             result=jukebox.fetch_audio({},record);self.assertEqual(result['title'],'Artist — Song');self.assertEqual(result['source'],str(self.base/'audio.wav'))
+        with patch('matching.resolve_youtube',side_effect=resolve),patch('engine.download_with_recovery',side_effect=download),patch('jukebox.prepare',side_effect=AssertionError('Effects must not analyze rhythm')):
+            result=jukebox.fetch_audio({},record,analyze=False)
+            self.assertTrue(Path(result['source']).is_file());self.assertEqual(result['record'],record)
         self.assertFalse(list(jukebox.cache_root().glob('jukebox-download-*')))
     def test_android_backend_session_roundtrip(self):
         import importlib.util
-        path=Path(__file__).resolve().parent.parent/'Celular/app/src/main/python/mobile_backend.py'
+        path=Path(__file__).resolve().parent.parent/'Android/app/src/main/python/mobile_backend.py'
         spec=importlib.util.spec_from_file_location('jukebox_test_backend',path)
         backend=importlib.util.module_from_spec(spec);spec.loader.exec_module(backend)
         callback=SimpleNamespace(onEvent=lambda _:None)

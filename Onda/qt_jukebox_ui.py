@@ -177,6 +177,10 @@ class JukeboxBridge(QObject):
         self.stop(reset_timer=False);self.queue_index=index
         self.handle_event(self.revision,'result',model);self.playPause();self.queueChanged.emit();self.changed.emit()
     @Slot()
+    def previousTrack(self):
+        if self.queue_index>0:self.playQueued(self.queue_index-1)
+        elif self.model:self.seek(0)
+    @Slot()
     def nextTrack(self):
         if self.queue_index+1<len(self.playlist):self.playQueued(self.queue_index+1)
         else:self.setTrackMinutes(0);self.update_state(status=tr('Fim da fila de reprodução. A música atual continua.'))

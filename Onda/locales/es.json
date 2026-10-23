@@ -1944,5 +1944,9 @@
   "O LRCLIB identifica esta gravação como instrumental.": "LRCLIB identifica esta grabación como instrumental.",
   "Selecione uma música antes de buscar a letra online.": "Selecciona una canción antes de buscar la letra en línea.",
   "Mini player": "Minirreproductor",
-  "Fixar acima de todos": "Mantener por encima de todo"
+  "Fixar acima de todos": "Mantener por encima de todo",
+  "Retroceder": "Anterior",
+  "Avançar": "Siguiente",
+  "Minimizar": "Minimizar",
+  "Minimizar ONDA ao abrir o miniplayer": "Minimizar ONDA al abrir el minirreproductor"
 }

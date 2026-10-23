@@ -19,6 +19,23 @@ def image_details(source):
     except (OSError,ValueError):return {}
 
 def perform(action,config,cancel,emit):
+    if action=='effects_queue_info':
+        rows=[]
+        for source in config['sources']:
+            if cancel.is_set():break
+            try:rows.append(dict(perform('effects_info',dict(config,source=source),cancel,emit),source=source))
+            except Exception as error:rows.append({'source':source,'error':str(error)})
+        return rows
+    if action=='effects_search':
+        value=client(config,cancel)
+        try:
+            from music_search import search_music
+            return search_music(value,config['query'],config.get('catalog_provider','Todos'),account=config.get('_account'),automatic=True,limit=12,cancelled=cancel.is_set)
+        finally:value.close()
+    if action=='effects_load':
+        from jukebox import fetch_audio
+        return fetch_audio(config,config['record'],cancel.is_set,lambda value:emit('stage',message=str(value)+'%'),analyze=False)
+
     if action=="lyrics_online":
         from lyrics_service import fetch_lyrics
         try:return fetch_lyrics(config["source"],config.get("record"),cancel,alternatives=config.get('alternatives',False))

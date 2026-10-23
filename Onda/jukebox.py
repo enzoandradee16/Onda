@@ -9,7 +9,7 @@ import cmath, hashlib, json, math, os, random, subprocess, threading, time, uuid
 
 RATE, CHANNELS, VERSION = 44100, 2, 1
 MAX_SECONDS = 1200
-PHRASE_VERSION = 2
+PHRASE_VERSION = 3
 _active=Counter()
 _active_lock=threading.Lock()
 
@@ -239,13 +239,13 @@ def analyse_wave(path,cancelled=lambda:False,progress=lambda _:None):
         descriptors.append([sum(row[k] for row in features[a:b])/(b-a) for k in range(20)])
         levels.append(sum(energies[a:b])/(b-a))
     n=len(descriptors);neighbors=[[] for _ in range(n)]
+    reliable=confidence>=.22
     buckets={}
-    for i,vector in enumerate(descriptors):buckets.setdefault((i%4,max(range(12),key=vector.__getitem__)),[]).append(i)
+    for i,vector in enumerate(descriptors):buckets.setdefault((i%4 if reliable else 0,max(range(12),key=vector.__getitem__)),[]).append(i)
     for i in range(n):
         if i%32==0:check(cancelled);progress(85+int(i/max(1,n)*14))
-        if confidence<.22:continue
         following=(i+1)%n;anchor=descriptors[following];pitch=max(range(12),key=anchor.__getitem__)
-        candidates=buckets.get((following%4,pitch),[])
+        candidates=buckets.get((following%4 if reliable else 0,pitch),[])
         step=max(1,len(candidates)//160);ranked=[]
         for j in candidates[::step]:
             if abs(j-following)<12 or levels[j]<.004 or levels[following]<.004:continue
@@ -256,12 +256,12 @@ def analyse_wave(path,cancelled=lambda:False,progress=lambda _:None):
             a,b=anchor,descriptors[j]
             chroma=sum(a[k]*b[k] for k in range(12))/(math.sqrt(sum(v*v for v in a[:12])*sum(v*v for v in b[:12])) or 1)
             timbre=sum(a[k]*b[k] for k in range(12,20))/(math.sqrt(sum(v*v for v in a[12:])*sum(v*v for v in b[12:])) or 1)
-            if chroma>=.94 and timbre>=.94:
+            if chroma>=(.94 if reliable else .97) and timbre>=(.94 if reliable else .97):
                 context=phrase_similarity(descriptors,following,j)
-                if context is not None:ranked.append((.35*chroma+.25*timbre+.4*context,j))
+                if context is not None and (reliable or context>=.97):ranked.append((.35*chroma+.25*timbre+.4*context,j))
         neighbors[i]=[j for _,j in sorted(ranked,reverse=True)[:5]]
     neighbors=energy_matched_links(neighbors,levels)
-    return {'version':VERSION,'phrase_version':PHRASE_VERSION,'duration':duration,'bpm':round(60/period,1),'beat_confidence':round(confidence,3),'beats':beats,'energy_levels':levels,'join_features':[[round(v,6) for v in row] for row in descriptors],'neighbors':neighbors,'links':sum(map(len,neighbors))}
+    return {'version':VERSION,'phrase_version':PHRASE_VERSION,'duration':duration,'bpm':round(60/period,1),'beat_confidence':round(confidence,3),'matching_mode':'beat' if reliable else 'conservative_phrase','beats':beats,'energy_levels':levels,'join_features':[[round(v,6) for v in row] for row in descriptors],'neighbors':neighbors,'links':sum(map(len,neighbors))}
 
 def cache_root():
     from cache_cleanup import root_path
@@ -376,6 +376,7 @@ class Session:
         self.equalizer=Equalizer(RATE)
         self.index=0;self.since_jump=0;self.jumps=0;self.random=random.Random(seed);self.closed=False;self.fade_in=0
         n=len(self.model['neighbors']);self.visits=[0]*n;self.recent=[]
+        self.story_frontier=0;self.story_until=0;self.story_returns=0
         self.loop_end=loop_boundary(self.model['neighbors'])
         with _active_lock:_active[str(self.base)]+=1
     def _read(self,start,count):
@@ -385,6 +386,7 @@ class Session:
         if self.closed:raise ValueError('Reprodução encerrada.')
         if type(index)!=int or not 0<=index<len(self.model['neighbors']):raise ValueError('Trecho inválido.')
         self.index=index;self.since_jump=0;self.fade_in=round(RATE*.008)
+        self.story_frontier=index;self.story_until=index;self.story_returns=0
 
     def chunk(self,variation=45,smooth=35,volume=80,normal=False,equalizer=None):
         if self.closed:raise ValueError('Reprodução encerrada.')
@@ -396,10 +398,17 @@ class Session:
             self.loop_end=loop_boundary(self._eligible)
         options=self._eligible[i]
         if not normal:
-            looping=self.loop_end is not None and i<=self.loop_end
+            # A musical return is a reprise, not a permanent boundary: after two
+            # returns let the original timeline reach the remaining sections.
+            looping=self.loop_end is not None and i<=self.loop_end and self.story_returns<2
             if looping:options=[j for j in options if j<=self.loop_end]
             returning=looping and i==self.loop_end
             if returning:options=[j for j in options if j<i-4]
+            # Finish the revisited phrase and move beyond the previous frontier
+            # before another optional jump. Forward jumps remain phrase-sized.
+            progressing=self.story_until>0 and i<=self.story_until
+            if not returning:
+                options=[] if progressing else [j for j in options if j<=i+32]
             # Most faithful still loops: low probability, with a bounded wait for an eligible edge.
             probability=branch_probability(variation,self.since_jump)
             if (i+1)%4 and sustained_midrange(self.model,i,self.boundary_levels)>.6:probability*=.35
@@ -421,6 +430,13 @@ class Session:
                     next_index=self.random.choice([j for j in candidates if costs[j]<=best+.35])
         self.visits[i]+=1
         jumped=next_index!=(i+1)%n
+        if not normal:
+            self.story_frontier=max(self.story_frontier,i)
+            if jumped:
+                if returning:self.story_returns+=1
+                self.story_until=min(n-1,max(self.story_frontier,i,next_index)+8)
+            if next_index==0:
+                self.story_frontier=0;self.story_until=0;self.story_returns=0
         if jumped:self.recent=(self.recent+[next_index])[-8:]
         start,end=round(beats[i]*RATE),round(beats[i+1]*RATE)
         raw=self._read(start,end-start)
@@ -479,7 +495,7 @@ class SearchLog:
     def warning(self,message):check(self.cancelled)
     def error(self,message):check(self.cancelled)
 
-def fetch_audio(config,record=None,cancelled=lambda:False,progress=lambda _:None):
+def fetch_audio(config,record=None,cancelled=lambda:False,progress=lambda _:None,*,analyze=True):
     """Reuse catalog matching and the existing bounded download recovery; cache only."""
     from engine import build_options,download_with_recovery,validate_url
     from metadata import is_streaming_link
@@ -520,6 +536,13 @@ def fetch_audio(config,record=None,cancelled=lambda:False,progress=lambda _:None
         result=download_with_recovery(url,options,configure,saved)
         check(cancelled)
         if result or len(saved)!=1:raise ValueError('Não foi possível obter uma única faixa de áudio.')
+        if not analyze:
+            import uuid,shutil
+            destination=root/('effects-'+uuid.uuid4().hex)
+            destination.mkdir()
+            source=destination/('audio'+Path(saved[0]).suffix)
+            shutil.copy2(saved[0],source)
+            return {'source':str(source),'record':record or {}}
         model=prepare(saved[0],config.get('ffmpeg',''),cancelled,progress)
     model['source']=str(Path(model['cache'])/'audio.wav')
     if record:
