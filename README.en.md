@@ -23,8 +23,8 @@ On PC, right-click lists or cards to open the actions available in that tab. Shi
 - **Windows:** clicking Download now in search opens format and quality selection: MP3, M4A, FLAC or original audio. Saved preferences are preselected. Download immediately or add to the queue; cancelling starts nothing. The selection applies to that track.
 - **Desktop mini players:** Effects and Jukebox share the same design, each with its own artwork, album, transport, volume, lyrics and queue. They remain visible when ONDA is minimized. Appearance settings control whether ONDA minimizes when opening a mini player; drag the header, artwork or track information to move it.
 - **Android:** Search, Downloads, Playback and More navigation, with In progress / Completed and Effects / Jukebox using the same rounded selector as Saved / Import. Includes an expanded player, full-screen lyrics and independent playback queues.
-- **Custom installer:** “Sua ONDA começa aqui.”, folder and shortcut selection, progress and completion. Choose Portuguese, Spanish or English from the opening screen, including uninstaller messages. This does not change the language saved in the app.
-- **Custom uninstaller:** the same design as the installer, with “Até a próxima ONDA.”, three languages and independent options to delete settings/queue/history and remove downloaded tools. Both start off. Downloads, external cookies and personal tools are preserved.
+- **Custom installer:** “Your ONDA starts here.”, folder and shortcut selection, progress and completion. Choose Portuguese, Spanish or English from the opening screen, including uninstaller messages. This does not change the language saved in the app.
+- **Custom uninstaller:** the same design as the installer, with “Until the next ONDA.”, three languages and independent options to delete settings/queue/history and remove downloaded tools. Both start off. Downloads, external cookies and personal tools are preserved.
 
 ## Library and organization
 

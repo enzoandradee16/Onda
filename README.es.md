@@ -23,8 +23,8 @@ En PC, haz clic derecho en las listas o tarjetas para abrir las acciones disponi
 - **Windows:** Descargar ahora en la búsqueda abre la elección de formato y calidad: MP3, M4A, FLAC o audio original. Parte de las preferencias guardadas. Permite descargar o añadir a la cola; cancelar no inicia nada. La elección se aplica a esa canción.
 - **Minirreproductores del PC:** Efectos y Jukebox comparten el diseño, cada uno con portada, álbum, controles, volumen, letras y cola propios. Siguen visibles al minimizar ONDA. Apariencia permite elegir si ONDA se minimiza al abrirlos; el encabezado, la portada y los datos de la canción permiten mover la ventana.
 - **Android:** navegación por Buscar, Descargas, Reproducción y Más, con En curso / Completados y Efectos / Jukebox usando el mismo selector redondeado de Guardados / Importar. Incluye reproductor ampliado, letras a pantalla completa y colas independientes.
-- **Instalador propio:** “Sua ONDA começa aqui.”, selección de carpeta y acceso directo, progreso y finalización. Portugués, español e inglés se eligen desde la apertura, incluidos los mensajes del desinstalador. No cambia el idioma guardado en la aplicación.
-- **Desinstalador propio:** el mismo diseño del instalador, con “Até a próxima ONDA.”, tres idiomas y opciones independientes para borrar configuración/cola/historial y eliminar herramientas descargadas. Ambas empiezan desactivadas. Se conservan descargas, cookies externos y herramientas personales.
+- **Instalador propio:** “Tu ONDA empieza aquí.”, selección de carpeta y acceso directo, progreso y finalización. Portugués, español e inglés se eligen desde la apertura, incluidos los mensajes del desinstalador. No cambia el idioma guardado en la aplicación.
+- **Desinstalador propio:** el mismo diseño del instalador, con “Hasta la próxima ONDA.”, tres idiomas y opciones independientes para borrar configuración/cola/historial y eliminar herramientas descargadas. Ambas empiezan desactivadas. Se conservan descargas, cookies externos y herramientas personales.
 
 ## Biblioteca y organización
 
