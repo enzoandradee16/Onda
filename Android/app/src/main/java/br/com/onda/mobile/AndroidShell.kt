@@ -43,6 +43,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
+import androidx.compose.ui.graphics.drawscope.rotate
 
 /** Small vector icons keep the shell independent of downloadable fonts. */
 @Composable internal fun OndaIcon(name:String,description:String?=null,modifier:Modifier=Modifier,tint:Color=LocalContentColor.current) {
@@ -52,10 +53,20 @@ import org.json.JSONObject
         fun line(x:Float,y:Float,a:Float,b:Float)=drawLine(tint,Offset(x*u,y*v),Offset(a*u,b*v),stroke,StrokeCap.Round)
         fun path(vararg points:Pair<Float,Float>,close:Boolean=false) {drawPath(Path().apply {points.forEachIndexed {i,p->if(i==0)moveTo(p.first*u,p.second*v) else lineTo(p.first*u,p.second*v)};if(close)close()},tint,style=Stroke(stroke,cap=StrokeCap.Round))}
         when(name) {
+            "share"->{line(6f,12f,18f,5f);line(6f,12f,18f,19f);listOf(6f to 12f,18f to 5f,18f to 19f).forEach {(x,y)->drawCircle(tint,3f*u,Offset(x*u,y*v),style=Stroke(stroke))}}
+            "mini"->{path(3f to 4f,21f to 4f,21f to 20f,3f to 20f,close=true);path(12f to 12f,19f to 12f,19f to 18f,12f to 18f,close=true)}
+            "queue"->{for(y in listOf(5f,12f,19f)){drawCircle(tint,1f*u,Offset(3*u,y*v));line(7f,y,21f,y)}}
+            "expand"->{path(3f to 9f,3f to 3f,9f to 3f);path(15f to 3f,21f to 3f,21f to 9f);path(21f to 15f,21f to 21f,15f to 21f);path(9f to 21f,3f to 21f,3f to 15f)}
             "search"->{drawCircle(tint,7*u,Offset(10*u,10*v),style=Stroke(stroke));line(15f,15f,21f,21f)}
             "download"->{line(12f,3f,12f,16f);path(7f to 11f,12f to 16f,17f to 11f);path(4f to 18f,4f to 21f,20f to 21f,20f to 18f)}
             "play"->path(7f to 4f,20f to 12f,7f to 20f,close=true)
             "pause"->{line(8f,5f,8f,19f);line(16f,5f,16f,19f)}
+            "microphone"->rotate(45f) {
+                val micStroke=Stroke(1.4f*u,cap=StrokeCap.Round,join=androidx.compose.ui.graphics.StrokeJoin.Round)
+                drawOval(tint,Offset(6.5f*u,2*v),androidx.compose.ui.geometry.Size(11*u,10*v),style=micStroke)
+                drawLine(tint,Offset(7*u,7*v),Offset(17*u,7*v),1.4f*u,StrokeCap.Round)
+                drawPath(Path().apply {moveTo(9*u,12*v);lineTo(10*u,21*v);lineTo(14*u,21*v);lineTo(15*u,12*v)},tint,style=micStroke)
+            }
             "stop"->drawRect(tint,Offset(6*u,6*v),androidx.compose.ui.geometry.Size(12*u,12*v),style=Stroke(stroke))
             "more-vertical"->listOf(5f,12f,19f).forEach {drawCircle(tint,1.5f*u,Offset(12*u,it*v))}
             "more"->listOf(5f,12f,19f).forEach {drawCircle(tint,1.5f*u,Offset(it*u,12*v))}
@@ -64,6 +75,8 @@ import org.json.JSONObject
             "previous"->{path(18f to 5f,8f to 12f,18f to 19f,close=true);line(5f,5f,5f,19f)}
             "paste"->{path(8f to 5f,4f to 5f,4f to 22f,20f to 22f,20f to 5f,16f to 5f);path(8f to 2f,16f to 2f,16f to 7f,8f to 7f,close=true)}
             "back"->path(15f to 4f,7f to 12f,15f to 20f)
+            "up"->path(5f to 15f,12f to 8f,19f to 15f)
+            "down"->path(5f to 9f,12f to 16f,19f to 9f)
             "check"->path(5f to 12f,10f to 17f,20f to 6f)
             "chevron"->path(9f to 5f,16f to 12f,9f to 19f)
             "image"->{path(3f to 3f,21f to 3f,21f to 21f,3f to 21f,close=true);path(3f to 18f,10f to 11f,15f to 16f,18f to 13f,21f to 16f);drawCircle(tint,2*u,Offset(16*u,8*v),style=Stroke(stroke))}
@@ -173,19 +186,44 @@ private val LocalPageSwipeExclusions=staticCompositionLocalOf<MutableMap<Any,Lay
     val initialState=remember(vm){vm.jukebox.state.value}
     val state by updates.collectAsStateWithLifecycle(initialValue=initialState)
     val queuedTracks by vm.jukebox.playbackQueue.collectAsStateWithLifecycle()
+    val currentQueueId by vm.jukebox.currentQueueId.collectAsStateWithLifecycle()
+    val volume by vm.jukebox.volume.collectAsStateWithLifecycle()
     if(state.model==null || !state.playing)return
     var showEqualizer by rememberSaveable {mutableStateOf(false)}
     if(showEqualizer)JukeboxEqualizerDialog {showEqualizer=false}
     val model=state.model
     val embedded=model?.optString("media_cover").orEmpty()
     val cover=remember(embedded,model?.optString("cover_url")){if(embedded.isNotBlank())runCatching {android.util.Base64.decode(embedded,android.util.Base64.DEFAULT)}.getOrNull() else model?.optString("cover_url")}
-    Surface(Modifier.fillMaxWidth().padding(horizontal=12.dp,vertical=4.dp).testTag("jukebox-miniplayer"),shape=RoundedCornerShape(16.dp),color=MaterialTheme.colorScheme.surfaceContainer) {
-        Row(Modifier.clickable(onClick=onOpen).padding(10.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(4.dp)) {
+    var controls by remember {mutableStateOf(false)}
+    var timers by remember {mutableStateOf(false)}
+    var showQueue by remember {mutableStateOf(false)}
+    if(timers)JukeboxTimerDialog(vm.jukebox){timers=false}
+    if(showQueue)JukeboxQueueDialog(vm.jukebox,vm){showQueue=false}
+    Surface(Modifier.fillMaxWidth().padding(horizontal=LayoutSpacing.inset,vertical=LayoutSpacing.details).testTag("jukebox-miniplayer"),shape=RoundedCornerShape(16.dp),color=MaterialTheme.colorScheme.surfaceContainer) {
+        Column {
+        Row(Modifier.clickable(onClick=onOpen).padding(LayoutSpacing.controls),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(LayoutSpacing.details)) {
             AsyncImage(cover,translateUi("Capa do álbum"),Modifier.size(48.dp).clip(RoundedCornerShape(8.dp)),contentScale=ContentScale.Crop)
             Column(Modifier.weight(1f)) {Text(state.title,maxLines=1,overflow=TextOverflow.Ellipsis,style=MaterialTheme.typography.labelLarge);Text(model?.optString("media_artist").orEmpty(),maxLines=1,overflow=TextOverflow.Ellipsis,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)}
-            IconButton(onClick={showEqualizer=true}){OndaIcon("equalizer","Equalizador",Modifier.size(23.dp))}
+        }
+        Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceEvenly) {
+            JukeboxLyricsButton(vm)
+            IconButton(onClick=vm.jukebox::previousTrack){OndaIcon("previous","Retroceder",Modifier.size(23.dp))}
             IconButton(onClick=vm.jukebox::playPause){OndaIcon(if(state.paused)"play" else "pause",if(state.paused)"Retomar" else "Pausar",Modifier.size(23.dp))}
-            if(queuedTracks.isNotEmpty())IconButton(onClick={vm.jukebox.playQueued(0)},enabled=queuedTracks.first().optString("_analysis")=="Pronta"&&!state.busy,modifier=Modifier.testTag("miniplayer-next-song")){OndaIcon("next","Próxima música",Modifier.size(23.dp))}
+            IconButton(onClick=vm.jukebox::nextTrack,enabled=vm.jukebox.nextQueueIndex<queuedTracks.size&&!state.busy,modifier=Modifier.testTag("miniplayer-next-song")){OndaIcon("next","Próxima música",Modifier.size(23.dp))}
+            Box {
+                IconButton(onClick={controls=true}){OndaIcon("more","Controles da reprodução",Modifier.size(23.dp))}
+                DropdownMenu(controls,{controls=false}) {
+                    DropdownMenuItem(text={UiText("Parar")},onClick={controls=false;vm.jukebox.stop()})
+                    DropdownMenuItem(text={UiText("Equalizador")},onClick={controls=false;showEqualizer=true})
+                    DropdownMenuItem(text={UiText("Timer")},onClick={controls=false;timers=true})
+                    DropdownMenuItem(text={UiText("Fila de reprodução")},onClick={controls=false;showQueue=true})
+                    Row(Modifier.width(220.dp).padding(horizontal=12.dp),verticalAlignment=Alignment.CenterVertically) {
+                        UiText("Volume",style=MaterialTheme.typography.labelSmall)
+                        RoundSlider(volume,vm.jukebox::setVolume,slim=true,modifier=Modifier.weight(1f).a11yLabel("Volume"))
+                    }
+                }
+            }
+        }
         }
     }
 }

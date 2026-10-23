@@ -208,12 +208,32 @@ class NativeDesktopTests(unittest.TestCase):
         with patch.object(self.bridge,'playPause') as pause:
             self.ws.selectPage('catalog');pause.assert_not_called()
             self.ws.selectPage('jukebox');self.ws.setSetting('jukebox_background',False)
-            self.ws.selectPage('catalog');pause.assert_called_once()
+            self.ws.selectPage('catalog');pause.assert_not_called()
         self.ws.setSetting('background_preview',True);self.ws.persist()
         saved=self.store.load()
-        self.assertTrue(saved['background_preview']);self.assertFalse(saved['jukebox_background'])
+        self.assertNotIn('Continuar Jukebox em outras abas',(Path(__file__).parent/'settings_schema/desktop.json').read_text('utf-8'))
         self.ws.setSetting('jukebox_transition_seconds',8)
         self.assertEqual(self.ws.settings['jukebox_transition_seconds'],8)
+
+    def test_effects_timers_pause_and_control_only_effects(self):
+        from unittest.mock import Mock
+        player=Mock(active=True);player.messages.return_value=[];player.position_snapshot.return_value=0
+        player.stop.side_effect=lambda:setattr(player,'active',False)
+        self.ws.preview_kind='effects';self.ws.effects_timer_clock=99
+        with patch.object(self.ws,'player',player),patch.object(self.bridge,'setSleep') as jukebox_sleep:
+            self.ws.invoke('effects_timer',{'minutes':1})
+            with patch('qt_workspace_ui.time.monotonic',return_value=100):self.ws.tick()
+            self.assertEqual(self.ws.options['effectsStopRemaining'],59)
+            player.active=False
+            with patch('qt_workspace_ui.time.monotonic',return_value=120):self.ws.tick()
+            self.assertEqual(self.ws.options['effectsStopRemaining'],59)
+            player.active=True
+            with patch('qt_workspace_ui.time.monotonic',return_value=180):self.ws.tick()
+            self.assertFalse(player.active);jukebox_sleep.assert_not_called()
+            player.active=True;self.ws.preview_kind='effects'
+            self.ws.invoke('effects_timer',{'next':True,'minutes':1})
+            with patch.object(self.ws,'play_effects_entry') as next_track,patch('qt_workspace_ui.time.monotonic',return_value=241):
+                self.ws.tick();next_track.assert_called_once_with(0)
 
     def test_playback_navigation_opens_first_configured_tab(self):
         self.ws.setSetting('playback_tab_order','Jukebox infinito primeiro')
@@ -648,12 +668,12 @@ class NativeDesktopTests(unittest.TestCase):
             self.ws.setOption('speed',90);self.assertFalse(self.ws.preview_timer.isActive())
             self.ws.invoke('preview_catalog',{'index':0});self.assertFalse(self.ws.options['previewActive'])
             self.ws.selectPage('effects');self.ws.options['effectsSource']='test.wav';self.ws.setSetting('effects_preview_duration','180 segundos');self.ws.setSetting('effects_keep_pitch',True)
-            self.ws.invoke('effects_preview',{'processed':True});self.assertEqual(player.play.call_args.kwargs['duration'],180);self.assertTrue(player.play.call_args.kwargs['keep_pitch'])
+            self.ws.invoke('effects_preview',{'processed':True});self.assertEqual(player.play.call_args.kwargs['duration'],25);self.assertTrue(player.play.call_args.kwargs['keep_pitch'])
             self.ws.setSetting('background_preview',True);self.ws.selectPage('downloads');self.assertTrue(player.active)
-            self.ws.setSetting('background_preview',False);self.assertFalse(player.active)
+            self.ws.setSetting('background_preview',False);self.assertTrue(player.active)
             self.ws.selectPage('effects');self.ws.invoke('effects_preview',{'processed':False});self.assertFalse(self.ws.options['previewProcessed'])
             self.ws.invoke('effects_preview',{'processed':False});self.assertFalse(player.active)
-            self.ws.invoke('effects_preview',{'processed':True});self.ws.selectPage('catalog');self.assertFalse(player.active)
+            self.ws.invoke('effects_preview',{'processed':True});self.ws.selectPage('catalog');self.assertTrue(player.active)
     def test_platform_icons_are_tinted_and_load_in_both_themes(self):
         from qt_desktop_ui import create_application,close_application
         from PySide6.QtQml import QQmlComponent

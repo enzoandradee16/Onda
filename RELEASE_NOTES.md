@@ -1,13 +1,19 @@
-# ONDA 1.1.7
+# ONDA 1.2.0-rc2
 
-- Jukebox Infinito no PC e Android, dentro de Reprodução e efeitos: arquivos locais, pesquisa e links com escolha explícita da música, análise em cache e saltos entre trechos compatíveis.
-- Melhor continuidade dos loops, comparação da energia de 4 e 8 beats e saltos pouco frequentes em Mais fiel. A qualidade das transições depende da faixa.
-- Grafo mostra o trajeto reproduzido; marcador sincronizado com o áudio e pulsação nas batidas estimadas. Melhor contraste nos temas escuros do Android.
-- Equalizador paramétrico de 10 bandas exclusivo do Jukebox, controles verticais, frequência, ganho, Q, pré-amplificação e sete presets compartilhados. Ajustes preservados com Lembrar configurações.
-- Android: reprodução opcional em segundo plano e notificação de mídia com capa, título e artista quando disponíveis. PC: integração com controles de mídia do Windows.
-- Melhorias de desempenho na fila, histórico, detecção de duplicatas, gravação das preferências de áudio e processamento PCM. Remoção de imports e estado sem uso.
-- PC: correção do ícone na abertura, capa maior e ajuste do slider de volume no Jukebox.
+Pré-release para testes. Este pacote será mantido como rascunho no GitHub.
 
-Windows 10/11 x64: portátil e instalador 1.1.7.0, sem assinatura Authenticode. Android 8+: versão 1.1.7, código 25, assinada com a mesma chave de produção. APKs separados para ARM64 e x86_64.
+- Android: Efeitos e Jukebox com músicas e filas independentes, reprodução integral e notificação de mídia de Efeitos.
+- Player compacto com capa, título, artista, fila e reprodução/pausa; ao tocar, abre a reprodução expandida com a capa do álbum.
+- Barra compacta com cores da capa e efeito liquid glass, adaptada a temas claros, escuros e alto contraste.
+- Letras com card de prévia, janela em tela cheia, acompanhamento dos versos, destaque por palavra, animações e navegação por toque.
+- Filas com metadados, reordenação e transição gradual. Controles de reprodução do PC centralizados e timer independente de Efeitos.
+- Pesquisa e abertura de arquivos na mesma linha; configurações de prévia e continuidade simplificadas. Volume Android controlado pelo sistema.
 
-O Jukebox usa análise local independente; não é uma integração com o serviço Eternal Jukebox. Sem trechos compatíveis, a faixa se repete normalmente. Serviços online podem exigir sessão e disponibilidade. Este rascunho não está publicado.
+## Validação
+
+- 73 testes do PC aprovados, incluindo versão e regressões Qt.
+- 68 testes JVM do Android aprovados, incluindo cor da capa e contraste.
+- Testes instrumentados compilados; execução e conferência visual em aparelho pendentes.
+- Portátil rc2 aprovado no teste isolado de abertura.
+
+Windows 10/11 x64: versão 1.2.0-rc2, metadados numéricos 1.2.0.0, sem assinatura Authenticode. Android 8+: versão interna 1.2.0, código 26, APKs ARM64 e x86_64 com a assinatura de produção original. Os nomes dos arquivos identificam esta pré-release. Nenhum instalador foi executado contra uma instalação pessoal nesta preparação.

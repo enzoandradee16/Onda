@@ -42,6 +42,8 @@ class JukeboxService:Service() {
             override fun onPlay(){if(!controller.state.value.playing || controller.state.value.paused)controller.playPause()}
             override fun onPause(){controller.pause()}
             override fun onStop(){controller.stop()}
+            override fun onSkipToPrevious(){controller.previousTrack()}
+            override fun onSkipToNext(){controller.nextTrack()}
         },Handler(Looper.getMainLooper()))
         val notification=notification()
         if(Build.VERSION.SDK_INT>=29)startForeground(13,notification,ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK) else startForeground(13,notification)
@@ -94,7 +96,7 @@ class JukeboxService:Service() {
     }
     private fun refresh() {
         val state=controller.state.value;val model=state.model
-        session.setPlaybackState(PlaybackState.Builder().setActions(PlaybackState.ACTION_PLAY or PlaybackState.ACTION_PAUSE or PlaybackState.ACTION_PLAY_PAUSE or PlaybackState.ACTION_STOP)
+        session.setPlaybackState(PlaybackState.Builder().setActions(PlaybackState.ACTION_PLAY or PlaybackState.ACTION_PAUSE or PlaybackState.ACTION_PLAY_PAUSE or PlaybackState.ACTION_STOP or PlaybackState.ACTION_SKIP_TO_PREVIOUS or PlaybackState.ACTION_SKIP_TO_NEXT)
             .setState(if(state.paused)PlaybackState.STATE_PAUSED else PlaybackState.STATE_PLAYING,PlaybackState.PLAYBACK_POSITION_UNKNOWN,if(state.paused)0f else 1f).build())
         session.setMetadata(MediaMetadata.Builder().putString(MediaMetadata.METADATA_KEY_TITLE,model?.optString("media_title")?.takeIf {it.isNotBlank()} ?: state.title.ifBlank {translateUi("Jukebox infinito")})
             .putString(MediaMetadata.METADATA_KEY_ARTIST,model?.optString("media_artist").orEmpty()).putBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART,artwork).build())

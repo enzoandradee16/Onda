@@ -3,6 +3,8 @@ import QtQuick.Controls
 import QtQuick.Layouts
 Pane {
     LyricsWindow { id: lyricsWindow }
+    EffectsQueueDrawer {parent: Overlay.overlay}
+    EffectsMiniPlayer {id: effectsFloatingPlayer; mainWindow: app.Window.window}
     MiniPlayer { id: floatingPlayer; mainWindow: app.Window.window; volumeValue: volume.value; onVolumeMoved: function(value){volume.value=value} }
 
     Connections { target: workspace; function onLyricsRequested() {lyricsWindow.open()} }
@@ -68,7 +70,7 @@ Pane {
                 implicitHeight: toolProgressBody.implicitHeight+32
                 ColumnLayout {
                     id: toolProgressBody; anchors.fill: parent; anchors.margins: 16; spacing: 10
-                    Label { Layout.fillWidth: true; wrapMode: Text.Wrap; color: bridge.palette.text; text: bridge.translate(workspace.activity.tools.message || "Preparando ferramentas…") }
+                    Label { visible: !!workspace.activity.tools.message && !/^Preparando/i.test(workspace.activity.tools.message); Layout.fillWidth: true; wrapMode: Text.Wrap; color: bridge.palette.text; text: bridge.translate(workspace.activity.tools.message || "") }
                     OndaProgressBar { Layout.fillWidth: true; from: 0; to: Math.max(1,workspace.activity.tools.total || 0); value: workspace.activity.tools.done || 0; indeterminate: !(workspace.activity.tools.total > 0) }
                     Label { visible: workspace.activity.tools.total > 0; color: bridge.palette.muted; text: Math.min(100,Math.round(100*(workspace.activity.tools.done || 0)/Math.max(1,workspace.activity.tools.total || 0)))+"%" }
                 }
@@ -136,16 +138,31 @@ Pane {
                 objectName: "effectsPlaybackBar"
                 visible: workspace.currentPage === "effects"; Layout.fillWidth: true; implicitHeight: 118; color: bridge.palette.surface
                 Rectangle { anchors.top: parent.top; width: parent.width; height: 1; color: bridge.palette.line }
-                RowLayout {
-                    anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right; height: 64; anchors.leftMargin: 24; anchors.rightMargin: 24; spacing: Math.round(12*bridge.spacing)
+                Item {
+                    objectName: "effectsPlaybackControls"
+                    anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; height: 64
+                    RowLayout {
+                        anchors.left: parent.left; anchors.leftMargin: 24; anchors.verticalCenter: parent.verticalCenter; spacing: Math.round(12*bridge.spacing)
+                    TimerButton {onClicked: effectsTimers.open()}
+                    MicrophoneButton { onClicked: {if(lyricsWindow.visible)lyricsWindow.close();else lyricsWindow.open()} }
+
+                    }
+                    RowLayout {
+                        id: effectsTransport
+                        objectName: "effectsPlaybackControlsTransport"
+                        anchors.centerIn: parent; spacing: Math.round(12*bridge.spacing)
                     PlaybackButton { glyph: "previous"; Accessible.name: bridge.translate("Retroceder"); enabled: !!workspace.values.effectsSource; onClicked: workspace.invoke("effects_previous",{}) }
                     PlaybackButton { objectName: "effectsPlayButton"; primary: true; glyph: workspace.values.previewActive && workspace.values.previewKind==="effects" ? "pause" : "play"; Accessible.name: bridge.translate(glyph==="pause" ? "Pausar" : "Reproduzir"); enabled: !!workspace.values.effectsSource && workspace.values.duration>0; onClicked: workspace.invoke("effects_play_pause",{}) }
                     PlaybackButton { glyph: "next"; Accessible.name: bridge.translate("Avançar"); enabled: workspace.values.effectsQueueIndex+1<workspace.values.effectsQueue.length; onClicked: workspace.invoke("effects_next",{}) }
-                    PlaybackButton { glyph: "stop"; Accessible.name: bridge.translate("Parar"); enabled: !!workspace.values.effectsSource; onClicked: workspace.invoke("effects_stop",{}) }
-                    MicrophoneButton { onClicked: {if(lyricsWindow.visible)lyricsWindow.close();else lyricsWindow.open()} }
+                    }
+                    RowLayout {
+                        anchors.right: parent.right; anchors.rightMargin: 24; anchors.verticalCenter: parent.verticalCenter
+                        width: Math.max(180,parent.width/2-effectsTransport.width/2-48); spacing: Math.round(12*bridge.spacing)
+                    PlaybackButton {glyph:"queue";Accessible.name:bridge.translate("Fila");onClicked:workspace.setOption("effectsQueueOpen",true)}
+                    PlaybackButton {glyph:"mini";Accessible.name:bridge.translate("Mini player");onClicked:{effectsFloatingPlayer.show();effectsFloatingPlayer.raise();if(workspace.preferences.minimize_on_miniplayer !== false)app.Window.window.showMinimized()}}
                     LineIcon { glyph: "volume"; Layout.preferredWidth: 24; Layout.preferredHeight: 24 }
-                    OndaSlider { Layout.fillWidth: true; Layout.maximumWidth: 250; Layout.minimumWidth: 70; value: workspace.values.effectsVolume; Accessible.name: bridge.translate("Volume"); onMoved: workspace.setOption("effectsVolume",value) }
-                    Item {Layout.fillWidth: true}
+                    OndaSlider { Layout.fillWidth: true; Layout.preferredWidth: 250; Layout.maximumWidth: 250; Layout.minimumWidth: 70; value: workspace.values.effectsVolume; Accessible.name: bridge.translate("Volume"); onMoved: workspace.setOption("effectsVolume",value) }
+                    }
                 }
                 RowLayout {
                     anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom; anchors.margins: 24; anchors.bottomMargin: 10; height: 32; spacing: 12
@@ -155,10 +172,24 @@ Pane {
                 }
             }
             Rectangle {
+                objectName: "jukeboxPlaybackBar"
                 visible: workspace.currentPage === "jukebox"; Layout.fillWidth: true; implicitHeight: 78; color: bridge.palette.surface
                 Rectangle { anchors.top: parent.top; width: parent.width; height: 1; color: bridge.palette.line }
-                RowLayout {
-                    anchors.fill: parent; anchors.leftMargin: 24; anchors.rightMargin: 24; spacing: Math.round(12*bridge.spacing)
+                Item {
+                    objectName: "jukeboxPlaybackControls"
+                    anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; height: parent.height
+                    RowLayout {
+                        anchors.left: parent.left; anchors.leftMargin: 24; anchors.verticalCenter: parent.verticalCenter; spacing: Math.round(12*bridge.spacing)
+                    TimerButton { onClicked: miniTimers.open() }
+                    MicrophoneButton { onClicked: { if (lyricsWindow.visible) lyricsWindow.close(); else lyricsWindow.open() } }
+                    Column { spacing: Math.round(5*bridge.spacing); Text { text: bridge.translate("Tempo ouvido"); font.pixelSize: Math.round(11*bridge.fontScale); color: bridge.palette.muted } Text { text: bridge.elapsed; font.pixelSize: Math.round(14*bridge.fontScale); color: bridge.palette.text } }
+                    Rectangle { width: 1; height: 30; color: bridge.palette.line; Layout.leftMargin: 8; Layout.rightMargin: 8 }
+                    Column { spacing: Math.round(5*bridge.spacing); Text { text: bridge.translate("Saltos"); font.pixelSize: Math.round(11*bridge.fontScale); color: bridge.palette.muted } Text { text: bridge.jumps; font.pixelSize: Math.round(14*bridge.fontScale); color: bridge.palette.text } }
+                    }
+                    RowLayout {
+                        id: jukeboxTransport
+                        objectName: "jukeboxPlaybackControlsTransport"
+                        anchors.centerIn: parent; spacing: Math.round(12*bridge.spacing)
                     PlaybackButton { glyph: "previous"; Accessible.name: bridge.translate("Retroceder"); enabled: bridge.state.ready; onClicked: bridge.previousTrack() }
                     PlaybackButton {
                         primary: true
@@ -168,16 +199,15 @@ Pane {
                         onClicked: bridge.playPause()
                     }
                     PlaybackButton { glyph: "next"; Accessible.name: bridge.translate("Avançar"); enabled: bridge.playback.current+1<bridge.queuedTracks.length; onClicked: bridge.nextTrack() }
-                    PlaybackButton { text: bridge.translate(bridge.state.busy ? "Cancelar" : "Parar"); glyph: bridge.state.busy ? "close" : "stop"; enabled: bridge.state.playing || bridge.state.busy; onClicked: bridge.stop() }
-                    MicrophoneButton { onClicked: { if (lyricsWindow.visible) lyricsWindow.close(); else lyricsWindow.open() } }
-                    TimerButton { onClicked: miniTimers.open() }
+                    }
+                    RowLayout {
+                        anchors.right: parent.right; anchors.rightMargin: 24; anchors.verticalCenter: parent.verticalCenter
+                        width: Math.max(180,parent.width/2-jukeboxTransport.width/2-48); spacing: Math.round(12*bridge.spacing)
+                    PlaybackButton {glyph:"queue";Accessible.name:bridge.translate("Fila");onClicked:{workspace.selectPage("jukebox");jukebox.queueExpanded=true}}
                     PlaybackButton { glyph: "mini"; Accessible.name: bridge.translate("Mini player"); ToolTip.visible: hovered; ToolTip.text: Accessible.name; onClicked: {floatingPlayer.show();floatingPlayer.raise();floatingPlayer.requestActivate();if(workspace.preferences.minimize_on_miniplayer !== false)app.Window.window.showMinimized()} }
                     LineIcon { glyph: "volume"; Layout.preferredWidth: 24; Layout.preferredHeight: 24 }
-                    OndaSlider { id: volume; Layout.fillWidth: true; Layout.maximumWidth: 250; Layout.minimumWidth: 70; value: 80; Accessible.name: bridge.translate("Volume") }
-                    Item { Layout.fillWidth: true }
-                    Column { spacing: Math.round(5*bridge.spacing); Text { text: bridge.translate("Tempo ouvido"); font.pixelSize: Math.round(11*bridge.fontScale); color: bridge.palette.muted } Text { text: bridge.elapsed; font.pixelSize: Math.round(14*bridge.fontScale); color: bridge.palette.text } }
-                    Rectangle { width: 1; height: 30; color: bridge.palette.line; Layout.leftMargin: 8; Layout.rightMargin: 8 }
-                    Column { spacing: Math.round(5*bridge.spacing); Text { text: bridge.translate("Saltos"); font.pixelSize: Math.round(11*bridge.fontScale); color: bridge.palette.muted } Text { text: bridge.jumps; font.pixelSize: Math.round(14*bridge.fontScale); color: bridge.palette.text } }
+                    OndaSlider { id: volume; Layout.fillWidth: true; Layout.preferredWidth: 250; Layout.maximumWidth: 250; Layout.minimumWidth: 70; value: 80; Accessible.name: bridge.translate("Volume") }
+                    }
                 }
             }
         }
@@ -190,6 +220,7 @@ Pane {
     }
     EqualizerPopup { id: miniEqualizer }
     TimerPopup { id: miniTimers }
+    TimerPopup { id: effectsTimers; effects: true }
     Popup {
         id: appearance
         objectName: "appearancePopup"

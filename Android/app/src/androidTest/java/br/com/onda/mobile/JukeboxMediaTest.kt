@@ -78,10 +78,19 @@ class JukeboxMediaTest {
             assertEquals(30,controller.timerMinutes.value);assertEquals(5,controller.switchMinutes.value)
             val trackField=JukeboxController::class.java.getDeclaredField("track").apply {isAccessible=true}
             val outputBefore=trackField.get(controller)
-            instrumentation.runOnMainSync {controller.playQueued(0)}
-            await {controller.playbackQueue.value.isEmpty() && controller.state.value.elapsed>.1}
+            val secondId=controller.playbackQueue.value[1].optString("_queue_id")
+            instrumentation.runOnMainSync {controller.nextTrack()}
+            await {controller.currentQueueId.value==secondId && controller.state.value.elapsed>.1}
             assertSame("Crossfade must reuse the same AudioTrack",outputBefore,trackField.get(controller))
+            assertEquals(2,controller.playbackQueue.value.size)
+            val firstId=controller.playbackQueue.value[0].optString("_queue_id")
+            instrumentation.runOnMainSync {controller.previousTrack()}
+            await {controller.currentQueueId.value==firstId}
+            instrumentation.runOnMainSync {controller.moveQueued(0,1)}
+            assertEquals(firstId,controller.currentQueueId.value)
+            instrumentation.runOnMainSync {controller.clearPlaybackQueue()}
             assertTrue(controller.playbackQueue.value.isEmpty())
+            assertTrue(controller.state.value.playing)
             assertEquals(30,controller.timerMinutes.value);assertEquals(5,controller.switchMinutes.value)
             instrumentation.runOnMainSync {controller.stop()}
             await {manager.activeNotifications.none {it.id==13}}
@@ -92,7 +101,9 @@ class JukeboxMediaTest {
         }
     }
     @Test fun backgroundIsExplicitAndPersistent() {
-        assertFalse(OndaStore.defaults().optBoolean("jukebox_background"))
-        assertTrue(categories.getValue("Áudio").contains("jukebox_background"))
+        assertTrue(OndaStore.defaults().optBoolean("jukebox_background"))
+        assertFalse(categories.getValue("Áudio").contains("jukebox_background"))
+        assertFalse(categories.getValue("Áudio").contains("keep_preview"))
+        assertFalse(categories.getValue("Áudio").contains("effects_preview"))
     }
 }

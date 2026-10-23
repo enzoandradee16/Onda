@@ -69,3 +69,6 @@ htmlcov/
 ._*
 
 /Portatil-Qt/
+
+# Anexos locais da conversa
+/.codex-remote-attachments/

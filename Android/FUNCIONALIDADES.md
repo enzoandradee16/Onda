@@ -57,3 +57,53 @@ Em Configurações → Aparência → Fonte da interface, escolha Padrão do sis
 ### Enter nos campos
 
 Em Pesquisar músicas, Enter do teclado físico ou a ação Pesquisar do teclado virtual inicia a busca, sem inserir uma linha. Os demais campos são de uma linha. Somente o campo LINKS em Links e fila aceita Enter para separar os links.
+
+## Barra de reprodução em Efeitos
+
+A barra fixa abaixo dos ajustes segue o transporte do PC: reproduz a faixa inteira com os efeitos atuais, pausa preservando a posição, retoma desse ponto e volta ao início ao parar. A linha do tempo mostra a posição na música original mesmo quando a velocidade muda; o volume é independente do Jukebox. O preset Original permite ouvir sem efeitos.
+
+Abrir áudio aceita vários arquivos. Os botões anterior/próximo navegam pelos arquivos carregados, e a reprodução avança ao terminar uma faixa. Sem faixa anterior, Retroceder volta ao início. A barra e o acesso à letra permanecem visíveis durante a rolagem dos ajustes.
+
+As filas de Efeitos e Jukebox permitem tocar, mover, remover e limpar entradas, preservando a música atual. A fila de Efeitos mostra capa, artista e duração; resultados de pesquisa têm ações distintas para reproduzir e adicionar à fila. A transição gradual respeita os segundos definidos em Áudio e prepara a próxima faixa antes da troca.
+
+O botão de microfone abre a letra completa, com rolagem acompanhando o verso atual, toque para navegar e controles de transporte. O miniplayer do Jukebox oferece anterior/próximo e acesso a letras, parar, equalizador, timer, fila e volume. Cards e barras acompanham o espaçamento escolhido em Aparência.
+
+Consulte a [revisão de paridade dos três commits](../docs/PARIDADE-ANDROID-2026-10-23.md) para os comportamentos verificados e os limites da validação.
+
+### Abas independentes e notificação de Efeitos
+
+Efeitos e Jukebox mantêm músicas e filas separadas. Alternar as abas não copia a música nem inicia uma análise na outra aba. Os ajustes de cada aba são preservados durante a alternância. Ao iniciar a reprodução em uma delas, a outra pausa.
+
+A reprodução integral de Efeitos usa uma notificação de mídia própria, com título, artista, capa, posição e controles de reprodução, pausa, anterior, próxima faixa disponível e parada. Tocar na notificação abre Efeitos. A fila e as transições continuam sendo controladas fora da tela, permitindo avançar sem manter a aba aberta.
+
+Na barra de Efeitos, a ordem é Letra, Retroceder, Pausar/Reproduzir e Avançar. No Jukebox, a mesma sequência é seguida por Mais; Parar/Cancelar fica nesse menu.
+
+A barra de Efeitos usa uma única linha: Letra, Retroceder, Pausar/Reproduzir, Avançar, Fila e Mais. Não há botão de miniplayer nem linha auxiliar. O botão Fila abre um painel pela direita, com capa, título, artista e duração, além de tocar, mover, remover e limpar entradas. O transporte do Jukebox também apresenta Fila entre Avançar e Mais.
+
+O volume das duas reproduções é controlado pelo sistema Android, inclusive pelas teclas físicas. Os sliders de volume foram removidos e o ganho normal do aplicativo é de 100%. O desenho do microfone acompanha o ícone inclinado do PC. Há 8 dp de espaço entre a linha divisória e os controles nas barras de Efeitos e Jukebox.
+
+A duração configurável de prévias aplica-se somente às músicas das pesquisas. Foram retiradas as opções de duração de prévia dos efeitos e de continuidade entre abas/segundo plano; a reprodução integral continua ao navegar. Avisos de preparação redundantes com indicadores de progresso não aparecem no topo.
+
+
+### Player compacto e reprodução expandida
+
+A reprodução de Efeitos e Jukebox aparece em uma barra compacta acima da navegação, com capa, título, artista, Fila, reproduzir/pausar e progresso. Ela acompanha a navegação. O botão Fila substitui o acesso a dispositivos da referência visual e abre a fila correspondente à reprodução atual.
+
+Tocar na capa ou no título abre a reprodução expandida. A capa do álbum ocupa a área visual, sem Canvas ou vídeo. A janela oferece linha do tempo, anterior/próxima, reprodução/pausa, letra, fila e menu; ao recolher ou voltar, a música continua. O menu mantém Parar, acesso aos ajustes de Efeitos e, no Jukebox, reprodução normal, timer e equalizador. As músicas, filas e efeitos permanecem separados entre as abas. O volume continua sob controle do sistema.
+
+
+### Card de letras e tela cheia
+
+O player expandido mostra um card Letra com o verso atual e os próximos versos. Tocar no card ou no ícone Expandir abre a letra completa em tela cheia, com título e artista, texto grande alinhado à esquerda, progresso e botão central de reprodução/pausa. A letra acompanha a música, mantém as animações e o destaque por palavra de LRC aprimorado, e permite tocar em versos sincronizados para navegar.
+
+Recolher ou voltar retorna ao player sem interromper o áudio. Buscar letra online e Escolher letra estão no menu Mais da tela de letras. O botão Compartilhar abre o seletor de compartilhamento do Android. O recurso usa a música e a posição da reprodução correspondente, tanto em Efeitos quanto em Jukebox.
+
+
+Em Efeitos e Jukebox, Pesquisar e Abrir arquivo ficam na mesma linha, abaixo do campo de busca, nessa ordem.
+
+
+### Cor da capa e liquid glass
+
+A barra compacta extrai a cor predominante da capa, com processamento fora da interface e reaproveitamento do cache de imagens. O fundo combina a capa desfocada, uma lente translúcida em degradê, reflexos, borda e sombra suave. Sem capa válida, usa a cor de destaque do tema.
+
+Nos temas claros, o vidro recebe uma base clara com texto escuro; nos escuros, uma base escura com texto claro. Alto contraste mantém a tonalidade da capa, com lente menos transparente, borda reforçada, ícones e texto de alto contraste. A troca de música ou tema recalcula as cores sem alterar os controles.

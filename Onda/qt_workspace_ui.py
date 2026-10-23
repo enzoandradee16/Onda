@@ -38,7 +38,7 @@ class DesktopWorkspace(QObject):
         self.memory_waiting=False;self.queue_scope=None;self.queue_attempted=set();self.restore_state=Qt.WindowState.WindowNoState
         self.lyrics=[];self.last_preview_processed=True;self.preview_kind='';self.preview_source=''
         self.preview_timer=QTimer(self);self.preview_timer.setSingleShot(True);self.preview_timer.setInterval(150);self.preview_timer.timeout.connect(self.play_effects_preview)
-        self.options={'effectsQueue':[],'effectsQueueIndex':-1,'effectsPaused':False,'effectsVolume':80,'effectsQuery':'','effectsResults':[],'effectsOnlineRecord':{},'previewActive':False,'previewKind':'','previewSource':'','previewProcessed':False,'metadataFields':{},'lyricText':'','effectLyricsName':'','query':'','provider':self.settings.get('catalog_provider','Deezer'),'links':'','linksNotice':'','playlistUrl':'','playlistTitle':'','queueQuery':'','queueState':'Todos','historyQuery':'','silenceResults':[],'trimSilence':False,'converterSources':[],'converterFormat':'MP4','video_quality':'Equilibrada','video_resolution':'Original','video_bitrate':'Automático','audio_bitrate':'192k','video_fps':'Original','video_audio':'Manter áudio','effectsSource':'','effectsRecord':{},'effectsCover':'','speed':85,'reverb':25,'keep_pitch':self.settings.get('effects_keep_pitch',False),'effectFormat':'MP3','position':0,'duration':0,'imageInfo':{},'catalogSearched':False,'imageSource':'','imageUrl':'','imagePreview':'','metadataSources':[],'metadata':{},'cover_path':'','lyrics_path':'','normalize_volume':False,'overwrite_original':False,'comparison':{},'selectedCatalog':-1,'selectedPlaylist':-1,'filterArtist':'','filterAlbum':'','filterVersion':''}
+        self.options={'effectsStopMinutes':0,'effectsStopRemaining':0,'effectsTrackMinutes':0,'effectsSwitchRemaining':0,'effectsQueue':[],'effectsQueueIndex':-1,'effectsPaused':False,'effectsVolume':80,'effectsQuery':'','effectsResults':[],'effectsOnlineRecord':{},'previewActive':False,'previewKind':'','previewSource':'','previewProcessed':False,'metadataFields':{},'lyricText':'','effectLyricsName':'','query':'','provider':self.settings.get('catalog_provider','Deezer'),'links':'','linksNotice':'','playlistUrl':'','playlistTitle':'','queueQuery':'','queueState':'Todos','historyQuery':'','silenceResults':[],'trimSilence':False,'converterSources':[],'converterFormat':'MP4','video_quality':'Equilibrada','video_resolution':'Original','video_bitrate':'Automático','audio_bitrate':'192k','video_fps':'Original','video_audio':'Manter áudio','effectsSource':'','effectsRecord':{},'effectsCover':'','speed':85,'reverb':25,'keep_pitch':self.settings.get('effects_keep_pitch',False),'effectFormat':'MP3','position':0,'duration':0,'imageInfo':{},'catalogSearched':False,'imageSource':'','imageUrl':'','imagePreview':'','metadataSources':[],'metadata':{},'cover_path':'','lyrics_path':'','normalize_volume':False,'overwrite_original':False,'comparison':{},'selectedCatalog':-1,'selectedPlaylist':-1,'filterArtist':'','filterAlbum':'','filterVersion':''}
         from audio_tools import PreviewPlayer
         self.effects_tails=[];self.player=PreviewPlayer();self.tray=None;self.shell=None;self.shortcuts=[];self.shortcuts_suspended=False;self.tasks_threads=[]
         self.shutdown_timer=QTimer(self);self.shutdown_timer.setSingleShot(True);self.shutdown_timer.setInterval(60000);self.shutdown_timer.timeout.connect(self.perform_shutdown)
@@ -153,6 +153,7 @@ class DesktopWorkspace(QObject):
         if key in ('speed','reverb','keep_pitch','position','effectsVolume') and self.player.active and self.preview_kind=='effects':self.preview_timer.start()
     @Slot(str,'QVariant')
     def setSetting(self,key,value):
+        if key in ("background_preview","jukebox_background","effects_preview_duration"):return
         if key not in self.defaults:return
         if key=='remember_settings':
             self.settings[key]=bool(value)
@@ -199,7 +200,7 @@ class DesktopWorkspace(QObject):
     @Slot()
     def pause_background_jukebox(self):
         if getattr(self,"_mini_active",False):return
-        if not self.settings.get('jukebox_background',True) and self.bridge.state['playing'] and not self.bridge.state['paused']:self.bridge.playPause()
+        return
     @Slot(str)
     def selectNavigationPage(self,key):
         if key=='effects':key='jukebox' if self.settings.get('playback_tab_order')=='Jukebox infinito primeiro' else 'effects'
@@ -209,7 +210,7 @@ class DesktopWorkspace(QObject):
         if key not in PAGES or key in self.hiddenTabs:return
         if key!=self._page:
             if key!='jukebox':self.pause_background_jukebox()
-            if self.preview_kind!='effects' or not self.settings.get('background_preview'):self.stop_preview()
+            if self.preview_kind!='effects':self.stop_preview()
         self._page=key;self.changed.emit()
         if key=='history':self.refresh_history()
     @Slot()
@@ -262,6 +263,11 @@ class DesktopWorkspace(QObject):
             if not 0<=index<len(records):return
             self.run_task('effects_load',{'record':records[index]},lambda result:self.accept_files('effects_queue',[result['source']]))
         elif action=='effects_queue_play':self.play_effects_entry(int(p.get('index',0)))
+        elif action=='effects_timer':
+            minutes=max(0,min(180,int(p.get('minutes',0))))
+            key='effectsTrackMinutes' if p.get('next') else 'effectsStopMinutes'
+            remaining='effectsSwitchRemaining' if p.get('next') else 'effectsStopRemaining'
+            self.options.update({key:minutes,remaining:minutes*60});self.optionsChanged.emit()
         elif action=='effects_next':self.play_effects_entry(self.options['effectsQueueIndex']+1)
         elif action=='effects_previous':
             index=self.options['effectsQueueIndex']
@@ -928,6 +934,19 @@ class DesktopWorkspace(QObject):
         if candidate and candidate['key'] not in self.clipboard_seen:
             self.clipboard_seen.add(candidate['key']);self.confirm('Link copiado','Deseja iniciar o download?\n'+candidate['url'],lambda:self.enqueue([candidate['url']],start=True))
     def tick(self):
+        now=time.monotonic();elapsed=max(0,now-getattr(self,'effects_timer_clock',now));self.effects_timer_clock=now
+        if self.player.active and self.preview_kind=='effects':
+            stop=self.options['effectsStopRemaining'];switch=self.options['effectsSwitchRemaining']
+            if stop>0:
+                self.options['effectsStopRemaining']=max(0,stop-elapsed)
+                if self.options['effectsStopRemaining']==0:
+                    self.invoke('effects_stop',{});self.options['effectsStopMinutes']=0
+            if switch>0 and self.player.active:
+                self.options['effectsSwitchRemaining']=max(0,switch-elapsed)
+                if self.options['effectsSwitchRemaining']==0:
+                    self.play_effects_entry(self.options['effectsQueueIndex']+1)
+                    self.options['effectsSwitchRemaining']=self.options['effectsTrackMinutes']*60
+            if stop>0 or switch>0:self.optionsChanged.emit()
         if self.running and time.monotonic()-getattr(self,'last_clock',0)>1:self.last_clock=time.monotonic();self.statusChanged.emit()
         for _ in range(30):
             try:identity,event=self.title_events.get_nowait()
@@ -1161,7 +1180,7 @@ class DesktopWorkspace(QObject):
         processed=self.last_preview_processed
         if not self.options['effectsSource']:raise ValueError('Escolha um arquivo de áudio.')
         transport=getattr(self,'effects_transport',False)
-        duration=max(.1,(self.options['duration']-self.options['position'])/(self.options['speed']/100)) if transport else int(self.settings['effects_preview_duration'].split()[0])
+        duration=max(.1,(self.options['duration']-self.options['position'])/(self.options['speed']/100)) if transport else 25
         self.options['effectsPaused']=False
         self.start_preview(self.options['effectsSource'],'effects',speed=self.options['speed'] if processed else 100,reverb=self.options['reverb'] if processed else 0,start=self.options['position'],duration=duration,keep_pitch=self.options['keep_pitch'],full_track=transport,volume=self.options['effectsVolume'],fade_in=getattr(self,'effects_fade_in',0),fade_out=self.effects_transition_seconds() if transport else 0)
     @Slot('QVariantMap')

@@ -36,29 +36,9 @@ ScrollView {
             }
             Flow { Layout.fillWidth: true; spacing: 8
                 ActionButton {text: bridge.translate("Adicionar arquivos à fila"); enabled: !page.effectsSearching; onClicked: workspace.invoke("pick",{kind:"effects_queue"})}
-                ActionButton {text: bridge.translate("Fila de reprodução")+" ("+workspace.values.effectsQueue.length+")"; onClicked: page.effectsQueueExpanded=!page.effectsQueueExpanded}
+                ActionButton {text: bridge.translate("Fila de reprodução")+" ("+workspace.values.effectsQueue.length+")"; onClicked: workspace.setOption("effectsQueueOpen",true)}
                 ActionButton {text: bridge.translate("Próxima"); enabled: workspace.values.effectsQueueIndex+1<workspace.values.effectsQueue.length; onClicked: workspace.invoke("effects_next",{})}
                 OndaSwitch {text: bridge.translate("Transição gradual"); checked: workspace.preferences.jukebox_gradual_transition; onToggled: workspace.setSetting("jukebox_gradual_transition",checked)}
-            }
-            Card { objectName: "effectsQueuePanel"; Layout.fillWidth: true; visible: page.effectsQueueExpanded; implicitHeight: effectsQueueBody.implicitHeight+20
-                ColumnLayout {id: effectsQueueBody; anchors.fill: parent; anchors.margins: 10; spacing: 10
-                    RowLayout {Layout.fillWidth: true; Label {text: bridge.translate("Fila de reprodução");color: bridge.palette.text;Layout.fillWidth: true} ActionButton {text: bridge.translate("Limpar");onClicked: workspace.invoke("effects_queue_clear",{})}}
-                    ListView {id: effectsQueueList; Layout.fillWidth: true; Layout.preferredHeight: workspace.values.effectsQueue.length ? Math.min(320,contentHeight) : 48; clip: true; spacing: 10; model: workspace.values.effectsQueue; ScrollBar.vertical: ScrollBar {}
-                        delegate: RowLayout {required property var modelData;required property int index; width: effectsQueueList.width; height: 92
-                            RoundedArtwork {source: modelData.cover_url || ""; Layout.preferredWidth: 80;Layout.preferredHeight: 80;fillMode: Image.PreserveAspectFit}
-                            ColumnLayout {Layout.fillWidth: true;Layout.minimumWidth: 0
-                                Label {text: modelData.record.title;Layout.fillWidth: true;elide: Text.ElideRight;color: index===workspace.values.effectsQueueIndex ? bridge.palette.accent : bridge.palette.text}
-                                Label {text: (modelData.record.artists || []).join(", ");Layout.fillWidth: true;elide: Text.ElideRight;color: bridge.palette.muted}
-                                Label {text: workspace.clock(modelData.duration);color: bridge.palette.muted}
-                            }
-                            ActionButton {text: bridge.translate("Tocar");onClicked: workspace.invoke("effects_queue_play",{index:index})}
-                            PlaybackButton {glyph:"up";Accessible.name:bridge.translate("Mover para cima");enabled:index>0;onClicked:workspace.invoke("effects_queue_move",{index:index,direction:-1})}
-                            PlaybackButton {glyph:"down";Accessible.name:bridge.translate("Mover para baixo");enabled:index+1<workspace.values.effectsQueue.length;onClicked:workspace.invoke("effects_queue_move",{index:index,direction:1})}
-                            PlaybackButton {glyph:"close";Accessible.name:bridge.translate("Remover da fila");onClicked:workspace.invoke("effects_queue_remove",{index:index})}
-                        }
-                        Label {anchors.centerIn: parent;visible: !workspace.values.effectsQueue.length;text:bridge.translate("Adicione arquivos ou músicas dos resultados.");color:bridge.palette.muted}
-                    }
-                }
             }
             Card {
                 Layout.fillWidth: true; visible: (workspace.values.effectsResults || []).length>0
@@ -79,7 +59,7 @@ ScrollView {
                                 Label { Layout.fillWidth: true; text: modelData.title; color: bridge.palette.text; elide: Text.ElideRight }
                                 Label { Layout.fillWidth: true; text: (modelData.artists || []).join(", "); color: bridge.palette.muted; elide: Text.ElideRight }
                             }
-                            ActionButton { text: bridge.translate("Adicionar à fila"); enabled: workspace.activity.busy.indexOf("effects_load")<0; onClicked: {workspace.invoke("effects_enqueue_result",{index:index});page.effectsQueueExpanded=true} }
+                            ActionButton { text: bridge.translate("Adicionar à fila"); enabled: workspace.activity.busy.indexOf("effects_load")<0; onClicked: {workspace.invoke("effects_enqueue_result",{index:index});workspace.setOption("effectsQueueOpen",true)} }
                         }
                         enabled: workspace.activity.busy.indexOf("effects_load")<0
                         onClicked: workspace.invoke("effects_load",{index:index})

@@ -28,7 +28,7 @@ val categories=linkedMapOf(
     "Aparência" to listOf("simple_download_ui","queue_actions_at_top","queue_view","queue_card_size","catalog_card_size","history_card_size","pure_black_separators","history_view","theme","accent","playback_tab_order","bottom_bar_order","tab_order","hidden_tabs","interface_font","interface_font_size","interface_spacing"),
     "Downloads" to listOf("wifi_only","wifi_loss","finish_action","notification_controls","auto_select_media","social_best_quality","detect_duplicates","filename_template","concurrent_downloads","resume_downloads","resume_queue","normalize_volume","schedule_enabled","schedule_start","schedule_stop","mode","audio_quality","height","fps","playlist_limit","link_playlist","organization","duplicate_policy","output_uri","auto_metadata","auto_match","review_metadata"),
     "Imagens" to listOf("image_format","image_size","image_width","image_height","keep_ratio"),
-    "Áudio" to listOf("search_preview","effects_preview","keep_preview","jukebox_background","synced_lyrics","jukebox_equalizer","jukebox_gradual_transition","jukebox_transition_seconds"),
+    "Áudio" to listOf("search_preview","synced_lyrics","jukebox_equalizer","jukebox_gradual_transition","jukebox_transition_seconds"),
     "Contas" to listOf("spotify_client_id","cookies_file","youtube_cookies_file"),
     "Ferramentas" to listOf("check_updates"))
 
@@ -234,9 +234,6 @@ val categories=linkedMapOf(
                     "Imagens"->ImageOptions(settings,OndaStore::saveSettings,separated=true)
                     "Áudio"->{
                         UiText("Reprodução e prévias",style=MaterialTheme.typography.titleMedium)
-                        Toggle("Continuar prévia dos efeitos em outras abas",settings.optBoolean("keep_preview")){put("keep_preview",it)}
-                        UiText("Mantém a prévia dos efeitos ao trocar de página. Não controla a reprodução do Jukebox.",style=MaterialTheme.typography.bodySmall)
-                        Toggle("Continuar Jukebox em outras abas e em segundo plano",settings.optBoolean("jukebox_background",true)){put("jukebox_background",it)}
                         Select("Animação da letra",settings.optString("lyrics_animation","Suave"),listOf("Desativada","Suave","Deslizar","Zoom")){put("lyrics_animation",it)}
                         Toggle("Mostrar letra sincronizada (LRC)",settings.optBoolean("synced_lyrics")){put("synced_lyrics",it)}
                         SettingsDivider()
@@ -246,7 +243,7 @@ val categories=linkedMapOf(
                         UiText("Tempo de sobreposição entre a música atual e a próxima. Vale para trocas pelo timer e pela fila.",style=MaterialTheme.typography.bodySmall)
                         SettingsDivider()
                         UiText("Duração das prévias",style=MaterialTheme.typography.titleSmall)
-                        for((key,label) in listOf("search_preview" to "Músicas nas pesquisas","effects_preview" to "Slowed / Sped Up e Reverb")) {
+                        for((key,label) in listOf("search_preview" to "Músicas nas pesquisas")) {
                             SettingsDivider()
                             val current=settings.optInt(key,25)
                             val durations=listOf(10,15,25,30,45,60,90,120,180).let {if(current in it)it else it+current}

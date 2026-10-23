@@ -1,9 +1,7 @@
-# Publicação do ONDA 1.1.7
+# Pré-release ONDA 1.2.0-rc2
 
-Pacotes em `Release/1.1.7`. O rascunho não deve ser publicado automaticamente.
+Pacotes em `Release/1.2.0-rc2`. Criar o rascunho com tag `v1.2.0-rc2`, `draft=true` e `prerelease=true`; não publicar automaticamente.
 
-1. Conferir o commit em SOURCE_MANIFEST.json e os sete pacotes: portátil, instalador, APK ARM64, APK x86_64 e três arquivos de fontes.
-2. Conferir MANIFEST.json, SHA256SUMS.txt, VALIDACAO.md e os avisos de terceiros.
-3. Revisar o rascunho ONDA 1.1.7 antes da publicação; preservar as releases existentes.
+Conferir MANIFEST.json, SOURCE_MANIFEST.json, SHA256SUMS.txt, as notas e os avisos de terceiros. Os pacotes incluem portátil e instalador Windows x64, APKs ARM64 e x86_64 e arquivos de fontes do aplicativo e componentes terceiros.
 
-Android 1.1.7, código 25, assinatura de produção preservada. Windows 1.1.7.0 sem Authenticode. Não incluir credenciais, cookies ou configurações pessoais.
+Os APKs mantêm versão interna 1.2.0/código 26 e a assinatura original. A validação visual Android e a atualização em aparelho continuam pendentes. Nenhuma credencial, cookie, chave privada ou dado pessoal deve integrar os pacotes.

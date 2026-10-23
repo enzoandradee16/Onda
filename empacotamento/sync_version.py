@@ -8,7 +8,7 @@ ROOT=Path(__file__).resolve().parents[1]
 def sync_version(root=ROOT):
     source=(root/'Onda/app_version.py').read_text(encoding='utf-8')
     version=re.search(r"^VERSION\s*=\s*['\"]([^'\"]+)['\"]",source,re.M).group(1)
-    match=re.fullmatch(r'(\d+)\.(\d+)\.(\d+)(?:-(?:alpha|beta|rc)\.\d+)?',version)
+    match=re.fullmatch(r'(\d+)\.(\d+)\.(\d+)(?:-(?:alpha|beta|rc)\.?\d+)?',version)
     if not match:raise ValueError('Invalid Windows application version')
     numeric='.'.join(match.groups())+'.0'
     launcher=root/'empacotamento/Launcher.cs'

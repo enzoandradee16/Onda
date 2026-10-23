@@ -290,7 +290,7 @@ def render_preview(config):
         raise ValueError('Identificador de prévia inválido')
     output = _root / ('preview-' + preview_id + '.mp3')
     start = max(0, float(config.get('start', 0)))
-    seconds = min(180, max(10, float(config.get('duration', 25))))
+    seconds = max(.1, float(config.get('duration', 25))) if config.get('full_track') else min(180, max(10, float(config.get('duration', 25))))
     command = [str(_native / 'libffmpeg.so'), '-y', '-v', 'error', '-ss', str(start),
                '-i', config['source'], '-t', str(seconds), '-vn', '-af',
                effects_filter(config.get('speed', 100), config.get('reverb', 0), config.get('keep_pitch', False)),
@@ -350,6 +350,19 @@ def jukebox_action(action, config):
         return part
 
 def perform(action, config):
+    if action=='effects_info':
+        from audio_library import read_audio,cover_preview
+        import re
+        source=config['source']
+        try:record=read_audio(source)
+        except (OSError,ValueError):record=dict(config.get('record') or {})
+        fallback=re.sub(r'^(?:audio|conversion-batch)-[0-9a-f-]{36}-','',Path(source).stem)
+        supplied=config.get('record') or {}
+        if not record.get('title') or record['title']==Path(source).stem:record['title']=supplied.get('title') or fallback
+        for field in ('artists','album'):
+            if not record.get(field) and supplied.get(field):record[field]=supplied[field]
+        details=perform('probe',config)
+        return {'record':record,'cover':cover_preview(source),'duration':float(details.get('format',{}).get('duration') or 0)}
     if action=='effects_load':
         import jukebox
         return jukebox.fetch_audio(config,config.get('record'),_local.state['cancel'].is_set,lambda value:emit('progress',percent=value),analyze=False)

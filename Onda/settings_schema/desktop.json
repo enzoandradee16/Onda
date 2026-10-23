@@ -782,23 +782,6 @@
     },
     {
       "category": "Áudio",
-      "key": "background_preview",
-      "label": "Continuar prévia dos efeitos em outras abas",
-      "kind": "bool",
-      "choices": [],
-      "hint": "Mantém a prévia dos efeitos ao trocar de página. Não controla a reprodução do Jukebox.",
-      "section": "Reprodução e prévias"
-    },
-    {
-      "category": "Áudio",
-      "key": "jukebox_background",
-      "label": "Continuar Jukebox em outras abas e em segundo plano",
-      "kind": "bool",
-      "choices": [],
-      "hint": "Desligado, pausa o Jukebox ao sair da página ou minimizar o ONDA."
-    },
-    {
-      "category": "Áudio",
       "key": "synced_lyrics",
       "label": "Mostrar letra sincronizada (LRC)",
       "kind": "bool",
@@ -842,24 +825,6 @@
       ],
       "hint": "Limita o tempo de reprodução ao clicar em Ouvir prévia. O trecho fornecido pelo catálogo pode terminar antes, geralmente após 30 segundos. Não repete nem estende o trecho.",
       "section": "Duração das prévias"
-    },
-    {
-      "category": "Áudio",
-      "key": "effects_preview_duration",
-      "label": "Slowed / Sped Up e Reverb",
-      "kind": "select",
-      "choices": [
-        "10 segundos",
-        "15 segundos",
-        "25 segundos",
-        "30 segundos",
-        "45 segundos",
-        "60 segundos",
-        "90 segundos",
-        "120 segundos",
-        "180 segundos"
-      ],
-      "hint": "Tempo máximo de Ouvir original e Ouvir com efeitos, a partir da posição escolhida. Não altera a duração da exportação nem limita o Jukebox Infinito."
     },
     {
       "category": "Contas",

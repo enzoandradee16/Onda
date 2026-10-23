@@ -17,7 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 /** Shared surfaces for the Android tools; all colors follow the selected theme. */
 @Composable internal fun ToolCard(modifier:Modifier=Modifier,content:@Composable ColumnScope.()->Unit) {
     Surface(modifier.fillMaxWidth(),shape=RoundedCornerShape(18.dp),color=MaterialTheme.colorScheme.surfaceVariant.copy(alpha=.45f),border=BorderStroke(1.dp,MaterialTheme.colorScheme.outlineVariant.copy(alpha=.45f))) {
-        Column(Modifier.padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp),content=content)
+        Column(Modifier.padding(LayoutSpacing.inset),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.section),content=content)
     }
 }
 

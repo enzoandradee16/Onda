@@ -418,7 +418,7 @@ class NavigationTest {
         try {
             compose.runOnIdle {vm.effectsSource.value=java.io.File(folder,"Histórico teste.mp3").absolutePath}
             compose.waitUntil(15000) {!vm.busy.value}
-            compose.onNodeWithText("Ouvir com efeitos").performScrollTo().performClick()
+            compose.onNodeWithTag("compact-player-toggle").assertIsDisplayed().performClick()
             compose.waitUntil(20000) {vm.previewUrl.value.contains("preview-") && vm.previewActive.value}
             val initial=vm.previewUrl.value
             compose.onNodeWithTag("effects-speed").performScrollTo().performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.SetProgress) {it(120f)}
@@ -426,6 +426,19 @@ class NavigationTest {
             compose.waitUntil(20000) {vm.previewUrl.value!=initial && vm.previewActive.value}
             assertTrue(vm.effectsPreviewEnabled.value)
             assertTrue(java.io.File(vm.previewUrl.value).exists())
+            compose.onNodeWithTag("android-compact-player").assertIsDisplayed()
+            compose.onNodeWithTag("compact-player-toggle").performClick()
+            compose.waitUntil(5000) {!vm.previewActive.value && !vm.effectsPreviewEnabled.value}
+            compose.onNodeWithTag("android-compact-player").performClick()
+            compose.onNodeWithTag("android-expanded-player").assertIsDisplayed()
+            compose.onNodeWithTag("expanded-album-cover").assertIsDisplayed()
+            compose.onNodeWithTag("expanded-player-timeline").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.SetProgress) {it(10f)}
+            compose.onNodeWithContentDescription("Recolher reprodução").performClick()
+            compose.runOnIdle {assertEquals(10.0,vm.effectsPosition.value,.1)}
+            compose.onNodeWithTag("compact-player-toggle").performClick()
+            compose.waitUntil(20000) {vm.previewActive.value}
+            compose.runOnIdle {vm.stopEffectsPlayback()}
+            compose.runOnIdle {assertEquals(0.0,vm.effectsPosition.value,.001);assertFalse(vm.effectsPreviewEnabled.value)}
             compose.runOnIdle {vm.stopPreview()}
             val stopped=vm.previewUrl.value
             compose.onNodeWithTag("effects-speed").performScrollTo().performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.SetProgress) {it(110f)}

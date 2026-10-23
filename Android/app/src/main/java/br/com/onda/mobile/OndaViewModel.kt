@@ -11,6 +11,8 @@ import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.withPermit
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.UUID
@@ -62,6 +64,8 @@ private fun importNoticeTitle(category:String)=when(category) {
 class OndaViewModel(application: Application) : AndroidViewModel(application) {
     private val titleSlots=kotlinx.coroutines.sync.Semaphore(2)
     val effectsSource=MutableStateFlow("")
+    val effectsQueueOpen=MutableStateFlow(false)
+    val playbackMode=MutableStateFlow<Int?>(null)
     val searchResults=MutableStateFlow<List<JSONObject>>(emptyList())
     val collection=MutableStateFlow(JSONObject())
     val collectionComparison=MutableStateFlow<JSONObject?>(null)
@@ -72,21 +76,24 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
     val status=MutableStateFlow("")
     val addingToQueue=MutableStateFlow(false)
     val queueNavigation=MutableStateFlow(false)
+    val effectsNavigation=MutableStateFlow(false)
     val dialogNotice=MutableStateFlow<DialogNotice?>(null)
     fun showNotice(title:String,message:String) {dialogNotice.value=DialogNotice(title,message)}
     fun dismissNotice() {dialogNotice.value=null}
     val queryId=MutableStateFlow("")
     private var previewFromDialog=false
-    val player=ExoPlayer.Builder(application).build()
+    var player=ExoPlayer.Builder(application).build()
+        private set
     val previewUrl=MutableStateFlow("")
     val previewActive=MutableStateFlow(false)
     internal val jukebox=JukeboxRuntime.get(application).also {it.stopOtherAudio={stopPreview(false)}}
-    init {player.addListener(object: androidx.media3.common.Player.Listener {
+    private val previewListener=object: androidx.media3.common.Player.Listener {
         override fun onEvents(player: androidx.media3.common.Player, events: androidx.media3.common.Player.Events) {
             previewActive.value=player.playWhenReady && player.playbackState in listOf(androidx.media3.common.Player.STATE_BUFFERING,androidx.media3.common.Player.STATE_READY)
         }
-        override fun onPlayerError(error:androidx.media3.common.PlaybackException) {previewActive.value=false;val text="Não foi possível reproduzir esta prévia. Tente novamente ou escolha outra faixa.";if(previewFromDialog) showNotice("Ouvir prévia",text) else status.value=text}
-    })}
+        override fun onPlayerError(error:androidx.media3.common.PlaybackException) {clearEffectTail();previewActive.value=false;effectsPreviewEnabled.value=false;effectsPreparing.value=false;val text="Não foi possível reproduzir esta prévia. Tente novamente ou escolha outra faixa.";if(previewFromDialog) showNotice("Ouvir prévia",text) else status.value=text}
+    }
+    init {player.addListener(previewListener)}
     init {viewModelScope.launch {
         runCatching {withContext(Dispatchers.IO) {MobileEngine.call(getApplication(),"startup-account","spotify_status",JSONObject(),EventCallback {})}}
             .onSuccess {spotifyConnected.value=it.optBoolean("connected")}
@@ -95,14 +102,172 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
     private var previewLimit: Job?=null
     private val previewRequest=PreviewRequest(viewModelScope) {MobileEngine.cancel(it)}
     val effectsPreviewEnabled=MutableStateFlow(false)
+    val effectsPreparing=MutableStateFlow(false)
+    val effectsPosition=MutableStateFlow(0.0)
+    val effectsEnded=MutableStateFlow(false)
+    val effectsVolume=MutableStateFlow(1f)
+    val effectsPlaylist=MutableStateFlow<List<String>>(emptyList())
+    val effectsInfo=MutableStateFlow<Map<String,JSONObject>>(emptyMap())
+    private var effectsCursor=-1
+    fun effectsQueueIndex(source:String):Int=effectsPlaylist.value.indexOf(source).takeIf {it>=0} ?: effectsCursor
+    private val effectsInfoRequests=mutableSetOf<String>()
+    private val effectsCatalogRecords=mutableMapOf<String,JSONObject>()
+    fun appendEffectsRecord(source:String,record:JSONObject){effectsCatalogRecords[source]=record;appendEffectsFiles(listOf(source))}
+    private val effectsInfoSlots=kotlinx.coroutines.sync.Semaphore(2)
+    fun loadEffectsInfo(sources:List<String>) {
+        for(source in sources) {
+            if(effectsInfo.value.containsKey(source)||!effectsInfoRequests.add(source))continue
+            viewModelScope.launch {
+                val id="effects-info-"+UUID.randomUUID()
+                try {
+                    val payload=JSONObject().put("source",source).apply {effectsCatalogRecords[source]?.let {put("record",it)}}
+                    val result=effectsInfoSlots.withPermit {withContext(Dispatchers.IO){MobileEngine.call(getApplication(),id,"effects_info",payload,EventCallback {})}}
+                    effectsInfo.value=effectsInfo.value+(source to result)
+                } catch(error:CancellationException){throw error}
+                catch(error:Exception){effectsInfo.value=effectsInfo.value+(source to JSONObject().put("error",error.message ?: "Não foi possível ler o áudio."))}
+                finally {effectsInfoRequests.remove(source);MobileEngine.cancel(id)}
+            }
+        }
+    }
+    fun appendEffectsFiles(sources:List<String>){effectsPlaylist.value=(effectsPlaylist.value+sources).distinct();loadEffectsInfo(sources)}
+    fun moveEffectsTrack(index:Int,direction:Int){val rows=effectsPlaylist.value;if(index !in rows.indices||index+direction !in rows.indices)return;effectsCursor=playbackCursorAfterMove(effectsQueueIndex(effectsSource.value),index,index+direction);effectsPlaylist.value=movePlaybackEntry(rows,index,direction)}
+    fun removeEffectsTrack(index:Int){if(index !in effectsPlaylist.value.indices)return;effectsCursor=effectsQueueIndex(effectsSource.value);if(index<=effectsCursor)effectsCursor--;effectsPlaylist.value=effectsPlaylist.value.filterIndexed {i,_->i!=index}}
+    fun clearEffectsQueue(){effectsPlaylist.value=emptyList();effectsCursor=-1}
+    internal val lyricsCache=MutableStateFlow<Map<String,List<Pair<Double,String>>>>(emptyMap())
+    private val lyricRequests=mutableMapOf<String,Job>()
+    internal fun storeLyrics(source:String,lines:List<Pair<Double,String>>) {lyricsCache.value=lyricsCache.value+(source to lines)}
+    internal fun lookupLyrics(source:String,alternatives:Boolean=false,finished:(JSONObject)->Unit={}) {
+        if(source.isBlank() || (!alternatives && lyricsCache.value.containsKey(source)))return
+        if(!alternatives && lyricRequests[source]?.isActive==true)return
+        lyricRequests.remove(source)?.cancel()
+        lyricRequests[source]=viewModelScope.launch {
+            val id="lyrics-"+UUID.randomUUID()
+            try {
+                val result=withContext(Dispatchers.IO){MobileEngine.call(getApplication(),id,"lyrics_online",JSONObject().put("source",source).put("alternatives",alternatives),EventCallback {})}
+                ensureActive()
+                if(!result.has("error")) {
+                    result.optJSONArray("lines")?.let {rows->if(!lyricsCache.value.containsKey(source))storeLyrics(source,(0 until rows.length()).map {i->rows.getJSONArray(i).let {it.getDouble(0) to it.getString(1)}})}
+                }
+                finished(result)
+            } catch(error:CancellationException){throw error}
+            catch(error:Exception){finished(JSONObject().put("error",error.message ?: "Não foi possível buscar a letra."))}
+            finally {MobileEngine.cancel(id)}
+        }
+    }
+    private var effectFullTrack=false
+    private var effectDuration=0.0
     private val effectRequests=kotlinx.coroutines.channels.Channel<Pair<Long,JSONObject>>(kotlinx.coroutines.channels.Channel.CONFLATED)
     private var effectRevision=0L
     private var effectRenderId=""
     private var effectSource=""
-    private var effectStart=0
+    private var effectStart=0.0
     private var effectAnchor=0.0
     private var effectSpeed=100
     private var effectOutput=""
+    private var effectsSelectedSpeed=85
+    private var effectsSelectedReverb=25
+    private var effectsSelectedPitch=false
+    private var effectsMediaVisible=false
+    private var effectsQueueRequest:Job?=null
+    fun rememberEffectsControls(speed:Int,reverb:Int,pitch:Boolean){effectsSelectedSpeed=speed;effectsSelectedReverb=reverb;effectsSelectedPitch=pitch}
+    internal fun mediaToggleEffects(){if(effectSource.isNotBlank())toggleEffectsPlayback(effectSource,effectsSelectedSpeed,effectsSelectedReverb,effectsSelectedPitch)}
+    internal fun mediaSeekEffects(seconds:Double){if(effectSource.isNotBlank())seekEffectsPlayback(seconds,effectSource,effectsSelectedSpeed,effectsSelectedReverb,effectsSelectedPitch)}
+    internal fun mediaPreviousEffects(){val current=effectsQueueIndex(effectSource);if(current>0)playEffectsQueueTrack(current-1) else mediaSeekEffects(0.0)}
+    internal fun mediaNextEffects(){playEffectsQueueTrack(effectsQueueIndex(effectSource)+1)}
+    internal fun mediaPauseEffects(){pauseEffectsPlayback()}
+    fun stopTransientPreview(){if(!effectFullTrack)stopPreview(false)}
+    fun playEffectsQueueTrack(index:Int) {
+        val source=effectsPlaylist.value.getOrNull(index) ?: return
+        effectsQueueRequest?.cancel()
+        effectsQueueRequest=viewModelScope.launch {
+            loadEffectsInfo(listOf(source))
+            val info=effectsInfo.first {it.containsKey(source)}[source] ?: return@launch
+            if(info.has("error")){status.value=info.optString("error");return@launch}
+            val duration=info.optDouble("duration",0.0)
+            if(duration<=0)return@launch
+            effectsQueueRequest=null
+            beginEffectsTrackChange();effectsSource.value=source
+            selectEffectsSource(source,duration)
+            previewEffects(source,effectsSelectedSpeed,effectsSelectedReverb,effectsSelectedPitch,0.0,fullTrack=true)
+        }
+    }
+    private fun publishEffectsMedia() {
+        if(!effectsMediaVisible){EffectsPlaybackRuntime.clear(this);return}
+        val record=effectsInfo.value[effectSource]?.optJSONObject("record")
+        EffectsPlaybackRuntime.publish(this,EffectsMediaState(
+            source=effectSource,title=record?.optString("title")?.ifBlank {importedAudioName(effectSource)} ?: importedAudioName(effectSource),
+            artist=record?.stringList("artists").orEmpty(),album=record?.optString("album").orEmpty(),
+            duration=effectDuration,position=effectsPosition.value.toLong(),playing=player.isPlaying,preparing=effectsPreparing.value,
+            speed=effectSpeed/100f,hasPrevious=effectDuration>0,hasNext=effectsQueueIndex(effectSource)+1<effectsPlaylist.value.size,
+            cover=effectsInfo.value[effectSource]?.optString("cover").orEmpty()))
+    }
+    private var effectTail:ExoPlayer?=null
+    private var effectTailPath=""
+    private var effectFade:Job?=null
+    private var effectTransitionPending=false
+    private var effectGain=1f
+    private var effectTailGain=1f
+    private data class EffectRenderKey(val source:String,val speed:Int,val reverb:Int,val pitch:Boolean)
+    private var preloadedEffect:Pair<EffectRenderKey,String>?=null
+    private var effectPreload:Job?=null
+    private var effectPreloadKey:EffectRenderKey?=null
+    private var effectPreloadId=""
+    fun isEffectsTrackPreloaded(source:String,speed:Int,reverb:Int,pitch:Boolean)=preloadedEffect?.first==EffectRenderKey(source,speed,reverb,pitch)
+    fun effectsTransitionSeconds():Int=if(OndaStore.settings.value.optBoolean("jukebox_gradual_transition",true))OndaStore.settings.value.optInt("jukebox_transition_seconds",2).coerceIn(1,10) else 0
+    private fun clearEffectTail() {
+        effectFade?.cancel();effectFade=null
+        effectTail?.release();effectTail=null
+        if(effectTailPath.isNotBlank()&&effectTailPath!=effectOutput)java.io.File(effectTailPath).delete()
+        effectTailPath="";effectTransitionPending=false;effectGain=1f;effectTailGain=1f
+        if(effectFullTrack)player.volume=effectsVolume.value
+    }
+    fun beginEffectsTrackChange() {
+        clearEffectTail()
+        if(effectFullTrack&&player.isPlaying&&effectsTransitionSeconds()>0) {
+            effectRevision++;if(effectRenderId.isNotBlank())MobileEngine.cancel(effectRenderId)
+            effectTail=player;effectTailPath=effectOutput;player.removeListener(previewListener)
+            player=ExoPlayer.Builder(getApplication()).build().also {it.addListener(previewListener)}
+            effectTransitionPending=true;previewUrl.value="";previewActive.value=false;effectsPreviewEnabled.value=false;effectsPreparing.value=false;effectsPosition.value=0.0;effectsEnded.value=false
+        } else stopEffectsPlayback()
+    }
+    private fun fadeEffectsIn() {
+        val outgoing=effectTail ?: return
+        val incoming=player
+        effectGain=0f;incoming.volume=0f
+        effectFade=viewModelScope.launch {
+            val ready=withTimeoutOrNull(15000){while(incoming.playbackState!=androidx.media3.common.Player.STATE_READY)delay(20);true} ?: false
+            if(!ready){clearEffectTail();return@launch}
+            val seconds=minOf(effectsTransitionSeconds().toDouble(),(incoming.duration.coerceAtLeast(0)/2000.0)).coerceAtLeast(.05)
+            val steps=(seconds*40).toInt().coerceAtLeast(1)
+            for(step in 1..steps){
+                effectGain=step.toFloat()/steps;effectTailGain=1f-effectGain
+                incoming.volume=effectsVolume.value*effectGain;outgoing.volume=effectsVolume.value*effectTailGain
+                delay(25)
+            }
+            effectFade=null;clearEffectTail()
+        }
+    }
+    fun preloadEffectsTrack(source:String,speed:Int,reverb:Int,pitch:Boolean,duration:Double) {
+        if(duration<=0)return
+        val key=EffectRenderKey(source,speed,reverb,pitch)
+        if(effectPreloadKey==key)return
+        effectPreload?.cancel();if(effectPreloadId.isNotBlank())MobileEngine.cancel(effectPreloadId)
+        preloadedEffect?.second?.takeIf {it!=effectOutput&&it!=effectTailPath}?.let {java.io.File(it).delete()};preloadedEffect=null
+        effectPreloadKey=key
+        effectPreload=viewModelScope.launch {
+            val id=UUID.randomUUID().toString();effectPreloadId=id
+            try {
+                val payload=JSONObject().put("source",source).put("speed",speed).put("reverb",reverb).put("keep_pitch",pitch).put("start",0).put("full_track",true).put("duration",EffectsTimeline.remaining(0.0,duration,speed)).put("preview_id",id)
+                val result=withContext(Dispatchers.IO){MobileEngine.call(getApplication(),id,"preview",payload,EventCallback {})}
+                val path=result.optString("path")
+                if(!isActive||effectPreloadKey!=key){if(path.isNotBlank())java.io.File(path).delete()}
+                else if(path.isNotBlank())preloadedEffect=key to path
+                else if(effectPreloadKey==key)effectPreloadKey=null
+            } catch(error:CancellationException){throw error}
+            catch(error:Exception){if(effectPreloadKey==key)effectPreloadKey=null}
+            finally {MobileEngine.cancel(id);if(effectPreloadId==id)effectPreloadId=""}
+        }
+    }
     init {
         viewModelScope.launch {
             delay(2000)
@@ -124,22 +289,79 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
             if(!effectsPreviewEnabled.value || revision!=effectRevision) continue
             val id=UUID.randomUUID().toString();effectRenderId=id
             try {
-                val position=if(payload.optBoolean("continue_position") && player.isPlaying && previewUrl.value==effectOutput) effectAnchor+player.currentPosition/1000.0*effectSpeed/100.0 else payload.optDouble("start")
+                val position=if(payload.optBoolean("continue_position") && previewUrl.value==effectOutput) effectAnchor+player.currentPosition/1000.0*effectSpeed/100.0 else payload.optDouble("start")
                 payload.put("start",position).put("preview_id",id)
-                val result=withContext(Dispatchers.IO) {MobileEngine.call(getApplication(),id,"preview",payload,EventCallback {})}
+                if(payload.optBoolean("full_track"))payload.put("duration",EffectsTimeline.remaining(position,effectDuration,payload.getInt("speed")))
+                val key=EffectRenderKey(payload.getString("source"),payload.getInt("speed"),payload.getInt("reverb"),payload.optBoolean("keep_pitch"))
+                val cached=preloadedEffect?.takeIf {it.first==key&&position==0.0&&payload.optBoolean("full_track")}
+                val result=if(cached!=null){preloadedEffect=null;effectPreloadKey=null;JSONObject().put("path",cached.second)} else withContext(Dispatchers.IO) {MobileEngine.call(getApplication(),id,"preview",payload,EventCallback {})}
                 val path=result.optString("path")
                 if(revision!=effectRevision || !effectsPreviewEnabled.value) {if(path.isNotBlank()) java.io.File(path).delete();continue}
-                if(result.has("error")) {status.value=result.getString("error");effectsPreviewEnabled.value=false;continue}
+                if(result.has("error")) {clearEffectTail();status.value=result.getString("error");effectsPreviewEnabled.value=false;effectsPreparing.value=false;continue}
                 val previous=effectOutput
                 player.stop()
                 effectOutput=path;effectAnchor=position;effectSpeed=payload.getInt("speed")
-                preview(path,payload.getInt("duration"),effects=true)
-                if(previous.isNotBlank() && previous!=path) java.io.File(previous).delete()
-            } catch(error:Exception) {if(revision==effectRevision && effectsPreviewEnabled.value) {status.value=error.message ?: "Não foi possível atualizar a prévia";effectsPreviewEnabled.value=false}}
+                effectsPosition.value=position
+                preview(path,payload.optDouble("duration",25.0).toInt(),effects=true,fullTrack=payload.optBoolean("full_track"))
+                player.volume=effectsVolume.value
+                fadeEffectsIn()
+                effectsPreparing.value=false
+                if(previous.isNotBlank() && previous!=path && previous!=effectTailPath) java.io.File(previous).delete()
+            } catch(error:Exception) {if(revision==effectRevision && effectsPreviewEnabled.value) {clearEffectTail();status.value=error.message ?: "Não foi possível atualizar a prévia";effectsPreviewEnabled.value=false;effectsPreparing.value=false}}
             finally {if(effectRenderId==id) effectRenderId=""}
         }
     }}
-    fun lyricsPosition():Double=if(effectsPreviewEnabled.value) effectAnchor+player.currentPosition/1000.0*effectSpeed/100.0 else player.currentPosition/1000.0
+    init {viewModelScope.launch {
+        while(true) {
+            if(effectFullTrack && effectsPreviewEnabled.value && previewUrl.value==effectOutput) {
+                effectsPosition.value=EffectsTimeline.position(effectAnchor,player.currentPosition,effectSpeed,effectDuration)
+                if(player.playbackState==androidx.media3.common.Player.STATE_ENDED) {
+                    effectsPosition.value=effectDuration;effectsPreviewEnabled.value=false;effectsEnded.value=true
+                    if(effectsQueueIndex(effectSource)+1<effectsPlaylist.value.size && effectsQueueRequest?.isActive!=true)mediaNextEffects()
+                }
+                val next=effectsPlaylist.value.getOrNull(effectsQueueIndex(effectSource)+1)
+                if(next!=null) {
+                    val duration=effectsInfo.value[next]?.optDouble("duration",0.0) ?: 0.0
+                    preloadEffectsTrack(next,effectsSelectedSpeed,effectsSelectedReverb,effectsSelectedPitch,duration)
+                    if(player.isPlaying&&!effectsPreparing.value&&effectsQueueRequest?.isActive!=true&&effectsTransitionSeconds()>0&&isEffectsTrackPreloaded(next,effectsSelectedSpeed,effectsSelectedReverb,effectsSelectedPitch)&&EffectsTimeline.remaining(effectsPosition.value,effectDuration,effectSpeed)<=effectsTransitionSeconds())mediaNextEffects()
+                }
+            }
+            publishEffectsMedia()
+            delay(100)
+        }
+    }}
+    fun lyricsPosition():Double=if(effectFullTrack)effectsPosition.value else if(effectsPreviewEnabled.value) effectAnchor+player.currentPosition/1000.0*effectSpeed/100.0 else player.currentPosition/1000.0
+    fun selectEffectsSource(source:String,duration:Double) {
+        val changed=effectSource!=source
+        if(changed) {
+            if(!effectTransitionPending)stopEffectsPlayback();effectSource=source
+            if(source.isNotBlank() && source !in effectsPlaylist.value)effectsPlaylist.value=effectsPlaylist.value+source
+        }
+        if(changed||duration>0)effectDuration=duration.coerceAtLeast(0.0)
+        effectsPlaylist.value.indexOf(source).takeIf {it>=0}?.let {effectsCursor=it}
+    }
+    fun setEffectsVolume(value:Float) {effectsVolume.value=value.coerceIn(0f,1f);if(effectFullTrack)player.volume=effectsVolume.value*effectGain;effectTail?.volume=effectsVolume.value*effectTailGain}
+    fun pauseEffectsPlayback() {
+        effectsQueueRequest?.cancel();effectsQueueRequest=null
+        clearEffectTail()
+        effectsEnded.value=false
+        if(effectFullTrack && previewUrl.value==effectOutput)effectsPosition.value=EffectsTimeline.position(effectAnchor,player.currentPosition,effectSpeed,effectDuration)
+        effectsPreviewEnabled.value=false;effectsPreparing.value=false;effectRevision++
+        if(effectRenderId.isNotBlank())MobileEngine.cancel(effectRenderId)
+        previewLimit?.cancel()
+        if(effectFullTrack)player.pause()
+    }
+    fun stopEffectsPlayback() {effectsQueueRequest?.cancel();pauseEffectsPlayback();if(effectFullTrack){player.stop();previewUrl.value=""};effectsPosition.value=0.0;effectsMediaVisible=false;EffectsPlaybackRuntime.clear(this)}
+    fun toggleEffectsPlayback(source:String,speed:Int,reverb:Int,pitch:Boolean) {
+        if(effectsPreviewEnabled.value) {pauseEffectsPlayback();return}
+        if(effectsPosition.value>=effectDuration)effectsPosition.value=0.0
+        previewEffects(source,speed,reverb,pitch,effectsPosition.value,fullTrack=true)
+    }
+    fun seekEffectsPlayback(seconds:Double,source:String,speed:Int,reverb:Int,pitch:Boolean) {
+        val running=effectsPreviewEnabled.value
+        pauseEffectsPlayback();effectsPosition.value=seconds.coerceIn(0.0,effectDuration)
+        if(running && effectsPosition.value<effectDuration)previewEffects(source,speed,reverb,pitch,effectsPosition.value,fullTrack=true)
+    }
     fun importConversionBatch(uris:List<Uri>,finished:(List<String>)->Unit) {
         if(busy.value)return
         if(uris.size>1000) {showNotice("Converter em lote","Selecione de 1 a 1000 arquivos.");return}
@@ -154,14 +376,19 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
             finally {busy.value=false}
         }
     }
-    fun previewEffects(source:String,speed:Int,reverb:Int,pitch:Boolean,start:Int) {
+    fun previewEffects(source:String,speed:Int,reverb:Int,pitch:Boolean,start:Int) = previewEffects(source,speed,reverb,pitch,start.toDouble())
+    fun previewEffects(source:String,speed:Int,reverb:Int,pitch:Boolean,start:Double,fullTrack:Boolean=effectFullTrack) {
+        rememberEffectsControls(speed,reverb,pitch)
         val continuing=effectsPreviewEnabled.value && effectSource==source && effectStart==start
         if(!continuing) {player.stop();previewUrl.value=""}
-        effectSource=source;effectStart=start
+        effectSource=source;effectStart=start;effectFullTrack=fullTrack
         effectsPreviewEnabled.value=true
+        effectsEnded.value=false
+        effectsPreparing.value=true
+        if(fullTrack){effectsMediaVisible=true;publishEffectsMedia();EffectsPlaybackService.start(getApplication())}
         effectRevision++
         if(effectRenderId.isNotBlank()) MobileEngine.cancel(effectRenderId)
-        effectRequests.trySend(effectRevision to JSONObject().put("source",source).put("speed",speed).put("reverb",reverb).put("keep_pitch",pitch).put("start",start).put("continue_position",continuing).put("duration",OndaStore.settings.value.optInt("effects_preview",25)))
+        effectRequests.trySend(effectRevision to JSONObject().put("source",source).put("speed",speed).put("reverb",reverb).put("keep_pitch",pitch).put("start",start).put("continue_position",continuing).put("full_track",fullTrack).put("duration",25))
     }
     fun operation(action: String, payload: JSONObject, dialog: Boolean=false, finished: (JSONObject)->Unit = {}) {
         fun report(text:String) {if(dialog) showNotice(operationNoticeTitle(action),text) else status.value=text}
@@ -349,21 +576,22 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
     }
     fun useInEffects(uri: String) {
         importLocal(Uri.parse(uri),"audio") { file ->
-            stopPreview()
-            effectsSource.value=file.absolutePath
+            stopPreview(false)
+            effectsSource.value=file.absolutePath;playbackMode.value=0;effectsNavigation.value=true
         }
     }
-    fun preview(url: String, seconds: Int=25, startSeconds: Int=0, effects:Boolean=false) {
+    fun preview(url: String, seconds: Int=25, startSeconds: Int=0, effects:Boolean=false,fullTrack:Boolean=false) {
         previewRequest.cancel()
         if(!effects) {effectsPreviewEnabled.value=false;effectRevision++;if(effectRenderId.isNotBlank()) MobileEngine.cancel(effectRenderId)}
         previewFromDialog=false
-        jukebox.stop()
+        if(effects && fullTrack)jukebox.pause() else jukebox.stop()
         previewUrl.value=url
         previewLimit?.cancel()
         player.setMediaItem(MediaItem.fromUri(url),startSeconds.coerceAtLeast(0)*1000L); player.prepare(); player.play()
-        previewLimit=viewModelScope.launch { delay(seconds*1000L); player.pause();effectsPreviewEnabled.value=false }
+        if(!effects) {effectFullTrack=false;effectsMediaVisible=false;EffectsPlaybackRuntime.clear(this);player.volume=1f}
+        if(!fullTrack)previewLimit=viewModelScope.launch { delay(seconds*1000L); player.pause();effectsPreviewEnabled.value=false }
     }
-    fun stopPreview(stopJukebox:Boolean=true) { previewRequest.cancel();if(stopJukebox)jukebox.stop(); effectsPreviewEnabled.value=false;effectRevision++;if(effectRenderId.isNotBlank()) MobileEngine.cancel(effectRenderId);previewLimit?.cancel(); player.stop();previewActive.value=false;previewUrl.value="" }
+    fun stopPreview(stopJukebox:Boolean=true) { if(effectFullTrack)pauseEffectsPlayback();previewRequest.cancel();if(stopJukebox)jukebox.stop(); effectsPreviewEnabled.value=false;effectsPreparing.value=false;effectRevision++;if(effectRenderId.isNotBlank()) MobileEngine.cancel(effectRenderId);previewLimit?.cancel(); player.stop();previewActive.value=false;previewUrl.value="" }
     @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
     fun previewYouTube(url: String) {
         stopPreview();previewFromDialog=true;previewUrl.value=url
@@ -430,5 +658,5 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
             finally {addingToQueue.value=false}
         }
     }
-    override fun onCleared() { if(!OndaStore.settings.value.optBoolean("jukebox_background",true))jukebox.close();jukebox.stopOtherAudio={};stopPreview(false);cancel();effectRequests.close(); player.release(); super.onCleared() }
+    override fun onCleared() { jukebox.stopOtherAudio={};stopPreview(false);EffectsPlaybackRuntime.clear(this);cancel();effectRequests.close();effectPreload?.cancel();if(effectPreloadId.isNotBlank())MobileEngine.cancel(effectPreloadId);preloadedEffect?.second?.let {java.io.File(it).delete()};player.release(); super.onCleared() }
 }
