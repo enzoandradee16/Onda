@@ -73,7 +73,7 @@ internal class JukeboxController(private val context:Context,private val scope:C
     fun previousTrack(){val index=nextQueueIndex-1;if(index>0)playQueued(index-1) else seek(0)}
     fun nextTrack(){if(nextQueueIndex<playbackQueue.value.size)playQueued(nextQueueIndex) else {setTimer(0,true);state.update {it.copy(message="Fim da fila de reprodução. A música atual continua.")}}}
     fun moveQueued(index:Int,direction:Int){val rows=playbackQueue.value;if(index !in rows.indices||index+direction !in rows.indices)return;queueCursor=playbackCursorAfterMove(nextQueueIndex-1,index,index+direction);playbackQueue.value=movePlaybackEntry(rows,index,direction)}
-    fun clearPlaybackQueue(){autoplayQueueId="";if(queuePreparing.isNotBlank())MobileEngine.cancel("jukebox-preload-$queuePreparing");playbackQueue.value=emptyList();preparedModels.clear();currentQueueId.value="";queueCursor=-1}
+    fun clearPlaybackQueue(){autoplayQueueId="";switchRequest.set(null);if(queuePreparing.isNotBlank())MobileEngine.cancel("jukebox-preload-$queuePreparing");playbackQueue.value=emptyList();preparedModels.clear();currentQueueId.value="";queueCursor=-1}
     private fun gradual()=OndaStore.settings.value.optBoolean("jukebox_gradual_transition",true)
     fun setTimer(minutes:Int,nextSong:Boolean=false) {
         val duration=minutes.coerceIn(0,180)
@@ -143,12 +143,12 @@ internal class JukeboxController(private val context:Context,private val scope:C
         queueCursor=nextQueueIndex-1;if(index<=queueCursor)queueCursor--
         playbackQueue.update {rows->rows.filter {it.optString("_queue_id")!=id}}
         preparedModels.remove(id)
+        switchRequest.get()?.takeIf {it.row.optString("_queue_id")==id}?.let {switchRequest.compareAndSet(it,null)}
         if(autoplayQueueId==id)autoplayQueueId=""
         if(queuePreparing==id)MobileEngine.cancel("jukebox-preload-$id")
     }
     private data class TrackSwitch(val row:JSONObject,val model:JSONObject,val seconds:Int)
-    @Volatile private var switchRequest:TrackSwitch?=null
-    @Volatile private var switchActive=false
+    private val switchRequest=java.util.concurrent.atomic.AtomicReference<TrackSwitch?>(null)
     private val switchModels=java.util.concurrent.ConcurrentHashMap<String,TrackSwitch>()
     private fun transitionSeconds()=OndaStore.settings.value.optInt("jukebox_transition_seconds",2).coerceIn(1,10)
     fun playQueued(index:Int) {
@@ -156,10 +156,9 @@ internal class JukeboxController(private val context:Context,private val scope:C
         val model=preparedModels[row.optString("_queue_id")] ?: run {autoplayQueueId=row.optString("_queue_id");if(row.optString("_analysis")=="Erro")retryQueued(index) else startQueuePreparation();return}
         if(!java.io.File(model.optString("cache"),"analysis.json").isFile()) {updateQueue(row.optString("_queue_id"),"Pendente");startQueuePreparation();return}
         if(state.value.playing && !state.value.paused) {
-            if(switchActive)return
-            switchActive=true
             val request=TrackSwitch(row,model,if(gradual())transitionSeconds() else 0)
-            switchModels[model.getString("cache")]=request;switchRequest=request
+            // Keep the most recent navigation request while a crossfade finishes.
+            switchRequest.set(request)
             return
         }
         stop(clearTimer=false);currentQueueId.value=row.optString("_queue_id");queueCursor=index
@@ -314,20 +313,21 @@ internal class JukeboxController(private val context:Context,private val scope:C
                         flow=if(heard.isEmpty())current.flow else (current.flow+heard.filter {it.optBoolean("edge_completed",true)}.map {it.optInt("index") to it.optInt("next")}).takeLast(24),
                         jumps=heard.lastOrNull()?.optInt("jumps") ?: current.jumps,elapsed=(played-trackBase).coerceAtLeast(0)/44100.0) else current}
                 }
+                var transitioning=false
                 while(isActive && own==revision) {
                     if(state.value.paused)state.first {!it.paused}
                     ensureActive()
-                    switchRequest?.let {request->
-                        switchRequest=null
+                    (if(!transitioning)switchRequest.getAndSet(null) else null)?.let {request->
+                        switchModels[request.model.getString("cache")]=request
                         try {call("jukebox_switch",JSONObject().put("session",id).put("cache",request.model.getString("cache")).put("seconds",request.seconds),id)}
                         catch(e:CancellationException){throw e}
-                        catch(e:Exception){switchActive=false;switchModels.remove(request.model.optString("cache"));state.update {it.copy(message=e.message ?: "Não foi possível trocar a música.")}}
+                        catch(e:Exception){switchModels.remove(request.model.optString("cache"));state.update {it.copy(message=e.message ?: "Não foi possível trocar a música.")}}
                     }
                     val config=JSONObject().put("equalizer",OndaStore.settings.value.optJSONObject("jukebox_equalizer")).put("session",id).put("variation",variation).put("smooth",smooth).put("volume",100).put("normal",normal)
                     val seek=pendingSeek.getAndSet(-1)
                     if(seek>=0){output.pause();output.flush();submitted=0L;trackBase=0L;timeline.clear();output.play();config.put("seek",seek)}
                     val part=call("jukebox_chunk",config,id)
-                    if(!part.optBoolean("crossfade_active",false))switchActive=false
+                    transitioning=part.optBoolean("crossfade_active",false)
                     val data=Base64.decode(part.getString("pcm"),Base64.NO_WRAP);part.remove("pcm");var offset=0
                     submitted+=data.size/4;timeline.addLast(submitted to part)
                     while(offset<data.size && isActive && own==revision) {
@@ -349,7 +349,7 @@ internal class JukeboxController(private val context:Context,private val scope:C
         }
     }
     fun stop(clearTimer:Boolean=true) {
-        switchRequest=null;switchActive=false;switchModels.clear()
+        switchRequest.set(null);switchModels.clear()
         cancelSearch()
         if(clearTimer){timerTask?.cancel();switchTask?.cancel();timerTask=null;switchTask=null;timerMinutes.value=0;timerRemaining.value=0;switchMinutes.value=0;switchRemaining.value=0}
         fadeTask?.cancel();stopGain=1f;switchGain=1f;startGain=1f;applyGain()

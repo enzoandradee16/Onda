@@ -39,6 +39,11 @@ class EffectsPlaybackService:Service() {
     private var selfStopped=false
     private var artworkKey=""
     private var artwork:Bitmap?=null
+    private fun resumePlayback() {
+        val owner=EffectsPlaybackRuntime.owner ?: return
+        // The published player snapshot can lag a pause/seek command.
+        if(!owner.effectsPreviewEnabled.value && !owner.effectsPreparing.value)owner.mediaToggleEffects()
+    }
     override fun onBind(intent:Intent?)=null
     override fun onCreate() {
         super.onCreate()
@@ -46,7 +51,7 @@ class EffectsPlaybackService:Service() {
         wake=getSystemService(PowerManager::class.java).newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,"ONDA:Effects").apply {setReferenceCounted(false)}
         session=MediaSession(this,"ONDA Effects")
         session.setCallback(object:MediaSession.Callback() {
-            override fun onPlay(){val state=EffectsPlaybackRuntime.state.value;if(state!=null&&!state.playing&&!state.preparing)EffectsPlaybackRuntime.owner?.mediaToggleEffects()}
+            override fun onPlay(){resumePlayback()}
             override fun onPause(){EffectsPlaybackRuntime.owner?.mediaPauseEffects()}
             override fun onStop(){EffectsPlaybackRuntime.owner?.stopEffectsPlayback()}
             override fun onSeekTo(pos:Long){EffectsPlaybackRuntime.owner?.mediaSeekEffects(pos/1000.0)}
@@ -81,7 +86,7 @@ class EffectsPlaybackService:Service() {
     }
     override fun onStartCommand(intent:Intent?,flags:Int,startId:Int):Int {
         val owner=EffectsPlaybackRuntime.owner
-        when(intent?.action){"play"->if(EffectsPlaybackRuntime.state.value?.playing!=true)owner?.mediaToggleEffects();"pause"->owner?.mediaPauseEffects();"previous"->owner?.mediaPreviousEffects();"next"->owner?.mediaNextEffects();"stop"->owner?.stopEffectsPlayback()}
+        when(intent?.action){"play"->resumePlayback();"pause"->owner?.mediaPauseEffects();"previous"->owner?.mediaPreviousEffects();"next"->owner?.mediaNextEffects();"stop"->owner?.stopEffectsPlayback()}
         return START_NOT_STICKY
     }
     override fun onTaskRemoved(rootIntent:Intent?){EffectsPlaybackRuntime.owner?.stopEffectsPlayback();stopSelf()}

@@ -26,8 +26,9 @@ class BatchMetadataUiTest {
         if(compose.onAllNodesWithText("Agora não").fetchSemanticsNodes().isNotEmpty())compose.onNodeWithText("Agora não").performClick()
     }
     private fun metadata() {
-        compose.onNodeWithTag("open-menu").performClick()
-        compose.onNodeWithTag("tab-Metadados").performScrollTo().performClick()
+        compose.onNodeWithTag("nav-Mais").performClick()
+        compose.onNodeWithTag("more-list").performScrollToNode(hasTestTag("more-Editar metadados"))
+        compose.onNodeWithTag("more-Editar metadados").performClick()
     }
     @Test fun batchDialogIsTranslatedInAllLanguages() {
         ready()

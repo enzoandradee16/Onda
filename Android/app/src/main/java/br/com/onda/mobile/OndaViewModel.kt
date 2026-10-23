@@ -380,6 +380,7 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
         if(effectRenderId.isNotBlank())MobileEngine.cancel(effectRenderId)
         previewLimit?.cancel()
         if(effectFullTrack)player.pause()
+        publishEffectsMedia()
     }
     fun stopEffectsPlayback() {effectsQueueRequest?.cancel();pauseEffectsPlayback();if(effectFullTrack){player.stop();previewUrl.value=""};effectsPosition.value=0.0;effectsMediaVisible=false;EffectsPlaybackRuntime.clear(this)}
     fun toggleEffectsPlayback(source:String,speed:Int,reverb:Int,pitch:Boolean) {

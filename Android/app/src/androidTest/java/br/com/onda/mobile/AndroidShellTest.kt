@@ -69,14 +69,14 @@ class AndroidShellTest {
                 OndaStore.saveSettings(JSONObject(original.toString()).put("language","pt-BR").put("theme","Escuro").put("accent","Turquesa").put("jukebox_background",true).put("hidden_tabs",org.json.JSONArray()))
                 vm.searchResults.value=listOf(record,JSONObject(record.toString()).put("title","Around the World"))
                 val neighbors=org.json.JSONArray();repeat(64){neighbors.put(org.json.JSONArray().put((it+24)%64))}
-                vm.jukebox.state.value=JukeboxState(title=record.getString("title"),model=JSONObject().put("media_title",record.getString("title")).put("media_artist","Stardust").put("cover_url",cover.absolutePath).put("neighbors",neighbors),playing=true,flow=listOf(8 to 32))
+                vm.jukebox.state.value=JukeboxState(title=record.getString("title"),model=JSONObject().put("source",java.io.File(context.cacheDir,"ui-audio.wav").absolutePath).put("media_title",record.getString("title")).put("media_artist","Stardust").put("cover_url",cover.absolutePath).put("neighbors",neighbors),playing=true,flow=listOf(8 to 32))
                 OndaStore.items.value=listOf(DownloadItem("ui-download",record.getString("title"),JSONObject().put("catalog_record",record).put("queue_info",record),state="Baixando",progress=68f),DownloadItem("ui-finished","One More Time",JSONObject().put("catalog_record",record).put("queue_info",record),state="Concluído",progress=100f))
             }
-            compose.onNodeWithTag("nav-Pesquisar").performClick();compose.onNodeWithTag("jukebox-miniplayer").assertIsDisplayed();capture("search")
+            compose.onNodeWithTag("nav-Pesquisar").performClick();compose.onNodeWithTag("android-compact-player").assertIsDisplayed();capture("search")
             compose.onNodeWithTag("nav-Fila").performClick();compose.onNodeWithTag("download-summary-ui-download").assertIsDisplayed();capture("downloads")
             compose.onNodeWithTag("nav-Mais").performClick();capture("more")
-            compose.onNodeWithTag("jukebox-miniplayer").performClick()
-            compose.onNodeWithTag("jukebox-variation").assertIsDisplayed();compose.onNodeWithTag("jukebox-transition").assertIsDisplayed();capture("jukebox")
+            compose.onNodeWithTag("android-compact-player").performClick()
+            compose.onNodeWithTag("android-expanded-player").assertIsDisplayed();capture("jukebox")
             compose.runOnIdle {OndaStore.saveSettings(JSONObject(OndaStore.settings.value.toString()).put("theme","Preto puro"))};capture("black")
             compose.runOnIdle {OndaStore.saveSettings(JSONObject(OndaStore.settings.value.toString()).put("theme","Claro"))};capture("light")
         } finally {compose.runOnIdle {vm.jukebox.stop();vm.searchResults.value=emptyList();OndaStore.items.value=originalQueue;OndaStore.saveSettings(original)}}

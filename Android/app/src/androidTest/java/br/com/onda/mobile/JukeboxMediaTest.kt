@@ -71,6 +71,7 @@ class JukeboxMediaTest {
             assertFalse(model.toString(),model.has("error"))
             model.put("media_title","Silent test").put("media_artist","ONDA")
             scenario.onActivity {
+                controller.stop();controller.clearPlaybackQueue()
                 controller.stopOtherAudio={handoffs.incrementAndGet();originalStopOtherAudio()}
                 OndaStore.saveSettings(JSONObject(before.toString()).put("jukebox_background",true))
                 controller.state.value=JukeboxState(title="",model=model)
@@ -121,7 +122,7 @@ class JukeboxMediaTest {
             await {manager.activeNotifications.none {it.id==13}}
 
         } finally {
-            instrumentation.runOnMainSync {controller.stop();controller.stopOtherAudio=originalStopOtherAudio;OndaStore.saveSettings(before)}
+            instrumentation.runOnMainSync {controller.stop();controller.clearPlaybackQueue();controller.stopOtherAudio=originalStopOtherAudio;OndaStore.saveSettings(before)}
             scenario.close();source.delete()
         }
     }

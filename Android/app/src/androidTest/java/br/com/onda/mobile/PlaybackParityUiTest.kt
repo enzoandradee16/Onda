@@ -24,6 +24,10 @@ import java.nio.ByteOrder
 class PlaybackParityUiTest {
     @get:Rule val compose=createComposeRule()
     private val store=ViewModelStore()
+    private fun assertSameFile(expected:File,actual:String?) {
+        assertNotNull("Missing media source",actual)
+        assertEquals(expected.canonicalFile,File(actual!!).canonicalFile)
+    }
     private fun model():OndaViewModel {
         val app=ApplicationProvider.getApplicationContext<android.app.Application>()
         OndaStore.initialize(app);MobileEngine.initialize(app)
@@ -102,12 +106,12 @@ class PlaybackParityUiTest {
                 assertTrue(vm.jukebox.normal)
                 assertEquals(effects.path,vm.effectsSource.value)
                 assertEquals(listOf(effects.path),vm.effectsPlaylist.value)
-                assertEquals(jukebox.path,vm.jukebox.state.value.model?.optString("source"))
+                assertSameFile(jukebox,vm.jukebox.state.value.model?.optString("source"))
             }
             compose.onNodeWithText("Efeitos").performClick()
             compose.runOnIdle {
                 assertEquals(effects.path,vm.effectsSource.value)
-                assertEquals(jukebox.path,vm.jukebox.state.value.model?.optString("source"))
+                assertSameFile(jukebox,vm.jukebox.state.value.model?.optString("source"))
             }
         } finally {compose.runOnUiThread {vm.jukebox.normal=false;vm.jukebox.state.value=original;store.clear()};effects.delete();jukebox.delete()}
     }
@@ -134,7 +138,7 @@ class PlaybackParityUiTest {
             compose.onNodeWithText("Jukebox infinito").performClick()
             compose.onNodeWithTag("jukebox-page-play").performScrollTo().performClick()
             compose.waitUntil(10000){!vm.jukebox.state.value.paused&&!vm.effectsPreviewEnabled.value}
-            compose.runOnIdle {assertEquals(effects.path,vm.effectsSource.value);assertEquals(jukebox.path,vm.jukebox.state.value.model?.optString("source"))}
+            compose.runOnIdle {assertEquals(effects.path,vm.effectsSource.value);assertSameFile(jukebox,vm.jukebox.state.value.model?.optString("source"))}
         } finally {compose.runOnUiThread {vm.jukebox.stop();vm.stopEffectsPlayback();store.clear()};effects.delete();jukebox.delete()}
     }
     @Test fun lyricsShowAllVersesAndSeekingSelectsTheTappedVerse() {

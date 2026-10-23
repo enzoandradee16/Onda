@@ -47,7 +47,7 @@ class AdvancedFeatureTest {
         ready();val context=InstrumentationRegistry.getInstrumentation().targetContext;MobileEngine.initialize(context)
         val fixture=JSONObject(Python.getInstance().getModule("mobile_smoke").callAttr("start_fixture",context.cacheDir.absolutePath).toString())
         val options=JSONObject(OndaStore.settings.value.toString());val before=JSONObject(options.toString())
-        options.put("mode","mp3").put("concurrent_downloads","2").put("normalize_volume",true).put("duplicate_policy","keep")
+        options.put("mode","mp3").put("concurrent_downloads","2").put("normalize_volume",true).put("duplicate_policy","keep").put("detect_duplicates",false)
         OndaStore.saveSettings(options)
         val a=OndaStore.enqueue(fixture.getString("url"),options=options);val b=OndaStore.enqueue(fixture.getString("url"),options=options)
         val past=OndaStore.history.value.map {it.id}.toSet()
@@ -79,19 +79,25 @@ class AdvancedFeatureTest {
         val before=OndaStore.history.value.map {it.id}.toSet()
         val options=OndaStore.config().put("duplicate_policy","keep")
         OndaStore.publish(source.absolutePath,options,"mp3")
+        val cardTag="history-card-${OndaStore.history.value.single {it.id !in before}.id}"
         val vm=androidx.lifecycle.ViewModelProvider(compose.activity)[OndaViewModel::class.java]
         try {
-            compose.onNodeWithTag("open-menu").performClick();compose.onNodeWithTag("tab-Histórico").performClick()
+            compose.onNodeWithTag("nav-Mais").performClick()
+            compose.onNodeWithTag("more-list").performScrollToNode(hasTestTag("more-Histórico"))
+            compose.onNodeWithTag("more-Histórico").performClick()
             compose.onNodeWithText("Pesquisar no histórico").performTextInput("Histórico teste")
-            compose.onAllNodesWithText("Editar metadados").onFirst().performScrollTo().performClick()
+            compose.onNodeWithTag("history-list").performScrollToNode(hasTestTag(cardTag))
+            compose.onNode(hasContentDescription("Mais ações") and hasAnyAncestor(hasTestTag(cardTag))).performClick()
+            compose.onNodeWithText("Editar metadados").performClick()
             compose.waitUntil(15000) {!vm.busy.value && compose.onAllNodesWithText("Música").fetchSemanticsNodes().isNotEmpty()}
             compose.onNodeWithText("Música").performScrollTo().performTextReplacement("Título corrigido no Android")
             compose.onNodeWithText("Normalizar volume (−16 LUFS)").performScrollTo().assertIsDisplayed()
-            compose.onNodeWithText("Salvar cópia editada").performScrollTo().assertIsEnabled().performClick()
+            compose.onNodeWithText("Salvar alterações").performScrollTo().assertIsEnabled().performClick()
             compose.waitUntil(30000) {!vm.busy.value}
             assertEquals("Mensagem: ${vm.dialogNotice.value}; status: ${vm.status.value}",2,OndaStore.history.value.count {it.id !in before})
             compose.onNodeWithTag("app-status").assertTextEquals("Cópia editada salva na pasta de destino.").assertIsDisplayed()
-            compose.onNodeWithText("Escolher outro arquivo").performScrollTo().performClick()
+            compose.onNodeWithContentDescription("Mais ações").performScrollTo().performClick()
+            compose.onNodeWithText("Escolher outro arquivo").performClick()
             assertEquals(2,OndaStore.history.value.count {it.id !in before})
         } finally {
             InstrumentationRegistry.getInstrumentation().runOnMainSync {vm.stopPreview()}
