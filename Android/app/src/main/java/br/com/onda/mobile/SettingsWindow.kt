@@ -89,7 +89,7 @@ val categories=linkedMapOf(
                     }
                 }
             }
-            if(busy) {LinearProgressIndicator(Modifier.fillMaxWidth());UiText(status,style=MaterialTheme.typography.bodySmall,maxLines=2);TextButton(onClick={vm.cancel()}){UiText("Cancelar")}}
+            if(busy) {UiText(status,style=MaterialTheme.typography.bodySmall,maxLines=2);TextButton(onClick={vm.cancel()}){UiText("Cancelar")}}
             if(overview && searchQuery.isBlank()) {
                 Column(Modifier.weight(1f).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(16.dp)) {
                     for((group,groupNames) in listOf("Preferências" to listOf("Geral","Aparência","Áudio","Downloads","Imagens"),"Aplicativo" to listOf("Contas","Ferramentas","Desempenho"))) {

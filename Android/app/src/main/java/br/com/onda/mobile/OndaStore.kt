@@ -20,6 +20,8 @@ data class DownloadItem(val id: String, val title: String, val config: JSONObjec
 data class HistoryItem(val id: Long, val title: String, val uri: String, val mode: String, val size: Long, val metadataPlatform:String="",val source:String="",val completedAt:Long=0L)
 data class Question(val identity: String, val event: JSONObject, val callback: ((JSONObject)->Unit)?=null)
 
+internal fun storedObject(text:String?):JSONObject? = text?.let {runCatching {JSONObject(it)}.getOrNull()}
+
 private class OndaDatabase(context: Context) : SQLiteOpenHelper(context,"onda.sqlite3",null,1) {
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL("CREATE TABLE queue (id TEXT PRIMARY KEY, title TEXT NOT NULL, config TEXT NOT NULL, state TEXT NOT NULL)")
@@ -70,7 +72,7 @@ object OndaStore {
         database = OndaDatabase(context)
         settings.value = defaults().apply {
             val text = context.getSharedPreferences("preferences",0).getString("settings",null)
-            if (text != null) {val saved=JSONObject(text);saved.keys().forEach {put(it,saved.get(it))}}
+            storedObject(text)?.let {saved->saved.keys().forEach {put(it,saved.get(it))}}
         }
         context.getSharedPreferences("preferences",0).getString("display",null)?.let { text ->
             runCatching { JSONObject(text) }.getOrNull()?.let { saved ->
@@ -198,7 +200,7 @@ object OndaStore {
         config.remove("spotify_client_secret")
         database.writableDatabase.execSQL("INSERT INTO queue VALUES(?,?,?,?)",arrayOf(id,title,config.toString(),state))
         if(batchDepth>0) {
-            database.writableDatabase.execSQL("INSERT INTO queue_order VALUES(?,?)",arrayOf(id,++batchPosition))
+            database.writableDatabase.execSQL("INSERT INTO queue_order VALUES(?,?)",arrayOf<Any>(id,++batchPosition))
             if(duplicateKey!=null)batchDuplicateKeys.add(duplicateKey)
         } else database.writableDatabase.execSQL("INSERT INTO queue_order VALUES(?,(SELECT COALESCE(MAX(position),0)+1 FROM queue_order))",arrayOf(id))
         val added=DownloadItem(id,title,config,state)
@@ -252,7 +254,7 @@ object OndaStore {
     }
     fun collectionOptions(): JSONObject {
         val text=context.getSharedPreferences("preferences",0).getString("collection_options",null)
-        return if(text!=null) JSONObject(text) else JSONObject(settings.value.toString())
+        return storedObject(text) ?: JSONObject(settings.value.toString())
     }
     fun saveCollectionOptions(value: JSONObject) {
         val edit=context.getSharedPreferences("preferences",0).edit()
@@ -374,7 +376,9 @@ object OndaStore {
         val safe = name.replace(Regex("[^\\p{L}\\p{N}._ -]"),"_")
         val file = File(context.filesDir,"imports/$category-${UUID.randomUUID()}-$safe")
         file.parentFile?.mkdirs()
-        context.contentResolver.openInputStream(uri)!!.use { source -> file.outputStream().use { source.copyTo(it) } }
+        try {
+            requireNotNull(context.contentResolver.openInputStream(uri)) {"Não foi possível abrir o arquivo."}.use { source -> file.outputStream().use { source.copyTo(it) } }
+        } catch(error:Exception) {file.delete();throw error}
         return file
     }
     private fun destination(path: File, config: JSONObject): Uri {
@@ -481,10 +485,5 @@ object OndaStore {
     }
     @Synchronized fun removeHistory(id: Long) { database.writableDatabase.delete("history_dates","history_id=?",arrayOf(id.toString())); database.writableDatabase.delete("history_metadata_platform","history_id=?",arrayOf(id.toString())); database.writableDatabase.delete("history_sources","history_id=?",arrayOf(id.toString())); database.writableDatabase.delete("history","id=?",arrayOf(id.toString())); refreshHistory() }
     @Synchronized fun clearHistory() { database.writableDatabase.execSQL("DELETE FROM history_dates"); database.writableDatabase.execSQL("DELETE FROM history_metadata_platform"); database.writableDatabase.execSQL("DELETE FROM history_sources"); database.writableDatabase.execSQL("DELETE FROM history"); refreshHistory() }
-    fun mimeFor(name: String): String = when(name.substringAfterLast('.').lowercase()) {
-        "mp3"->"audio/mpeg"; "m4a"->"audio/mp4"; "flac"->"audio/flac"; "wav"->"audio/wav"
-        "mov"->"video/quicktime"; "mp4"->"video/mp4"; "mkv"->"video/x-matroska"; "webm"->"video/webm"
-        "jpg","jpeg"->"image/jpeg"; "png"->"image/png"; "webp"->"image/webp"; "svg"->"image/svg+xml"
-        else->"application/octet-stream"
-    }
+    fun mimeFor(name: String): String = mediaMimeType(name)
 }

@@ -1,5 +1,5 @@
 """Cancelable silence analysis; automatic trimming affects only the file edges."""
-import json,re,subprocess,tempfile,time
+import json,math,re,subprocess,tempfile,time
 from pathlib import Path
 from audio_tools import executable,process_options
 
@@ -25,7 +25,7 @@ def detect(source,folder='',cancelled=lambda:False):
     probe=subprocess.run([executable('ffprobe',folder),'-v','error','-show_entries','format=duration:stream=codec_type','-of','json',stamp['source']],capture_output=True,text=True,timeout=30,**process_options())
     if probe.returncode:raise ValueError('Não foi possível ler o arquivo para detectar silêncio.')
     info=json.loads(probe.stdout);duration=float(info.get('format',{}).get('duration') or 0)
-    if duration<=0 or not any(stream.get('codec_type')=='audio' for stream in info.get('streams',[])):raise ValueError('O arquivo não contém áudio com duração válida.')
+    if not math.isfinite(duration) or duration<=0 or not any(stream.get('codec_type')=='audio' for stream in info.get('streams',[])):raise ValueError('O arquivo não contém áudio com duração válida.')
     process=None
     try:
         with tempfile.TemporaryFile() as errors:

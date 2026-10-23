@@ -600,6 +600,7 @@ fun mediaClock(seconds:Long):String {val value=seconds.coerceAtLeast(0);return "
 }
 
 @Composable fun EffectsPage(vm: OndaViewModel,heading:Boolean=true) {
+    val compactMode by vm.compactPlaybackMode.collectAsStateWithLifecycle()
     val lyricSettings by OndaStore.settings.collectAsStateWithLifecycle()
     var source by rememberSaveable {mutableStateOf("")}
     val lyricCache by vm.lyricsCache.collectAsStateWithLifecycle()
@@ -620,8 +621,9 @@ fun mediaClock(seconds:Long):String {val value=seconds.coerceAtLeast(0);return "
     fun toggle() {vm.toggleEffectsPlayback(source,speed.toInt(),reverb.toInt(),pitch)}
     fun moveTrack(index:Int) {vm.playEffectsQueueTrack(index)}
     LaunchedEffect(speed,reverb,pitch) {
+        val changed=!vm.effectsControlsMatch(speed.toInt(),reverb.toInt(),pitch)
         vm.rememberEffectsControls(speed.toInt(),reverb.toInt(),pitch)
-        if(liveEffects && source.isNotBlank()) vm.previewEffects(source,speed.toInt(),reverb.toInt(),pitch,position,fullTrack=true)
+        if(changed && liveEffects && source.isNotBlank()) vm.previewEffects(source,speed.toInt(),reverb.toInt(),pitch,position,fullTrack=true)
     }
     val incomingSource by vm.effectsSource.collectAsStateWithLifecycle()
     LaunchedEffect(incomingSource) {
@@ -651,7 +653,7 @@ fun mediaClock(seconds:Long):String {val value=seconds.coerceAtLeast(0);return "
         if(searchBusy)vm.cancel() else if(effectsQuery.isNotBlank())vm.operation("effects_search",JSONObject().put("query",effectsQuery).put("provider",OndaStore.settings.value.optString("catalog_provider","Deezer"))) {result->effectsResults=result.optJSONArray("tracks")?.objects().orEmpty()}
     }
     Column(Modifier.fillMaxSize()) {
-    Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(LayoutSpacing.inset),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
+    Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(LayoutSpacing.inset),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.section)) {
         if(heading)ToolHeading("Efeitos")
         ToolCard(Modifier.testTag("effects-source-card")) {
             UiText("Sua música",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold)
@@ -661,11 +663,10 @@ fun mediaClock(seconds:Long):String {val value=seconds.coerceAtLeast(0);return "
                 OutlinedButton(enabled=searchBusy || effectsQuery.isNotBlank(),onClick=::searchEffects){UiText(if(searchBusy) "Cancelar" else "Pesquisar")}
                 OutlinedButton(enabled=!searchBusy,onClick={choose.launch(arrayOf("audio/*"))}){UiText("Abrir arquivo")}
             }
-            if(searchBusy)LinearProgressIndicator(Modifier.fillMaxWidth())
             if(effectsResults.isNotEmpty())Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){UiText("Resultados",Modifier.weight(1f));IconButton(onClick={effectsResults=emptyList()}){OndaIcon("close","Fechar pesquisa",Modifier.size(22.dp))}}
             effectsResults.forEach {record->
                 Column(Modifier.fillMaxWidth()) {
-                    Text(record.optString("title")+" · "+record.stringList("artists"),style=MaterialTheme.typography.bodyMedium)
+                    SearchTrackInformation(record)
                     Row(horizontalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
                         fun load(play:Boolean) {vm.operation("effects_load",JSONObject().put("record",record)) {result->val path=result.getString("source");vm.appendEffectsRecord(path,record);if(play)vm.playEffectsQueueTrack(vm.effectsPlaylist.value.indexOf(path))}}
                         TextButton(enabled=!searchBusy,onClick={load(true)}){UiText("Reproduzir")}
@@ -674,7 +675,9 @@ fun mediaClock(seconds:Long):String {val value=seconds.coerceAtLeast(0);return "
                 }
             }
         }
-        infos[source]?.let {EffectsTrackInformation(it,source)}
+        infos[source]?.let {info->EffectsTrackInformation(info,source){
+            if(compactMode==1&&source.isNotBlank())OutlinedButton(onClick=::toggle,enabled=duration>0f,modifier=Modifier.testTag("effects-page-play")){UiText("Reproduzir em Efeitos")}
+        }}
         ToolCard(Modifier.testTag("effects-adjustments-card")) {
             UiText("Ajustes",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold)
             val presets=remember {linkedMapOf("Original" to (100f to 0f),"Slowed leve" to (90f to 0f),"Slowed intenso" to (75f to 0f),"Sped Up leve" to (115f to 0f),"Sped Up intenso" to (130f to 0f),"Sped Up + Reverb" to (120f to 25f),"Só Reverb" to (100f to 30f),"Clássico" to (85f to 25f),"Atmosférico" to (75f to 50f))}

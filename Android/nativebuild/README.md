@@ -16,7 +16,7 @@ Os arquivos compactados originais, incluindo licenças, são distribuídos no pa
 
 Requer Python 3.11 atualizado (3.11.8 ou posterior para extração segura), internet na preparação do ambiente e aproximadamente 8 GB livres. O script baixa e confere os fontes e as ferramentas por SHA-256, prepara um MSYS2 portátil e não instala WSL nem altera o SDK do sistema.
 
-Na pasta `Celular`:
+Na pasta `Android`:
 
 ```powershell
 $work=Join-Path $env:LOCALAPPDATA 'OndaNativeBuild'

@@ -3,6 +3,7 @@ import json
 import os
 from pathlib import Path
 import shutil
+import tempfile
 
 
 def fetch_cover(url, *, _attempt=0):
@@ -53,11 +54,12 @@ def apply_tags(filename, record, match, cover=None):
         provenance.pop("youtube_title", None)
         provenance["imported_filename"] = match.get("title")
     raw = json.dumps(provenance, ensure_ascii=False, indent=2)
-    temporary = path.with_name(path.stem + ".tagging" + suffix)
+    staging = tempfile.TemporaryDirectory(prefix='.onda-tags-',dir=path.parent)
+    temporary = Path(staging.name) / path.name
     sidecar = path.with_suffix(path.suffix + ".metadata.json")
-    sidecar_temp = sidecar.with_suffix(".tmp")
-    shutil.copyfile(path, temporary)
+    sidecar_temp = Path(staging.name) / 'metadata.json'
     try:
+        shutil.copyfile(path, temporary)
         if suffix == ".mp3":
             from mutagen.id3 import (ID3, ID3NoHeaderError, TIT2, TPE1, TALB, TPE2, TDRC,
                                      TRCK, TPOS, TCON, TSRC, TXXX, APIC, WOAS)
@@ -121,8 +123,7 @@ def apply_tags(filename, record, match, cover=None):
         os.replace(temporary, path)
         os.replace(sidecar_temp, sidecar)
     finally:
-        temporary.unlink(missing_ok=True)
-        sidecar_temp.unlink(missing_ok=True)
+        staging.cleanup()
     return str(sidecar)
 
 

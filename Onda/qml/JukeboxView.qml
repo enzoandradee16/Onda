@@ -74,9 +74,17 @@ ScrollView {
                 id: resultList; anchors.fill: parent; anchors.margins: 6; anchors.topMargin: 56; clip: true; model: bridge.state.results
                 delegate: ItemDelegate {
                     required property var modelData; required property int index
-                    width: resultList.width; height: 50
+                    width: resultList.width; height: 84
                     contentItem: RowLayout {
-                        ColumnLayout { Layout.fillWidth: true; Label { Layout.fillWidth: true; text: modelData.title; color: bridge.palette.text; elide: Text.ElideRight } Label { Layout.fillWidth: true; text: modelData.artist; color: bridge.palette.muted; elide: Text.ElideRight } }
+                        Rectangle { Layout.preferredWidth: 64; Layout.preferredHeight: 64; radius: 6; color: bridge.palette.input
+                            RoundedArtwork { id: searchCover; objectName: "jukeboxSearchArtwork"; anchors.fill: parent; source: modelData.cover || ""; fillMode: Image.PreserveAspectFit; sourceSize.width: 128; sourceSize.height: 128; asynchronous: true }
+                            Label { anchors.centerIn: parent; visible: searchCover.status !== Image.Ready; text: "♪"; color: bridge.palette.muted }
+                        }
+                        ColumnLayout { Layout.fillWidth: true; Layout.minimumWidth: 0; spacing: 4
+                            Label { Layout.fillWidth: true; text: modelData.title; color: bridge.palette.text; elide: Text.ElideRight }
+                            Label { Layout.fillWidth: true; text: modelData.artist; color: bridge.palette.muted; elide: Text.ElideRight }
+                            Label { Layout.fillWidth: true; text: modelData.album || ""; color: bridge.palette.muted; elide: Text.ElideRight }
+                        }
                         ActionButton { text: bridge.translate("Adicionar à fila"); onClicked: {bridge.enqueueResult(index);page.queueExpanded=true} }
                     }
                     onClicked: bridge.selectResult(index)

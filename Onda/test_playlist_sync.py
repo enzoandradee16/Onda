@@ -55,7 +55,7 @@ class PlaylistComparisonTests(unittest.TestCase):
         inventory=[dict(row,path=f'{i}.mp3') for i,row in enumerate(tracks[:1113])]
         result=reconcile(tracks,inventory)
         self.assertEqual(result['counts']['present'],1113);self.assertEqual(result['counts']['missing'],170)
-        source=Path(__file__).parent.parent/'Celular/app/src/main/python/mobile_backend.py'
+        source=Path(__file__).parent.parent/'Android/app/src/main/python/mobile_backend.py'
         spec=importlib.util.spec_from_file_location('sync_mobile_backend_test',source)
         backend=importlib.util.module_from_spec(spec);spec.loader.exec_module(backend)
         with tempfile.TemporaryDirectory() as root:

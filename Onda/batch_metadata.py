@@ -3,7 +3,7 @@ from pathlib import Path
 from audio_library import FIELDS, edit_copy
 
 
-def edit_batch(config, emit=lambda *args, **kwargs: None):
+def edit_batch(config, emit=lambda *args, **kwargs: None, *, cancelled=lambda:False):
     entries = config.get('sources')
     changes = config.get('changes', {})
     if not isinstance(entries, list) or not 1 <= len(entries) <= 500:
@@ -24,6 +24,7 @@ def edit_batch(config, emit=lambda *args, **kwargs: None):
                 raise ValueError('Informe um número de faixa ou disco válido.')
     results, errors, seen = [], [], set()
     for index, entry in enumerate(entries):
+        if cancelled():raise InterruptedError('Operação cancelada.')
         path = Path(entry['source']).resolve()
         if path in seen:
             continue
@@ -34,13 +35,15 @@ def edit_batch(config, emit=lambda *args, **kwargs: None):
                            edit_metadata=True, normalize_volume=False, lyrics_path='')
             if config.get('_android_batch'):
                 options['overwrite_original'] = False
-            result = edit_copy(options, emit)
+            result = edit_copy(options, emit, cancelled=cancelled)
             if config.get('_android_batch'):
                 if config.get('overwrite_original'):
                     emit('batch_original', **result, source=str(path), original_uri=entry['original_uri'])
                 else:
                     emit('file', **result)
             results.append(result)
+        except InterruptedError:
+            raise
         except Exception as error:
             errors.append({'name': entry.get('output_name') or path.name, 'error': str(error)})
             continue

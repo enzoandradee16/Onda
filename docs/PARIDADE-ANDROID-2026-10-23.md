@@ -53,3 +53,47 @@ Nas abas Android de reprodução, Abrir arquivo foi posicionado à direita de Pe
 
 
 A barra compacta Android ganhou acabamento liquid glass com a cor predominante da capa, desfoque da imagem, lente translúcida, reflexos e bordas. Há adaptação a temas claros, escuros e alto contraste, e cor de destaque como fallback. Testes JVM verificam a extração da cor e o contraste do título/artista sobre as camadas compostas, incluindo capas extremas e transparências.
+
+
+Após a preparação da rc2, o Android recebeu um ajuste de reprodução para testes: Reprodução normal visível e reativa na aba Jukebox, ações de reprodução em cada aba e troca pelo menu expandido. Iniciar/retomar Jukebox pausa Efeitos inclusive na retomada; iniciar Efeitos pausa Jukebox. A simples alternância não reinicia a renderização de Efeitos. Novos cenários instrumentados cobrem alternância, retomada e preservação de músicas e opção normal; execução em aparelho continua pendente. Estes ajustes locais não alteram os pacotes do rascunho rc2 já preparado.
+
+
+Os botões Android de troca ficaram condicionais à reprodução controlada pela barra e foram movidos para os metadados da música. No PC, os transportes separados já permitem iniciar cada aba; foi corrigida a pausa de Efeitos ao iniciar ou retomar Jukebox, preservando a posição e a faixa.
+
+
+### Correção de letras e capas
+
+As duas abas Android passam os metadados da gravação à integração LRCLIB compartilhada com o PC. Os metadados de catálogo têm prioridade sobre tags do áudio temporário, e o nome de arquivo sem tags não substitui o título. Efeitos mantém cover_url e usa a capa de catálogo na página, fila e barra compacta quando não há imagem embutida. A conclusão da leitura dos metadados reinicia uma busca prematura de letras.
+
+Validação: 10 testes de letras; consultas reais ao LRCLIB para Stardust e Daft Punk retornaram letras sincronizadas; teste do adaptador Android confirmou título, artista, capa e duração; autoteste do portátil aprovado. Validação visual em aparelho permanece pendente.
+
+O cartão e a janela de letras Android usam a cor predominante da capa (embutida ou de catálogo), compartilhando a extração usada pela barra compacta. Na ausência de capa usam o tema. Cores de texto são escolhidas por luminância, com teste de contraste para capas extremas e alto contraste.
+
+As barras compactas Android de Efeitos e Jukebox incluem o botão de microfone antes da fila, abrindo diretamente a janela de letras da faixa atual.
+
+
+### Cache em aparelhos Android e progresso único
+
+A promoção do áudio baixado para o cache de Efeitos copia somente os bytes (copyfile), sem copystat/xattrs de segurança, que podem ser negados pelo SELinux em aparelhos. O teste de obtenção de áudio simula PermissionError ao copiar atributos e confirma que o áudio fica legível e a pasta temporária é removida. Essa é uma correção para o caminho de cópia; a confirmação no aparelho que apresentou o erro permanece pendente.
+
+Operações vm.busy usam apenas a barra geral. Removidas barras redundantes em Efeitos, coleções, metadados, configurações, conversor e recuperação de falhas. Preparação local de metadados em lote mostra sua barra somente sem uma operação geral ativa. Indicadores de tarefas independentes e progresso de reprodução foram mantidos.
+
+Validação Python: 53 testes, 4 ignorados, nenhuma falha.
+
+As pesquisas do Jukebox Android (página e fila) aceitam Enter/ação Pesquisar do teclado. Consultas vazias e novos envios durante uma operação ativa são ignorados.
+
+A página Jukebox usa o cartão Sua música com campo rotulado e botões de contorno, além do mesmo componente de informações de faixa de Efeitos (capa, título, artista, álbum, duração). Reprodução normal fica após os cartões.
+
+A tela Reprodução Android separa os botões Efeitos/Jukebox com intervalo de seção (16 dp no modo Padrão), alinhando suas margens aos cartões. Os controles internos ganham 2 dp e os intervalos de seção 4 dp, somente nas páginas de reprodução. Os cartões de ambas as abas usam intervalos de seção; os modos Compacto e Confortável continuam respeitados.
+
+A busca automática de letras compartilhada PC/Android consulta alternativas LRCLIB quando não há resultado exato. Classifica por título, artista, álbum, proximidade da duração e sincronização; descarta incompatibilidades de versão (live/remix/radio etc.) e duração acima de 8 s ou 4%, o maior. Não escolhe a primeira letra indiscriminadamente; seleção manual preservada. Validação: 14 testes de letras aprovados.
+
+Filas Android de Efeitos e Jukebox agora abrem em folha inferior, com capa, título, artista, duração e seções Já tocadas/Tocando agora/A seguir. Editar revela opções de reordenação e remoção; tocar uma faixa mantém a folha aberta. Seleções diretas no Jukebox entram na fila com modelo preparado, permitindo Retroceder após novas escolhas e mantendo as anteriores durante a sessão. Nenhuma faixa é removida automaticamente ao avançar.
+
+Resultados da pesquisa na fila Jukebox exibem capa, título, artista e álbum no Android e PC. Android divide a área disponível entre resultados roláveis e fila, mantendo o toque para adicionar. O PC preserva seleção/reprodução e botão Adicionar à fila. Sem capa, usa o símbolo de música. Testes PC: 74 aprovados.
+
+Pesquisas gerais de Efeitos e Jukebox Android exibem capa, título, artista e álbum, mantendo seus comandos de reprodução/adição. A pesquisa de Efeitos PC também ganhou capa e álbum (Jukebox PC já usa esse padrão). O ícone compartilhado close agora desenha X, corrigindo o fallback de três linhas em todos os botões de fechar/remover que o utilizam.
+
+Correção da faixa exibida como audio na fila de Efeitos PC: o resultado de catálogo agora acompanha o caminho do cache até a leitura dos itens da fila, preservando título, artistas, álbum e cover_url. A capa embutida mantém prioridade visual; sem ela, usa a URL de catálogo. No Android, appendEffectsRecord atualiza informações já carregadas, e leituras em andamento incorporam os metadados mais recentes antes de publicar o resultado. Dois testes de regressão confirmam os adaptadores PC e Android com áudio temporário sem tags.
+
+Resultados da pesquisa principal do Jukebox Android passam a usar o mesmo formato de Efeitos: cabeçalho Resultados com X para fechar, linha de capa/título/artista/álbum sem contorno e ações separadas Reproduzir/Adicionar à fila. Reproduzir prepara e inicia a faixa; adicionar mantém a reprodução atual.

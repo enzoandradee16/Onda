@@ -65,7 +65,9 @@ class PreferenceStore:
         extras={}
         if type(data.get("minimize_on_miniplayer")) is bool:extras["minimize_on_miniplayer"]=data["minimize_on_miniplayer"]
         if data.get('lyrics_animation') in ('Desativada','Suave','Deslizar','Zoom'):extras['lyrics_animation']=data['lyrics_animation']
-        if isinstance(data.get('sidebar_width'),(int,float)):extras['sidebar_width']=max(160,min(420,int(data['sidebar_width'])))
+        if type(data.get('sidebar_width')) in (int,float):
+            try:extras['sidebar_width']=max(160,min(420,int(data['sidebar_width'])))
+            except (ValueError,OverflowError):pass
         from jukebox_equalizer import clean as clean_equalizer
         from shortcut_options import load_overrides
         result_shortcuts=json.dumps(load_overrides(data.get("shortcut_keys","{}")))
@@ -115,7 +117,7 @@ class PreferenceStore:
         if data.get('playback_tab_order') in ('Efeitos primeiro','Jukebox infinito primeiro'):result['playback_tab_order']=data['playback_tab_order']
         if 'jukebox_transition_seconds' in data:
             try:result['jukebox_transition_seconds']=max(1,min(10,int(data['jukebox_transition_seconds'])))
-            except (TypeError,ValueError):pass
+            except (TypeError,ValueError,OverflowError):pass
         if type(data.get('jukebox_gradual_transition')) is bool:result['jukebox_gradual_transition']=data['jukebox_gradual_transition']
         if type(data.get('qt_animations')) is bool:result['qt_animations']=data['qt_animations']
         if type(data.get('effects_keep_pitch')) is bool:

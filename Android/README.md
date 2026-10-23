@@ -2,7 +2,7 @@
 
 Projeto Android separado da distribuição Windows. Kotlin/Compose fornece a interface e os serviços; Python/Chaquopy executa o motor compartilhado do ONDA. O build copia os módulos necessários de `../Onda`, sem editar o programa de PC.
 
-Versão **1.1.7** em preparação (versão publicada anterior: 1.1.5) para Android 8 ou superior, ARM64 e x86_64. Kotlin/Compose e o motor compartilhado fornecem busca, downloads, histórico, edição de metadados, imagens e efeitos. Consulte [FUNCIONALIDADES.md](FUNCIONALIDADES.md) e a [auditoria de paridade com o PC](PARIDADE-PC-ANDROID.md).
+Versão de desenvolvimento **1.2.0**, conforme `app/build.gradle.kts`, para Android 8 ou superior, ARM64 e x86_64. Kotlin/Compose e o motor compartilhado fornecem busca, downloads, histórico, edição de metadados, imagens e efeitos. Consulte [FUNCIONALIDADES.md](FUNCIONALIDADES.md) e a [auditoria de paridade com o PC](PARIDADE-PC-ANDROID.md).
 
 Resultados e pendências desta compilação: [validation/RESULTADOS.md](validation/RESULTADOS.md).
 
@@ -31,7 +31,7 @@ O ícone da tela inicial e dos aplicativos recentes acompanha o destaque e a apa
 Requer JDK 17/21, SDK com plataforma Android 36 e Build Tools 36.0.0, e Python 3.11 para preparar as dependências. Se a pasta Portatil estiver ao lado, o script aproveita o Python dela.
 
 ```powershell
-cd 'C:\Users\Enzo Andrade\Desktop\Onda\Celular'
+cd 'E:\Projetos\Onda\Android' # ajuste para a pasta do seu checkout
 powershell -ExecutionPolicy Bypass -File '.\Compilar Android.ps1'
 ```
 

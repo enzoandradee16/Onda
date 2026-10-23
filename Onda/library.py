@@ -76,7 +76,9 @@ class LibraryStore:
         with self.connect() as db:
             db.row_factory = sqlite3.Row
             if query:
-                cursor = db.execute("SELECT id,date,path,name,mode,source FROM history WHERE instr(lower(name),lower(?))>0 ORDER BY id DESC LIMIT 1000", (query,))
+                # SQLite lower() only folds ASCII; music titles commonly use accents.
+                db.create_function('casefold', 1, lambda value: (value or '').casefold(), deterministic=True)
+                cursor = db.execute("SELECT id,date,path,name,mode,source FROM history WHERE instr(casefold(name),?)>0 ORDER BY id DESC LIMIT 1000", (query.casefold(),))
             else:
                 cursor = db.execute("SELECT id,date,path,name,mode,source FROM history ORDER BY id DESC LIMIT 1000")
             return [dict(row) for row in cursor]

@@ -55,6 +55,24 @@ internal fun albumGlassColors(accent:Color,dark:Boolean,highContrast:Boolean):Al
     val dark=scheme.surface.luminance()<.5f
     val highContrast=settings.optString("theme")=="Alto contraste"
     val fallback=scheme.primary
+    val tint=rememberAlbumAccent(artwork)
+    val colors=remember(tint,fallback,dark,highContrast){albumGlassColors(tint ?: fallback,dark,highContrast)}
+    val shape=RoundedCornerShape(16.dp)
+    Surface(modifier,shape=shape,color=Color.Transparent,contentColor=colors.ink,shadowElevation=if(highContrast)0.dp else 5.dp) {
+        Box(Modifier.clip(shape).background(colors.base).border(BorderStroke(if(highContrast)2.dp else 1.dp,Brush.verticalGradient(listOf(colors.ink.copy(alpha=if(highContrast).9f else .38f),colors.ink.copy(alpha=if(highContrast).7f else .08f),colors.ink.copy(alpha=if(highContrast).9f else .22f)))),shape)) {
+            if(artwork!=null)AsyncImage(artwork,null,Modifier.matchParentSize().blur(28.dp),contentScale=ContentScale.Crop,alpha=if(highContrast).02f else .10f)
+            Box(Modifier.matchParentSize().background(Brush.linearGradient(listOf(colors.top.copy(alpha=.9f),colors.base.copy(alpha=.96f),colors.bottom.copy(alpha=.9f)))))
+            Box(Modifier.matchParentSize().drawWithCache {
+                val sheen=Brush.verticalGradient(listOf(Color.White.copy(alpha=if(highContrast).01f else .045f),Color.Transparent),endY=size.height*.55f)
+                onDrawBehind {drawRect(sheen)}
+            })
+            content(colors)
+        }
+    }
+}
+
+@Composable internal fun rememberAlbumAccent(artwork:Any?):Color? {
+    val context=LocalContext.current
     val tint by produceState<Color?>(null,artwork) {
         value=null
         if(artwork!=null) {
@@ -70,17 +88,26 @@ internal fun albumGlassColors(accent:Color,dark:Boolean,highContrast:Boolean):Al
             }
         }
     }
-    val colors=remember(tint,fallback,dark,highContrast){albumGlassColors(tint ?: fallback,dark,highContrast)}
-    val shape=RoundedCornerShape(16.dp)
-    Surface(modifier,shape=shape,color=Color.Transparent,contentColor=colors.ink,shadowElevation=if(highContrast)0.dp else 5.dp) {
-        Box(Modifier.clip(shape).background(colors.base).border(BorderStroke(if(highContrast)2.dp else 1.dp,Brush.verticalGradient(listOf(colors.ink.copy(alpha=if(highContrast).9f else .38f),colors.ink.copy(alpha=if(highContrast).7f else .08f),colors.ink.copy(alpha=if(highContrast).9f else .22f)))),shape)) {
-            if(artwork!=null)AsyncImage(artwork,null,Modifier.matchParentSize().blur(28.dp),contentScale=ContentScale.Crop,alpha=if(highContrast).02f else .10f)
-            Box(Modifier.matchParentSize().background(Brush.linearGradient(listOf(colors.top.copy(alpha=.9f),colors.base.copy(alpha=.96f),colors.bottom.copy(alpha=.9f)))))
-            Box(Modifier.matchParentSize().drawWithCache {
-                val sheen=Brush.verticalGradient(listOf(Color.White.copy(alpha=if(highContrast).01f else .045f),Color.Transparent),endY=size.height*.55f)
-                onDrawBehind {drawRect(sheen)}
-            })
-            content(colors)
-        }
-    }
+    return tint
+}
+
+internal fun albumLyricsColors(accent:Color,highContrast:Boolean):Pair<Color,Color> {
+    var background=lerp(accent.copy(alpha=1f),Color.Black,.18f)
+    if(highContrast)while(background.luminance()>.1f)background=lerp(background,Color.Black,.1f)
+    val ink=if(background.luminance()>.179f)Color.Black else Color.White
+    return background to ink
+}
+
+@Composable internal fun rememberLyricsColors(vm:OndaViewModel,source:String):Pair<Color,Color> {
+    val info by vm.effectsInfo.collectAsStateWithLifecycle()
+    val juke by vm.jukebox.state.collectAsStateWithLifecycle()
+    val settings by OndaStore.settings.collectAsStateWithLifecycle()
+    val model=juke.model?.takeIf {it.optString("source")==source}
+    val details=info[source]
+    val encoded=if(model!=null)model.optString("media_cover") else details?.optString("cover").orEmpty()
+    val url=if(model!=null)model.optString("cover_url") else details?.optJSONObject("record")?.optString("cover_url").orEmpty()
+    val artwork=remember(encoded,url){if(encoded.isNotBlank())runCatching {android.util.Base64.decode(encoded,android.util.Base64.DEFAULT)}.getOrNull() else url.takeIf {it.isNotBlank()}}
+    val accent=rememberAlbumAccent(artwork)
+    val scheme=MaterialTheme.colorScheme
+    return if(accent==null)scheme.primaryContainer to scheme.onPrimaryContainer else albumLyricsColors(accent,settings.optString("theme")=="Alto contraste")
 }

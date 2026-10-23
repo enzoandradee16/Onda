@@ -41,6 +41,7 @@ class DesktopWorkspace(QObject):
         self.options={'effectsStopMinutes':0,'effectsStopRemaining':0,'effectsTrackMinutes':0,'effectsSwitchRemaining':0,'effectsQueue':[],'effectsQueueIndex':-1,'effectsPaused':False,'effectsVolume':80,'effectsQuery':'','effectsResults':[],'effectsOnlineRecord':{},'previewActive':False,'previewKind':'','previewSource':'','previewProcessed':False,'metadataFields':{},'lyricText':'','effectLyricsName':'','query':'','provider':self.settings.get('catalog_provider','Deezer'),'links':'','linksNotice':'','playlistUrl':'','playlistTitle':'','queueQuery':'','queueState':'Todos','historyQuery':'','silenceResults':[],'trimSilence':False,'converterSources':[],'converterFormat':'MP4','video_quality':'Equilibrada','video_resolution':'Original','video_bitrate':'Automático','audio_bitrate':'192k','video_fps':'Original','video_audio':'Manter áudio','effectsSource':'','effectsRecord':{},'effectsCover':'','speed':85,'reverb':25,'keep_pitch':self.settings.get('effects_keep_pitch',False),'effectFormat':'MP3','position':0,'duration':0,'imageInfo':{},'catalogSearched':False,'imageSource':'','imageUrl':'','imagePreview':'','metadataSources':[],'metadata':{},'cover_path':'','lyrics_path':'','normalize_volume':False,'overwrite_original':False,'comparison':{},'selectedCatalog':-1,'selectedPlaylist':-1,'filterArtist':'','filterAlbum':'','filterVersion':''}
         from audio_tools import PreviewPlayer
         self.effects_tails=[];self.player=PreviewPlayer();self.tray=None;self.shell=None;self.shortcuts=[];self.shortcuts_suspended=False;self.tasks_threads=[]
+        bridge.playbackRequested.connect(self.pause_effects_for_jukebox)
         self.shutdown_timer=QTimer(self);self.shutdown_timer.setSingleShot(True);self.shutdown_timer.setInterval(60000);self.shutdown_timer.timeout.connect(self.perform_shutdown)
         self.save_timer=QTimer(self);self.save_timer.setSingleShot(True);self.save_timer.setInterval(400);self.save_timer.timeout.connect(self.persist)
         self.timer=QTimer(self);self.timer.setInterval(300);self.timer.timeout.connect(self.tick)
@@ -241,7 +242,12 @@ class DesktopWorkspace(QObject):
     def launch_thread(self,work):
         self.tasks_threads=[thread for thread in self.tasks_threads if thread.is_alive()];thread=threading.Thread(target=work,daemon=True);self.tasks_threads.append(thread);thread.start()
     def cancel_task(self,action):
-        if action in self.tasks:self.tasks[action].set()
+        cancel=self.tasks.pop(action,None)
+        if cancel is not None:
+            cancel.set()
+            # Results can already be queued on the GUI thread when cancellation wins.
+            self.generations[action]=self.generations.get(action,0)+1
+        self.callbacks.pop(action,None);self.background_tasks.discard(action)
         for identity,state in list(self.active.items()):
             if state.get('operation')==action:self.stop_job(identity)
         changed=False
@@ -261,7 +267,12 @@ class DesktopWorkspace(QObject):
         elif action=='effects_enqueue_result':
             records=self.options['effectsResults'];index=int(p.get('index',-1))
             if not 0<=index<len(records):return
-            self.run_task('effects_load',{'record':records[index]},lambda result:self.accept_files('effects_queue',[result['source']]))
+            record=dict(records[index])
+            def enqueued(result):
+                if not hasattr(self,'effects_catalog_records'):self.effects_catalog_records={}
+                self.effects_catalog_records[result['source']]=dict(result.get('record') or record)
+                self.accept_files('effects_queue',[result['source']])
+            self.run_task('effects_load',{'record':record},enqueued)
         elif action=='effects_queue_play':self.play_effects_entry(int(p.get('index',0)))
         elif action=='effects_timer':
             minutes=max(0,min(180,int(p.get('minutes',0))))
@@ -513,8 +524,11 @@ class DesktopWorkspace(QObject):
         if self.settings.get('notifications_enabled',True):self.message.emit(tr('Conferência de arquivos locais'),'\n'.join(lines))
     def refresh_history(self):
         from datetime import datetime
+        selected={row['id'] for row in self.models['history'].rows if row.get('checked')}
+        self.cancel_task('history_details')
         rows=self.library.history(self.options.get('historyQuery',''))
         for row in rows:
+            if row['id'] in selected:row['checked']=True
             try:row['date_display']=datetime.fromisoformat(row['date']).astimezone().strftime('%d/%m/%Y %H:%M')
             except (ValueError,TypeError):row['date_display']=row['date']
         self.models['history'].replace(rows)
@@ -554,19 +568,25 @@ class DesktopWorkspace(QObject):
         from engine import validate_url
         from metadata import is_streaming_link
         from download_defaults import effective_download
-        from duplicate_links import source_key
-        config=self.config();config.pop('_account',None);config.pop('_root',None);added=[]
+        from duplicate_links import queue_duplicate_key
+        # Validate the whole input before mutating the queue or scheduling lookups.
+        validated=[]
         for url in urls:
             url=url.strip()
             if not url:continue
             streaming=is_streaming_link(url)
-            if not streaming:url=validate_url(url)
+            validated.append((url if streaming else validate_url(url),streaming))
+        config=self.config();config.pop('_account',None);config.pop('_root',None);added=[]
+        duplicate_keys={queue_duplicate_key(job) for job in self.jobs if job['state'] in ('Na fila','Em andamento','Concluído')} if config.get('detect_duplicates') else set()
+        for url,streaming in validated:
             job=dict(config,**(overrides or {}));job.update(url=url,streaming=streaming,simple_download_mode=config['mode']);job=effective_download(job)
-            if config.get('detect_duplicates') and any(source_key(previous['url'])==source_key(url) and previous['mode']==job['mode'] and previous['state'] in ('Na fila','Em andamento','Concluído') for previous in self.jobs):continue
+            duplicate_key=queue_duplicate_key(job) if config.get('detect_duplicates') else None
+            if duplicate_key is not None and duplicate_key in duplicate_keys:continue
             job.update(id=uuid.uuid4().hex,state='Na fila',percent=0,checked=False,queue_original=len(self.jobs));job.setdefault('display_name',url)
             duplicate=self.library.find_duplicate(url,job['mode']) if config.get('detect_duplicates') else None
             if duplicate:self.confirm('Duplicata encontrada',duplicate,lambda job=job:self.add_duplicate(job,start));continue
             self.jobs.append(job);added.append(job)
+            if duplicate_key is not None:duplicate_keys.add(duplicate_key)
             from queue_titles import supports_lookup
             if not job.get('catalog_record') and supports_lookup(url):self.title_lookup.submit(job['id'],url,(self.settings.get('spotify_client_id',''),self.settings.get('spotify_client_secret','')),config.get('cookies_file',''))
         self.refresh_queue();self.save_queue()
@@ -778,7 +798,10 @@ class DesktopWorkspace(QObject):
                     if row['id']==identity:self.models['queue'].update(index,**self.queue_record(job));break
                 self.refresh_queue_summary()
             return
-        if kind in CHOICES:self.present_choice(identity,event);return
+        if kind in CHOICES:
+            worker=self.active.get(identity)
+            if worker and not worker['cancel'].is_set():self.present_choice(identity,event)
+            return
         if kind=='done' and event.get('path') and job is None:self.library.add_history(event['path'],Path(event['path']).suffix.lstrip('.'));self.refresh_history();self.notify('Arquivo exportado.')
         if kind=='file' and event.get('path'):
             if job:
@@ -823,10 +846,10 @@ class DesktopWorkspace(QObject):
             def loaded(rows):
                 for row in rows:
                     if row.get('error'):self.notify(row['error']);continue
-                    row['cover_url']='data:image/png;base64,'+row['cover'] if row.get('cover') else ''
+                    row['cover_url']='data:image/png;base64,'+row['cover'] if row.get('cover') else row.get('record',{}).get('cover_url','')
                     self.options['effectsQueue'].append(row)
                 self.optionsChanged.emit()
-            self.run_task('effects_queue_info',{'sources':paths},loaded);return
+            self.run_task('effects_queue_info',{'sources':paths,'records':getattr(self,'effects_catalog_records',{})},loaded);return
         if kind=='flac_import':self.replyChoice(self._choice['identity'],{'path':paths[0]})
         elif kind in ('social_cookies','youtube_cookies'):self.setSetting(kind,paths[0])
         elif kind=='converter':
@@ -842,7 +865,10 @@ class DesktopWorkspace(QObject):
             from synced_lyrics import read_lrc
             self._jukebox_lyrics=read_lrc(paths[0]);self._lyric_source=str((self.bridge.model or {}).get('source',''))
         elif kind=='effectLyrics':self.load_lyrics(paths[0],selected=True)
-        elif kind=='metadata':self.options['metadataFields']={};self.options['metadataSources']=paths;self.run_task('audio_read',{'source':paths[0]},self.audio_loaded)
+        elif kind=='metadata':
+            self.cancel_task('cover_crop')
+            self.options.update(metadataFields={},metadataSources=paths,metadata={},cover_path='',lyrics_path='',metadataCover='',originalCover='')
+            self.run_task('audio_read',{'source':paths[0]},self.audio_loaded)
         elif kind=='image':
             self.cancel_task('image_preview');self.options['imageInfo']={};self.options['imageUrl']='';self.options['imageSource']=paths[0];self.options['imagePreview']=QUrl.fromLocalFile(paths[0]).toString();self.run_task('image_info',{'source':paths[0]},lambda result:self.setOption('imageInfo',dict(self.options.get('imageInfo',{}),**result)))
         else:self.options[kind]=paths[0]
@@ -911,8 +937,9 @@ class DesktopWorkspace(QObject):
         if not path:return
         if action=='export_settings':text=json.dumps(export_settings(self.settings,'windows'),ensure_ascii=False,indent=2)
         else:
-            from playlist_files import export_text
-            rows=self.models['playlists'].rows if action=='export_playlist' else [dict(title=row['name'],source_url=row['path']) for row in self.models['history'].rows];text=export_text(rows,m3u=Path(path).suffix.lower()=='.m3u')
+            from playlist_files import export_text,export_local_text
+            if action=='export_playlist':text=export_text(self.models['playlists'].rows,m3u=Path(path).suffix.lower()=='.m3u')
+            else:text=export_local_text(self.models['history'].rows,m3u=Path(path).suffix.lower()=='.m3u')
         Path(path).write_text(text,encoding='utf-8');self.notify('Arquivo exportado.')
     def reset_settings(self):
         for key,value in self.defaults.items():self.setSetting(key,value)
@@ -1146,6 +1173,13 @@ class DesktopWorkspace(QObject):
         if selected:self.setSetting('synced_lyrics',True)
         self.options['lyricText']=line_at(rows,self.options['position']) if self.settings.get('synced_lyrics') else ''
         self.optionsChanged.emit()
+    def pause_effects_for_jukebox(self):
+        if self.preview_kind!='effects':return
+        if self.player.active:self.options['position']=self.player.position_snapshot()
+        self.player.stop();self.preview_timer.stop()
+        for tail in self.effects_tails:tail.stop()
+        self.effects_tails=[]
+        self.options.update(previewActive=False,effectsPaused=True);self.optionsChanged.emit()
     def start_preview(self,source,kind,identity=None,processed=None,**options):
         self.preview_timer.stop();self.cancel_task('normalize_preview');self.preview_kind=kind;self.preview_source=identity or source
         self.player.play(source,self.settings.get('ffmpeg',''),**options)

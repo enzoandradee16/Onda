@@ -11,9 +11,10 @@ AUDIO_TYPES={'.mp3','.m4a','.flac','.wav','.ogg','.opus'}
 FIELDS={'title':'title','artists':'artist','album':'album','genre':'genre','release_date':'date','track_number':'tracknumber','disc_number':'discnumber'}
 
 def read_audio(source):
-    from mutagen import File
+    from mutagen import File, MutagenError
     path=Path(source)
-    audio=File(path,easy=True)
+    try:audio=File(path,easy=True)
+    except MutagenError as error:raise ValueError('Áudio não reconhecido.') from error
     if audio is None or path.suffix.lower() not in AUDIO_TYPES:
         raise ValueError('Escolha um arquivo de áudio compatível.')
     from mutagen.id3 import ID3
@@ -133,7 +134,6 @@ def normalize_audio(source, config, emit=lambda *args,**kwargs:None, *, preview=
         if preview:raise ValueError('O trecho selecionado está em silêncio; escolha outro ponto da música.')
         emit('log',message='Áudio em silêncio: volume preservado.');return path
     filters='loudnorm=I=-16:TP=-1.5:LRA=11:linear=true:measured_I=%s:measured_TP=%s:measured_LRA=%s:measured_thresh=%s:offset=%s'%tuple(values)
-    output=path.with_name(path.stem+('.volume-preview' if preview else '.normalizing')+path.suffix)
     codecs={'.mp3':['-c:a','libmp3lame','-b:a','320k'],'.m4a':['-c:a','aac','-b:a','256k'],'.flac':['-c:a','flac'],'.wav':['-c:a','pcm_s16le'],'.ogg':['-c:a','libvorbis','-q:a','5'],'.opus':['-c:a','libopus','-b:a','192k']}
     suffix=path.suffix.lower()
     if suffix in ('.mp3','.m4a'):
@@ -146,6 +146,9 @@ def normalize_audio(source, config, emit=lambda *args,**kwargs:None, *, preview=
             bitrate=min(allowed,key=lambda value:abs(value-getattr(original.info,'bitrate',allowed[-1]*1000)/1000))
         codecs[suffix]=['-c:a','libmp3lame' if suffix=='.mp3' else 'aac','-b:a',f'{bitrate}k']
     emit('stage',message='Normalizando volume para −16 LUFS…')
+    descriptor,name=tempfile.mkstemp(prefix='.onda-normalize-',suffix=path.suffix,dir=path.parent)
+    os.close(descriptor)
+    output=Path(name)
     completed=False
     try:
         result=subprocess.run(prefix+['-af',filters+',aresample=48000,asetnsamples=n=4096:p=0','-ar','48000','-map_metadata','0',*codecs[path.suffix.lower()],str(output)],capture_output=True,timeout=1800,**process_options())
@@ -158,8 +161,9 @@ def normalize_audio(source, config, emit=lambda *args,**kwargs:None, *, preview=
     finally:
         if not preview or not completed:output.unlink(missing_ok=True)
 
-def edit_copy(config, emit=lambda *args,**kwargs:None):
+def edit_copy(config, emit=lambda *args,**kwargs:None, *, cancelled=lambda:False):
     from file_output import publish
+    if cancelled():raise InterruptedError('Operação cancelada.')
     source=Path(config['source']).resolve()
     read_audio(source)
     overwrite=bool(config.get('overwrite_original'))
@@ -172,6 +176,7 @@ def edit_copy(config, emit=lambda *args,**kwargs:None):
         if config.get('normalize_volume'):normalize_audio(target,config,emit)
         if config.get('edit_metadata'):write_audio(target,config.get('changes',{}),config.get('cover_path',''),config.get('lyrics_path',''))
         elif config.get('lyrics_path'):write_audio(target,{},lyrics=config['lyrics_path'])
+        if cancelled():raise InterruptedError('Operação cancelada.')
         if overwrite:
             current=source.stat()
             if (current.st_mtime_ns,current.st_size)!=(original_stat.st_mtime_ns,original_stat.st_size):

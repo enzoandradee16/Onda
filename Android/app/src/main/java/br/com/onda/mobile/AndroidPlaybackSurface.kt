@@ -49,15 +49,18 @@ import coil.compose.AsyncImage
     }
     val model=juke.model
     val source=if(useJukebox)model?.optString("source").orEmpty() else fxSource
+    SideEffect {vm.compactPlaybackMode.value=if(source.isBlank())null else if(useJukebox)1 else 0}
+    DisposableEffect(vm){onDispose {vm.compactPlaybackMode.value=null}}
     if(source.isBlank())return
     val info=infos[fxSource]
     val record=info?.optJSONObject("record")
     val title=if(useJukebox)juke.title else record?.optString("title")?.ifBlank {importedAudioName(source)} ?: importedAudioName(source)
     val artist=if(useJukebox)model?.optString("media_artist").orEmpty() else record?.stringList("artists").orEmpty()
     val encoded=if(useJukebox)model?.optString("media_cover").orEmpty() else info?.optString("cover").orEmpty()
-    val artwork=remember(encoded,model?.optString("cover_url"),useJukebox) {
+    val coverUrl=if(useJukebox)model?.optString("cover_url") else info?.optJSONObject("record")?.optString("cover_url")
+    val artwork=remember(encoded,coverUrl,useJukebox) {
         if(encoded.isNotBlank())runCatching {Base64.decode(encoded,Base64.DEFAULT)}.getOrNull()
-        else if(useJukebox)model?.optString("cover_url")?.takeIf {it.isNotBlank()} else null
+        else coverUrl?.takeIf {it.isNotBlank()}
     }
     val beats=model?.optJSONArray("beats")
     val beatStart=beats?.optDouble(juke.index,0.0) ?: 0.0
@@ -94,6 +97,7 @@ import coil.compose.AsyncImage
                     Text(title,maxLines=1,overflow=TextOverflow.Ellipsis,style=MaterialTheme.typography.labelLarge)
                     Text(artist,maxLines=1,overflow=TextOverflow.Ellipsis,style=MaterialTheme.typography.bodySmall,color=glass.secondary)
                 }
+                LyricsButton(vm,source,{position},duration,::seek,::toggle,isPlaying={playing},title=title,artist=artist)
                 IconButton(onClick=::openQueue,modifier=Modifier.testTag("compact-player-queue")){OndaIcon("queue","Fila",Modifier.size(24.dp))}
                 IconButton(onClick=::toggle,enabled=duration>0,modifier=Modifier.testTag("compact-player-toggle"),colors=IconButtonDefaults.iconButtonColors(contentColor=glass.ink,disabledContentColor=glass.ink.copy(alpha=if(glass.highContrast)1f else .38f))) {
                     if(preparing)CircularProgressIndicator(Modifier.size(23.dp),strokeWidth=2.dp,color=glass.ink)
@@ -115,6 +119,8 @@ import coil.compose.AsyncImage
                             IconButton(onClick={menu=true}){OndaIcon("more-vertical","Mais",Modifier.size(24.dp))}
                             DropdownMenu(menu,{menu=false}) {
                                 DropdownMenuItem(text={UiText("Parar")},onClick={menu=false;if(useJukebox)vm.jukebox.stop() else vm.stopEffectsPlayback()})
+                                if(useJukebox&&fxSource.isNotBlank())DropdownMenuItem(text={UiText("Reproduzir em Efeitos")},enabled=(info?.optDouble("duration",0.0) ?: 0.0)>0,onClick={menu=false;if(!vm.effectsPreviewEnabled.value)vm.mediaToggleEffects();vm.playbackMode.value=0;expandedJukebox=false})
+                                if(!useJukebox&&juke.model!=null)DropdownMenuItem(text={UiText("Reproduzir no Jukebox")},enabled=!juke.busy,onClick={menu=false;val current=vm.jukebox.state.value;if(!current.playing||current.paused)vm.jukebox.playPause();vm.playbackMode.value=1;if(vm.jukebox.state.value.model!=null)expandedJukebox=true})
                                 DropdownMenuItem(text={UiText(if(useJukebox)"Trocar música" else "Ajustes de Efeitos")},onClick={menu=false;expanded=false;vm.playbackMode.value=if(useJukebox)1 else 0;vm.effectsNavigation.value=true})
                                 if(useJukebox){
                                     DropdownMenuItem(text={UiText("Reprodução normal")},leadingIcon={Checkbox(vm.jukebox.normal,null)},onClick={vm.jukebox.normal=!vm.jukebox.normal;menu=false})

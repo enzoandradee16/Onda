@@ -359,7 +359,7 @@ def perform(action, config):
         fallback=re.sub(r'^(?:audio|conversion-batch)-[0-9a-f-]{36}-','',Path(source).stem)
         supplied=config.get('record') or {}
         if not record.get('title') or record['title']==Path(source).stem:record['title']=supplied.get('title') or fallback
-        for field in ('artists','album'):
+        for field in ('artists','album','cover_url'):
             if not record.get(field) and supplied.get(field):record[field]=supplied[field]
         details=perform('probe',config)
         return {'record':record,'cover':cover_preview(source),'duration':float(details.get('format',{}).get('duration') or 0)}
@@ -401,7 +401,7 @@ def perform(action, config):
         return {'message':'Vídeo convertido e salvo.'}
     if action == 'audio_batch_edit':
         from batch_metadata import edit_batch
-        return edit_batch(dict(config, _android_batch=True), emit)
+        return edit_batch(dict(config, _android_batch=True), emit, cancelled=_local.state['cancel'].is_set)
     if action in ('audio_read','audio_edit','normalize_preview'):
         from audio_library import read_audio,edit_copy,normalize_audio
         if action=='audio_read':
@@ -409,7 +409,7 @@ def perform(action, config):
             return {'record':read_audio(config['source']), 'cover_preview':cover_preview(config['source'])}
         if action=='normalize_preview':return {'path':str(normalize_audio(config['source'],config,emit,preview=True))}
         # Android edits an imported staging file; the original is its content URI.
-        result=edit_copy(dict(config,overwrite_original=False),emit)
+        result=edit_copy(dict(config,overwrite_original=False),emit,cancelled=_local.state['cancel'].is_set)
         if config.get('overwrite_original'):
             return dict(result,message='Arquivo original atualizado.')
         emit('file',**result)

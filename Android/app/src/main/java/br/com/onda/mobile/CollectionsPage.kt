@@ -125,7 +125,6 @@ import org.json.JSONObject
             TextButton(onClick={vm.queueCollection(missingTracks,options,collection.optString("folder_title",collection.optString("title","Playlist")),false);vm.collectionComparison.value=null},enabled=missingTracks.isNotEmpty() && !busy && !adding){UiText("Adicionar ausentes à fila")}
         }}
         comparison?.let {report->item {Text(collectionSyncSummary(report),style=MaterialTheme.typography.bodySmall)}}
-        if(busy)item {LinearProgressIndicator(Modifier.fillMaxWidth())}
         item {ToolCard {FormatOptions(options,changed={options=it},separated=true)}}
         }
         if(collection.optString("title").isNotBlank()) item {

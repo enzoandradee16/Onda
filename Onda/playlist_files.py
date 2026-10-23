@@ -68,3 +68,18 @@ def export_text(rows, m3u=False):
             lines.append(f"#EXTINF:{seconds},{label}")
         lines.append(url)
     return "\n".join(lines) + "\n"
+
+
+def export_local_text(rows, m3u=False):
+    """Export history paths for local players, independently of downloadable URLs."""
+    from pathlib import Path
+    lines = ["#EXTM3U"] if m3u else []
+    for row in rows:
+        path = str(Path(row['path']).resolve())
+        if any(char in path for char in '\r\n'):
+            raise ValueError('Caminho inválido na playlist.')
+        if m3u:
+            title = str(row.get('title') or row.get('name') or Path(path).stem)
+            lines.append('#EXTINF:-1,' + title.replace('\r', ' ').replace('\n', ' '))
+        lines.append(path)
+    return '\n'.join(lines) + '\n'

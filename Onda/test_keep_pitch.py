@@ -53,7 +53,7 @@ class KeepPitchUiTests(unittest.TestCase):
             app=App(show_welcome=False)
             try:
                 source=Path(folder)/'music.wav';source.write_bytes(b'test')
-                pane=app.effects_page
+                pane=app.effects_page.ensure_ready().effects
                 pane.source.set(str(source));pane.speed.set(75);pane.reverb.set(0)
                 pane.keep_pitch.set(True)
                 with patch.object(pane.player,'play') as play:

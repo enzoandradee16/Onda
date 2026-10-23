@@ -3,7 +3,7 @@ import importlib.util
 from pathlib import Path
 import unittest
 
-path=Path(__file__).resolve().parents[1]/'Celular/app/src/main/python/mobile_backend.py'
+path=Path(__file__).resolve().parents[1]/'Android/app/src/main/python/mobile_backend.py'
 spec=importlib.util.spec_from_file_location('android_session_adapter',path)
 backend=importlib.util.module_from_spec(spec);spec.loader.exec_module(backend)
 

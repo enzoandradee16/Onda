@@ -96,7 +96,10 @@ class PlaybackParityUiTest {
             }
             compose.setContent {MaterialTheme {PlaybackPage(vm)}}
             compose.onNodeWithText("Jukebox infinito").performClick()
+            compose.onNodeWithText("Reprodução normal").assertExists()
+            compose.runOnIdle {vm.jukebox.normal=true}
             compose.runOnIdle {
+                assertTrue(vm.jukebox.normal)
                 assertEquals(effects.path,vm.effectsSource.value)
                 assertEquals(listOf(effects.path),vm.effectsPlaylist.value)
                 assertEquals(jukebox.path,vm.jukebox.state.value.model?.optString("source"))
@@ -106,7 +109,33 @@ class PlaybackParityUiTest {
                 assertEquals(effects.path,vm.effectsSource.value)
                 assertEquals(jukebox.path,vm.jukebox.state.value.model?.optString("source"))
             }
-        } finally {compose.runOnUiThread {vm.jukebox.state.value=original;store.clear()};effects.delete();jukebox.delete()}
+        } finally {compose.runOnUiThread {vm.jukebox.normal=false;vm.jukebox.state.value=original;store.clear()};effects.delete();jukebox.delete()}
+    }
+    @Test fun switchingTabsKeepsEffectsPlayingAndEachPageCanTakeOverPlayback() {
+        val vm=model();val effects=audio("effects-handoff.wav");val jukebox=audio("jukebox-handoff.wav")
+        try {
+            compose.runOnUiThread {vm.effectsSource.value=effects.path;vm.playbackMode.value=0}
+            compose.setContent {MaterialTheme {Column(Modifier.fillMaxSize()){Box(Modifier.weight(1f)){PlaybackPage(vm)};AndroidPlaybackSurface(vm)}}}
+            compose.waitUntil(30000){(vm.effectsInfo.value[effects.path]?.optDouble("duration",0.0) ?: 0.0)>0}
+            compose.onNodeWithTag("effects-page-play").assertDoesNotExist()
+            compose.onNodeWithTag("compact-player-toggle").performClick()
+            compose.waitUntil(60000){vm.previewActive.value&&!vm.effectsPreparing.value}
+            var rendered=""
+            compose.runOnIdle {rendered=vm.previewUrl.value}
+            compose.onNodeWithText("Jukebox infinito").performClick()
+            compose.runOnIdle {assertTrue(vm.effectsPreviewEnabled.value);assertEquals(rendered,vm.previewUrl.value);vm.jukebox.prepare(jukebox.path)}
+            compose.waitUntil(120000){vm.jukebox.state.value.model!=null&&!vm.jukebox.state.value.busy}
+            compose.onNodeWithTag("jukebox-page-play").performScrollTo().performClick()
+            compose.waitUntil(10000){vm.jukebox.state.value.playing&&!vm.jukebox.state.value.paused&&!vm.effectsPreviewEnabled.value}
+            compose.onNodeWithTag("jukebox-page-play").assertDoesNotExist()
+            compose.onNodeWithText("Efeitos").performClick()
+            compose.onNodeWithTag("effects-page-play").performScrollTo().performClick()
+            compose.waitUntil(60000){vm.previewActive.value&&!vm.effectsPreparing.value&&vm.jukebox.state.value.paused}
+            compose.onNodeWithText("Jukebox infinito").performClick()
+            compose.onNodeWithTag("jukebox-page-play").performScrollTo().performClick()
+            compose.waitUntil(10000){!vm.jukebox.state.value.paused&&!vm.effectsPreviewEnabled.value}
+            compose.runOnIdle {assertEquals(effects.path,vm.effectsSource.value);assertEquals(jukebox.path,vm.jukebox.state.value.model?.optString("source"))}
+        } finally {compose.runOnUiThread {vm.jukebox.stop();vm.stopEffectsPlayback();store.clear()};effects.delete();jukebox.delete()}
     }
     @Test fun lyricsShowAllVersesAndSeekingSelectsTheTappedVerse() {
         val vm=model();var position=0.0

@@ -53,11 +53,16 @@ ScrollView {
                     model: workspace.values.effectsResults || []; ScrollBar.vertical: ScrollBar {}
                     delegate: ItemDelegate {
                         required property var modelData; required property int index
-                        width: effectsResultsList.width; height: 50
+                        width: effectsResultsList.width; height: 84
                         contentItem: RowLayout {
-                            ColumnLayout { Layout.fillWidth: true; Layout.minimumWidth: 0
+                            Rectangle { Layout.preferredWidth: 64; Layout.preferredHeight: 64; radius: 6; color: bridge.palette.input
+                                RoundedArtwork { id: effectResultCover; anchors.fill: parent; source: modelData.cover_url || ""; fillMode: Image.PreserveAspectFit; sourceSize.width: 128; sourceSize.height: 128; asynchronous: true }
+                                Label { anchors.centerIn: parent; visible: effectResultCover.status !== Image.Ready; text: "♪"; color: bridge.palette.muted }
+                            }
+                            ColumnLayout { Layout.fillWidth: true; Layout.minimumWidth: 0; spacing: 4
                                 Label { Layout.fillWidth: true; text: modelData.title; color: bridge.palette.text; elide: Text.ElideRight }
                                 Label { Layout.fillWidth: true; text: (modelData.artists || []).join(", "); color: bridge.palette.muted; elide: Text.ElideRight }
+                                Label { Layout.fillWidth: true; text: modelData.album || ""; color: bridge.palette.muted; elide: Text.ElideRight }
                             }
                             ActionButton { text: bridge.translate("Adicionar à fila"); enabled: workspace.activity.busy.indexOf("effects_load")<0; onClicked: {workspace.invoke("effects_enqueue_result",{index:index});workspace.setOption("effectsQueueOpen",true)} }
                         }

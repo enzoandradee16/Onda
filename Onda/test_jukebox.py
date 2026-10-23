@@ -345,7 +345,7 @@ class JukeboxTests(unittest.TestCase):
             path=Path(options['outtmpl'].replace('%(ext)s','wav'));song(path);saved.append(str(path));return 0
         with patch('matching.resolve_youtube',side_effect=resolve),patch('engine.download_with_recovery',side_effect=download),patch('jukebox.prepare',return_value={'cache':str(self.base)}):
             result=jukebox.fetch_audio({},record);self.assertEqual(result['title'],'Artist — Song');self.assertEqual(result['source'],str(self.base/'audio.wav'))
-        with patch('matching.resolve_youtube',side_effect=resolve),patch('engine.download_with_recovery',side_effect=download),patch('jukebox.prepare',side_effect=AssertionError('Effects must not analyze rhythm')):
+        with patch('matching.resolve_youtube',side_effect=resolve),patch('engine.download_with_recovery',side_effect=download),patch('jukebox.prepare',side_effect=AssertionError('Effects must not analyze rhythm')),patch('shutil.copystat',side_effect=PermissionError(13,'SELinux denies security attributes')):
             result=jukebox.fetch_audio({},record,analyze=False)
             self.assertTrue(Path(result['source']).is_file());self.assertEqual(result['record'],record)
         self.assertFalse(list(jukebox.cache_root().glob('jukebox-download-*')))

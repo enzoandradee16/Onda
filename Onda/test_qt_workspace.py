@@ -562,6 +562,17 @@ class NativeDesktopTests(unittest.TestCase):
             self.ws.invoke('effects_stop',{});self.assertEqual(self.ws.options['position'],0)
             self.assertFalse(self.ws.player.active)
             next_track.assert_not_called();previous.assert_not_called()
+    def test_jukebox_resume_pauses_effects_and_preserves_source_position(self):
+        from unittest.mock import Mock
+        player=Mock(active=True);player.position_snapshot.return_value=47
+        player.stop.side_effect=lambda:setattr(player,'active',False)
+        self.ws.preview_kind='effects';self.ws.options.update(effectsSource='effects.wav',duration=180,position=10)
+        self.bridge.paused.set();self.bridge.update_state(playing=True,paused=True)
+        with patch.object(self.ws,'player',player):
+            self.bridge.playPause()
+            self.assertFalse(player.active);self.assertTrue(self.ws.options['effectsPaused'])
+            self.assertEqual(self.ws.options['position'],47);self.assertEqual(self.ws.options['effectsSource'],'effects.wav')
+            self.assertFalse(self.bridge.state['paused'])
     def test_effects_search_has_inline_progress_and_cancellation(self):
         from qt_desktop_ui import create_application,close_application
         from PySide6.QtCore import QObject,QMetaObject
@@ -579,7 +590,7 @@ class NativeDesktopTests(unittest.TestCase):
                 self.assertEqual(button.property('text'),bridge.translate('Cancelar'))
                 QMetaObject.invokeMethod(button,'clicked');self.settle()
                 self.assertTrue(cancel.is_set())
-                ws.tasks.pop(operation);ws.statusChanged.emit();self.settle()
+                self.assertNotIn(operation,ws.tasks);self.settle()
                 self.assertFalse(progress.property('visible'))
         finally:
             ws.tasks.clear();close_application(engine,bridge)

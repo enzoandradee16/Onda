@@ -29,7 +29,75 @@ class ReviewRegressionTests(unittest.TestCase):
         workers=patch.object(self.ws,'launch_thread');self.launch=workers.start();self.addCleanup(workers.stop)
         self.ws.title_lookup.submit=Mock();self.ws.queue_finished=Mock()
     def add(self,name,now=False):return self.ws.enqueue(['https://example.com/'+name+'.mp4'],start=now)[0]
+    def test_cancelled_task_discards_already_queued_results_and_releases_state(self):
+        callback=Mock()
+        self.ws.run_task('image_preview',callback=callback,background=True)
+        revision=self.ws.generations['image_preview']
+        cancelled=self.ws.tasks['image_preview']
+        self.ws.cancel_task('image_preview')
+        self.ws.on_event('task_result',{'action':'image_preview','revision':revision,'result':{'path':'stale.png'}})
+        self.assertTrue(cancelled.is_set())
+        callback.assert_not_called()
+        self.assertNotIn('image_preview',self.ws.tasks)
+        self.assertNotIn('image_preview',self.ws.background_tasks)
+        self.assertNotIn('image_preview',self.ws.callbacks)
+
+    def test_selecting_new_metadata_sources_clears_previous_attachments_and_tags(self):
+        self.ws.options.update(cover_path='old.png',lyrics_path='old.lrc',metadata={'title':'Previous'},metadataCover='old-cover',originalCover='old-original')
+        self.ws.accept_files('metadata',['next.mp3'])
+        for field in ('cover_path','lyrics_path','metadataCover','originalCover'):
+            self.assertEqual(self.ws.options[field],'',field)
+        self.assertEqual(self.ws.options['metadata'],{})
+
+    def test_history_exports_local_media_as_m3u(self):
+        source=Path(self.temp.name)/'Música.mp3';source.write_bytes(b'audio')
+        self.ws.library.add_history(source,'mp3');self.ws.refresh_history()
+        target=Path(self.temp.name)/'history.m3u'
+        with patch('PySide6.QtWidgets.QFileDialog.getSaveFileName',return_value=(str(target),'M3U')):
+            self.ws.settings_file_action('export_history')
+        text=target.read_text(encoding='utf-8')
+        self.assertTrue(text.startswith('#EXTM3U\n'))
+        self.assertIn(str(source.resolve()),text)
+
+    def test_history_refresh_preserves_selection_and_cancels_empty_lookup(self):
+        self.ws.library.add_history(Path(self.temp.name)/'song.mp3','mp3')
+        self.ws.refresh_history();self.ws.toggle_row('history',0,True)
+        self.ws.refresh_history()
+        self.assertTrue(self.ws.models['history'].rows[0]['checked'])
+        pending=self.ws.tasks['history_details']
+        self.ws.clear_history()
+        self.assertTrue(pending.is_set())
+        self.assertEqual(self.ws.models['history'].count,0)
     def finish(self,job,cancelled=False,success=True):self.ws.on_event('finished',{'id':job['id'],'cancelled':cancelled,'success':success})
+    def test_queue_duplicates_preserve_distinct_output_options(self):
+        self.ws.settings['detect_duplicates']=True
+        url='https://example.com/song.mp3'
+        for quality in ('128 kbps','320 kbps'):
+            self.assertEqual(len(self.ws.enqueue([url],overrides={'mode':'mp3','audio_quality':quality})),1)
+        self.assertEqual(self.ws.enqueue([url],overrides={'mode':'mp3','audio_quality':'320 kbps'}),[])
+        self.assertEqual(len(self.ws.enqueue([url],overrides={'mode':'mp3','audio_quality':'320 kbps','playlist_title':'Album'})),1)
+        self.assertEqual(len(self.ws.enqueue(['https://example.com/new.mp3']*3)),1)
+
+    def test_invalid_batch_does_not_leave_hidden_unpersisted_jobs(self):
+        with self.assertRaises(ValueError):
+            self.ws.enqueue(['https://example.com/valid.mp4','file:///invalid.mp4'])
+        self.assertEqual(self.ws.jobs,[])
+        self.assertEqual(self.ws.library.load_queue(),[])
+        self.ws.title_lookup.submit.assert_not_called()
+
+    def test_cancelled_worker_cannot_open_a_late_choice(self):
+        job=self.add('cancelled',True)
+        self.ws.on_event(job['id'],{'type':'choose_version','candidates':[]})
+        self.assertEqual(self.ws.choice['identity'],job['id'])
+        self.ws.replyChoice(job['id'],{'cancel':True})
+        self.ws.stop_job(job['id'])
+        self.ws.on_event(job['id'],{'type':'choose_version','candidates':[]})
+        self.assertEqual(self.ws.choice,{})
+        self.assertEqual(self.ws.pending_choices,[])
+        self.finish(job,cancelled=True,success=False)
+        self.ws.on_event(job['id'],{'type':'choose_version','candidates':[]})
+        self.assertEqual(self.ws.choice,{})
+
     def test_immediate_excludes_pending_and_completes_once(self):
         old=self.add('old');new=self.add('new',True)
         self.assertEqual(old['state'],'Na fila');self.assertEqual(new['state'],'Em andamento')

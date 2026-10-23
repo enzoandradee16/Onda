@@ -541,7 +541,8 @@ def fetch_audio(config,record=None,cancelled=lambda:False,progress=lambda _:None
             destination=root/('effects-'+uuid.uuid4().hex)
             destination.mkdir()
             source=destination/('audio'+Path(saved[0]).suffix)
-            shutil.copy2(saved[0],source)
+            # Cache audio bytes only: Android SELinux may deny copying security xattrs.
+            shutil.copyfile(saved[0],source)
             return {'source':str(source),'record':record or {}}
         model=prepare(saved[0],config.get('ffmpeg',''),cancelled,progress)
     model['source']=str(Path(model['cache'])/'audio.wav')

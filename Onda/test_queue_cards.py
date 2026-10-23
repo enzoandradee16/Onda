@@ -179,7 +179,7 @@ class QueueCardsTests(unittest.TestCase):
         from preferences import PreferenceStore
         from advanced_options import export_settings,import_settings
         values={'queue_view':'Completa','queue_card_size':'Pequeno'}
-        self.assertEqual(PreferenceStore.clean(values),values)
+        self.assertEqual(PreferenceStore.clean(values),dict(values,confirm_version=False))
         self.assertEqual(import_settings(export_settings(values,'windows'),'windows')['queue_card_size'],'Pequeno')
 
 class RestartLoopTests(unittest.TestCase):

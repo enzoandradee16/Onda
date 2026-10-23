@@ -13,6 +13,9 @@ import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.input.pointer.pointerInput
 import java.util.concurrent.atomic.AtomicInteger
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -123,7 +126,7 @@ internal class JukeboxController(private val context:Context,private val scope:C
                 val id=row.getString("_queue_id");queuePreparing=id;updateQueue(id,"Analisando")
                 try {
                     val model=call("jukebox_prepare",prepareConfig(row.optString("_local_source"),row.takeUnless {it.has("_local_source")}),"jukebox-preload-$id")
-                    if(playbackQueue.value.any {it.optString("_queue_id")==id}){preparedModels[id]=model;updateQueue(id,"Pronta");if(autoplayQueueId==id){autoplayQueueId="";playQueued(playbackQueue.value.indexOfFirst {it.optString("_queue_id")==id})}}
+                    if(playbackQueue.value.any {it.optString("_queue_id")==id}){preparedModels[id]=model;playbackQueue.update {rows->rows.map {if(it.optString("_queue_id")==id)JSONObject(it.toString()).put("_cover",model.optString("media_cover")).put("duration_ms",model.optDouble("duration",0.0)*1000).apply {if(optString("cover_url").isBlank())put("cover_url",model.optString("cover_url"));if(optJSONArray("artists")==null)put("artists",org.json.JSONArray(listOf(model.optString("media_artist")).filter {it.isNotBlank()}))} else it}};updateQueue(id,"Pronta");if(autoplayQueueId==id){autoplayQueueId="";playQueued(playbackQueue.value.indexOfFirst {it.optString("_queue_id")==id})}}
                 } catch(e:CancellationException){throw e}
                 catch(e:Exception){updateQueue(id,"Erro",e.message ?: "Não foi possível analisar.")}
                 finally {queuePreparing=""}
@@ -171,7 +174,10 @@ internal class JukeboxController(private val context:Context,private val scope:C
     }
     @Volatile var variation=45f
     @Volatile var smooth=35f
-    @Volatile var normal=false
+    val normalPlayback=MutableStateFlow(false)
+    var normal:Boolean
+        get()=normalPlayback.value
+        set(value){normalPlayback.value=value}
     private val pendingSeek=AtomicInteger(-1)
     fun seek(index:Int) {
         val n=state.value.model?.optJSONArray("neighbors")?.length() ?: return
@@ -194,6 +200,7 @@ internal class JukeboxController(private val context:Context,private val scope:C
     }
     }
     fun prepare(source:String="",record:JSONObject?=null,url:String="",autoPlay:Boolean=false) {
+        val insertion=nextQueueIndex.coerceIn(0,playbackQueue.value.size)
         currentQueueId.value="";queueCursor=-1
         stop(clearTimer=false);val own=++revision;val id="jukebox-"+UUID.randomUUID();identity=id
         state.value=JukeboxState(title=record?.optString("title").orEmpty(),message="Analisando ritmo e trechos semelhantes…",busy=true)
@@ -201,6 +208,16 @@ internal class JukeboxController(private val context:Context,private val scope:C
         task=scope.launch {
             try {
                 val model=call("jukebox_prepare",config,id)
+                if(own==revision) {
+                    val row=JSONObject(record?.toString() ?: "{}").put("title",model.optString("media_title").ifBlank {model.optString("title")})
+                        .put("artists",org.json.JSONArray(listOf(model.optString("media_artist")).filter {it.isNotBlank()}))
+                        .put("cover_url",model.optString("cover_url")).put("_cover",model.optString("media_cover"))
+                        .put("duration_ms",model.optDouble("duration",0.0)*1000).put("_local_source",model.optString("source"))
+                        .put("_queue_id",UUID.randomUUID().toString()).put("_analysis","Pronta")
+                    preparedModels[row.getString("_queue_id")]=model
+                    playbackQueue.value=playbackQueue.value.toMutableList().apply {add(insertion.coerceAtMost(size),row)}
+                    currentQueueId.value=row.getString("_queue_id");queueCursor=insertion
+                }
                 if(own==revision)state.value=JukeboxState(title=model.optString("media_title").ifBlank {model.optString("title")},model=model,message=if(model.optInt("links")>0)"Análise concluída." else "Sem saltos compatíveis: a faixa será repetida normalmente.")
                 if(own==revision && autoPlay)playPause()
             } catch(e:CancellationException){throw e} catch(e:Exception){if(own==revision)state.value=state.value.copy(busy=false,message=e.message ?: "Não foi possível analisar a música.")}
@@ -232,7 +249,7 @@ internal class JukeboxController(private val context:Context,private val scope:C
     fun pause() {if(state.value.playing){state.update {it.copy(paused=true)};runCatching {track?.pause()}}}
     fun playPause() {
         if(state.value.playing) {
-            if(state.value.paused){if(audio.requestAudioFocus(focus)!=AudioManager.AUDIOFOCUS_REQUEST_GRANTED)return;runCatching {track?.play()};state.update {it.copy(paused=false)}} else pause()
+            if(state.value.paused){if(audio.requestAudioFocus(focus)!=AudioManager.AUDIOFOCUS_REQUEST_GRANTED)return;stopOtherAudio();runCatching {track?.play()};state.update {it.copy(paused=false)}} else pause()
             return
         }
         val model=state.value.model ?: return
@@ -352,16 +369,25 @@ internal class JukeboxController(private val context:Context,private val scope:C
     val requestedMode by vm.playbackMode.collectAsStateWithLifecycle()
     LaunchedEffect(requestedMode) {requestedMode?.let {mode=it}}
     val playbackPages=rememberSaveableStateHolder()
+    val spacing=LocalLayoutSpacing.current
+    CompositionLocalProvider(LocalLayoutSpacing provides spacing.copy(controls=spacing.controls+2.dp,section=spacing.section+4.dp)) {
     Column(Modifier.fillMaxSize()) {
-        UiText("Reprodução",modifier=Modifier.padding(horizontal=24.dp,vertical=8.dp),style=MaterialTheme.typography.headlineMedium,fontWeight=androidx.compose.ui.text.font.FontWeight.Bold)
-        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal=24.dp,vertical=8.dp)) {
-            modes.forEach {(index,label)->SegmentedButton(selected=index==mode,shape=RoundedCornerShape(12.dp),icon={},colors=SegmentedButtonDefaults.colors(activeContainerColor=MaterialTheme.colorScheme.primary,activeContentColor=MaterialTheme.colorScheme.onPrimary),onClick={mode=index;vm.playbackMode.value=index}){UiText(label)}}
+        UiText("Reprodução",modifier=Modifier.padding(horizontal=LayoutSpacing.inset,vertical=12.dp),style=MaterialTheme.typography.headlineMedium,fontWeight=androidx.compose.ui.text.font.FontWeight.Bold)
+        Row(Modifier.fillMaxWidth().padding(horizontal=LayoutSpacing.inset,vertical=12.dp),horizontalArrangement=Arrangement.spacedBy(LayoutSpacing.section)) {
+            modes.forEach {(index,label)->
+                val selected=index==mode
+                OutlinedButton(onClick={mode=index;vm.playbackMode.value=index},modifier=Modifier.weight(1f).heightIn(min=48.dp),shape=RoundedCornerShape(12.dp),
+                    colors=ButtonDefaults.outlinedButtonColors(containerColor=if(selected)MaterialTheme.colorScheme.primary else Color.Transparent,contentColor=if(selected)MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface),
+                    border=androidx.compose.foundation.BorderStroke(1.dp,if(selected)MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline)) {UiText(label,maxLines=1)}
+            }
         }
         playbackPages.SaveableStateProvider(mode) {if(mode==0)EffectsPage(vm,heading=false) else JukeboxPage(vm)}
+    }
     }
 }
 
 @Composable private fun JukeboxPage(vm:OndaViewModel) {
+    val compactMode by vm.compactPlaybackMode.collectAsStateWithLifecycle()
     val controller=vm.jukebox;val state by controller.state.collectAsStateWithLifecycle()
     val lyricSettings by OndaStore.settings.collectAsStateWithLifecycle()
     val lyricCache by vm.lyricsCache.collectAsStateWithLifecycle()
@@ -374,8 +400,8 @@ internal class JukeboxController(private val context:Context,private val scope:C
     var query by rememberSaveable {mutableStateOf("")}
     var variation by rememberSaveable {mutableFloatStateOf(controller.variation)}
     var smooth by rememberSaveable {mutableFloatStateOf(controller.smooth)}
-    var normal by rememberSaveable {mutableStateOf(controller.normal)}
-    LaunchedEffect(variation,smooth,normal) {controller.variation=variation;controller.smooth=smooth;controller.normal=normal}
+    val normal by controller.normalPlayback.collectAsStateWithLifecycle()
+    LaunchedEffect(variation,smooth) {controller.variation=variation;controller.smooth=smooth}
     val chooser=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) {uri->if(uri!=null)vm.importLocal(uri,"audio") {file->controller.prepare(file.absolutePath)}}
     var chooseMusic by rememberSaveable {mutableStateOf(false)}
     var playbackMenu by remember {mutableStateOf(false)}
@@ -389,35 +415,41 @@ internal class JukeboxController(private val context:Context,private val scope:C
     BoxWithConstraints(Modifier.fillMaxSize()) {
     val graphHeight=(maxHeight*.36f).coerceIn(200.dp,260.dp)
     Column(Modifier.fillMaxSize().padding(horizontal=LayoutSpacing.inset)) {
-        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(top=12.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
-        run {
-            OutlinedTextField(query,{query=it},placeholder={UiText("Pesquise uma música ou cole um link")},singleLine=true,shape=RoundedCornerShape(14.dp),modifier=Modifier.fillMaxWidth())
+        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(top=12.dp),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.section)) {
+        ToolCard(Modifier.testTag("jukebox-source-card")) {
+            UiText("Sua música",style=MaterialTheme.typography.titleMedium,fontWeight=androidx.compose.ui.text.font.FontWeight.Bold)
+            UiText("Abra um arquivo ou pesquise uma música para começar.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+            OutlinedTextField(query,{query=it},label={UiText("Pesquise uma música ou cole um link")},singleLine=true,keyboardOptions=KeyboardOptions(imeAction=ImeAction.Search),keyboardActions=KeyboardActions(onSearch={if(!searching && !state.busy && query.isNotBlank())controller.search(query)}),shape=RoundedCornerShape(16.dp),modifier=Modifier.fillMaxWidth())
             Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(12.dp)) {
-                Button(onClick={if(searching)controller.cancelSearch() else if(state.busy)controller.stop() else controller.search(query)},enabled=searching || state.busy || query.isNotBlank()){UiText(if(searching || state.busy)"Cancelar" else "Pesquisar")}
-                Button(onClick={chooser.launch(arrayOf("audio/*"))},enabled=!state.busy){UiText("Abrir arquivo")}
+                OutlinedButton(onClick={if(searching)controller.cancelSearch() else if(state.busy)controller.stop() else controller.search(query)},enabled=searching || state.busy || query.isNotBlank()){UiText(if(searching || state.busy)"Cancelar" else "Pesquisar")}
+                OutlinedButton(onClick={chooser.launch(arrayOf("audio/*"))},enabled=!state.busy){UiText("Abrir arquivo")}
             }
             if(state.busy || searching)LinearProgressIndicator(Modifier.fillMaxWidth())
+            if(state.records.isNotEmpty())Row(Modifier.fillMaxWidth(),verticalAlignment=androidx.compose.ui.Alignment.CenterVertically) {
+                UiText("Resultados",Modifier.weight(1f))
+                IconButton(onClick={controller.cancelSearch();controller.state.update {it.copy(records=emptyList())}}){OndaIcon("close","Fechar pesquisa",Modifier.size(22.dp))}
+            }
             state.records.forEach {record->
-                val artists=record.optJSONArray("artists")?.let {a->(0 until a.length()).joinToString(", "){a.getString(it)}}.orEmpty()
-                OutlinedButton(onClick={chooseMusic=false;controller.prepare(record=record)},modifier=Modifier.fillMaxWidth()) {UiText(listOf(record.optString("title"),artists).filter {it.isNotBlank()}.joinToString(" · "))}
+                Column(Modifier.fillMaxWidth()) {
+                    SearchTrackInformation(record)
+                    Row(horizontalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
+                        TextButton(enabled=!state.busy&&!searching,onClick={chooseMusic=false;controller.prepare(record=record,autoPlay=true)}){UiText("Reproduzir")}
+                        TextButton(enabled=!state.busy&&!searching,onClick={controller.enqueue(record)}){UiText("Adicionar à fila")}
+                    }
+                }
             }
         }
-        val embeddedCover=state.model?.optString("media_cover").orEmpty()
-        val cover=remember(embeddedCover,state.model?.optString("cover_url")) {
-            if(embeddedCover.isNotBlank())runCatching {Base64.decode(embeddedCover,Base64.DEFAULT)}.getOrNull()
-            else state.model?.optString("cover_url")?.takeIf {it.isNotBlank()}
-        }
-        if(state.model!=null)Row(Modifier.fillMaxWidth(),verticalAlignment=androidx.compose.ui.Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(16.dp)) {
-            Box(Modifier.size(128.dp).clip(RoundedCornerShape(12.dp)),contentAlignment=androidx.compose.ui.Alignment.Center) {
-                if(cover!=null)coil.compose.AsyncImage(model=cover,contentDescription=translateUi("Capa do álbum"),contentScale=ContentScale.Crop,modifier=Modifier.fillMaxSize())
-                else OndaIcon("album",modifier=Modifier.size(44.dp))
-            }
-            Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(5.dp)) {
-                UiText(state.title,style=MaterialTheme.typography.titleMedium,maxLines=2)
-                state.model?.optString("media_artist")?.takeIf {it.isNotBlank()}?.let {UiText(it,style=MaterialTheme.typography.bodyMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)}
-                state.model?.optString("album")?.takeIf {it.isNotBlank()}?.let {UiText(it,style=MaterialTheme.typography.bodySmall,maxLines=1,color=MaterialTheme.colorScheme.onSurfaceVariant)}
+        state.model?.let {model->
+            val record=JSONObject().put("title",state.title)
+                .put("artists",org.json.JSONArray(listOf(model.optString("media_artist")).filter {it.isNotBlank()}))
+                .put("album",model.optString("album")).put("cover_url",model.optString("cover_url"))
+            val info=JSONObject().put("record",record).put("cover",model.optString("media_cover"))
+                .put("duration",model.optDouble("duration",0.0))
+            EffectsTrackInformation(info,model.optString("source")) {
+                if(compactMode==0)OutlinedButton(onClick=controller::playPause,enabled=!state.busy,modifier=Modifier.testTag("jukebox-page-play")){UiText("Reproduzir no Jukebox")}
             }
         }
+        Toggle("Reprodução normal",normal){controller.normal=it}
         if(state.model==null || state.busy || chooseMusic)UiText(state.message,style=MaterialTheme.typography.bodySmall)
         if(lyricSettings.optBoolean("synced_lyrics")) {
             val lines=lyricCache[state.model?.optString("source")].orEmpty()
@@ -468,6 +500,7 @@ internal class JukeboxController(private val context:Context,private val scope:C
     }},confirmButton={TextButton(enabled=value!=null && value in 1..180 && (!nextSong || queue.isNotEmpty()),onClick={controller.setTimer(value!!,nextSong);close()}){UiText("Ativar")}},dismissButton={TextButton(onClick={controller.setTimer(0,nextSong);close()}){UiText("Desligar este timer")}})
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable internal fun JukeboxQueueDialog(controller:JukeboxController,vm:OndaViewModel,close:()->Unit) {
     val queue by controller.playbackQueue.collectAsStateWithLifecycle()
     val current by controller.currentQueueId.collectAsStateWithLifecycle()
@@ -477,31 +510,51 @@ internal class JukeboxController(private val context:Context,private val scope:C
     var busy by remember {mutableStateOf(false)}
     var message by remember {mutableStateOf("")}
     val files=rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) {uris->vm.importConversionBatch(uris) {paths->paths.forEach {path->controller.enqueue(JSONObject().put("title",importedAudioName(path).substringBeforeLast('.')).put("_local_source",path))}}}
-    AlertDialog(onDismissRequest=close,title={UiText("Fila da Jukebox")},text={Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(8.dp)) {
-        UiText("Cada música continua em loop. Use o timer para avançar automaticamente pela fila ou toque em Reproduzir para trocar agora.",style=MaterialTheme.typography.bodySmall)
-        OutlinedButton(onClick={files.launch(arrayOf("audio/*"))}){UiText("Adicionar arquivos")}
-        TextButton(onClick=controller::clearPlaybackQueue,enabled=queue.isNotEmpty()){UiText("Limpar fila")}
-        OutlinedTextField(query,{query=it},label={UiText("Música, artista ou link")},singleLine=true,modifier=Modifier.fillMaxWidth())
-        TextButton(enabled=!busy && query.isNotBlank(),onClick={scope.launch {busy=true;message="";try{results=controller.searchQueue(query);if(results.isEmpty())message="Nenhuma música encontrada."}catch(e:CancellationException){throw e}catch(e:Exception){message=e.message ?: "Falha de pesquisa."}finally{busy=false}}}){UiText(if(busy)"Pesquisando…" else "Pesquisar")}
-        if(message.isNotBlank())Text(message)
-        results.forEach {record->TextButton(onClick={controller.enqueue(record);results=results.filter {it!==record}}){Text("+ "+record.optString("title"),maxLines=2)}}
-        HorizontalDivider()
-        if(queue.isEmpty())UiText("Nenhuma música na fila.")
-        queue.forEachIndexed {index,record->
-            HorizontalDivider()
-            UiText(record.optString("title"),style=MaterialTheme.typography.titleSmall,maxLines=2,color=if(record.optString("_queue_id")==current)MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
-            UiText(when(record.optString("_analysis")){"Pronta"->"Pronta para reproduzir";"Erro"->record.optString("_error");"Analisando"->"Analisando ritmo e trechos…";else->"Aguardando análise"},style=MaterialTheme.typography.bodySmall)
-            Row {
-                TextButton(onClick={controller.playQueued(index);close()}){UiText("Reproduzir")}
-                TextButton(onClick={controller.removeQueued(index)}){UiText("Remover")}
+    fun search(){if(!busy && query.isNotBlank())scope.launch {busy=true;message="";try{results=controller.searchQueue(query);if(results.isEmpty())message="Nenhuma música encontrada."}catch(e:CancellationException){throw e}catch(e:Exception){message=e.message ?: "Falha de pesquisa."}finally{busy=false}}}
+    var editing by remember {mutableStateOf(false)}
+    ModalBottomSheet(onDismissRequest=close,sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true)) {
+        Column(Modifier.fillMaxWidth().fillMaxHeight(.85f).padding(horizontal=LayoutSpacing.inset),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
+            Row(Modifier.fillMaxWidth(),verticalAlignment=androidx.compose.ui.Alignment.CenterVertically) {
+                UiText("Fila",Modifier.weight(1f),style=MaterialTheme.typography.titleLarge)
+                TextButton(onClick={editing=!editing}){UiText(if(editing)"Pronto" else "Editar")}
             }
-            Row {
-                IconButton(onClick={controller.moveQueued(index,-1)},enabled=index>0){OndaIcon("up","Mover para cima",Modifier.size(22.dp))}
-                IconButton(onClick={controller.moveQueued(index,1)},enabled=index+1<queue.size){OndaIcon("down","Mover para baixo",Modifier.size(22.dp))}
-                if(record.optString("_analysis")=="Erro")TextButton(onClick={controller.retryQueued(index)}){UiText("Tentar novamente")}
+            if(editing) {
+                Row {OutlinedButton(onClick={files.launch(arrayOf("audio/*"))}){UiText("Adicionar arquivos")};TextButton(onClick=controller::clearPlaybackQueue){UiText("Limpar fila")}}
+                OutlinedTextField(query,{query=it},label={UiText("Música, artista ou link")},singleLine=true,keyboardOptions=KeyboardOptions(imeAction=ImeAction.Search),keyboardActions=KeyboardActions(onSearch={search()}),modifier=Modifier.fillMaxWidth())
+                TextButton(enabled=!busy&&query.isNotBlank(),onClick=::search){UiText(if(busy)"Pesquisando…" else "Pesquisar")}
+                if(message.isNotBlank())Text(message)
+                if(results.isNotEmpty())Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())) {
+                results.forEach {record->
+                    OutlinedButton(onClick={controller.enqueue(record);results=results.filter {it!==record}},modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(12.dp)) {
+                        Row(Modifier.fillMaxWidth(),verticalAlignment=androidx.compose.ui.Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+                            EffectsArtwork(JSONObject().put("record",record),Modifier.size(56.dp))
+                            Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(4.dp)) {
+                                Text(record.optString("title"),maxLines=2,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                                Text(record.stringList("artists"),style=MaterialTheme.typography.bodySmall,maxLines=1,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                                Text(record.optString("album"),style=MaterialTheme.typography.bodySmall,maxLines=1,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                            }
+                            OndaIcon("add","Adicionar à fila",Modifier.size(22.dp))
+                        }
+                    }
+                }
+                }
+            }
+            val active=queue.indexOfFirst {it.optString("_queue_id")==current}
+            androidx.compose.foundation.lazy.LazyColumn(Modifier.weight(1f).fillMaxWidth()) {
+                if(queue.isEmpty())item {UiText("Nenhuma música na fila.")}
+                items(queue.size,key={queue[it].getString("_queue_id")}) {index->
+                    if(index==0&&active>0)UiText("Já tocadas",style=MaterialTheme.typography.labelLarge)
+                    if(index==active)UiText("Tocando agora",style=MaterialTheme.typography.labelLarge)
+                    if(index==active+1)UiText("A seguir",style=MaterialTheme.typography.labelLarge)
+                    val row=queue[index]
+                    PlaybackQueueRow(row,row.optString("_cover"),row.optLong("duration_ms")/1000,index==active,editing,{controller.playQueued(index)},
+                        {controller.moveQueued(index,-1)},{controller.moveQueued(index,1)},{controller.removeQueued(index)},index>0,index+1<queue.size)
+                    if(row.optString("_analysis")!="Pronta")UiText(row.optString("_error").ifBlank {row.optString("_analysis")},style=MaterialTheme.typography.labelSmall)
+                    if(editing&&row.optString("_analysis")=="Erro")TextButton(onClick={controller.retryQueued(index)}){UiText("Tentar novamente")}
+                }
             }
         }
-    }},confirmButton={TextButton(onClick=close){UiText("Pronto")}})
+    }
 }
 
 @Composable private fun JukeboxGraph(model:JSONObject?,current:Int,phase:Float,playing:Boolean,flow:List<Pair<Int,Int>>,used:Set<Pair<Int,Int>>,variation:Float,smooth:Float,normal:Boolean,onSeek:(Int)->Unit,height:Dp=230.dp,nextIndex:Int=-1,jumpBlend:Float=0f) {

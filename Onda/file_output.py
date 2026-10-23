@@ -1,8 +1,10 @@
 """Safe output directories and explicit collision choices."""
 import os
+import errno
 import re
 from pathlib import Path
 import shutil
+import tempfile
 
 from output_rules import EXTRA_ORGANIZATIONS
 
@@ -70,7 +72,26 @@ def publish(source, folder, policy="keep", choose=None, *, config=None, record=N
         if policy not in ("replace", "keep"):
             raise ValueError("Escolha inválida para arquivo duplicado.")
         if policy == "replace":
-            os.replace(source, target)
+            try:
+                os.replace(source, target)
+            except OSError as error:
+                if error.errno != errno.EXDEV:
+                    raise
+                # Stage on the destination volume before replacing the old file.
+                # A failed copy must preserve both the original and the source.
+                temporary = None
+                try:
+                    with tempfile.NamedTemporaryFile(dir=folder, prefix='.onda-', suffix='.tmp', delete=False) as output:
+                        temporary = Path(output.name)
+                        with source.open('rb') as original:
+                            shutil.copyfileobj(original, output)
+                        output.flush()
+                        os.fsync(output.fileno())
+                    os.replace(temporary, target)
+                    source.unlink()
+                finally:
+                    if temporary is not None:
+                        temporary.unlink(missing_ok=True)
             return str(target), False
     # Exclusive creation also protects against another app creating the file.
     index = 1

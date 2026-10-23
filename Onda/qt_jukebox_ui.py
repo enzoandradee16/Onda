@@ -20,6 +20,7 @@ from i18n import tr, set_language
 
 class JukeboxBridge(QObject):
     changed=Signal()
+    playbackRequested=Signal()
     queueChanged=Signal()
     positionChanged=Signal()
     graphChanged=Signal()
@@ -380,7 +381,7 @@ class JukeboxBridge(QObject):
         if kind=='progress':self.update_state(progress=value)
         elif kind=='result':
             if 'tracks' in value:
-                self.records=value['tracks'];self.update_state(results=[{'title':r['title'],'artist':', '.join(r.get('artists',[]))} for r in self.records],status=tr('Escolha uma música nos resultados.') if self.records else tr('Nenhuma música encontrada.'))
+                self.records=value['tracks'];self.update_state(results=[{'title':r['title'],'artist':', '.join(r.get('artists',[])),'album':r.get('album') or '', 'cover':r.get('cover_url') or ''} for r in self.records],status=tr('Escolha uma música nos resultados.') if self.records else tr('Nenhuma música encontrada.'))
             else:
                 self.model=value;self.flow=[];self.used_edges=set();self._position=0;self._phase=0;self._beat_index=0;self._next_index=-1;self._jump_blend=0.
                 cover=value.get('_cover','');cover=base64.b64encode(cover).decode() if isinstance(cover,bytes) else cover
@@ -427,10 +428,11 @@ class JukeboxBridge(QObject):
     @Slot()
     def playPause(self):
         if self._state['playing']:
-            if self.paused.is_set():self.paused.clear()
+            if self.paused.is_set():self.playbackRequested.emit();self.paused.clear()
             else:self.paused.set()
             self.update_state(paused=self.paused.is_set());self.sync_media();return
         if not self.model or self._state['busy']:return
+        self.playbackRequested.emit()
         self.cancelled=threading.Event();self.paused.clear();cancel=self.cancelled;revision=self.revision
         cache=self.model['cache'];initial=int(self._position);self.seeks=queue.SimpleQueue();seeks=self.seeks;switch_requests=self._switch_requests;self._fade_initial=True
         self._elapsed=0;self._track_started=0;self._jumps=0;self.flow=[];self.used_edges=set();self.positionChanged.emit();self.update_graph()

@@ -67,7 +67,8 @@ class QuickDownloadTests(unittest.TestCase):
 
     def test_queue_and_link_form_live_in_separate_tabs(self):
         app=self.app
-        self.assertEqual(len(app.pages.tabs()),8)
+        from tab_order import DEFAULT_ORDER
+        self.assertEqual(len(app.pages.tabs()),len(DEFAULT_ORDER))
         self.assertTrue(str(app.urls).startswith(str(app.download_page)))
         self.assertTrue(str(app.tree).startswith(str(app.queue_page)))
         app.pages.select(app.download_page)

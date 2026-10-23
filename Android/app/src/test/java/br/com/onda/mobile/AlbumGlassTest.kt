@@ -30,4 +30,11 @@ class AlbumGlassTest {
             }
         }
     }
+    @Test fun lyricsUseCoverColorWithReadableText() {
+        assertNotEquals(albumLyricsColors(Color.Blue,false).first,albumLyricsColors(Color.Red,false).first)
+        for(hc in listOf(false,true))for(cover in listOf(Color.Black,Color.White,Color.Red,Color.Green,Color.Blue,Color.Yellow,Color.Cyan,Color.Magenta)) {
+            val (background,ink)=albumLyricsColors(cover,hc)
+            assertTrue(contrast(background,ink)>=if(hc)7f else 4.5f)
+        }
+    }
 }

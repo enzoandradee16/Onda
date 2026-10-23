@@ -43,6 +43,7 @@ internal fun lyricPlainText(text:String)=text.replace(Regex("<\\d{1,3}:[0-5]\\d(
     LaunchedEffect(openRequest){if(openRequest>0)open=true}
     var seconds by remember(source) {mutableDoubleStateOf(0.0)}
     var dragged by remember(source) {mutableStateOf<Float?>(null)}
+    val (lyricsBackground,lyricsInk)=rememberLyricsColors(vm,source)
     val cache by vm.lyricsCache.collectAsStateWithLifecycle()
     val lines=cache[source].orEmpty()
     val settings by OndaStore.settings.collectAsStateWithLifecycle()
@@ -66,7 +67,7 @@ internal fun lyricPlainText(text:String)=text.replace(Regex("<\\d{1,3}:[0-5]\\d(
         val animation=settings.optString("lyrics_animation","Suave")
         LaunchedEffect(source) {listState.scrollToItem(0);while(true){if(dragged==null)seconds=latestPosition();delay(80)}}
         LaunchedEffect(active) {if(active>=0) {if(animation=="Desativada")listState.scrollToItem(active) else listState.animateScrollToItem(active)}}
-        Surface(Modifier.fillMaxSize().testTag("lyrics-fullscreen"),color=MaterialTheme.colorScheme.primaryContainer,contentColor=MaterialTheme.colorScheme.onPrimaryContainer) {
+        Surface(Modifier.fillMaxSize().testTag("lyrics-fullscreen"),color=lyricsBackground,contentColor=lyricsInk) {
             Column(Modifier.fillMaxSize().padding(24.dp),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
                 Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
                     IconButton(onClick={open=false}){OndaIcon("down","Recolher letra",Modifier.size(26.dp))}
@@ -80,8 +81,8 @@ internal fun lyricPlainText(text:String)=text.replace(Regex("<\\d{1,3}:[0-5]\\d(
                     if(lines.isEmpty())item {UiText("Letra não encontrada para esta gravação.",Modifier.fillMaxWidth(),style=MaterialTheme.typography.bodyMedium)}
                     itemsIndexed(lines) {index,line->
                         val selected=index==active
-                        val ink=MaterialTheme.colorScheme.onPrimaryContainer
-                        val normal=MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha=.72f)
+                        val ink=lyricsInk
+                        val normal=lyricsInk.copy(alpha=.72f)
                         val stamps=Regex("<([0-9]{1,3}):([0-5][0-9])(?:[.:]([0-9]{1,3}))?>").findAll(line.second).toList()
                         val text=buildAnnotatedString {
                             if(!selected||stamps.isEmpty())append(lyricPlainText(line.second))
@@ -107,7 +108,7 @@ internal fun lyricPlainText(text:String)=text.replace(Regex("<\\d{1,3}:[0-5]\\d(
                         DropdownMenu(menu,{menu=false}) {
                             DropdownMenuItem(text={UiText(if(searching)"Pesquisando…" else "Buscar letra online")},enabled=!searching&&source.isNotBlank(),onClick={
                                 menu=false;searching=true;val requestedSource=source
-                                vm.lookupLyrics(source,true){result->if(latestSource==requestedSource){searching=false;if(result.has("error"))vm.showNotice("Buscar letra online",result.optString("error"));alternatives=result.optJSONArray("candidates")?.let {rows->(0 until rows.length()).map {rows.getJSONObject(it)}}.orEmpty();if(alternatives.isEmpty())applyLyrics(result)}}
+                                vm.lookupLyrics(source,refresh=true){result->if(latestSource==requestedSource){searching=false;if(result.has("error"))vm.showNotice("Buscar letra online",result.optString("error"));alternatives=result.optJSONArray("candidates")?.let {rows->(0 until rows.length()).map {rows.getJSONObject(it)}}.orEmpty();if(alternatives.isEmpty())applyLyrics(result)}}
                             })
                             DropdownMenuItem(text={UiText("Escolher letra")},enabled=source.isNotBlank(),onClick={menu=false;picker.launch(arrayOf("*/*"))})
                         }

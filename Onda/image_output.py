@@ -1,6 +1,8 @@
 """Image export options shared by preview and downloads."""
 import base64
 import io
+import os
+import tempfile
 from pathlib import Path
 from PIL import Image, ImageOps, ImageSequence
 
@@ -38,6 +40,20 @@ def transform_image(source, options, emit=lambda *a, **kw: None):
     if options['format'] == 'Original' and not options['width']:
         return Path(source)
     source = Path(source)
+    # Encode in an isolated directory; neither partial files nor format changes
+    # may overwrite an unrelated neighbor of the source.
+    with tempfile.TemporaryDirectory(prefix='.onda-image-',dir=source.parent) as directory:
+        output = _render_image(source, options, Path(directory), emit)
+        if output.suffix.lower() == source.suffix.lower():
+            os.replace(output, source)
+            return source
+        from file_output import publish
+        final, _ = publish(output, source.parent, 'keep')
+        source.unlink()
+        return Path(final)
+
+
+def _render_image(source, options, directory, emit):
     if options['format'] == 'SVG':
         with Image.open(source) as image:
             animated = getattr(image, 'n_frames', 1) > 1
@@ -47,25 +63,21 @@ def transform_image(source, options, emit=lambda *a, **kw: None):
             frame.save(payload, format='PNG')
         encoded = base64.b64encode(payload.getvalue()).decode('ascii')
         width, height = frame.size
-        target = source.with_name(source.stem + '.converted.svg')
+        target = directory / (source.stem + '.svg')
         target.write_text(
             f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">'
             '<desc>Imagem raster incorporada; sem vetorização automática.</desc>'
             f'<image width="{width}" height="{height}" href="data:image/png;base64,{encoded}"/></svg>', encoding='utf-8')
-        final = source.with_suffix('.svg')
-        target.replace(final)
-        if source != final:
-            source.unlink(missing_ok=True)
         emit('log', message=f'Imagem exportada: {width} × {height} · SVG com imagem incorporada, sem vetorização.')
         if animated:
             emit('log', message='SVG salva somente o primeiro quadro da imagem animada.')
-        return final
+        return target
     with Image.open(source) as image:
         fmt = FORMATS[options['format']] or image.format
         if fmt not in ('JPEG', 'PNG', 'WEBP', 'GIF', 'AVIF'):
             raise ValueError('Para redimensionar esta imagem, escolha JPG, PNG ou WebP.')
         ext = {'JPEG': '.jpg', 'PNG': '.png', 'WEBP': '.webp', 'GIF': '.gif', 'AVIF': '.avif'}[fmt]
-        target = source.with_name(source.stem + '.converted' + ext)
+        target = directory / (source.stem + ext)
         frames, durations = [], []
         animated = getattr(image, 'n_frames', 1) > 1
         for frame in ImageSequence.Iterator(image):
@@ -89,12 +101,8 @@ def transform_image(source, options, emit=lambda *a, **kw: None):
         if animated and len(frames) == 1:
             emit('log', message='Este formato salva somente o primeiro quadro da imagem animada.')
         frames[0].save(target, **args)
-    final = source.with_suffix(ext)
-    target.replace(final)
-    if source != final:
-        source.unlink(missing_ok=True)
     emit('log', message=f'Imagem exportada: {frames[0].width} × {frames[0].height} · {fmt}.')
-    return final
+    return target
 
 
 def open_preview(path):

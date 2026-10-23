@@ -28,7 +28,7 @@ val prepareNativeTools by tasks.registering(Sync::class) {
             listOf("libffmpeg.so", "libffprobe.so", "libqjs.so").forEach { name ->
                 val relative = "$abi/$name"
                 val file = nativeSource.resolve(relative)
-                check(file.isFile) { "Ferramenta ausente: $relative. Siga Celular/nativebuild/README.md." }
+                check(file.isFile) { "Ferramenta ausente: $relative. Siga Android/nativebuild/README.md." }
                 val actual = MessageDigest.getInstance("SHA-256").digest(file.readBytes())
                     .joinToString("") { "%02x".format(it.toInt() and 255) }
                 check(actual == expected[relative]) { "Hash nativo inválido: $relative. Confira os fontes, a construção e nativebuild/SHA256SUMS.txt." }

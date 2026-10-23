@@ -109,7 +109,12 @@ def scan_folder(folder,history=(),cancelled=lambda:False):
             if path.suffix.lower() in AUDIO_TYPES:item.update(read_audio(path))
             sidecar=path.with_suffix(path.suffix+'.metadata.json')
             if sidecar.is_file() and sidecar.stat().st_size<=1024*1024:
-                record=json.loads(sidecar.read_text(encoding='utf-8')).get('catalog',{})
+                document=json.loads(sidecar.read_text(encoding='utf-8'))
+                if not isinstance(document,dict):
+                    item['uncertain']=True
+                    inventory.append(item)
+                    continue
+                record=document.get('catalog',{})
                 if isinstance(record,dict):
                     for key in ('source_url','isrc','title','artists','album','duration'):
                         if record.get(key):item[key]=record[key]

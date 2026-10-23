@@ -126,6 +126,9 @@ def perform(action,config,cancel,emit):
         from audio_library import read_audio,cover_preview
         try:record=read_audio(config['source'])
         except (OSError,ValueError):record={'title':Path(config['source']).stem}
+        supplied=config.get('record') or config.get('records',{}).get(config['source']) or {}
+        for field in ('title','artists','album','cover_url'):
+            if supplied.get(field):record[field]=supplied[field]
         duration=record.get('duration') or perform('probe',config,cancel,emit)
         return {'record':record,'cover':cover_preview(config['source']) or '', 'duration':duration}
     if action=='audio_read':
@@ -134,7 +137,7 @@ def perform(action,config,cancel,emit):
     if action=='audio_edit':
         from audio_library import edit_copy
         from batch_metadata import edit_batch
-        return edit_batch(config,emit) if len(config.get('sources',[]))>1 else edit_copy(config,emit)
+        return edit_batch(config,emit,cancelled=cancel.is_set) if len(config.get('sources',[]))>1 else edit_copy(config,emit,cancelled=cancel.is_set)
     if action=='image_info':return {'source':image_details(config['source'])}
     if action in ('image_preview','image_export'):
         from image_output import transform_image,open_preview

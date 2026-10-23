@@ -24,14 +24,15 @@ import org.json.JSONObject
 
 @Composable internal fun EffectsArtwork(info:JSONObject,modifier:Modifier=Modifier) {
     val encoded=info.optString("cover")
-    val cover=remember(encoded){if(encoded.isBlank())null else runCatching {Base64.decode(encoded,Base64.DEFAULT)}.getOrNull()}
+    val coverUrl=info.optJSONObject("record")?.optString("cover_url").orEmpty()
+    val cover=remember(encoded,coverUrl){if(encoded.isBlank())coverUrl.takeIf {it.isNotBlank()} else runCatching {Base64.decode(encoded,Base64.DEFAULT)}.getOrNull()}
     Surface(modifier.clip(RoundedCornerShape(12.dp)),color=MaterialTheme.colorScheme.surfaceVariant,shape=RoundedCornerShape(12.dp)) {
         if(cover!=null)AsyncImage(cover,translateUi("Capa do álbum"),Modifier.fillMaxSize(),contentScale=ContentScale.Fit)
         else Box(contentAlignment=Alignment.Center){OndaIcon("album",modifier=Modifier.size(32.dp))}
     }
 }
 
-@Composable internal fun EffectsTrackInformation(info:JSONObject,source:String) {
+@Composable internal fun EffectsTrackInformation(info:JSONObject,source:String,action:@Composable ()->Unit={}) {
     val record=info.optJSONObject("record") ?: JSONObject()
     ToolCard(Modifier.testTag("effects-track-information")) {
         Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(LayoutSpacing.section)) {
@@ -41,55 +42,68 @@ import org.json.JSONObject
                 Text(record.stringList("artists"),style=MaterialTheme.typography.bodyMedium)
                 Text(record.optString("album"),style=MaterialTheme.typography.bodySmall)
                 Text(mediaClock(info.optDouble("duration").toLong()),style=MaterialTheme.typography.labelMedium)
+                action()
             }
         }
     }
 }
 
+
+@Composable internal fun PlaybackQueueRow(record:JSONObject,cover:String,duration:Long,current:Boolean,editing:Boolean,play:()->Unit,up:()->Unit,down:()->Unit,remove:()->Unit,canUp:Boolean,canDown:Boolean) {
+    Column(Modifier.fillMaxWidth()) {
+        Row(Modifier.fillMaxWidth().clickable(onClick=play).padding(vertical=10.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+            EffectsArtwork(JSONObject().put("record",record).put("cover",cover),Modifier.size(48.dp))
+            Column(Modifier.weight(1f)) {
+                Text(record.optString("title"),maxLines=1,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis,color=if(current)MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
+                Text(record.stringList("artists"),style=MaterialTheme.typography.bodySmall,maxLines=1,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+            }
+            if(duration>0)Text(mediaClock(duration),style=MaterialTheme.typography.labelSmall)
+            IconButton(onClick=play){OndaIcon("play",if(current)"Reproduzir novamente" else "Reproduzir",Modifier.size(22.dp))}
+        }
+        if(editing)Row {
+            IconButton(onClick=up,enabled=canUp){OndaIcon("up","Mover para cima",Modifier.size(22.dp))}
+            IconButton(onClick=down,enabled=canDown){OndaIcon("down","Mover para baixo",Modifier.size(22.dp))}
+            IconButton(onClick=remove){OndaIcon("close","Remover da fila",Modifier.size(22.dp))}
+        }
+    }
+}
 @Composable internal fun EffectsQueuePanel(vm:OndaViewModel,source:String,onPlay:(Int)->Unit) {
     val queue by vm.effectsPlaylist.collectAsStateWithLifecycle()
     val infos by vm.effectsInfo.collectAsStateWithLifecycle()
-    ToolCard(Modifier.fillMaxHeight().testTag("effects-queue-panel")) {
-            Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){UiText("Fila de reprodução",Modifier.weight(1f));TextButton(onClick=vm::clearEffectsQueue,enabled=queue.isNotEmpty()){UiText("Limpar")}}
-            LazyColumn(Modifier.fillMaxWidth().weight(1f),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.section)) {
-                if(queue.isEmpty())item {UiText("Adicione arquivos ou músicas dos resultados.")}
-                itemsIndexed(queue,key={_,path->path}) {index,path->
-                    val info=infos[path]
-                    val record=info?.optJSONObject("record")
-                    Column(Modifier.fillMaxWidth()) {
-                        Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
-                            EffectsArtwork(info ?: JSONObject(),Modifier.size(56.dp))
-                            Column(Modifier.weight(1f)) {
-                                Text(record?.optString("title")?.ifBlank {importedAudioName(path)} ?: importedAudioName(path),maxLines=2,color=if(path==source)MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
-                                Text(record?.stringList("artists").orEmpty(),style=MaterialTheme.typography.bodySmall)
-                                Text(mediaClock((info?.optDouble("duration",0.0) ?: 0.0).toLong()),style=MaterialTheme.typography.labelSmall)
-                                if(info?.has("error")==true)Text(info.optString("error"),color=MaterialTheme.colorScheme.error,style=MaterialTheme.typography.bodySmall)
-                            }
-                        }
-                        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(LayoutSpacing.details),verticalAlignment=Alignment.CenterVertically) {
-                            TextButton(onClick={onPlay(index)},enabled=info!=null&&!info.has("error")){UiText("Tocar")}
-                            IconButton(onClick={vm.moveEffectsTrack(index,-1)},enabled=index>0){OndaIcon("up","Mover para cima",Modifier.size(22.dp))}
-                            IconButton(onClick={vm.moveEffectsTrack(index,1)},enabled=index+1<queue.size){OndaIcon("down","Mover para baixo",Modifier.size(22.dp))}
-                            IconButton(onClick={vm.removeEffectsTrack(index)}){OndaIcon("close","Remover da fila",Modifier.size(22.dp))}
-                        }
-                    }
-                }
+    var editing by remember {mutableStateOf(false)}
+    Column(Modifier.fillMaxSize().padding(horizontal=LayoutSpacing.inset).testTag("effects-queue-panel")) {
+        Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){UiText("Fila",Modifier.weight(1f),style=MaterialTheme.typography.titleLarge);TextButton(onClick={editing=!editing}){UiText(if(editing)"Pronto" else "Editar")}}
+        if(editing)TextButton(onClick=vm::clearEffectsQueue){UiText("Limpar fila")}
+        val active=queue.indexOf(source)
+        LazyColumn(Modifier.weight(1f)) {
+            if(queue.isEmpty())item {UiText("Adicione arquivos ou músicas dos resultados.")}
+            itemsIndexed(queue,key={_,path->path}) {index,path->
+                if(index==0&&active>0)UiText("Já tocadas",style=MaterialTheme.typography.labelLarge)
+                if(index==active)UiText("Tocando agora",style=MaterialTheme.typography.labelLarge)
+                if(index==active+1)UiText("A seguir",style=MaterialTheme.typography.labelLarge)
+                val info=infos[path] ?: JSONObject()
+                val record=info.optJSONObject("record") ?: JSONObject().put("title",importedAudioName(path))
+                PlaybackQueueRow(record,info.optString("cover"),info.optDouble("duration",0.0).toLong(),path==source,editing,{onPlay(index)},{vm.moveEffectsTrack(index,-1)},{vm.moveEffectsTrack(index,1)},{vm.removeEffectsTrack(index)},index>0,index+1<queue.size)
             }
         }
+    }
 }
-
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable internal fun EffectsQueueDrawer(vm:OndaViewModel) {
     val open by vm.effectsQueueOpen.collectAsStateWithLifecycle()
     val source by vm.effectsSource.collectAsStateWithLifecycle()
-    if(open)Dialog(onDismissRequest={vm.effectsQueueOpen.value=false},properties=DialogProperties(usePlatformDefaultWidth=false)) {
-        Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.scrim.copy(alpha=.35f))) {
-            Box(Modifier.fillMaxSize().clickable {vm.effectsQueueOpen.value=false})
-            Surface(Modifier.align(Alignment.CenterEnd).fillMaxHeight().fillMaxWidth(.94f).widthIn(max=480.dp),color=MaterialTheme.colorScheme.surface) {
-                Column {
-                    TextButton(onClick={vm.effectsQueueOpen.value=false},modifier=Modifier.align(Alignment.End)){UiText("Fechar fila")}
-                    Box(Modifier.weight(1f)){EffectsQueuePanel(vm,source,vm::playEffectsQueueTrack)}
-                }
-            }
+    if(open)ModalBottomSheet(onDismissRequest={vm.effectsQueueOpen.value=false},sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true)) {
+        Box(Modifier.fillMaxWidth().fillMaxHeight(.85f)){EffectsQueuePanel(vm,source,vm::playEffectsQueueTrack)}
+    }
+}
+
+@Composable internal fun SearchTrackInformation(record:JSONObject) {
+    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+        EffectsArtwork(JSONObject().put("record",record),Modifier.size(56.dp))
+        Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(4.dp)) {
+            Text(record.optString("title"),maxLines=2,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+            Text(record.stringList("artists"),style=MaterialTheme.typography.bodySmall,maxLines=1,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+            Text(record.optString("album"),style=MaterialTheme.typography.bodySmall,maxLines=1,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)
         }
     }
 }

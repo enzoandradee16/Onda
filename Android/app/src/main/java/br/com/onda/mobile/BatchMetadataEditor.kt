@@ -97,7 +97,7 @@ import java.io.File
                     }
                     Row(verticalAlignment=Alignment.CenterVertically) {Checkbox(overwrite,{overwrite=it},enabled=!locked,modifier=Modifier.padding(end=LayoutSpacing.checkboxLabel).a11yLabel("Sobrescrever arquivo original"));UiText("Sobrescrever arquivo original")}
                     UiText(if(overwrite)"Os arquivos originais selecionados serão substituídos." else "O arquivo original será preservado. Uma cópia será salva na pasta de destino.",style=MaterialTheme.typography.bodySmall)
-                    if(locked)LinearProgressIndicator(Modifier.fillMaxWidth())
+                    if(preparing && !busy)LinearProgressIndicator(Modifier.fillMaxWidth())
                     if(summary.isNotBlank())UiText(summary)
                 }
                 Button(onClick={if(overwrite)confirm=true else apply()},enabled=!locked && sources.size in 1..500 && (selected.isNotEmpty() || cover.isNotBlank()),modifier=Modifier.fillMaxWidth().testTag("batch-apply")){UiText("Aplicar aos arquivos selecionados")}

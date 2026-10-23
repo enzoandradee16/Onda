@@ -51,7 +51,7 @@ class CatalogCompletenessTests(unittest.TestCase):
         def covered(text,language):
             return text in catalog(language) or any(pattern.fullmatch(text) for pattern,_,_ in patterns(language))
         missing=[]
-        for path in list((root/"Onda").glob("*.py"))+list((root/"Celular/app/src/main/python").glob("*.py")):
+        for path in list((root/"Onda").glob("*.py"))+list((root/"Android/app/src/main/python").glob("*.py")):
             if path.name.startswith("test_"): continue
             for node in ast.walk(ast.parse(path.read_text(encoding="utf-8-sig"))):
                 if not (isinstance(node,ast.Raise) and isinstance(node.exc,ast.Call) and node.exc.args): continue
@@ -62,7 +62,7 @@ class CatalogCompletenessTests(unittest.TestCase):
                 if len(text)>3:
                     for language in ("en","es"):
                         if not covered(text,language):missing.append((path.name,node.lineno,language,text))
-        for path in (root/"Celular/app/src/main/java").rglob("*.kt"):
+        for path in (root/"Android/app/src/main/java").rglob("*.kt"):
             for match in re.finditer(r'UiText\("([^"$]*)"',path.read_text(encoding="utf8")):
                 text=match.group(1)
                 if len(text)>3 and text not in {"Zoom","ONDA","Client ID"}:

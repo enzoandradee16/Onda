@@ -18,6 +18,26 @@ import java.nio.ByteOrder
 
 @RunWith(AndroidJUnit4::class)
 class JukeboxMediaTest {
+    @Test fun directSelectionsKeepEarlierTracksInQueue() {
+        val instrumentation=InstrumentationRegistry.getInstrumentation()
+        val context=instrumentation.targetContext
+        val scope=kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob()+kotlinx.coroutines.Dispatchers.Main.immediate)
+        lateinit var controller:JukeboxController
+        try {
+            instrumentation.runOnMainSync {
+                OndaStore.initialize(context)
+                controller=JukeboxController(context,scope,{}) {_,config,_->
+                    JSONObject().put("media_title",config.getJSONObject("record").getString("title")).put("media_artist","Artist").put("duration",120).put("source","audio.wav").put("cache","unused-test-cache")
+                }
+                controller.prepare(record=JSONObject().put("title","First"))
+                controller.prepare(record=JSONObject().put("title","Second"))
+                assertEquals(listOf("First","Second"),controller.playbackQueue.value.map {it.getString("title")})
+                assertEquals(2,controller.nextQueueIndex)
+                assertEquals(controller.playbackQueue.value[1].getString("_queue_id"),controller.currentQueueId.value)
+                assertTrue(controller.playbackQueue.value.all {it.getString("_analysis")=="Pronta"})
+            }
+        } finally {instrumentation.runOnMainSync {controller.close();scope.coroutineContext[kotlinx.coroutines.Job]?.cancel()}}
+    }
     @Test fun graphShowsAllConnectionsBeforePlayback() {
         val rows=JSONArray().apply {repeat(64){put(JSONArray().put((it+12)%64))}}
         val model=JSONObject().put("neighbors",rows)
@@ -39,6 +59,8 @@ class JukeboxMediaTest {
         val scenario=ActivityScenario.launch(MainActivity::class.java)
         val before=JSONObject(OndaStore.settings.value.toString())
         val controller=JukeboxRuntime.get(context)
+        val originalStopOtherAudio=controller.stopOtherAudio
+        val handoffs=java.util.concurrent.atomic.AtomicInteger()
         val source=java.io.File(context.cacheDir,"jukebox-media-silence.wav")
         fun await(check:()->Boolean) {val end=System.currentTimeMillis()+10000;while(!check() && System.currentTimeMillis()<end)Thread.sleep(50);assertTrue("Playback: ${controller.state.value.message}, playing=${controller.state.value.playing}, queued=${controller.playbackQueue.value.size}",check())}
         try {
@@ -49,6 +71,7 @@ class JukeboxMediaTest {
             assertFalse(model.toString(),model.has("error"))
             model.put("media_title","Silent test").put("media_artist","ONDA")
             scenario.onActivity {
+                controller.stopOtherAudio={handoffs.incrementAndGet();originalStopOtherAudio()}
                 OndaStore.saveSettings(JSONObject(before.toString()).put("jukebox_background",true))
                 controller.state.value=JukeboxState(title="",model=model)
                 controller.playPause()
@@ -66,7 +89,9 @@ class JukeboxMediaTest {
             await {controller.state.value.elapsed>.4}
             assertTrue(controller.state.value.playing);assertFalse(controller.state.value.paused)
             media.transportControls.pause();await {controller.state.value.paused}
+            val handoffsBeforeResume=handoffs.get()
             media.transportControls.play();await {!controller.state.value.paused}
+            assertTrue("Retomar Jukebox também deve pausar a outra reprodução",handoffs.get()>handoffsBeforeResume)
             media.transportControls.stop();await {!controller.state.value.playing}
             await {manager.activeNotifications.none {it.id==13}}
             instrumentation.runOnMainSync {
@@ -96,7 +121,7 @@ class JukeboxMediaTest {
             await {manager.activeNotifications.none {it.id==13}}
 
         } finally {
-            instrumentation.runOnMainSync {controller.stop();OndaStore.saveSettings(before)}
+            instrumentation.runOnMainSync {controller.stop();controller.stopOtherAudio=originalStopOtherAudio;OndaStore.saveSettings(before)}
             scenario.close();source.delete()
         }
     }

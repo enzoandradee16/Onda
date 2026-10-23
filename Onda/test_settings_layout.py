@@ -27,7 +27,7 @@ class SettingsLayoutUiTests(unittest.TestCase):
                         if isinstance(widget,(ttk.Label,ttk.Button,ttk.Checkbutton)):yield str(widget.cget('text'))
                         yield from walk(widget)
                 for tab in app.settings_pages.tabs():labels[app.settings_pages.tab(tab,'text')]=set(walk(app.settings_categories[tab].content))
-                android=json.loads((Path(__file__).parent.parent/'Celular/app/src/main/assets/settings_search.json').read_text(encoding='utf-8'))
+                android=json.loads((Path(__file__).parent.parent/'Android/app/src/main/assets/settings_search.json').read_text(encoding='utf-8'))
                 for category,options in LAYOUT['common_options'].items():
                     for label in options:
                         self.assertIn(label,labels[category],(category,label))

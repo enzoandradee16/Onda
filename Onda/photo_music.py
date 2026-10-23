@@ -1,6 +1,8 @@
 """Render a still image with the soundtrack actually supplied by its post."""
 import math
 import subprocess
+import tempfile
+from pathlib import Path
 from urllib.parse import urlsplit
 
 
@@ -37,13 +39,17 @@ def instagram_audio(product):
 
 
 def render_photo_video(photo, audio, session, headers, config, emit):
-    from audio_tools import executable, process_options
     if not isinstance(audio, dict) or not direct_audio(audio.get('url'), audio.get('start'), audio.get('duration')):
         raise ValueError('A plataforma não disponibilizou a música desta foto. Escolha Só foto.')
+    with tempfile.TemporaryDirectory(prefix='.onda-photo-',dir=photo.parent) as directory:
+        return _render_photo_video(photo,audio,session,headers,config,emit,Path(directory))
+
+
+def _render_photo_video(photo, audio, session, headers, config, emit, directory):
+    from audio_tools import executable, process_options
     # Use the authenticated platform session; never pass credentials to FFmpeg.
-    soundtrack = photo.with_suffix(photo.suffix + '.soundtrack')
-    target = photo.with_suffix('.mp4')
-    partial = target.with_suffix('.render.mp4')
+    soundtrack = directory / 'soundtrack'
+    partial = directory / photo.with_suffix('.mp4').name
     emit('stage', message='Baixando a música da foto…')
     try:
         with session.get(audio['url'], headers=headers, stream=True, timeout=(20, 30)) as response:
@@ -75,9 +81,10 @@ def render_photo_video(photo, audio, session, headers, config, emit):
         result = subprocess.run(command, capture_output=True, timeout=600, **process_options())
         if result.returncode or not partial.is_file() or not partial.stat().st_size:
             raise ValueError('Não foi possível criar o MP4 com esta música. Tente baixar só a foto.')
-        partial.replace(target)
+        from file_output import publish
+        final, _ = publish(partial,photo.parent,'keep')
         photo.unlink()
-        return target
+        return Path(final)
     finally:
         soundtrack.unlink(missing_ok=True)
         partial.unlink(missing_ok=True)

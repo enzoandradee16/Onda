@@ -107,3 +107,15 @@ Em Efeitos e Jukebox, Pesquisar e Abrir arquivo ficam na mesma linha, abaixo do 
 A barra compacta extrai a cor predominante da capa, com processamento fora da interface e reaproveitamento do cache de imagens. O fundo combina a capa desfocada, uma lente translúcida em degradê, reflexos, borda e sombra suave. Sem capa válida, usa a cor de destaque do tema.
 
 Nos temas claros, o vidro recebe uma base clara com texto escuro; nos escuros, uma base escura com texto claro. Alto contraste mantém a tonalidade da capa, com lente menos transparente, borda reforçada, ícones e texto de alto contraste. A troca de música ou tema recalcula as cores sem alterar os controles.
+
+
+### Troca de reprodução entre Efeitos e Jukebox
+
+Reprodução normal fica visível na aba Jukebox e compartilha o mesmo estado do menu do player. A opção é preservada ao alternar as abas e aplicada ao motor sem saltos.
+
+Cada aba tem uma ação explícita para reproduzir sua música, mesmo quando a barra compacta controla a outra reprodução. O menu do player expandido também permite iniciar a outra aba quando há uma faixa carregada. Iniciar ou retomar uma reprodução pausa a outra e preserva sua posição; os arquivos e as filas continuam separados.
+
+Somente navegar pelas abas não encerra o áudio. Ao voltar a Efeitos, os efeitos só são renderizados novamente se seus parâmetros mudaram, evitando uma interrupção causada pela recomposição da tela. Retomar Jukebox também cancela pedidos de Efeitos ainda em preparação, para que uma resposta atrasada não tome a reprodução de volta.
+
+
+Os botões auxiliares de troca de reprodução aparecem junto aos metadados da faixa somente quando há uma música carregada nessa aba e a barra compacta está controlando a outra. Eles desaparecem quando a barra passa a controlar a própria aba.

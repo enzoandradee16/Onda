@@ -110,7 +110,7 @@ import java.util.UUID
             if(batch.isNotEmpty())vm.operation("convert_batch",options.put("sources",org.json.JSONArray(batch)).put("output_folder",base.absolutePath),dialog=false)
             else vm.operation("video_convert",options,dialog=false)
         }){UiText("Converter")}
-        if(busy) {LinearProgressIndicator(Modifier.fillMaxWidth());TextButton(onClick={vm.cancel()}){UiText("Cancelar")}}
+        if(busy) {TextButton(onClick={vm.cancel()}){UiText("Cancelar")}}
         if(status.isNotBlank())UiText(status,style=MaterialTheme.typography.bodySmall)
         Spacer(Modifier.height(8.dp))
         UiText("A cópia convertida é salva no destino de downloads e aparece no Histórico.",style=MaterialTheme.typography.bodySmall)

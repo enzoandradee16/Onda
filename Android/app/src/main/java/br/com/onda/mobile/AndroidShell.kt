@@ -53,6 +53,7 @@ import androidx.compose.ui.graphics.drawscope.rotate
         fun line(x:Float,y:Float,a:Float,b:Float)=drawLine(tint,Offset(x*u,y*v),Offset(a*u,b*v),stroke,StrokeCap.Round)
         fun path(vararg points:Pair<Float,Float>,close:Boolean=false) {drawPath(Path().apply {points.forEachIndexed {i,p->if(i==0)moveTo(p.first*u,p.second*v) else lineTo(p.first*u,p.second*v)};if(close)close()},tint,style=Stroke(stroke,cap=StrokeCap.Round))}
         when(name) {
+            "close"->{line(6f,6f,18f,18f);line(18f,6f,6f,18f)}
             "share"->{line(6f,12f,18f,5f);line(6f,12f,18f,19f);listOf(6f to 12f,18f to 5f,18f to 19f).forEach {(x,y)->drawCircle(tint,3f*u,Offset(x*u,y*v),style=Stroke(stroke))}}
             "mini"->{path(3f to 4f,21f to 4f,21f to 20f,3f to 20f,close=true);path(12f to 12f,19f to 12f,19f to 18f,12f to 18f,close=true)}
             "queue"->{for(y in listOf(5f,12f,19f)){drawCircle(tint,1f*u,Offset(3*u,y*v));line(7f,y,21f,y)}}

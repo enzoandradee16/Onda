@@ -51,3 +51,48 @@ class LyricsServiceTests(unittest.TestCase):
         import yaml
         result=self.run_fetch({'hasWordSync':True,'lyricsfile':yaml.safe_dump({'version':'1.0','lines':[{'text':'Test','start_ms':1000,'words':[{'text':'Test','start_ms':1000}]}]})})
         self.assertTrue(result['synced']);self.assertTrue(result['word_synced'])
+
+    def test_catalog_metadata_survives_untagged_cache_file(self):
+        session=MagicMock();response=session.get.return_value.__enter__.return_value
+        response.status_code=200;response.iter_content.return_value=[b'{"plainLyrics":"Hello"}']
+        with patch('lyrics_service.read_audio',return_value={'title':'audio','artists':[],'duration':120}):
+            fetch_lyrics('audio.wav',{'title':'Correct title','artists':['Correct artist'],'album':'Album'},session=session)
+        params=session.get.call_args.kwargs['params']
+        self.assertEqual(params['track_name'],'Correct title')
+        self.assertEqual(params['artist_name'],'Correct artist')
+        self.assertEqual(params['duration'],120)
+
+    def test_supplied_recording_is_not_replaced_by_download_tags(self):
+        session=MagicMock();response=session.get.return_value.__enter__.return_value
+        response.status_code=200;response.iter_content.return_value=[b'{"plainLyrics":"Hello"}']
+        with patch('lyrics_service.read_audio',return_value={'title':'Video title','artists':['Channel'],'album':'Video'}):
+            fetch_lyrics('audio.webm',{'title':'Catalog title','artists':['Artist'],'album':'Album'},session=session)
+        self.assertEqual(session.get.call_args.kwargs['params'],{'track_name':'Catalog title','artist_name':'Artist','album_name':'Album'})
+
+    def test_automatic_choice_prefers_matching_duration_over_first_result(self):
+        from lyrics_service import best_recording
+        rows=[dict(trackName='Song',artistName='Artist',duration=260,syncedLyrics='[00:01]Wrong'),dict(trackName='Song',artistName='Artist',duration=201,syncedLyrics='[00:01]Right')]
+        self.assertIs(best_recording(rows,'Song','Artist',duration=200),rows[1])
+    def test_automatic_choice_rejects_wrong_artist_and_version(self):
+        from lyrics_service import best_recording
+        rows=[dict(trackName='Song',artistName='Someone else',duration=200,plainLyrics='Wrong'),dict(trackName='Song Live',artistName='Artist',duration=200,plainLyrics='Wrong')]
+        self.assertIsNone(best_recording(rows,'Song','Artist',duration=200))
+    def test_automatic_choice_prefers_synced_same_recording(self):
+        from lyrics_service import best_recording
+        rows=[dict(trackName='Song',artistName='Artist',duration=200,plainLyrics='Plain'),dict(trackName='Song',artistName='Artist',duration=200,syncedLyrics='[00:01]Synced')]
+        self.assertIs(best_recording(rows,'Song','Artist',duration=200),rows[1])
+    def test_missing_exact_result_searches_and_selects_automatically(self):
+        session=MagicMock();response=session.get.return_value.__enter__.return_value
+        response.status_code=200
+        response.iter_content.side_effect=[[],[json.dumps([dict(trackName='Song',artistName='Artist',duration=200,syncedLyrics='[00:01]Chosen')]).encode()]]
+        response.status_code=404
+        def get(*args,**kwargs):
+            response.status_code=404 if args[0].endswith('/get') else 200
+            return session.get.return_value
+        session.get.side_effect=get
+        response.iter_content.side_effect=None
+        response.iter_content.return_value=[json.dumps([dict(trackName='Song',artistName='Artist',duration=200,syncedLyrics='[00:01]Chosen')]).encode()]
+        with patch('lyrics_service.read_audio',return_value={'title':'Song','artists':['Artist'],'duration':200}):
+            result=fetch_lyrics('audio.wav',session=session)
+        self.assertEqual(result['lines'],[(1,'Chosen')])
+        self.assertEqual(session.get.call_count,2)

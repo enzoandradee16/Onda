@@ -1,5 +1,6 @@
 """Encode audio at the requested bitrate, even when source and target codecs match."""
 import os
+import tempfile
 from pathlib import Path
 from yt_dlp.postprocessor.ffmpeg import FFmpegPostProcessor
 
@@ -13,13 +14,16 @@ class AudioQualityPP(FFmpegPostProcessor):
     def run(self, info):
         source = Path(info["filepath"])
         target = source.with_suffix("." + self.mode)
-        temporary = target.with_name(target.stem + ".encoding." + self.mode)
-        try:
+        with tempfile.TemporaryDirectory(prefix='.onda-encode-',dir=source.parent) as directory:
+            temporary = Path(directory) / target.name
             codec = "libmp3lame" if self.mode == "mp3" else "aac"
             self.run_ffmpeg(str(source), str(temporary), ["-vn", "-c:a", codec, "-b:a", self.bitrate + "k"])
-            os.replace(temporary, target)
-        finally:
-            temporary.unlink(missing_ok=True)
+            if source == target:
+                os.replace(temporary, target)
+            else:
+                from file_output import publish
+                final, _ = publish(temporary, source.parent, 'keep')
+                target = Path(final)
         info["filepath"], info["ext"] = str(target), self.mode
         return ([str(source)] if source != target else []), info
 

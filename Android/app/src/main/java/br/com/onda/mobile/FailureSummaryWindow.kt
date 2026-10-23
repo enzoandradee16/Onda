@@ -87,7 +87,6 @@ import org.json.JSONObject
                     Row {TextButton(onClick={provider="Deezer"}) {UiText("Deezer")};TextButton(onClick={provider="Apple / iTunes"}) {UiText("Apple / iTunes")}}
                     UiText(provider,style=MaterialTheme.typography.labelSmall)
                     TextButton(onClick={search()},enabled=!busy && query.trim().length>=2) {UiText("Pesquisar metadados")}
-                    if(busy)LinearProgressIndicator(Modifier.fillMaxWidth())
                     if(searchStarted)UiText(status,maxLines=3,style=MaterialTheme.typography.bodySmall)
                     LazyColumn(Modifier.weight(1f,false).testTag("failure-catalog-results")) {
                         items(results) {record->

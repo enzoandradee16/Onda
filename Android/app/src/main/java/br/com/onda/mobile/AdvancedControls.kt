@@ -182,7 +182,6 @@ import java.io.File
             ToolSwitch("Substituir original",overwrite,enabled=!busy){overwrite=it}
             UiText(if(overwrite) "O arquivo original será substituído, mantendo o nome e a pasta." else "O arquivo original será preservado. Uma cópia será salva na pasta de destino.",style=MaterialTheme.typography.bodySmall)
         }
-            if(busy)LinearProgressIndicator(Modifier.fillMaxWidth())
         Button(enabled=loaded && !busy,onClick={vm.operation("audio_edit",config(),dialog=false){if(overwrite)finish();vm.status.value=if(overwrite) "Arquivo original atualizado." else "Cópia editada salva na pasta de destino."}},modifier=Modifier.fillMaxWidth()){UiText("Salvar alterações")}
         Spacer(Modifier.height(LayoutSpacing.section))
     }
