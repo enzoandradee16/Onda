@@ -12,13 +12,13 @@ O projeto continua em desenvolvimento. Sugestões, contribuições e relatos de 
 
 **Versão 1.2.1 para Windows 10 ou superior (x64) e Android 8 ou superior (ARM64 e x86_64).**
 
-![ONDA Windows 1.2.0](docs/images/pc%20novo/pesquisa-musicas-preto-puro.png)
+![ONDA Windows 1.2.1](docs/images/pc%20novo/pesquisa-musicas-preto-puro.png)
 
 No Android, novas versões podem ser baixadas dentro do ONDA, com progresso e continuidade em segundo plano. Ao terminar, toque em Instalar atualização; na primeira vez, permita a instalação pelo ONDA nas configurações do Android. O sistema pede confirmação e os dados são preservados.
 
 No PC, clique com o botão direito nas listas ou cards para abrir as ações disponíveis naquela aba. Shift+F10 e a tecla de menu também abrem essas opções; uma seleção múltipla é preservada ao clicar em um dos itens selecionados.
 
-## Novidades da versão 1.2.0
+## Novidades da versão 1.2.1
 
 - **Windows:** ao clicar em Baixar agora na pesquisa, escolha MP3, M4A, FLAC ou áudio original e a qualidade disponível. A janela parte das preferências salvas e permite baixar ou adicionar à fila; cancelar não inicia o download. A escolha vale para aquela música.
 - **Miniplayers no PC:** Efeitos e Jukebox compartilham o visual, com capa, álbum, controles, volume, letras e fila próprios. Continuam visíveis ao minimizar o ONDA. A opção de minimizar ao abrir fica em Aparência; capa e informações da faixa também permitem arrastar a janela.
@@ -47,7 +47,7 @@ Os executáveis Windows não têm assinatura digital. O Windows pode mostrar um 
 
 ## Idioma
 
-A versão 1.2.0 inclui **Português (Brasil)**, **Español** e **English**, nessa ordem, em **Configurações → Geral → Idioma**. Os pacotes 1.2.0 estão preparados localmente; a publicação no GitHub é uma etapa separada. Português continua como idioma padrão. O nome **ONDA** permanece em todos os idiomas. As duas interfaces usam o mesmo catálogo de tradução. No Android, a alteração é imediata; no Windows, reinicie o aplicativo. A escolha é preservada mesmo com “Lembrar configurações” desativado. Nomes de músicas, artistas, álbuns e arquivos permanecem originais.
+A versão 1.2.1 inclui **Português (Brasil)**, **Español** e **English**, nessa ordem, em **Configurações → Geral → Idioma**. Português continua como idioma padrão. O nome **ONDA** permanece em todos os idiomas. As duas interfaces usam o mesmo catálogo de tradução. No Android, a alteração é imediata; no Windows, reinicie o aplicativo. A escolha é preservada mesmo com “Lembrar configurações” desativado. Nomes de músicas, artistas, álbuns e arquivos permanecem originais.
 
 No Android, o ícone da tela inicial e dos aplicativos recentes acompanha a cor de destaque e os modos claro, escuro, preto puro ou sistema. Alguns launchers podem demorar a atualizar o ícone ou exigir recriar um atalho antigo.
 
@@ -75,7 +75,7 @@ No Windows, **Reiniciar** aparece abaixo de Idioma apenas enquanto houver uma al
 
 ## ONDA no Windows
 
-Capturas reais da versão 1.2.0 em português. Clique para ampliar.
+Capturas reais da versão 1.2.1 em português. Clique para ampliar.
 
 <table>
   <tr>
@@ -96,7 +96,7 @@ Outras capturas: [Letras sincronizadas](docs/images/pc%20novo/letras-sincronizad
 
 ## ONDA no Android
 
-Capturas reais da versão 1.2.0 em português. Clique para ampliar.
+Capturas reais da versão 1.2.1 em português. Clique para ampliar.
 
 <table>
   <tr>
