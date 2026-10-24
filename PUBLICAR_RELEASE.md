@@ -1,9 +1,10 @@
-# Publicação do ONDA 1.2.0
+# Publicação do ONDA 1.2.1
 
-Pacotes oficiais preparados em `Release/1.2.0`. As versões anteriores permanecem intactas. A publicação no GitHub é uma etapa separada da preparação local.
+Pacotes preparados em `Release/1.2.1`, com rascunho no GitHub. A criação do rascunho não publica a release.
 
-1. Conferir o commit de base, o indicador de alterações locais e os hashes de cada fonte em SOURCE_MANIFEST.json. Esta preparação foi solicitada sem commit nem push; os fontes empacotados incluem as alterações locais e as novas capturas. Conferir os sete pacotes: portátil e instalador Windows x64, APKs ARM64 e x86_64, fontes do aplicativo e dois arquivos de fontes de terceiros.
-2. Conferir MANIFEST.json, SHA256SUMS.txt, RELEASE_NOTES.md, VALIDACAO.md e os avisos de terceiros.
-3. Ao publicar a versão oficial, usar a tag `v1.2.0` e `prerelease=false`.
+1. Conferir o commit e os hashes em SOURCE_MANIFEST.json, MANIFEST.json e SHA256SUMS.txt.
+2. Conferir os sete pacotes: portátil e instalador Windows x64, APKs ARM64 e x86_64, fontes do aplicativo e os dois pacotes de fontes de terceiros.
+3. Conferir RELEASE_NOTES.md, VALIDACAO.md e os avisos de terceiros. O pacote de fontes inclui as versões usadas no PC e as versões atualizadas dos extratores Android.
+4. Manter `draft=true`, tag `v1.2.1`, título `ONDA 1.2.1` e `prerelease=false`. Publicar somente quando solicitado pelo responsável.
 
-Android: versão 1.2.0, código 27, assinatura de produção preservada. Windows: versão 1.2.0.0, sem Authenticode. Não incluir credenciais, cookies, chaves privadas ou configurações pessoais nos pacotes.
+Android: versão 1.2.1, código 28, assinatura original. Windows: versão 1.2.1.0, sem Authenticode. Os arquivos locais de testes, credenciais, cookies, chaves e preferências pessoais não fazem parte dos pacotes.

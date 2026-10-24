@@ -133,7 +133,50 @@ class ManagedProcess(_original_popen):
         super().__init__(*args, **kwargs)
         if state:
             with _lock:
-                state['processes'].append(self)
+                cancelled = state['cancel'].is_set()
+                if not cancelled:
+                    state['processes'].append(self)
+            if cancelled:
+                try:
+                    if self.poll() is None:
+                        self.kill()
+                    self.wait(timeout=5)
+                finally:
+                    for stream in (self.stdin, self.stdout, self.stderr):
+                        if stream is not None:
+                            stream.close()
+                raise Cancelled('Operação cancelada.')
+
+
+def use_cached_extractor(path, bundled_version=None):
+    """A downloaded update must not downgrade the extractor shipped in a new APK."""
+    import re
+    from importlib.metadata import version
+    try:
+        baseline=bundled_version or version('yt-dlp')
+        with zipfile.ZipFile(path) as archive:
+            info=archive.getinfo('yt_dlp/version.py')
+            if info.file_size>32768:return False
+            source=archive.read(info).decode('utf-8')
+        match=re.search(r"(?m)^__version__\s*=\s*['\"]([0-9.]+)['\"]",source)
+        if not match:return False
+        def parts(value):return tuple(int(n) for n in re.findall(r'\d+',value))
+        return parts(match[1])>parts(baseline)
+    except (OSError,ValueError,KeyError,zipfile.BadZipFile,LookupError,ImportError):return False
+
+
+def select_cached_extractor(path, bundled_version=None):
+    """Keep only a newer downloaded extractor; discard redundant/invalid cache."""
+    if not path.is_file():return False
+    if bundled_version is None:
+        try:
+            from importlib.metadata import version
+            bundled_version=version('yt-dlp')
+        except ImportError:return False
+    if use_cached_extractor(path,bundled_version):return True
+    try:path.unlink()
+    except OSError:pass  # The packaged extractor still works if cleanup is denied.
+    return False
 
 
 def configure(root, native, libs):
@@ -146,7 +189,7 @@ def configure(root, native, libs):
     # Extracted shared libraries are data; executable entry points remain in nativeLibraryDir.
     os.environ['LD_LIBRARY_PATH'] = str(libs) + ':' + str(_native) + ':' + os.environ.get('LD_LIBRARY_PATH', '')
     update = _root / 'tools/yt-dlp.zip'
-    if update.is_file():
+    if select_cached_extractor(update):
         sys.path.insert(0, str(update))
     import engine
     import audio_tools
@@ -445,10 +488,10 @@ def perform(action, config):
         return {'title':' - '.join(filter(None,[info.get('artist') or info.get('uploader'),info.get('track') or info.get('title')])), 'queue_info':{'artists':[info.get('artist') or info.get('uploader')] if info.get('artist') or info.get('uploader') else [],'album':info.get('album') or '', 'cover_url':info.get('thumbnail') or '', 'duration_ms':int((info.get('duration') or 0)*1000)}}
     if action == 'download':
         import engine
-        from social_media import is_social, download_post
-        if is_social(config['url']) and config.get('mode') in ('mp3','m4a','flac','original'):
-            if download_post(config, emit, ask_duplicate, choose=ask_media):
-                return {'code':0}
+        from social_media import is_social
+        # Keep format defaults, extraction and error reporting identical to PC.
+        if is_social(config['url']):
+            return {'code':engine.run_worker(config)}
         from spotify_metadata import prepare_spotify_config
         config=prepare_spotify_config(config,account())
         return {'code': engine.run_worker(config)}

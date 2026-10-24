@@ -23,7 +23,8 @@ class NativeLicensesTest {
         compose.waitForIdle()
         if (compose.onAllNodesWithText("Agora não").fetchSemanticsNodes().isNotEmpty())
             compose.onNodeWithText("Agora não").performClick()
-        compose.onNodeWithTag("open-menu").performClick()
+        compose.onNodeWithTag("nav-Mais").performClick()
+        compose.onNodeWithTag("more-list").performScrollToNode(hasText("Licenças e fontes"))
         compose.onNodeWithText("Licenças e fontes").performScrollTo().performClick()
         compose.waitUntil(10000) {
             compose.onAllNodesWithText("ffmpeg-7.1.3 / LICENSE.md").fetchSemanticsNodes().isNotEmpty()

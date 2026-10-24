@@ -1,26 +1,31 @@
-# ONDA 1.2.0
+# ONDA 1.2.1
 
-Versão oficial preparada localmente para Windows e Android.
+## Downloads e TikTok
 
-- Desinstalador Windows próprio, com “Até a próxima ONDA.”, português/espanhol/inglês e limpeza independente de dados e ferramentas, desativada por padrão. Preserva downloads e arquivos pessoais e mantém compatibilidade com o registro e as atualizações existentes.
-- Instalador Windows com interface própria do ONDA: “Sua ONDA começa aqui.”, escolha de pasta, atalho, progresso e abertura ao concluir, preservando a compatibilidade com instalações anteriores.
-- Instalador em português, espanhol e inglês, com seletor de idioma na abertura e mensagens de instalação e desinstalação traduzidas.
-- Android: navegação reorganizada por Pesquisar, Downloads, Reprodução e Mais; melhorias nas ferramentas, histórico e configurações.
-- Android: seletores “Em andamento / Concluídos” e “Efeitos / Jukebox” com o mesmo estilo arredondado de “Salvos / Importar”.
-- Efeitos e Jukebox com músicas e filas independentes, reprodução integral e controles de mídia em segundo plano.
-- Player compacto e expandido com capa, cores do álbum e letras sincronizadas, com acompanhamento e navegação dos versos.
-- Filas com metadados, reordenação e transições graduais; correções de retomada após pausa/busca e de navegação durante transições.
-- Windows Qt: correções de cancelamento, troca de áudio no editor e exportação de arquivos locais no histórico.
-- Windows Qt: escolha de formato e qualidade ao clicar em Baixar agora na pesquisa, com preferência salva, confirmação para baixar/enfileirar e cancelamento sem iniciar.
-- Windows Qt: miniplayers de Efeitos e Jukebox com a mesma interface, cabeçalho ampliado para arraste e minimização independente da janela principal, respeitando a opção de minimizar o ONDA ao abrir. Restauração de tela cheia após minimizar também corrigida.
-- Conversões de áudio, imagens e fotos com música preservam arquivos vizinhos e isolam temporários.
-- Android: recuperação de preferências inválidas, limpeza de importações incompletas e identificação ampliada de formatos.
+Corrige a falha reproduzida no Android em que o TikTok retorna uma página intermediária sem os dados da publicação. O extrator mantém a tentativa normal e, somente para falhas de extração específicas, consulta a página móvel e o player público oficial do mesmo ID. Fotos usam os itens explícitos da publicação, sem tratar a capa do vídeo como uma foto. Conteúdo privado ou que exige login não é liberado por esse fluxo.
 
-- READMEs em três idiomas e guias atualizados com as novas telas do PC e Android.
+O Android inclui yt-dlp 2026.10.21 e gallery-dl 1.32.17. Um extrator antigo salvo no aparelho não substitui o motor mais novo do APK. Os formatos de redes sociais agora compartilham o mesmo worker do PC.
 
-## Distribuição
+## Reprodução e desempenho no Android
 
-Windows 10/11 x64: portátil e instalador, versão 1.2.0.0, sem assinatura Authenticode. O FFmpeg é preparado no primeiro uso.
-Android 8+: APKs separados ARM64 e x86_64, versão 1.2.0/código 27, assinados com a chave de produção original.
+A fila do Jukebox prepara as próximas duas músicas e prioriza a seleção manual, mantendo as músicas anteriores na lista. Modelos distantes saem da memória e podem ser preparados novamente ao voltar; os arquivos de cache continuam disponíveis para reutilização.
 
-Os testes e seus limites estão documentados em VALIDACAO.md e nos relatórios incluídos em docs. A preparação local não publica uma release no GitHub.
+Corrige pedidos de reprodução antigos que podiam substituir uma seleção recente ou iniciar depois de Parar, a retomada após recriar a análise e campos vazios da fila de arquivos locais. Metadados com erro podem ser consultados novamente. Letras longas reutilizam o texto e as marcações por palavra já calculados.
+
+## Cancelamento e preparação da release
+
+Corrige uma corrida em que um processo nativo podia continuar executando após o cancelamento por ainda não ter sido registrado. O processo recém-criado agora é encerrado e seus recursos são liberados nesse caso. Avisos e arquivos de fontes de terceiros foram alinhados às versões incluídas nos APKs.
+
+## Validação
+
+Verificação final: 91 testes instrumentados no BlueStacks, mais um download TikTok real; 102 testes do PC e extratores, 34 testes de interface Tkinter e 76 testes JVM aprovados. A pasta local Testes e seus dados não fazem parte dos pacotes.
+
+Testes reais em BlueStacks com Android 11/x86_64 cobriram o TikTok fornecido em MP4, MP3, M4A, original e FLAC, fotos TikTok, Reel e carrossel Instagram. O modo automático também passou. Arquivos foram publicados e lidos pelos provedores Android, com limpeza dos itens de teste ao final. Três verificações instrumentadas de ferramentas nativas, downloads paralelos e limites de vídeo passaram.
+
+O aparelho físico ARM64 ainda precisa confirmar o resultado. BlueStacks não substitui a validação em hardware ARM64.
+
+## Pacotes
+
+Windows x64: portátil e instalador 1.2.1, metadados 1.2.1.0. Android: APKs ARM64 e x86_64, versão 1.2.1/código 28, assinados com a chave original do ONDA.
+
+Release preparada como rascunho no GitHub, sem publicação automática.

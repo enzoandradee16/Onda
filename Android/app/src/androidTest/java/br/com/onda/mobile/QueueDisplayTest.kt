@@ -66,22 +66,19 @@ class QueueDisplayTest {
             compose.onNodeWithText("Test Album",substring=true).assertExists()
         } finally {OndaStore.remove(setOf(id));OndaStore.saveSettings(original)}
     }
-    @Test fun historyToolbarIsAboveCardsAndAlignedHorizontally() {
+    @Test fun historyOptionsRemainReachableInTheCurrentSheet() {
         OndaStore.initialize(InstrumentationRegistry.getInstrumentation().targetContext)
         val original=JSONObject(OndaStore.settings.value.toString())
         val vm=OndaViewModel(androidx.test.core.app.ApplicationProvider.getApplicationContext())
         try {
             OndaStore.saveSettings(JSONObject(original.toString()).put("language","pt-BR").put("history_view","Completa"))
             compose.setContent {MaterialTheme {HistoryPage(vm,{})}}
-            val clear=compose.onNodeWithTag("clear-history-control").fetchSemanticsNode().boundsInRoot
-            val view=compose.onNodeWithTag("history-view-control").fetchSemanticsNode().boundsInRoot
-            val size=compose.onNodeWithTag("history-size-control").fetchSemanticsNode().boundsInRoot
-            assertTrue(kotlin.math.abs(clear.center.y-view.center.y)<3f)
-            assertTrue(kotlin.math.abs(clear.center.y-size.center.y)<3f)
-            assertTrue(clear.right<=view.left && view.right<=size.left)
-            compose.onNodeWithTag("history-view-control").performClick()
+            compose.onNodeWithContentDescription("Opções do histórico").performClick()
+            compose.onNodeWithText("Limpar histórico").assertExists()
+            compose.onNodeWithText("Visualização do histórico").assertExists()
+            compose.onNodeWithText("Tamanho dos cards do histórico").assertExists()
+            compose.onNodeWithText("Completa").performClick()
             compose.onNodeWithText("Compacto").performClick()
-            compose.onNodeWithTag("history-size-control").assertDoesNotExist()
             assertEquals("Compacto",OndaStore.settings.value.getString("history_view"))
         } finally {OndaStore.saveSettings(original)}
     }

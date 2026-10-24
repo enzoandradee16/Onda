@@ -4,6 +4,7 @@ Run windows first, build/sign both Android ABIs separately, then run finalize.
 Signing keys are deliberately outside this workflow and outside the archives.
 """
 import argparse
+from datetime import date
 import hashlib
 import json
 import os
@@ -16,6 +17,8 @@ from build_installer import build as build_installer
 
 ROOT = Path(__file__).resolve().parents[1]
 VERSION = re.search(r"VERSION = '([^']+)'", (ROOT/'Onda/app_version.py').read_text()).group(1)
+ANDROID_VERSION_CODE = int(re.search(r'\bversionCode\s*=\s*(\d+)',
+    (ROOT/'Android/app/build.gradle.kts').read_text(encoding='utf8')).group(1))
 WORK = ROOT/'diagnosticos/resultados'/('release-'+VERSION)
 BUNDLE = WORK/'portable'
 RELEASE = ROOT/'Release'/VERSION
@@ -50,6 +53,23 @@ def safe(path):
     assert path.suffix.lower() not in {'.jks', '.keystore', '.p12', '.key', '.pyc'}, path
     assert path.name.lower() not in {'cookies.txt', 'credentials.json', 'preferences.json',
         'queue.json', 'onda.sqlite3', '.env', 'language.json', 'local.properties'}, path
+
+
+def verify_third_party_sources(path):
+    """Reject stale extractor sources and corrupted source members before shipping."""
+    gradle = (ROOT/'Android/app/build.gradle.kts').read_text(encoding='utf8')
+    required = {(name, re.search(r'install\("'+re.escape(name)+r'==([^"\s]+)"\)', gradle)[1])
+        for name in ('gallery-dl', 'yt-dlp')}
+    with zipfile.ZipFile(path) as archive:
+        origins = json.loads(archive.read('Fontes-de-terceiros/ORIGENS.json'))
+        available = {(row['project'].lower().replace('_', '-'), row['version']) for row in origins}
+        assert required <= available, 'Updated Android extractor sources are missing; use --third-party-sources.'
+        for row in origins:
+            filename = row['filename']
+            assert Path(filename).name == filename and '/' not in filename and '\\' not in filename
+            with archive.open('Fontes-de-terceiros/'+filename) as stream:
+                assert hashlib.file_digest(stream, 'sha256').hexdigest() == row['sha256'], filename
+    return origins
 
 
 def windows():
@@ -91,7 +111,7 @@ def windows():
     print('Windows bundle, launcher test and installer ready.', flush=True)
 
 
-def finalize(prior, reuse_android_from=None, installer_validation=None, allow_uncommitted=False, base_commit=None, uninstaller_validation=None):
+def finalize(prior, reuse_android_from=None, installer_validation=None, allow_uncommitted=False, base_commit=None, uninstaller_validation=None, third_party_sources=None):
     assert not RELEASE.exists(), 'Never replace an existing release directory.'
     dirty = bool(subprocess.check_output(['git', 'status', '--porcelain'], cwd=ROOT).strip())
     head = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
@@ -128,7 +148,7 @@ def finalize(prior, reuse_android_from=None, installer_validation=None, allow_un
             assert sha(ROOT/entry['path']) == entry['sha256'], 'Dependency sources changed: '+entry['path']
     android = ROOT/'Android/build'/('release-'+VERSION)
     validation = json.loads((android/'signature-validation.json').read_text(encoding='utf8'))
-    assert validation['version_code'] == 27 and validation['version'] == VERSION
+    assert validation['version_code'] == ANDROID_VERSION_CODE and validation['version'] == VERSION
     for abi in ('arm64-v8a', 'x86_64'):
         assert validation['apks'][abi]['certificate_sha256'] == previous_manifest['android_certificate_sha256']
         assert validation['apks'][abi]['verified'] and validation['apks'][abi]['aligned_16kb']
@@ -150,11 +170,16 @@ def finalize(prior, reuse_android_from=None, installer_validation=None, allow_un
             assert sha(reuse_android_from/name) == expected == sha(android/name)
         android_source_commit = original.get('android_binary_source_commit', original['git_commit'])
         android_uncommitted = original.get('android_binary_contains_uncommitted_changes', original.get('contains_uncommitted_preparation',False))
+    third_party_archive = Path(third_party_sources).resolve() if third_party_sources else previous/f'Onda-{prior}-Fontes-de-terceiros.zip'
+    verify_third_party_sources(third_party_archive)
     RELEASE.mkdir()
     for kind in ('Fontes-de-terceiros', 'Fontes-nativos-Android'):
-        source = previous/f'Onda-{prior}-{kind}.zip'
-        expected = next(a['sha256'] for a in previous_manifest['artifacts'] if a['filename'] == source.name)
-        assert sha(source) == expected
+        if kind == 'Fontes-de-terceiros' and third_party_sources:
+            source = third_party_archive
+        else:
+            source = previous/f'Onda-{prior}-{kind}.zip'
+            expected = next(a['sha256'] for a in previous_manifest['artifacts'] if a['filename'] == source.name)
+            assert sha(source) == expected
         shutil.copy2(source, RELEASE/f'Onda-{VERSION}-{kind}.zip')
     shutil.copy2(WORK/'installer'/f'Onda-{VERSION}-Setup-Windows-x64.exe', RELEASE)
     for abi in ('arm64-v8a', 'x86_64'):
@@ -162,7 +187,7 @@ def finalize(prior, reuse_android_from=None, installer_validation=None, allow_un
     for source, target in [('RELEASE_NOTES.md', 'RELEASE_NOTES.md'), ('PUBLICAR_RELEASE.md', 'PUBLICAR.md'),
             ('THIRD_PARTY_NOTICES.md', 'THIRD_PARTY_NOTICES.md'),
             ('Android/THIRD_PARTY_NOTICES_ANDROID.md', 'THIRD_PARTY_NOTICES_ANDROID.md'),
-            ('docs/VALIDACAO-RELEASE-1.2.0.md', 'VALIDACAO.md')]:
+            (f'docs/VALIDACAO-RELEASE-{VERSION}.md', 'VALIDACAO.md')]:
         shutil.copy2(ROOT/source, RELEASE/target)
     files = sorted(tracked())
     for path in files:
@@ -191,9 +216,9 @@ def finalize(prior, reuse_android_from=None, installer_validation=None, allow_un
     artifacts = [{'filename': p.name, 'bytes': p.stat().st_size, 'sha256': sha(p)}
         for p in sorted(RELEASE.iterdir()) if p.suffix in {'.zip', '.apk', '.exe'}]
     assert len(artifacts) == 7
-    write_json(RELEASE/'MANIFEST.json', {'version': VERSION, 'git_commit': commit, 'prepared_on': '2026-10-23',
+    write_json(RELEASE/'MANIFEST.json', {'version': VERSION, 'git_commit': commit, 'prepared_on': date.today().isoformat(),
         'contains_uncommitted_preparation': uncommitted,
-        'status': 'official-prepared-local-not-published', 'android_version': VERSION, 'android_version_code': 27,
+        'status': 'official-prepared-local-not-published', 'android_version': VERSION, 'android_version_code': ANDROID_VERSION_CODE,
         'android_certificate_sha256': previous_manifest['android_certificate_sha256'],
         'android_binary_source_commit': android_source_commit,
         'android_binary_contains_uncommitted_changes': android_uncommitted,
@@ -226,6 +251,7 @@ if __name__ == '__main__':
     parser.add_argument('--reuse-android-from', type=Path, help='Verify Android/shared sources and preserve the APK provenance from this release')
     parser.add_argument('--installer-validation', type=Path, help='Integration report from an isolated audit build')
     parser.add_argument('--uninstaller-validation',type=Path,help='Custom uninstaller audit report')
+    parser.add_argument('--third-party-sources',type=Path,help='Source archive matching updated Android extractors')
     parser.add_argument('--allow-uncommitted', action='store_true', help='Explicitly mark local changes in the source and release manifests')
     parser.add_argument('--base-commit', help='Base commit for a local source snapshot; requires --allow-uncommitted when different from HEAD')
     args = parser.parse_args()
@@ -237,4 +263,4 @@ if __name__ == '__main__':
     if args.stage == 'windows':
         windows()
     else:
-        finalize(args.prior, args.reuse_android_from, args.installer_validation, args.allow_uncommitted, args.base_commit,args.uninstaller_validation)
+        finalize(args.prior, args.reuse_android_from, args.installer_validation, args.allow_uncommitted, args.base_commit,args.uninstaller_validation,args.third_party_sources)

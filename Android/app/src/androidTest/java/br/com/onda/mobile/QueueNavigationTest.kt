@@ -28,8 +28,13 @@ class QueueNavigationTest {
         if(compose.onAllNodesWithText("Agora não").fetchSemanticsNodes().isNotEmpty())compose.onNodeWithText("Agora não").performClick()
     }
     private fun navigate(name:String) {
-        compose.onNodeWithTag("open-menu").performClick()
-        compose.onNodeWithTag("tab-$name").performClick()
+        if(name=="Links e fila") {
+            compose.onNodeWithTag("nav-Fila").performClick()
+            compose.onNodeWithContentDescription("Adicionar links").performClick()
+        } else {
+            compose.onNodeWithTag("nav-Mais").performClick()
+            compose.onNodeWithTag("more-${tabLabel(name)}").performClick()
+        }
     }
     private fun fixture(test:(OndaViewModel,JSONObject)->Unit) {
         ready()
@@ -53,17 +58,18 @@ class QueueNavigationTest {
             module.callAttr("stop_fixture")
         }
     }
-    @Test fun linksNowStartsAndOpensQueueWhileAddOnlyStays()=fixture {vm,data->
+    @Test fun linksAddClosesSheetWithoutStartingAndNowStartsFromDownloads()=fixture {vm,data->
         navigate("Links e fila")
         compose.onNodeWithTag("queue-count").assertDoesNotExist()
         compose.onNodeWithTag("links-input").performTextInput(data.getString("url"))
         compose.onNodeWithTag("links-add").performScrollTo().performClick()
         compose.waitUntil(10000) {!vm.addingToQueue.value}
-        compose.onNodeWithTag("links-input").assertExists()
-        compose.onNodeWithTag("queue-count").assertDoesNotExist()
+        compose.onNodeWithTag("links-input").assertDoesNotExist()
+        assertFalse(DownloadRuntime.running.get())
+        navigate("Links e fila")
         compose.onNodeWithTag("links-input").performScrollTo().performTextInput(data.getString("url"))
         compose.onNodeWithTag("links-download").performScrollTo().performClick()
-        compose.waitUntil(15000) {compose.onAllNodesWithTag("queue-count").fetchSemanticsNodes().isNotEmpty()}
+        compose.waitUntil(15000) {compose.onAllNodesWithTag("links-input").fetchSemanticsNodes().isEmpty() && OndaStore.items.value.any {it.config.optString("url")==data.getString("url") && it.state in setOf("Baixando","Concluído","Erro","Aguardando escolha")}}
         compose.onNodeWithTag("links-input").assertDoesNotExist()
         assertTrue(OndaStore.items.value.any {it.config.optString("url")==data.getString("url")})
     }
@@ -72,7 +78,7 @@ class QueueNavigationTest {
         navigate("Playlists / Álbuns")
         compose.onNodeWithText("Navigation fixture track").performScrollTo().performClick()
         compose.onNodeWithText("Baixar agora").performScrollTo().performClick()
-        compose.waitUntil(15000) {compose.onAllNodesWithTag("queue-count").fetchSemanticsNodes().isNotEmpty()}
+        compose.waitUntil(15000) {compose.onAllNodesWithTag("links-input").fetchSemanticsNodes().isEmpty() && OndaStore.items.value.any {it.config.optString("url")==data.getString("url") && it.state in setOf("Baixando","Concluído","Erro","Aguardando escolha")}}
         compose.onNodeWithTag("links-input").assertDoesNotExist()
         assertTrue(OndaStore.items.value.any {it.config.optString("url")==data.getString("url")})
     }

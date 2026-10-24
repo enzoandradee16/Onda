@@ -21,8 +21,8 @@ class SearchFlowTest {
     @Test fun filtersAreReachableWithoutStartingNetworkSearch() {
         compose.waitForIdle()
         if(compose.onAllNodesWithText("Agora não").fetchSemanticsNodes().isNotEmpty())compose.onNodeWithText("Agora não").performClick()
-        compose.onNodeWithTag("open-menu").performClick()
-        compose.onNodeWithTag("tab-Pesquisar").performClick()
+        compose.onNodeWithTag("nav-Pesquisar").performClick()
+        compose.onNodeWithContentDescription("Opções da pesquisa").performClick()
         compose.onNodeWithText("Filtros").performClick()
         compose.onNodeWithText("Filtros da busca").assertIsDisplayed()
         compose.onNodeWithText("Ano ou intervalo").performScrollTo().assertIsDisplayed()

@@ -124,14 +124,18 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
         appendEffectsFiles(listOf(source))
     }
     private val effectsInfoSlots=kotlinx.coroutines.sync.Semaphore(2)
-    fun loadEffectsInfo(sources:List<String>) {
+    fun loadEffectsInfo(sources:List<String>,retryErrors:Boolean=false) {
         for(source in sources) {
-            if(effectsInfo.value.containsKey(source)||!effectsInfoRequests.add(source))continue
+            val cached=effectsInfo.value[source]
+            if(cached!=null && (!cached.has("error") || !retryErrors))continue
+            if(!effectsInfoRequests.add(source))continue
+            if(cached!=null)effectsInfo.value=effectsInfo.value-source
             viewModelScope.launch {
                 val id="effects-info-"+UUID.randomUUID()
                 try {
                     val payload=JSONObject().put("source",source).apply {effectsCatalogRecords[source]?.let {put("record",it)}}
                     val result=effectsInfoSlots.withPermit {withContext(Dispatchers.IO){MobileEngine.call(getApplication(),id,"effects_info",payload,EventCallback {})}}
+                    require(!result.has("error")){result.optString("error")}
                     effectsCatalogRecords[source]?.let {catalog->
                         val tags=result.optJSONObject("record") ?: JSONObject()
                         for(field in listOf("title","artists","album","cover_url"))if(catalog.has(field)&&catalog.optString(field).isNotBlank())tags.put(field,catalog.get(field))
@@ -139,6 +143,8 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
                     }
                     effectsInfo.value=effectsInfo.value+(source to result)
                     lyricRequests.remove(source)?.cancel()
+                    // Metadata may arrive after an initial lookup without usable tags.
+                    if(lyricsCache.value[source]?.isEmpty()==true)lyricsCache.value=lyricsCache.value-source
                     lookupLyrics(source)
                 } catch(error:CancellationException){throw error}
                 catch(error:Exception){effectsInfo.value=effectsInfo.value+(source to JSONObject().put("error",error.message ?: "Não foi possível ler o áudio."))}
@@ -202,7 +208,7 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
         val source=effectsPlaylist.value.getOrNull(index) ?: return
         effectsQueueRequest?.cancel()
         effectsQueueRequest=viewModelScope.launch {
-            loadEffectsInfo(listOf(source))
+            loadEffectsInfo(listOf(source),retryErrors=true)
             val info=effectsInfo.first {it.containsKey(source)}[source] ?: return@launch
             if(info.has("error")){status.value=info.optString("error");return@launch}
             val duration=info.optDouble("duration",0.0)

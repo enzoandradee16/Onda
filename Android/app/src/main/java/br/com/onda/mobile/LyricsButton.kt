@@ -28,10 +28,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
 import org.json.JSONObject
 
-internal fun lyricActiveIndex(lines:List<Pair<Double,String>>,seconds:Double):Int =
-    if(lines.none {it.first>0}) -1 else lines.indexOfLast {it.first<=seconds}
-internal fun lyricPlainText(text:String)=text.replace(Regex("<\\d{1,3}:[0-5]\\d(?:[.:]\\d{1,3})?>"),"")
-
 @Composable internal fun LyricsButton(vm:OndaViewModel,source:String,position:()->Double,duration:Double,seek:(Double)->Unit,toggle:()->Unit,
     isPlaying:()->Boolean={vm.previewActive.value},previous:()->Unit={seek(0.0)},next:(()->Unit)?=null,
     title:String="",artist:String="",showButton:Boolean=true,openRequest:Int=0) {
@@ -46,6 +42,7 @@ internal fun lyricPlainText(text:String)=text.replace(Regex("<\\d{1,3}:[0-5]\\d(
     val (lyricsBackground,lyricsInk)=rememberLyricsColors(vm,source)
     val cache by vm.lyricsCache.collectAsStateWithLifecycle()
     val lines=cache[source].orEmpty()
+    val timeline=remember(lines){LyricTimeline(lines)}
     val settings by OndaStore.settings.collectAsStateWithLifecycle()
     var alternatives by remember(source) {mutableStateOf<List<JSONObject>>(emptyList())}
     var searching by remember(source) {mutableStateOf(false)}
@@ -63,7 +60,7 @@ internal fun lyricPlainText(text:String)=text.replace(Regex("<\\d{1,3}:[0-5]\\d(
     if(showButton)IconButton(onClick={open=true},modifier=Modifier.testTag("lyrics-button")){OndaIcon("microphone","Letra",Modifier.size(24.dp))}
     if(open)Dialog(onDismissRequest={open=false},properties=DialogProperties(usePlatformDefaultWidth=false)) {
         val listState=rememberLazyListState()
-        val active=lyricActiveIndex(lines,seconds)
+        val active=timeline.activeIndex(seconds)
         val animation=settings.optString("lyrics_animation","Suave")
         LaunchedEffect(source) {listState.scrollToItem(0);while(true){if(dragged==null)seconds=latestPosition();delay(80)}}
         LaunchedEffect(active) {if(active>=0) {if(animation=="Desativada")listState.scrollToItem(active) else listState.animateScrollToItem(active)}}
@@ -83,24 +80,22 @@ internal fun lyricPlainText(text:String)=text.replace(Regex("<\\d{1,3}:[0-5]\\d(
                         val selected=index==active
                         val ink=lyricsInk
                         val normal=lyricsInk.copy(alpha=.72f)
-                        val stamps=Regex("<([0-9]{1,3}):([0-5][0-9])(?:[.:]([0-9]{1,3}))?>").findAll(line.second).toList()
+                        val verse=timeline.verses[index]
                         val text=buildAnnotatedString {
-                            if(!selected||stamps.isEmpty())append(lyricPlainText(line.second))
+                            if(!selected||verse.words.isEmpty())append(verse.plain)
                             else {
-                                append(line.second.substring(0,stamps.first().range.first))
-                                stamps.forEachIndexed {i,stamp->
-                                    val fraction=stamp.groupValues[3]
-                                    val time=stamp.groupValues[1].toInt()*60+stamp.groupValues[2].toInt()+if(fraction.isEmpty())0.0 else fraction.toDouble()/Math.pow(10.0,fraction.length.toDouble())
-                                    withStyle(SpanStyle(color=if(seconds>=time)ink else normal,fontWeight=if(seconds>=time)FontWeight.Bold else FontWeight.Normal)){append(line.second.substring(stamp.range.last+1,stamps.getOrNull(i+1)?.range?.first ?: line.second.length))}
+                                append(verse.prefix)
+                                verse.words.forEach {word->
+                                    withStyle(SpanStyle(color=if(seconds>=word.seconds)ink else normal,fontWeight=if(seconds>=word.seconds)FontWeight.Bold else FontWeight.Normal)){append(word.text)}
                                 }
                             }
                         }
-                        Text(text,Modifier.fillMaxWidth().lyricAnimation(index to selected,animation,emphasized=selected,muted=active>=0&&!selected).clickable(enabled=lines.any {it.first>0}){seconds=line.first;seek(line.first)}.testTag("lyric-line-$index"),color=if(selected)ink else normal,style=MaterialTheme.typography.headlineSmall,textAlign=TextAlign.Start,fontWeight=FontWeight.Bold)
+                        Text(text,Modifier.fillMaxWidth().lyricAnimation(index to selected,animation,emphasized=selected,muted=active>=0&&!selected).clickable(enabled=timeline.synced){seconds=line.first;seek(line.first)}.testTag("lyric-line-$index"),color=if(selected)ink else normal,style=MaterialTheme.typography.headlineSmall,textAlign=TextAlign.Start,fontWeight=FontWeight.Bold)
                     }
                 }
                 Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) {
                     IconButton(onClick={
-                        val text=listOf(title,artist,lines.joinToString("\n"){lyricPlainText(it.second)}).filter {it.isNotBlank()}.joinToString("\n\n")
+                        val text=listOf(title,artist,timeline.verses.joinToString("\n"){it.plain}).filter {it.isNotBlank()}.joinToString("\n\n")
                         context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT,text),translateUi("Compartilhar letra")))
                     },enabled=lines.isNotEmpty()){OndaIcon("share","Compartilhar letra",Modifier.size(25.dp))}
                     Box {

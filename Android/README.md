@@ -1,22 +1,22 @@
 # ONDA para Android
 
-## Interface da versão oficial 1.2.0
+## Interface do Android
 
 A navegação principal usa **Pesquisar**, **Downloads**, **Reprodução** e **Mais**. Em Downloads, Em andamento / Concluídos usa o mesmo seletor arredondado de Salvos / Importar em Álbuns e playlists. Reprodução aplica esse estilo a Efeitos / Jukebox infinito e respeita a ordem configurada.
 
 O player compacto acompanha a navegação; toque nele para abrir capa, controles e letras, que também podem ocupar a tela inteira. Efeitos e Jukebox têm filas próprias. As capturas do celular foram recortadas apenas nas barras do sistema e estão em `docs/images/android novo`, na raiz do projeto; a navegação do ONDA foi preservada.
 
-Os dois APKs oficiais usam versão **1.2.0**, código **27**, com a assinatura de produção original. A validação física ARM64 continua pendente. Consulte [o relatório atual](../docs/VALIDACAO-RELEASE-1.2.0.md).
+Os dois APKs oficiais usam versão **1.2.1**, código **28**, com a assinatura de produção original. A validação física ARM64 continua pendente. Consulte [o relatório atual](../docs/VALIDACAO-RELEASE-1.2.1.md).
 
 Projeto Android separado da distribuição Windows. Kotlin/Compose fornece a interface e os serviços; Python/Chaquopy executa o motor compartilhado do ONDA. O build copia os módulos necessários de `../Onda`, sem editar o programa de PC.
 
-Versão de desenvolvimento **1.2.0**, conforme `app/build.gradle.kts`, para Android 8 ou superior, ARM64 e x86_64. Kotlin/Compose e o motor compartilhado fornecem busca, downloads, histórico, edição de metadados, imagens e efeitos. Consulte [FUNCIONALIDADES.md](FUNCIONALIDADES.md) e a [auditoria de paridade com o PC](PARIDADE-PC-ANDROID.md).
+Versão de desenvolvimento **1.2.1**, conforme `app/build.gradle.kts`, para Android 8 ou superior, ARM64 e x86_64. Kotlin/Compose e o motor compartilhado fornecem busca, downloads, histórico, edição de metadados, imagens e efeitos. Consulte [FUNCIONALIDADES.md](FUNCIONALIDADES.md) e a [auditoria de paridade com o PC](PARIDADE-PC-ANDROID.md).
 
 Resultados e pendências desta compilação: [validation/RESULTADOS.md](validation/RESULTADOS.md).
 
 ## Instalar no celular
 
-Use `APK/ONDA-Android-1.2.0-arm64-v8a.apk`, transfira para o celular e permita a instalação pela origem escolhida. Android 8 ou superior, processador ARM64; o APK padrão contém somente ARM64 para reduzir o tamanho. Para emulador x86_64, use `APK/ONDA-Android-1.2.0-x86_64.apk` ou compile com `-Arquitetura x86_64`; para ambas, use `-Arquitetura universal`. O APK distribuído é assinado com a chave de produção ONDA; o script de desenvolvimento gera um APK debug separado. Não precisa instalar Python, FFmpeg ou Termux.
+Use `APK/ONDA-Android-1.2.1-arm64-v8a.apk`, transfira para o celular e permita a instalação pela origem escolhida. Android 8 ou superior, processador ARM64; o APK padrão contém somente ARM64 para reduzir o tamanho. Para emulador x86_64, use `APK/ONDA-Android-1.2.1-x86_64.apk` ou compile com `-Arquitetura x86_64`; para ambas, use `-Arquitetura universal`. O APK distribuído é assinado com a chave de produção ONDA; o script de desenvolvimento gera um APK debug separado. Não precisa instalar Python, FFmpeg ou Termux.
 
 Abra o ONDA, conclua ou feche a configuração inicial. Em Links e fila, cole o link e escolha Baixar agora ou Adicionar à fila. Downloads usam notificações; conceda a permissão quando solicitada. Se precisar confirmar metadados/versão/mídias, abra o app e responda à janela.
 

@@ -7,6 +7,34 @@ path=Path(__file__).resolve().parents[1]/'Android/app/src/main/python/mobile_bac
 spec=importlib.util.spec_from_file_location('android_session_adapter',path)
 backend=importlib.util.module_from_spec(spec);spec.loader.exec_module(backend)
 
+class NativeCancellationTests(unittest.TestCase):
+    def test_cancellation_between_spawn_and_registration_reaps_the_new_process(self):
+        import subprocess,sys,threading
+        from unittest.mock import patch
+        state={'cancel':threading.Event(),'processes':[]}
+        identity='spawn-registration-race-test'
+        created=[]
+        original_init=backend._original_popen.__init__
+        def spawn_then_cancel(process,*args,**kwargs):
+            original_init(process,*args,**kwargs)
+            created.append(process)
+            backend.cancel(identity)
+        backend._jobs[identity]=state;backend._local.state=state
+        try:
+            with patch.object(backend._original_popen,'__init__',spawn_then_cancel):
+                with self.assertRaises(backend.Cancelled):
+                    backend.ManagedProcess([sys.executable,'-c','import time;time.sleep(30)'],stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+            self.assertTrue(created)
+            self.assertIsNotNone(created[0].poll())
+            self.assertTrue(created[0].stdout.closed)
+            self.assertTrue(created[0].stderr.closed)
+        finally:
+            backend._local.state=None;backend._jobs.pop(identity,None)
+            for process in created:
+                if process.poll() is None:process.kill()
+                if not (process.stdout.closed and process.stderr.closed):process.communicate(timeout=5)
+
+
 class AndroidSessionTests(unittest.TestCase):
     def test_spotify_audio_lookup_uses_youtube_session_and_browser_agent(self):
         config={'url':'https://open.spotify.com/playlist/fixture','cookies_file':'general.txt','youtube_cookies_file':'youtube.txt','youtube_user_agent':'Session browser'}
@@ -70,5 +98,37 @@ class AndroidSessionTests(unittest.TestCase):
     def test_no_user_agent_is_invented_for_imported_cookies(self):
         options=backend.session_options({}, {'url':'https://youtube.com/watch?v=x','youtube_cookies_file':'imported.txt'})
         self.assertNotIn('http_headers',options)
+
+    def test_all_social_formats_use_shared_worker_without_account_lookup(self):
+        from unittest.mock import patch
+        for mode in ('social','photos','video','mp4','original','mp3','m4a','flac'):
+            config={'url':'https://vt.tiktok.com/ZSg9jRoa3/','mode':mode,'social_best_quality':True}
+            with self.subTest(mode=mode),patch('engine.run_worker',return_value=0) as run,patch.object(backend,'account',side_effect=AssertionError('Social downloads need no Spotify account')):
+                self.assertEqual(backend.perform('download',config),{'code':0})
+                run.assert_called_once_with(config)
+
+    def test_cached_update_cannot_downgrade_new_apk(self):
+        import tempfile,zipfile
+        with tempfile.TemporaryDirectory() as directory:
+            path=Path(directory)/'yt-dlp.zip'
+            for candidate,expected in [('2026.08.19',False),('2026.10.21',False),('2026.10.22',True)]:
+                with zipfile.ZipFile(path,'w') as archive:archive.writestr('yt_dlp/version.py',"__version__ = '"+candidate+"'\n")
+                self.assertEqual(backend.use_cached_extractor(path,'2026.10.21'),expected)
+            path.write_bytes(b'broken zip')
+            self.assertFalse(backend.use_cached_extractor(path,'2026.10.21'))
+
+    def test_old_or_redundant_cache_is_removed_and_newer_update_is_kept(self):
+        import tempfile,zipfile
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);path=root/'yt-dlp.zip'
+            unrelated=root/'session.txt';unrelated.write_text('session')
+            for candidate,keep in [('2026.08.19',False),('2026.10.21',False),('2026.10.22',True)]:
+                with zipfile.ZipFile(path,'w') as archive:archive.writestr('yt_dlp/version.py',"__version__ = '"+candidate+"'\n")
+                self.assertEqual(backend.select_cached_extractor(path,'2026.10.21'),keep)
+                self.assertEqual(path.exists(),keep)
+                self.assertTrue(unrelated.exists())
+            path.write_bytes(b'invalid update')
+            self.assertFalse(backend.select_cached_extractor(path,'2026.10.21'))
+            self.assertFalse(path.exists())
 
 if __name__=='__main__':unittest.main()

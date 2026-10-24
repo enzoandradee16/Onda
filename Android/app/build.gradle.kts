@@ -55,8 +55,8 @@ android {
         minSdk = 26
         targetSdk = 35
         buildConfigField("String", "ONDA_ABIS", "\"${targetAbis.joinToString(",")}\"")
-        versionCode = 27
-        versionName = "1.2.0"
+        versionCode = 28
+        versionName = "1.2.1"
         ndk { abiFilters += targetAbis }
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -77,12 +77,12 @@ chaquopy {
         version = "3.11"
         providers.gradleProperty("onda.buildPython").orNull?.let { buildPython(it) }
         pip {
-            install("yt-dlp==2026.8.19")
+            install("yt-dlp==2026.10.21")
             install("yt-dlp-ejs==0.8.0")
             install("requests==2.32.5")
             install("mutagen==1.47.0")
             install("PyYAML>=6.0.2,<7")
-            install("gallery-dl==1.32.16")
+            install("gallery-dl==1.32.17")
             install("Pillow==11.0.0")
         }
     }

@@ -8,9 +8,9 @@ O código próprio mantém a licença GPL-2.0-only do repositório. Bibliotecas 
 | AndroidX / Compose / Media3 | https://android.googlesource.com/platform/frameworks/support/ | Apache-2.0 |
 | Chaquopy 17.0.0 | https://github.com/chaquo/chaquopy | MIT; Python e módulos nativos com licenças próprias |
 | Python 3.11 | https://www.python.org/ | PSF e avisos de componentes |
-| yt-dlp 2026.08.19 | https://github.com/yt-dlp/yt-dlp | Unlicense para código próprio; consultar componentes |
+| yt-dlp 2026.10.21 | https://github.com/yt-dlp/yt-dlp | Unlicense para código próprio; consultar componentes |
 | yt-dlp-ejs 0.8.0 | https://github.com/yt-dlp/ejs | Consultar LICENSE do pacote |
-| gallery-dl 1.32.16 | https://github.com/mikf/gallery-dl | GPL-2.0-only |
+| gallery-dl 1.32.17 | https://github.com/mikf/gallery-dl | GPL-2.0-only |
 | Mutagen 1.47.0 | https://github.com/quodlibet/mutagen | GPL-2.0-or-later |
 | Requests 2.32.5 | https://github.com/psf/requests | Apache-2.0 |
 | Pillow 11.0.0 | https://github.com/python-pillow/Pillow | HPND e avisos das bibliotecas nativas |
@@ -32,4 +32,4 @@ O pacote `Fontes-nativos-Android` da mesma release contém os fontes originais c
 
 `nativebuild/RUNTIME_DEPENDENCIES.json` lista as 98 bibliotecas de execução resolvidas pelo Gradle, com versões, hashes e informações de licença do POM. Os avisos embutidos nos artefatos e nas dependências Python foram preservados em `nativebuild/licenses/` e no APK, acessíveis por Menu → Licenças e fontes. Python 3.11.14, Chaquopy 17.0.0, Pillow e bibliotecas auxiliares mantêm suas licenças originais; não são parte da reconstrução FFmpeg.
 
-A assinatura de produção foi verificada. Os testes nativos ARM64 e os testes de integração executam em emulador Android API 36 com tradução ARM64; isso não equivale a testar todos os aparelhos físicos ou versões Android.
+A assinatura de produção foi verificada. A validação atual da versão 1.2.1 usa BlueStacks com Android 11/API 30, x86_64. Os APKs ARM64 são compilados e verificados; a validação física ARM64 permanece pendente.

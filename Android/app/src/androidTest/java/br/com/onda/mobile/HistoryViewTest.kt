@@ -38,25 +38,32 @@ class HistoryViewTest {
             OndaStore.settings.value=JSONObject(settings.toString()).put("language","pt-BR").put("history_card_size","Grande").put("history_view","Compacto")
             compose.setContent {MaterialTheme {HistoryPage(vm,{})}}
             compose.onNodeWithTag("history-card-987654").assertExists()
-            compose.onNodeWithTag("history-complete-987654").assertDoesNotExist()
+            compose.onAllNodesWithText("Álbum / single: History Album").assertCountEquals(0)
             compose.runOnIdle {OndaStore.settings.value=JSONObject(settings.toString()).put("language","pt-BR").put("history_card_size","Grande").put("history_view","Completa")}
             compose.waitUntil(5000) {compose.onAllNodesWithText("History Song").fetchSemanticsNodes().isNotEmpty()}
             val largeHeight=compose.onNodeWithTag("history-card-987654").fetchSemanticsNode().boundsInRoot.height
-            compose.onNodeWithTag("history-size-control").performScrollTo().performClick()
+            compose.onNodeWithContentDescription("Opções do histórico").performScrollTo().performClick()
+            compose.onNodeWithText("Grande").performClick()
             compose.onNodeWithText("Pequeno").performClick()
+            compose.onNodeWithText("Pronto").performClick()
             compose.waitForIdle()
             assertTrue(compose.onNodeWithTag("history-card-987654").fetchSemanticsNode().boundsInRoot.height<largeHeight)
-            compose.onNodeWithTag("history-size-control").performScrollTo().performClick()
+            compose.onNodeWithContentDescription("Opções do histórico").performScrollTo().performClick()
+            compose.onNodeWithText("Pequeno").performClick()
             compose.onNodeWithText("Grande").performClick()
+            compose.onNodeWithText("Pronto").performClick()
             assertEquals("Após 3 segundos",OndaStore.defaults().getString("notice_duration"))
-            compose.onNodeWithTag("history-card-987654").performClick().assertIsOn()
+            compose.onNodeWithText("Selecionar").performScrollTo().performClick()
+            compose.onNodeWithTag("history-card-987654").performScrollTo().performClick().assertIsOn()
             compose.onNodeWithTag("history-card-987655").performScrollTo().performClick().assertIsOn()
             compose.onNodeWithTag("history-card-987654").assertIsOn()
             compose.onAllNodesWithText("History Artist")[0].assertExists()
             compose.onAllNodesWithText("Álbum / single: History Album")[0].assertExists()
-            compose.onAllNodesWithText("Abrir arquivo")[0].assertExists()
+            compose.onNode(hasContentDescription("Mais ações") and hasAnyAncestor(hasTestTag("history-card-987654"))).performScrollTo().performClick()
+            compose.onNodeWithText("Abrir arquivo").assertExists()
+            InstrumentationRegistry.getInstrumentation().uiAutomation.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK)
             compose.runOnIdle {OndaStore.settings.value=JSONObject(settings.toString()).put("language","pt-BR").put("history_card_size","Grande").put("history_view","Compacto")}
-            compose.onNodeWithTag("history-complete-987654").assertDoesNotExist()
-        } finally {OndaStore.history.value=history;OndaStore.saveSettings(settings)}
+            compose.onAllNodesWithText("Álbum / single: History Album").assertCountEquals(0)
+        } finally {OndaStore.history.value=history;OndaStore.saveSettings(settings);File(path).delete()}
     }
 }

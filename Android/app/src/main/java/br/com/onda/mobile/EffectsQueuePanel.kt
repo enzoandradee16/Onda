@@ -84,6 +84,7 @@ import org.json.JSONObject
                 val info=infos[path] ?: JSONObject()
                 val record=info.optJSONObject("record") ?: JSONObject().put("title",importedAudioName(path))
                 PlaybackQueueRow(record,info.optString("cover"),info.optDouble("duration",0.0).toLong(),path==source,editing,{onPlay(index)},{vm.moveEffectsTrack(index,-1)},{vm.moveEffectsTrack(index,1)},{vm.removeEffectsTrack(index)},index>0,index+1<queue.size)
+                if(info.has("error"))TextButton(onClick={vm.loadEffectsInfo(listOf(path),retryErrors=true)}){UiText("Tentar novamente")}
             }
         }
     }

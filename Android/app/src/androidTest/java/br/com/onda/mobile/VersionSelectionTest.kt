@@ -26,12 +26,12 @@ class VersionSelectionTest {
         assertEquals("320 kbps",config.getString("audio_quality"))
         assertFalse(queued.getBoolean("auto_match"))
     }
-    @Test fun disablingAutomaticRestoresCurrentConfirmationPreference() {
+    @Test fun disablingAutomaticDoesNotRestoreObsoleteConfirmationPreference() {
         val queued=JSONObject().put("auto_match",true).put("confirm_version",false)
         val current=JSONObject().put("auto_match",false).put("confirm_version",true)
         val config=applyVersionSelection(queued,current)
         assertFalse(config.getBoolean("auto_match"))
-        assertTrue(config.getBoolean("confirm_version"))
+        assertFalse(config.getBoolean("confirm_version"))
     }
     @Test fun savedAlbumOptionsCannotOverrideGlobalSelection() {
         val current=JSONObject().put("auto_match",true).put("confirm_version",true)

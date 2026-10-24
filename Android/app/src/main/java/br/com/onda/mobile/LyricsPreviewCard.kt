@@ -18,7 +18,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
     val cache by vm.lyricsCache.collectAsStateWithLifecycle()
     val settings by OndaStore.settings.collectAsStateWithLifecycle()
     val lines=cache[source].orEmpty()
-    val active=lyricActiveIndex(lines,position)
+    val timeline=remember(lines){LyricTimeline(lines)}
+    val active=timeline.activeIndex(position)
     var openRequest by remember(source) {mutableIntStateOf(0)}
     LaunchedEffect(source){vm.lookupLyrics(source)}
     Surface(Modifier.fillMaxWidth().testTag("lyrics-preview-card").clickable {openRequest++},shape=RoundedCornerShape(20.dp),color=lyricsBackground,contentColor=lyricsInk) {
@@ -28,8 +29,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
                 IconButton(onClick={openRequest++}){OndaIcon("expand","Expandir letra",Modifier.size(24.dp))}
             }
             if(lines.isEmpty())UiText("Letra não encontrada para esta gravação. Toque para buscar ou escolher uma letra.",style=MaterialTheme.typography.bodyLarge)
-            else lines.drop(active.coerceAtLeast(0)).take(4).forEachIndexed {offset,line->
-                Text(lyricPlainText(line.second),Modifier.fillMaxWidth().lyricAnimation(active to offset,settings.optString("lyrics_animation","Suave")),style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.Bold,color=lyricsInk.copy(alpha=if(active>=0&&offset==0)1f else .74f))
+            else timeline.verses.subList(active.coerceAtLeast(0),minOf(lines.size,active.coerceAtLeast(0)+4)).forEachIndexed {offset,line->
+                Text(line.plain,Modifier.fillMaxWidth().lyricAnimation(active to offset,settings.optString("lyrics_animation","Suave")),style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.Bold,color=lyricsInk.copy(alpha=if(active>=0&&offset==0)1f else .74f))
             }
         }
     }

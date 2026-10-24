@@ -1,5 +1,24 @@
 # Histórico de versões
 
+## 1.2.1 — 2026-10-24
+
+- Android: cancelamento cobre também processos nativos criados durante a corrida entre iniciar e registrar o processo; recursos são encerrados e coletados.
+- Release: validação e data seguem a versão atual; avisos Android e pacote de fontes incluem os extratores realmente distribuídos.
+
+- Android: nova tentativa de metadados após erro, disponível na música selecionada e na fila, sem duplicar solicitações.
+- Jukebox Android: preparação limitada às próximas duas músicas, com prioridade para seleção manual e liberação de modelos distantes da memória; músicas tocadas permanecem na fila.
+- Seleções recentes e a ação Parar cancelam pedidos antigos de reprodução pendentes; recuperação da análise após limpeza do cache preserva o pedido atual.
+- Fila Jukebox preenche título, artista e álbum dos arquivos locais sem sobrescrever dados existentes do catálogo.
+- Letras Android: marcações por palavra e texto limpo calculados uma vez; busca da linha ativa por tempo otimizada, preservando letras fora de ordem.
+
+- TikTok: alternativa de página móvel e player público quando a página desktop não fornece dados utilizáveis, preservando ID, fotos explícitas e validações de acesso.
+- Tentativa adicional limitada para respostas temporárias 429/502/503/504, respeitando Retry-After curto.
+- Android: yt-dlp 2026.10.21 e gallery-dl 1.32.17; extrator antigo em cache deixa de substituir o incluído no APK.
+- Redes sociais Android usam o mesmo worker compartilhado do PC em todos os formatos, sem inicializar contas de catálogo desnecessariamente.
+- Versões Windows e Android sincronizadas em 1.2.1; Android versionCode 28.
+- Validação em BlueStacks Android 11 x86_64: TikTok em vídeo/áudio/fotos, Instagram e publicação nos Downloads; edição nativa, limites de vídeo e downloads paralelos.
+
+
 ## 1.2.0 — 2026-10-23
 
 - Desinstalador Windows próprio, com “Até a próxima ONDA.”, português/espanhol/inglês e limpeza independente de dados e ferramentas, desativada por padrão. Preserva downloads e arquivos pessoais e mantém compatibilidade com o registro e as atualizações existentes.

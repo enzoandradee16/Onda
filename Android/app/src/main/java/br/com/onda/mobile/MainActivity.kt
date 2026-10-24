@@ -676,6 +676,10 @@ fun mediaClock(seconds:Long):String {val value=seconds.coerceAtLeast(0);return "
             }
         }
         infos[source]?.let {info->EffectsTrackInformation(info,source){
+            if(info.has("error")) {
+                Text(info.optString("error"),color=MaterialTheme.colorScheme.error)
+                TextButton(onClick={vm.loadEffectsInfo(listOf(source),retryErrors=true)},modifier=Modifier.testTag("effects-info-retry")){UiText("Tentar novamente")}
+            }
             if(compactMode==1&&source.isNotBlank())OutlinedButton(onClick=::toggle,enabled=duration>0f,modifier=Modifier.testTag("effects-page-play")){UiText("Reproduzir em Efeitos")}
         }}
         ToolCard(Modifier.testTag("effects-adjustments-card")) {
@@ -705,8 +709,9 @@ fun mediaClock(seconds:Long):String {val value=seconds.coerceAtLeast(0);return "
         }
         if(lyricSettings.optBoolean("synced_lyrics")) {
             val lines=lyricCache[source].orEmpty()
-            val index=lyricActiveIndex(lines,position)
-            if(index>=0)Text(lyricPlainText(lines[index].second),modifier=Modifier.fillMaxWidth().lyricAnimation(index,lyricSettings.optString("lyrics_animation","Suave")),style=MaterialTheme.typography.titleMedium,color=MaterialTheme.colorScheme.primary)
+            val timeline=remember(lines){LyricTimeline(lines)}
+            val index=timeline.activeIndex(position)
+            if(index>=0)Text(timeline.verses[index].plain,modifier=Modifier.fillMaxWidth().lyricAnimation(index,lyricSettings.optString("lyrics_animation","Suave")),style=MaterialTheme.typography.titleMedium,color=MaterialTheme.colorScheme.primary)
         }
     }
 
