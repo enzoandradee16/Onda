@@ -39,7 +39,7 @@ private data class LicenseNotice(val title: String, val text: String)
     fun closePage() { if (selected != null) selected = null else onDismiss() }
     AlertDialog(containerColor=ondaDialogContainerColor(),onDismissRequest={closePage()}, title={UiText(notice?.title ?: "Licenças e fontes")},
         text={
-            if (notice == null) LazyColumn(Modifier.heightIn(max=420.dp)) {
+            if (notice == null) LazyColumn(Modifier.heightIn(max=420.dp).testTag("license-list")) {
                 item {UiText(summary, style=MaterialTheme.typography.bodySmall)}
                 itemsIndexed(notices) { index, entry ->
                     TextButton(onClick={selected=index}, modifier=Modifier.fillMaxWidth()) {

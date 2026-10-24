@@ -33,6 +33,10 @@ class NativeLicensesTest {
         compose.onNodeWithTag("license-details").performScrollToNode(hasText("Most files in FFmpeg", substring=true))
         compose.onNodeWithText("Most files in FFmpeg", substring=true).assertIsDisplayed()
         compose.onNodeWithText("Voltar").performClick()
+        for(name in listOf("gallery_dl-1.32.17.dist-info/licenses/LICENSE","yt_dlp-2026.10.21.dist-info/licenses/LICENSE","certifi-2026.10.23.dist-info/licenses/LICENSE")) {
+            compose.onNodeWithTag("license-list").performScrollToNode(hasText(name))
+            compose.onNodeWithText(name).assertIsDisplayed()
+        }
         compose.onNodeWithText("Abrir fontes").assertIsDisplayed()
         compose.onNodeWithText("Fechar").performClick()
     }

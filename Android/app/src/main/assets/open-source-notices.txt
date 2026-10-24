@@ -3323,7 +3323,7 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 IN THE SOFTWARE.
 
 
-===== certifi-2026.7.22.dist-info/licenses/LICENSE =====
+===== certifi-2026.10.23.dist-info/licenses/LICENSE =====
 This package contains a modified version of ca-bundle.crt:
 
 ca-bundle.crt -- Bundle of CA Root Certificates
@@ -3344,7 +3344,6 @@ one at http://mozilla.org/MPL/2.0/.
 
 ***** END LICENSE BLOCK *****
 @(#) $RCSfile: certdata.txt,v $ $Revision: 1.80 $ $Date: 2011/11/03 15:11:58 $
-
 
 ===== chaquopy_libjpeg-1.5.3.dist-info/LICENSE.md =====
 libjpeg-turbo Licenses
@@ -3512,7 +3511,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-===== gallery_dl-1.32.16.dist-info/licenses/LICENSE =====
+===== gallery_dl-1.32.17.dist-info/licenses/LICENSE =====
                     GNU GENERAL PUBLIC LICENSE
                        Version 2, June 1991
 
@@ -3852,7 +3851,6 @@ proprietary programs.  If your program is a subroutine library, you may
 consider it more useful to permit linking proprietary applications with the
 library.  If this is what you want to do, use the GNU Lesser General
 Public License instead of this License.
-
 
 ===== idna-3.20.dist-info/licenses/LICENSE.md =====
 BSD 3-Clause License
@@ -4465,7 +4463,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-===== yt_dlp-2026.8.19.dist-info/licenses/LICENSE =====
+===== yt_dlp-2026.10.21.dist-info/licenses/LICENSE =====
 This is free and unencumbered software released into the public domain.
 
 Anyone is free to copy, modify, publish, use, compile, sell, or
@@ -4490,7 +4488,6 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 OTHER DEALINGS IN THE SOFTWARE.
 
 For more information, please refer to <http://unlicense.org/>
-
 
 ===== yt_dlp_ejs-0.8.0.dist-info/licenses/LICENSE =====
 This is free and unencumbered software released into the public domain.
