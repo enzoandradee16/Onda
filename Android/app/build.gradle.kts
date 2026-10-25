@@ -55,14 +55,16 @@ android {
         minSdk = 26
         targetSdk = 35
         buildConfigField("String", "ONDA_ABIS", "\"${targetAbis.joinToString(",")}\"")
-        versionCode = 28
-        versionName = "1.2.1"
+        versionCode = 29
+        versionName = "1.2.2"
         ndk { abiFilters += targetAbis }
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     // UI verification installs beside the normal app and preserves its data.
     if (providers.gradleProperty("onda.isolatedUiTest").orNull == "true") {
-        buildTypes.getByName("debug").applicationIdSuffix = ".uitest"
+        val suffix=providers.gradleProperty("onda.isolatedUiTestSuffix").getOrElse(".uitest")
+        require(Regex("\\.[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*").matches(suffix)) {"Sufixo de aplicação de testes inválido"}
+        buildTypes.getByName("debug").applicationIdSuffix = suffix
     }
     buildFeatures { compose = true; buildConfig = true }
     sourceSets["main"].assets.srcDir("../../Onda/locales")

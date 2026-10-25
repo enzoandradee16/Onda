@@ -66,12 +66,12 @@ import java.io.File
                 vm.operation("audio_batch_edit",config,dialog=false){result->
                     summary=result.optString("message")
                     val errors=result.optJSONArray("errors")?.objects().orEmpty()
-                    if(errors.isNotEmpty())vm.showNotice("Editar metadados em lote",errors.take(10).joinToString("\n"){it.optString("name")+": "+translateUi(it.optString("error"))})
+                    if(errors.isNotEmpty())vm.showNotice("Editar metadados em lote",errors.take(10).joinToString("\n"){it.optString("name")+": "+translateError(it.optString("error"))})
                 }
             } catch(error:Exception) {
                 imports.forEach {it.delete()}
                 if(error is kotlinx.coroutines.CancellationException)throw error
-                vm.showNotice("Editar metadados em lote",error.message ?: "Não foi possível abrir o arquivo.")
+                vm.showNotice("Editar metadados em lote",uiExceptionMessage(error,"Não foi possível abrir o arquivo."))
             } finally {preparing=false}
         }
     }

@@ -120,6 +120,7 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
     val effectsRequested by vm.effectsNavigation.collectAsStateWithLifecycle()
     var metadataUri by rememberSaveable {mutableStateOf<String?>(null)}
     var showSettings by rememberSaveable { mutableStateOf(false) }
+    var showAppearance by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(effectsRequested) {if(effectsRequested){tab="Efeitos";showSettings=false;vm.effectsNavigation.value=false}}
     var settingsCategory by rememberSaveable { mutableStateOf("Geral") }
     var youtubeSession by rememberSaveable {mutableStateOf(false)}
@@ -129,7 +130,7 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
     val preferences=OndaStore.context.getSharedPreferences("preferences",0)
     var welcome by remember { mutableStateOf(!preferences.getBoolean("welcome_seen",false)) }
     val permission=rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
-    BackHandler(enabled=(showLinks || tab!=homeTab) && !showSettings && !youtubeSession && !showLicenses && !welcome && question==null && notice==null) {
+    BackHandler(enabled=(showLinks || tab!=homeTab) && !showSettings && !showAppearance && !youtubeSession && !showLicenses && !welcome && question==null && notice==null) {
         if(showLinks)showLinks=false else tab=if(tab in listOf("Imagens","Conversor de vídeos","Playlists / Álbuns","Histórico","Metadados")) "Mais" else homeTab
     }
     LaunchedEffect(Unit) { if(Build.VERSION.SDK_INT>=33) permission.launch(Manifest.permission.POST_NOTIFICATIONS) }
@@ -142,7 +143,7 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
     val typography=remember(settings.optString("interface_font"),settings.optString("interface_font_size")) {interfaceTypography(settings.optString("interface_font",DEFAULT_INTERFACE_FONT),settings.optString("interface_font_size","100%"))}
     LocalizedTheme(language=settings.optString("language","pt-BR"),colorScheme=scheme,typography=typography,spacing=settings.optString("interface_spacing","Padrão")) {
         Scaffold(
-            topBar={OndaAppBar {settingsCategory="Geral";showSettings=true}},
+            topBar={OndaAppBar(onAppearance={showAppearance=true},onSettings={settingsCategory="Geral";showSettings=true})},
             bottomBar={Column {
                 AndroidPlaybackSurface(vm)
                 OndaBottomNavigation(if(showSettings)"Mais" else tab,tabs) {destination->showSettings=false;tab=destination}
@@ -179,10 +180,10 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
             Box(Modifier.fillMaxWidth().fillMaxHeight(.88f).imePadding()) {LinksPage(vm,onAdded={showLinks=false;tab="Fila"})}
         }
         val failureIds by OndaStore.failureSummary.collectAsStateWithLifecycle()
-        if(question==null && notice==null && !showSettings && !youtubeSession && !showLicenses && !welcome) {
+        if(question==null && notice==null && !showSettings && !showAppearance && !youtubeSession && !showLicenses && !welcome) {
             failureIds?.let {FailureSummaryWindow(it,vm){OndaStore.failureSummary.value=null}}
         }
-        ClipboardDownloadPrompt(settings.optBoolean("clipboard_links",true),!busy && question==null && notice==null && !showSettings && !youtubeSession && !showLicenses && !welcome && !showLinks,onAdd={candidate->
+        ClipboardDownloadPrompt(settings.optBoolean("clipboard_links",true),!busy && question==null && notice==null && !showSettings && !showAppearance && !youtubeSession && !showLicenses && !welcome && !showLinks,onAdd={candidate->
             if(candidate.optBoolean("collection"))vm.loadCollection(candidate.getString("url"),OndaStore.collectionOptions(),queueOnly=true)
             else vm.enqueueLinks(listOf(candidate.getString("url")),false)
             tab="Fila"
@@ -191,6 +192,7 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
             else vm.enqueueLinks(listOf(candidate.getString("url")),true)
         }
         question?.let { ChoiceWindow(it,vm) }
+        if(showAppearance) AppearanceWindow {showAppearance=false}
         if(youtubeSession) YouTubeSessionWindow {youtubeSession=false}
         if(showLicenses) LicensesWindow {showLicenses=false}
         if(welcome) AlertDialog(containerColor=ondaDialogContainerColor(),onDismissRequest={preferences.edit().putBoolean("welcome_seen",true).apply();welcome=false},title={UiText("Bem-vindo ao Onda")},
@@ -200,7 +202,7 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
         notice?.let {current->
             val destination=noticeDestination(current.message)
             AlertDialog(containerColor=ondaDialogContainerColor(),onDismissRequest=vm::dismissNotice,title={UiText(current.title)},
-                text={Column(Modifier.heightIn(max=320.dp).verticalScroll(rememberScrollState())){UiText(current.message)}},
+                text={Column(Modifier.heightIn(max=320.dp).verticalScroll(rememberScrollState())){if(current.error)UiErrorText(current.message) else UiText(current.message)}},
                 confirmButton={TextButton(onClick=vm::dismissNotice){UiText("OK")}},
                 dismissButton={if(destination!=null)TextButton(onClick={
                     vm.dismissNotice()
@@ -318,7 +320,7 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
                 val id=vm.queueTrack(track,options=options,origin="search",immediate=now)
                 if(now)DownloadService.start(OndaStore.context,id)
                 downloadTrack=null
-            } catch(error:Exception) {vm.showNotice(if(now) "Baixar agora" else "Adicionar à fila",error.message ?: "Não foi possível adicionar a música.")}
+            } catch(error:Exception) {vm.showNotice(if(now) "Baixar agora" else "Adicionar à fila",uiExceptionMessage(error,"Não foi possível adicionar a música."))}
         })
     }}
     LazyColumn(Modifier.fillMaxSize().padding(horizontal=LayoutSpacing.inset),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
@@ -453,131 +455,6 @@ internal fun displayReleaseDate(value:String):String {
     }
 }
 
-@Composable fun QueuePage(vm: OndaViewModel) {
-    val active by OndaStore.active.collectAsStateWithLifecycle()
-    val settings by OndaStore.settings.collectAsStateWithLifecycle()
-    val complete=settings.optString("queue_view","Completa")=="Completa"
-    val cardSize=settings.optString("queue_card_size","Grande")
-    val small=cardSize=="Pequeno"
-    val cardPadding=if(!complete)4.dp else if(small)6.dp else if(cardSize=="Médio")10.dp else LayoutSpacing.section
-    val queue by OndaStore.items.collectAsStateWithLifecycle()
-    val queueListState=androidx.compose.foundation.lazy.rememberLazyListState()
-    var queueOrder by rememberSaveable {mutableStateOf(queueOrders.first())}
-    var query by rememberSaveable {mutableStateOf("")}
-    var stateFilter by rememberSaveable {mutableStateOf("Todos")}
-    val matcher=remember(query,stateFilter) {QueueMatcher(query,stateFilter)}
-    val visible=remember(queue,matcher) {queue.filter {matcher.matches(it.title,it.state,it.config)}}
-    val visibleIds=remember(visible) {visible.map {it.id}.toSet()}
-    val completed=remember(queue) {queue.count {it.state=="Concluído"}}
-    val running by OndaStore.running.collectAsStateWithLifecycle()
-    var clockTick by remember {mutableLongStateOf(0L)}
-    val clockOwner=LocalLifecycleOwner.current
-    LaunchedEffect(clockOwner) {clockOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {while(true) {clockTick++;delay(1000)}}}
-    var space by remember {mutableStateOf<QueueSpace?>(null)}
-    LaunchedEffect(clockTick,queue.size) {space=kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO){queueSpace(queue,true)}}
-    val connected=remember(clockTick) {queueConnected()}
-    val queueTimes=remember(queue,running,clockTick) {OndaStore.queueTiming.snapshot(queue.size-completed,queue.isNotEmpty())}
-    val remainingTime=queueTimes.remaining?.let {if(it==0L) "00:00" else "≈ "+queueDuration(it)} ?: if(running)translateUi("Calculando…",LocalUiLanguage.current) else "—"
-    val adding by vm.addingToQueue.collectAsStateWithLifecycle()
-    val pauseReason by OndaStore.queuePause.collectAsStateWithLifecycle()
-    val actionsAtTop=settings.optBoolean("queue_actions_at_top",true)
-    val logs by OndaStore.messages.collectAsStateWithLifecycle()
-    var selected by remember {mutableStateOf(setOf<String>())}
-    val metadataHistory by OndaStore.history.collectAsStateWithLifecycle()
-    var metadataBatch by remember {mutableStateOf<List<String>?>(null)}
-    metadataBatch?.let {sources->
-        if(sources.size>1)BatchMetadataEditor(vm,sources){metadataBatch=null}
-        else Dialog(onDismissRequest={metadataBatch=null}) {
-            Surface(shape=MaterialTheme.shapes.large) {
-                Column(Modifier.fillMaxWidth().fillMaxHeight(0.9f)) {
-                    TextButton(onClick={metadataBatch=null}){UiText("Pronto")}
-                    Box(Modifier.weight(1f)){MetadataPage(vm,sources.single())}
-                }
-            }
-        }
-    }
-    val metadataUris=metadataHistory.filter {record->historyKind(record.mode)=="Áudio" && OndaStore.items.value.any {item->
-        item.id in selected && item.state=="Concluído" && jobSource(item.config).isNotBlank() && jobSource(item.config)==record.source && item.config.optString("mode").equals(record.mode,true)
-    }}.map {it.uri}.distinct()
-
-    var showLogs by remember {mutableStateOf(false)}
-    var clear by remember {mutableStateOf(false)}
-    LaunchedEffect(visibleIds) {selected=selected.intersect(visibleIds);OndaStore.selectAll.collect {selected=visible.filterNot {it.config.optBoolean("_immediate")}.map {it.id}.toSet()}}
-    val queueActions:@Composable ()->Unit = {
-        Column(Modifier.fillMaxWidth(),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
-            Button(onClick={DownloadService.start(OndaStore.context)},enabled=queue.any {it.state=="Pendente"},
-                modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)){UiText("Baixar fila")}
-            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(LayoutSpacing.section),verticalAlignment=Alignment.CenterVertically) {
-                if(running)TextButton(onClick={DownloadService.control(OndaStore.context,if(DownloadRuntime.paused)"resume" else "pause")},modifier=Modifier.weight(1f).heightIn(min=48.dp)){UiText(if(DownloadRuntime.paused)"Retomar fila" else "Pausar fila")}
-                OutlinedButton(onClick={DownloadService.stop(OndaStore.context)},enabled=running,
-                    modifier=Modifier.weight(1f).heightIn(min=48.dp)){UiText("Parar")}
-                TextButton(onClick={showLogs=!showLogs},
-                    modifier=Modifier.weight(1f).heightIn(min=48.dp)){UiText("Ver detalhes")}
-            }
-        }
-    }
-    NavigableList(Modifier.fillMaxSize().padding(horizontal=LayoutSpacing.inset),navigationId="queue",state=queueListState) {
-        item {PageTitle("Fila de downloads","Acompanhe, organize e gerencie seus downloads.")}
-        item {OutlinedTextField(query,{query=it},label={UiText("Buscar na fila")},singleLine=true,modifier=Modifier.fillMaxWidth().testTag("queue-search"))}
-        item {Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
-            Select("Estado",stateFilter,queueFilters,Modifier.weight(1f)){stateFilter=it}
-            TextButton(onClick={query="";stateFilter="Todos"}){UiText("Limpar filtros")}
-        }}
-        item {Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
-            Select("Ordenar pendentes",queueOrder,queueOrders,Modifier.weight(1f)){queueOrder=it}
-            TextButton(onClick={OndaStore.sortPending(queueOrder)}){UiText("Aplicar")}
-        }}
-        item {Text(space?.text(LocalUiLanguage.current) ?: translateUi("Calculando…",LocalUiLanguage.current),style=MaterialTheme.typography.bodySmall)}
-        if(space?.low==true)item {UiText("Espaço possivelmente insuficiente",color=MaterialTheme.colorScheme.error)}
-        item {UiText("Exibindo ${visible.size} de ${queue.size} itens.",style=MaterialTheme.typography.bodySmall)}
-        if(visible.isEmpty() && queue.isNotEmpty())item {UiText("Nenhum item corresponde aos filtros.")}
-        item {Row(Modifier.horizontalScroll(rememberScrollState())) {
-            TextButton(onClick={selected=visible.filterNot {it.config.optBoolean("_immediate")}.map {it.id}.toSet()}) {UiText("Selecionar visíveis")}
-            TextButton(onClick={OndaStore.remove(selected);selected=emptySet()}) {UiText("Remover selecionados")}
-            TextButton(onClick={clear=true}) {UiText("Limpar fila")}
-            TextButton(onClick={OndaStore.retry(selected)}) {UiText("Tentar novamente")}
-            TextButton(enabled=metadataUris.isNotEmpty(),onClick={metadataBatch=metadataUris}) {UiText("Editar metadados")}
-        }}
-        item {UiText("Concluídos: $completed/${queue.size} · Restantes: ${queue.size-completed}",style=MaterialTheme.typography.labelMedium,modifier=Modifier.testTag("queue-count"))}
-        item {UiText("Tempo decorrido: ${queueDuration(queueTimes.elapsed)} · Tempo restante: $remainingTime",style=MaterialTheme.typography.labelSmall,modifier=Modifier.testTag("queue-time"))}
-        if(actionsAtTop)item {queueActions()}
-        if(adding)item {LinearProgressIndicator(Modifier.fillMaxWidth())}
-        item {QueueDisplayControls(settings)}
-        items(visible,key={it.id}) {item->
-            LaunchedEffect(item.id,complete) {if(complete && item.config.optJSONObject("queue_info")?.cleanString("cover_url").isNullOrBlank())vm.loadQueueInformation(item)}
-            val immediate=item.config.optBoolean("_immediate")
-            val cardModifier=Modifier.fillMaxWidth().let {base->if(immediate) base else base.toggleable(value=item.id in selected,role=Role.Checkbox,onValueChange={checked->selected=if(checked) selected+item.id else selected-item.id})}
-            ElevatedCard(cardModifier.a11yState(if(immediate) item.state else if(item.id in selected) "Selecionado" else "Não selecionado").testTag("queue-card-${item.id}")) {
-            Column(Modifier.padding(cardPadding),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.text)) {
-                Row(verticalAlignment=Alignment.CenterVertically) {
-                    if(item.state=="Pendente")QueueDragHandle(item,queueListState)
-                    if(!immediate) Checkbox(item.id in selected,null,modifier=Modifier.padding(end=LayoutSpacing.checkboxLabel))
-                    if(complete)QueueTrackInformation(item,cardSize,Modifier.weight(1f))
-                    else Text(item.title,Modifier.weight(1f),maxLines=1,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis,style=MaterialTheme.typography.bodyMedium)
-                }
-                if((complete || item.id in selected) && item.state !in listOf("Baixando","Aguardando escolha")) Row {
-                    TextButton(enabled=item.state=="Pendente",onClick={OndaStore.move(item.id,-1)}){AccessibleSymbol("↑","Mover ${item.title} para cima")}
-                    TextButton(enabled=item.state=="Pendente",onClick={OndaStore.move(item.id,1)}){AccessibleSymbol("↓","Mover ${item.title} para baixo")}
-                    TextButton(onClick={OndaStore.move(item.id,0)}){UiText("Próximo")}
-                    if(immediate) TextButton(onClick={OndaStore.remove(setOf(item.id))},enabled=item.id!=active && item.state !in listOf("Baixando","Aguardando escolha")){UiText("Remover")}
-                }
-                if(immediate && item.state=="Erro") TextButton(onClick={OndaStore.retry(setOf(item.id))}) {UiText("Tentar novamente")}
-                if(item.state=="Erro" && item.message.contains("Nenhuma versão suficientemente compatível",ignoreCase=true)) {
-                    TextButton(onClick={OndaStore.retryWithVersionChoice(item.id)}) {UiText("Escolher versão")}
-                }
-                MetadataPlatformBadge(item.config.optJSONObject("catalog_record") ?: item.config.optJSONObject("queue_info"))
-                UiText("${item.config.optString("mode").uppercase()} · ${item.state}",style=MaterialTheme.typography.labelMedium)
-                UiText(queueActivity(item,running,settings,connected,pauseReason),style=MaterialTheme.typography.bodySmall)
-                if(item.state in listOf("Baixando","Aguardando escolha")) LinearProgressIndicator(progress={item.progress/100},modifier=Modifier.fillMaxWidth().padding(vertical=6.dp))
-                if(item.message.isNotBlank() && (complete || item.state=="Erro")) UiText(item.message,style=MaterialTheme.typography.bodySmall,maxLines=if(small)1 else 3)
-            }
-        }}
-        if(!actionsAtTop)item {queueActions()}
-        if(showLogs) item {UiText(logs.takeLast(35).joinToString("\n"),style=MaterialTheme.typography.bodySmall)}
-    }
-    if(clear) AlertDialog(containerColor=ondaDialogContainerColor(),onDismissRequest={clear=false},title={UiText("Limpar fila?")},text={UiText("Remove todos os itens, exceto o download em andamento. Seus arquivos são preservados.")},confirmButton={TextButton(onClick={OndaStore.remove(queue.map {it.id}.toSet());clear=false}){UiText("Limpar")}},dismissButton={TextButton(onClick={clear=false}){UiText("Cancelar")}})
-}
-
 fun historySupportsEffects(item: HistoryItem):Boolean {
     val formats=setOf("mp3","m4a","aac","flac","wav","ogg","opus","wma","aiff","alac","mp4","mkv","webm","mov","m4v","video","original")
     return item.mode.lowercase() in formats || item.title.substringAfterLast('.',"").lowercase() in formats
@@ -677,7 +554,7 @@ fun mediaClock(seconds:Long):String {val value=seconds.coerceAtLeast(0);return "
         }
         infos[source]?.let {info->EffectsTrackInformation(info,source){
             if(info.has("error")) {
-                Text(info.optString("error"),color=MaterialTheme.colorScheme.error)
+                UiErrorText(info.optString("error"),color=MaterialTheme.colorScheme.error)
                 TextButton(onClick={vm.loadEffectsInfo(listOf(source),retryErrors=true)},modifier=Modifier.testTag("effects-info-retry")){UiText("Tentar novamente")}
             }
             if(compactMode==1&&source.isNotBlank())OutlinedButton(onClick=::toggle,enabled=duration>0f,modifier=Modifier.testTag("effects-page-play")){UiText("Reproduzir em Efeitos")}

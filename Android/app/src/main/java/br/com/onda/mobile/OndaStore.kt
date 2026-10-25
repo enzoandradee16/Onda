@@ -91,8 +91,8 @@ object OndaStore {
         refresh()
     }
     fun defaults() = JSONObject().put("wifi_only",false).put("wifi_loss","Pausar downloads").put("notification_controls",true).put("finish_action","Notificação").put("clipboard_links",true).put("auto_select_media",true).put("simple_download_ui",false).put("social_best_quality",true).put("language","pt-BR").put("mode","mp3").put("audio_quality","320 kbps").put("height",1080).put("fps",JSONObject.NULL)
-        .put("queue_actions_at_top",true).put("queue_view","Completa").put("queue_card_size","Grande").put("catalog_card_size","Grande").put("pure_black_separators",false).put("history_card_size","Grande").put("history_view","Compacto").put("playlist_limit",2000).put("link_playlist",false).put("auto_metadata",false).put("auto_match",false).put("confirm_version",false).put("review_metadata",false)
-        .put("detect_duplicates",true).put("filename_template","Original").put("duplicate_policy","ask").put("organization","Pasta de destino").put("interface_font",DEFAULT_INTERFACE_FONT).put("interface_font_size","100%").put("interface_spacing","Padrão").put("theme","Seguir o sistema").put("accent","Verde-Água")
+        .put("queue_card_size","Grande").put("catalog_card_size","Grande").put("pure_black_separators",false).put("history_card_size","Grande").put("history_view","Compacto").put("playlist_limit",2000).put("link_playlist",false).put("auto_metadata",false).put("auto_match",false).put("confirm_version",false).put("review_metadata",false)
+        .put("detect_duplicates",true).put("filename_template","Original").put("duplicate_policy","ask").put("organization","Pasta de destino").put("interface_font",DEFAULT_INTERFACE_FONT).put("interface_font_size","100%").put("interface_spacing","Padrão").put("theme","Preto puro").put("accent","Verde-Água")
         .put("concurrent_downloads","1").put("resume_downloads",true).put("resume_queue",false).put("normalize_volume",false)
         .put("schedule_enabled",false).put("schedule_start","22:00").put("schedule_stop","07:00").put("check_updates",true).put("notice_duration","Após 3 segundos").put("notice_animation",true)
         .put("playback_tab_order","Efeitos primeiro").put("jukebox_transition_seconds",2).put("jukebox_gradual_transition",true).put("jukebox_equalizer",JSONObject()).put("jukebox_background",true).put("synced_lyrics",false).put("search_preview",25).put("effects_preview",25).put("keep_preview",false).put("remember",true)
@@ -108,7 +108,8 @@ object OndaStore {
         if(value.optString("wifi_loss") !in wifiLossActions)value.put("wifi_loss","Pausar downloads")
         if(value.optString("image_size")=="Original" && (value.optInt("image_width")>0 || value.optInt("image_height")>0))value.put("image_size","Personalizado")
         value.put("interface_spacing",normalizedSpacing(value.optString("interface_spacing","Padrão")))
-        if(value.optString("queue_view") !in listOf("Compacto","Completa"))value.put("queue_view","Completa")
+        value.remove("queue_view")
+        value.remove("queue_actions_at_top")
         if(value.optString("queue_card_size") !in listOf("Pequeno","Médio","Grande"))value.put("queue_card_size","Grande")
         value.put("language",normalizedLanguage(value.optString("language","pt-BR")))
         value.put("interface_font",normalizeInterfaceFont(value.optString("interface_font",DEFAULT_INTERFACE_FONT)))
@@ -125,7 +126,7 @@ object OndaStore {
         aliases[value.optString("accent")]?.let {value.put("accent",it)}
         if(value.optString("theme")=="Sistema") value.put("theme","Seguir o sistema")
     }
-    private val displayFields=listOf("queue_view","queue_card_size","history_view","history_card_size","catalog_card_size")
+    private val displayFields=listOf("queue_card_size","history_view","history_card_size","catalog_card_size")
     @Synchronized fun saveSettings(value: JSONObject) {
         normalizeAppearance(value)
         val scheduleChanged=listOf("schedule_enabled","schedule_start","schedule_stop","wifi_only").any {settings.value.opt(it)!=value.opt(it)}

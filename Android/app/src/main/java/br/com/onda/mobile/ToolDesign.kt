@@ -10,6 +10,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.font.FontWeight
@@ -42,7 +44,21 @@ import androidx.compose.ui.text.font.FontWeight
             UiText(title,style=MaterialTheme.typography.bodyLarge)
             if(subtitle.isNotBlank())UiText(subtitle,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Switch(checked,onCheckedChange=null,enabled=enabled)
+        val scheme=MaterialTheme.colorScheme
+        // Pure black intentionally clears surface/outline colors; interactive
+        // switches still need an explicit track, thumb and boundary.
+        Switch(checked,onCheckedChange=null,enabled=enabled,modifier=Modifier.testTag("switch-indicator-$title"),colors=SwitchDefaults.colors(
+            checkedThumbColor=scheme.onPrimary,checkedTrackColor=scheme.primary,checkedBorderColor=scheme.primary,
+            uncheckedThumbColor=scheme.onSurface,
+            uncheckedTrackColor=scheme.onSurface.copy(alpha=.20f).compositeOver(scheme.surface),
+            uncheckedBorderColor=scheme.onSurfaceVariant,
+            disabledCheckedThumbColor=scheme.onSurface.copy(alpha=.38f).compositeOver(scheme.surface),
+            disabledCheckedTrackColor=scheme.primary.copy(alpha=.25f).compositeOver(scheme.surface),
+            disabledCheckedBorderColor=scheme.onSurfaceVariant.copy(alpha=.38f).compositeOver(scheme.surface),
+            disabledUncheckedThumbColor=scheme.onSurface.copy(alpha=.38f).compositeOver(scheme.surface),
+            disabledUncheckedTrackColor=scheme.onSurface.copy(alpha=.12f).compositeOver(scheme.surface),
+            disabledUncheckedBorderColor=scheme.onSurfaceVariant.copy(alpha=.38f).compositeOver(scheme.surface)
+        ))
     }
 }
 

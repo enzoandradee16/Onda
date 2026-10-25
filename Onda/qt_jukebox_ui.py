@@ -17,6 +17,7 @@ from jukebox_stream import Stream
 from jukebox_equalizer import clean, presets, preset_name
 from preferences import PreferenceStore
 from i18n import tr, set_language
+from error_localization import error_text
 
 class JukeboxBridge(QObject):
     changed=Signal()
@@ -49,7 +50,10 @@ class JukeboxBridge(QObject):
         self._pending={};self._event.connect(self.handle_event,Qt.ConnectionType.QueuedConnection)
 
     @Property('QVariantMap',notify=changed)
-    def state(self):return dict(self._state)
+    def state(self):
+        state=dict(self._state)
+        state["status"]=error_text(state["status"]) if state.get("status_error") else tr(state["status"])
+        return state
     @Property('QVariantList',notify=queueChanged)
     def queuedTracks(self):return [dict(row,current=index==self.queue_index) for index,row in enumerate(self.playlist)]
     @Property('QVariantMap',notify=changed)
@@ -231,7 +235,7 @@ class JukeboxBridge(QObject):
     @Property('QVariantMap',notify=appearanceChanged)
     def palette(self):
         from appearance import palette
-        return palette(self.preferences.get('theme_mode','Claro'),self.preferences.get('theme_accent','Vermelho'),self.preferences.get('pure_black_separators',False))
+        return palette(self.preferences.get('theme_mode','Preto puro'),self.preferences.get('theme_accent','Verde-Água'),self.preferences.get('pure_black_separators',False))
     @Property(bool,notify=appearanceChanged)
     def animations(self):return self.preferences.get('qt_animations',True)
     @Property(float,notify=appearanceChanged)
@@ -247,9 +251,9 @@ class JukeboxBridge(QObject):
         from appearance import ACCENTS
         return list(ACCENTS)
     @Property(str,notify=appearanceChanged)
-    def theme(self):return self.preferences.get('theme_mode','Claro')
+    def theme(self):return self.preferences.get('theme_mode','Preto puro')
     @Property(str,notify=appearanceChanged)
-    def accent(self):return self.preferences.get('theme_accent','Vermelho')
+    def accent(self):return self.preferences.get('theme_accent','Verde-Água')
     @Property('QVariantMap',notify=equalizerChanged)
     def equalizer(self):return self._equalizer
     @Property('QStringList',constant=True)
@@ -262,7 +266,10 @@ class JukeboxBridge(QObject):
 
     @Slot(str,result=str)
     def translate(self,text):return tr(text)
+    @Slot(str,result=str)
+    def translateError(self,text):return error_text(text)
     def update_state(self,**values):
+        if "status" in values:values.setdefault("status_error",False)
         if any(self._state.get(k)!=v for k,v in values.items()):self._state.update(values);self.changed.emit()
     def persist(self,values):
         self.preferences.update(values);self._pending.update(values);self.save_timer.start()
@@ -371,7 +378,7 @@ class JukeboxBridge(QObject):
                     if self.track_minutes and self._elapsed-self._track_started>=self.track_minutes*60:self._track_started=self._elapsed-self.track_minutes*60+2
                     if self._autoplay_entry==entry['id']:
                         self._autoplay_entry=None;self.playQueued(self.playlist.index(entry))
-                elif self._autoplay_entry==entry['id']:self._autoplay_entry=None;self.update_state(status=entry['error'])
+                elif self._autoplay_entry==entry['id']:self._autoplay_entry=None;self.update_state(status=entry['error'],status_error=True)
             self.queueChanged.emit();self.changed.emit();self.prepare_next_queued();return
         if kind=='queue_info':
             entry=next((row for row in self.playlist if row['id']==value['id']),None)
@@ -394,7 +401,7 @@ class JukeboxBridge(QObject):
             if entry_model is not None:
                 entry=next((row for row in self.playlist if row['id']==entry_model[0]),None)
                 if entry is not None:entry['analysis']='error';entry['error']=value['error'];self.queueChanged.emit()
-            self.update_state(status=value['error'])
+            self.update_state(status=value['error'],status_error=True)
         elif kind=='track_started':
             entry_model=self._switch_models.pop(value,None)
             if entry_model is not None:
@@ -415,10 +422,10 @@ class JukeboxBridge(QObject):
                 ready=target<len(self.playlist) and self.playlist[target].get('analysis')=='ready'
                 if remaining<=0:
                     if target>=len(self.playlist):self.nextTrack()
-                    elif self.playlist[target].get('analysis')=='error':self.setTrackMinutes(0);self.update_state(status=self.playlist[target].get('error',''))
+                    elif self.playlist[target].get('analysis')=='error':self.setTrackMinutes(0);self.update_state(status=self.playlist[target].get('error',''),status_error=True)
                     elif ready:self.nextTrack()
-        elif kind=='lookup_error':self.update_state(status=str(value))
-        elif kind=='error':self.autoplay_revision=None;self.update_state(status=str(value),playing=False,paused=False);self.media_timer.stop();self.sync_media()
+        elif kind=='lookup_error':self.update_state(status=str(value),status_error=True)
+        elif kind=='error':self.autoplay_revision=None;self.update_state(status=str(value),status_error=True,playing=False,paused=False);self.media_timer.stop();self.sync_media()
         elif kind=='idle':
             self.update_state(busy=False)
             if self.autoplay_revision==revision and self._state['ready']:

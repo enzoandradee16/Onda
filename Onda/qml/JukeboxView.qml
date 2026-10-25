@@ -9,11 +9,9 @@ ScrollView {
     contentWidth: availableWidth
     clip: true
     FileDialog { id: fileDialog; title: bridge.translate("Abrir arquivo"); nameFilters: [bridge.translate("Áudio")+" (*.mp3 *.m4a *.flac *.wav *.ogg *.opus *.aac *.webm)",bridge.translate("Todos os arquivos")+" (*)"]; onAccepted: bridge.openFile(selectedFile) }
-    FileDialog { id: queueFiles; title: bridge.translate("Adicionar músicas à fila"); fileMode: FileDialog.OpenFiles; nameFilters: ["Áudio (*.mp3 *.m4a *.flac *.wav *.ogg *.opus *.aac *.webm)"]; onAccepted: { bridge.enqueueFiles(selectedFiles);page.queueExpanded=true } }
     property string currentLyric: ""
     property string currentLine: ""
     Timer { interval: 100; running: page.visible; repeat: true; onTriggered: {var frame=workspace.lyricsFrame();page.currentLyric=frame.text;page.currentLine=String(frame.active)} }
-    property bool queueExpanded: false
     EqualizerPopup { id: equalizer }
     TimerPopup { id: timerPopup }
     ColumnLayout {
@@ -30,35 +28,7 @@ ScrollView {
             ActionButton { primary: true; text: bridge.translate(bridge.state.busy ? "Cancelar" : "Pesquisar"); enabled: bridge.state.busy || query.text.trim().length>0; onClicked: if (bridge.state.busy) bridge.cancelOperation(); else bridge.search(query.text) }
         }
         Flow { Layout.fillWidth: true; spacing: 8
-            ActionButton { text: bridge.translate("Adicionar arquivos à fila"); onClicked: queueFiles.open() }
-            ActionButton { text: bridge.translate("Fila de reprodução")+" ("+bridge.queuedTracks.length+")"; onClicked: page.queueExpanded=!page.queueExpanded }
-            ActionButton { text: bridge.translate("Próxima"); enabled: bridge.queuedTracks.length>0; onClicked: bridge.nextTrack() }
-
-        }
-        Card { objectName: "playbackQueuePanel"; visible: page.queueExpanded; Layout.fillWidth: true; implicitHeight: queueBody.implicitHeight+20; Layout.minimumHeight: implicitHeight
-            ColumnLayout { id: queueBody; anchors.fill: parent; anchors.margins: 10; spacing: 10
-                RowLayout { Layout.fillWidth: true; Label { Layout.fillWidth: true; text: bridge.translate("Fila de reprodução"); color: bridge.palette.text } ActionButton { text: bridge.translate("Limpar"); enabled: bridge.queuedTracks.length>0; onClicked: bridge.clearPlaybackQueue() } }
-                ListView { id: queueList; Layout.fillWidth: true; Layout.preferredHeight: bridge.queuedTracks.length ? Math.min(320,contentHeight) : 48; Layout.minimumHeight: Layout.preferredHeight; clip: true; spacing: 10; model: bridge.queuedTracks; ScrollBar.vertical: ScrollBar {}
-                    delegate: RowLayout { required property var modelData; required property int index; width: queueList.width; height: Math.max(80,queueTrackInfo.implicitHeight,queuePlayButton.implicitHeight)+12
-                        Rectangle { Layout.preferredWidth: 80; Layout.preferredHeight: 80; radius: 6; color: bridge.palette.input
-                            RoundedArtwork { id: playbackCover; objectName: "playbackQueueArtwork"; anchors.fill: parent; source: modelData.cover || ""; fillMode: Image.PreserveAspectFit; sourceSize.width: 160; sourceSize.height: 160; asynchronous: true }
-                            Label { anchors.centerIn: parent; visible: playbackCover.status !== Image.Ready; text: "♪"; color: bridge.palette.muted; font.pixelSize: 30 }
-                        }
-                        ColumnLayout { id: queueTrackInfo; Layout.fillWidth: true; Layout.minimumWidth: 0; spacing: 3
-                            Label { Layout.fillWidth: true; text: (modelData.current ? "▶ " : "")+modelData.title; color: modelData.current ? bridge.palette.accent : bridge.palette.text; elide: Text.ElideRight }
-                            Label { Layout.fillWidth: true; visible: !!modelData.artist; text: modelData.artist || ""; color: bridge.palette.muted; elide: Text.ElideRight }
-                            Label { Layout.fillWidth: true; visible: !!modelData.album; text: modelData.album || ""; color: bridge.palette.muted; elide: Text.ElideRight }
-                            Label { Layout.fillWidth: true; elide: Text.ElideRight; text: bridge.translate(({pending:"Aguardando análise",preparing:"Analisando ritmo e trechos…",ready:"Pronta para reproduzir",error:"Erro na análise"})[modelData.analysis] || ""); color: modelData.analysis === "error" ? bridge.palette.accent : bridge.palette.muted }
-                            Label { visible: modelData.duration > 0; text: workspace.clock(modelData.duration || 0); color: bridge.palette.muted }
-                        }
-                        ActionButton { id: queuePlayButton; text: bridge.translate(modelData.analysis === "error" ? "Tentar novamente" : "Tocar"); onClicked: bridge.playQueued(index) }
-                        PlaybackButton { glyph: "up"; Accessible.name: bridge.translate("Mover para cima"); enabled: index>0; onClicked: bridge.moveQueued(index,-1) }
-                        PlaybackButton { glyph: "down"; Accessible.name: bridge.translate("Mover para baixo"); enabled: index+1<bridge.queuedTracks.length; onClicked: bridge.moveQueued(index,1) }
-                        PlaybackButton { glyph: "close"; Accessible.name: bridge.translate("Remover da fila"); onClicked: bridge.removeQueued(index) }
-                    }
-                    Label { anchors.centerIn: parent; visible: bridge.queuedTracks.length===0; text: bridge.translate("Adicione arquivos ou músicas dos resultados."); color: bridge.palette.muted }
-                }
-            }
+            ActionButton { text: bridge.translate("Próxima"); enabled: bridge.playback.current+1<bridge.queuedTracks.length; onClicked: bridge.nextTrack() }
         }
         Card {
             Layout.fillWidth: true
@@ -85,7 +55,7 @@ ScrollView {
                             Label { Layout.fillWidth: true; text: modelData.artist; color: bridge.palette.muted; elide: Text.ElideRight }
                             Label { Layout.fillWidth: true; text: modelData.album || ""; color: bridge.palette.muted; elide: Text.ElideRight }
                         }
-                        ActionButton { text: bridge.translate("Adicionar à fila"); onClicked: {bridge.enqueueResult(index);page.queueExpanded=true} }
+                        ActionButton { text: bridge.translate("Adicionar à fila"); onClicked: {bridge.enqueueResult(index);workspace.setOption("jukeboxQueueOpen",true)} }
                     }
                     onClicked: bridge.selectResult(index)
                 }

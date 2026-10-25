@@ -39,7 +39,6 @@ import org.json.JSONObject
     var syncReload by remember {mutableStateOf(false)}
     val settings by OndaStore.settings.collectAsStateWithLifecycle()
     val adding by vm.addingToQueue.collectAsStateWithLifecycle()
-    val actionsAtTop=settings.optBoolean("queue_actions_at_top",true)
     var url by rememberSaveable {mutableStateOf("")}
     var filter by rememberSaveable {mutableStateOf("")}
     var selected by remember {mutableStateOf(setOf<String>())}
@@ -148,7 +147,7 @@ import org.json.JSONObject
             TextButton(onClick={selected=emptySet()}){UiText("Limpar seleção")}
             TextButton(onClick={vm.operation("matches",OndaStore.config(options).put("tracks",JSONArray(chosen()))){vm.collection.value=JSONObject(collection.toString()).put("tracks",JSONArray(mergeTrackMatches(tracks,it.getJSONArray("tracks").objects())))}}){UiText("Conferir correspondências")}
         }}
-        if(actionsAtTop)item {collectionActions()}
+        item {collectionActions()}
         if(adding)item {LinearProgressIndicator(Modifier.fillMaxWidth())}
         items(visible,contentType={"collection_track"}) {record->Surface(shape=RoundedCornerShape(16.dp),color=MaterialTheme.colorScheme.surfaceVariant.copy(alpha=.45f)){Row(Modifier.fillMaxWidth().heightIn(min=64.dp).toggleable(value=record.optString("source_url") in selected,role=Role.Checkbox,onValueChange={checked->val id=record.optString("source_url");selected=if(checked) selected+id else selected-id}).a11yState(if(record.optString("source_url") in selected) "Selecionado" else "Não selecionado"),verticalAlignment=Alignment.CenterVertically) {
             Checkbox(record.optString("source_url") in selected,null,modifier=Modifier.padding(end=LayoutSpacing.checkboxLabel))
@@ -158,7 +157,6 @@ import org.json.JSONObject
                 state.optJSONArray("paths")?.optString(0)?.takeIf {it.isNotBlank()}?.let {Text(it,style=MaterialTheme.typography.bodySmall)}
             }}
         }}}
-        if(!actionsAtTop)item {collectionActions()}
         item {Row {for(format in listOf("txt","m3u")) TextButton(onClick={vm.operation("export_list",JSONObject().put("tracks",JSONArray(tracks)).put("format",format)){exported=it.getString("text");export.launch("${collection.optString("title","Playlist")}.$format")}}){UiText("Exportar ${format.uppercase()}")}}}
         }
         item {Spacer(Modifier.height(16.dp))}

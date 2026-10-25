@@ -1,0 +1,27 @@
+{
+  "Ativar notificações": {
+    "pt-BR": "notificação notificações aviso avisos alerta alertas",
+    "en": "notification notifications notice notices alert alerts",
+    "es": "notificación notificaciones aviso avisos alerta alertas"
+  },
+  "Duração dos avisos": {
+    "pt-BR": "notificação notificações aviso avisos alerta alertas",
+    "en": "notification notifications notice notices alert alerts",
+    "es": "notificación notificaciones aviso avisos alerta alertas"
+  },
+  "Animar avisos": {
+    "pt-BR": "notificação notificações aviso avisos alerta alertas",
+    "en": "notification notifications notice notices alert alerts",
+    "es": "notificación notificaciones aviso avisos alerta alertas"
+  },
+  "Ação ao terminar a fila": {
+    "pt-BR": "notificação notificações aviso avisos alerta alertas som conclusão da fila finalizar",
+    "en": "notification notifications notice notices alert alerts sound queue completion finish",
+    "es": "notificación notificaciones aviso avisos alerta alertas sonido finalización de cola"
+  },
+  "Controles na notificação": {
+    "pt-BR": "notificação notificações aviso avisos alerta alertas botões pausar retomar parar",
+    "en": "notification notifications notice notices alert alerts controls buttons pause resume stop",
+    "es": "notificación notificaciones aviso avisos alerta alertas controles botones pausar reanudar detener"
+  }
+}

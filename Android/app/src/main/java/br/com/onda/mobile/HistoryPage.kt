@@ -38,19 +38,20 @@ import org.json.JSONObject
     var selected by remember {mutableStateOf(setOf<Long>())}
     var batch by remember {mutableStateOf<List<String>?>(null)}
     batch?.let {BatchMetadataEditor(vm,it){batch=null}}
-    val visible=remember(history,filter,kind){history.filter {it.title.contains(filter,true) && (kind=="Todos" || historyKind(it.mode)==kind)}}
+    val visible=remember(history,filter,kind){history.filter {it.title.contains(filter,true) && (kind=="Todos" || historyKind(it.mode,it.title)==kind)}}
+    LaunchedEffect(history) {selected=selected.intersect(history.map {it.id}.toSet())}
     var exported by remember {mutableStateOf("")}
     val export=rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")){uri->if(uri!=null)runCatching {OndaStore.context.contentResolver.openOutputStream(uri)?.use {it.write(exported.toByteArray())}}.onFailure {vm.showNotice("Exportar histórico","Não foi possível salvar o histórico.")}}
     LazyColumn(Modifier.fillMaxSize().testTag("history-list").imePadding().padding(horizontal=20.dp),verticalArrangement=Arrangement.spacedBy(12.dp),contentPadding=PaddingValues(bottom=20.dp)) {
         item {ToolHeading("Histórico") {Row {IconButton(onClick={exported=JSONArray(visible.map {JSONObject().put("title",it.title).put("uri",it.uri).put("format",it.mode).put("source",it.source).put("completed_at",it.completedAt)}).toString(2);export.launch("ONDA-historico.json")}){OndaIcon("download","Exportar histórico",Modifier.size(24.dp))};IconButton(onClick={showOptions=true}){OndaIcon("more-vertical","Opções do histórico",Modifier.size(22.dp))}}}}
         item {OutlinedTextField(filter,{filter=it},label={UiText("Pesquisar no histórico")},modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(16.dp),singleLine=true,leadingIcon={OndaIcon("search",modifier=Modifier.size(20.dp))})}
-        item {Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)){listOf("Todos","Áudio","Vídeo","Imagens").forEach {label->FilterChip(kind==label,{kind=label},label={UiText(label)},colors=FilterChipDefaults.filterChipColors(selectedContainerColor=MaterialTheme.colorScheme.primary,selectedLabelColor=MaterialTheme.colorScheme.onPrimary))}}}
+        item {Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)){listOf("Todos","Áudio","Vídeo","Imagens").forEach {label->FilterChip(kind==label,{kind=label},label={UiText(label)},modifier=Modifier.testTag("history-filter-$label"),colors=FilterChipDefaults.filterChipColors(selectedContainerColor=MaterialTheme.colorScheme.primary,selectedLabelColor=MaterialTheme.colorScheme.onPrimary))}}}
         item {Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){UiText(if(selectionMode)"${selected.size} selecionados" else "${visible.size} arquivos",Modifier.weight(1f),style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant);TextButton(onClick={selectionMode=!selectionMode;selected=emptySet()}){UiText(if(selectionMode)"Concluir" else "Selecionar")}}}
         if(selectionMode)item {ToolCard {
-            TextButton(onClick={selected=visible.filter {historyKind(it.mode)=="Áudio"}.map {it.id}.toSet()}){UiText("Selecionar áudios visíveis")}
+            TextButton(onClick={selected=visible.filter {historyKind(it.mode,it.title)=="Áudio"}.map {it.id}.toSet()}){UiText("Selecionar áudios visíveis")}
             TextButton(onClick={selected=emptySet()}){UiText("Limpar seleção")}
-            OutlinedButton(enabled=history.any {it.id in selected && historyKind(it.mode)=="Áudio"},onClick={
-                val audio=history.filter {it.id in selected && historyKind(it.mode)=="Áudio"}.distinctBy {it.uri}
+            OutlinedButton(enabled=history.any {it.id in selected && historyKind(it.mode,it.title)=="Áudio"},onClick={
+                val audio=history.filter {it.id in selected && historyKind(it.mode,it.title)=="Áudio"}.distinctBy {it.uri}
                 if(audio.size==1)onEditMetadata(audio.single()) else if(audio.isNotEmpty())batch=audio.map {it.uri}
             }){UiText("Editar metadados")}
         }}

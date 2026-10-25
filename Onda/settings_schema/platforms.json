@@ -1,0 +1,200 @@
+[
+  {
+    "key": "spotify",
+    "label": "Spotify",
+    "domains": [
+      "spotify.com",
+      "spotify.link"
+    ],
+    "aliases": []
+  },
+  {
+    "key": "deezer",
+    "label": "Deezer",
+    "domains": [
+      "deezer.com",
+      "deezer.page.link",
+      "link.deezer.com"
+    ],
+    "aliases": []
+  },
+  {
+    "key": "apple_music",
+    "label": "Apple Music",
+    "domains": [
+      "music.apple.com",
+      "itunes.apple.com"
+    ],
+    "aliases": [
+      "apple / itunes",
+      "applemusic",
+      "itunes",
+      "apple",
+      "apple music"
+    ]
+  },
+  {
+    "key": "youtube",
+    "label": "YouTube",
+    "domains": [
+      "youtube.com",
+      "youtu.be"
+    ],
+    "aliases": [
+      "youtube music"
+    ]
+  },
+  {
+    "key": "tidal",
+    "label": "TIDAL",
+    "domains": [
+      "tidal.com"
+    ],
+    "aliases": []
+  },
+  {
+    "key": "qobuz",
+    "label": "Qobuz",
+    "domains": [
+      "qobuz.com"
+    ],
+    "aliases": []
+  },
+  {
+    "key": "bandcamp",
+    "label": "Bandcamp",
+    "domains": [
+      "bandcamp.com"
+    ],
+    "aliases": []
+  },
+  {
+    "key": "musicbrainz",
+    "label": "MusicBrainz",
+    "domains": [
+      "musicbrainz.org"
+    ],
+    "aliases": []
+  },
+  {
+    "key": "instagram",
+    "label": "Instagram",
+    "domains": [
+      "instagram.com",
+      "instagr.am"
+    ],
+    "aliases": []
+  },
+  {
+    "key": "tiktok",
+    "label": "TikTok",
+    "domains": [
+      "tiktok.com"
+    ],
+    "aliases": []
+  },
+  {
+    "key": "kwai",
+    "label": "Kwai",
+    "domains": [
+      "kwai.com",
+      "kwai-video.com",
+      "kw.ai",
+      "kuaishou.com"
+    ],
+    "aliases": [
+      "kuaishou"
+    ]
+  },
+  {
+    "key": "twitter",
+    "label": "X / Twitter",
+    "domains": [
+      "twitter.com",
+      "x.com",
+      "t.co"
+    ],
+    "aliases": [
+      "x",
+      "x / twitter"
+    ]
+  },
+  {
+    "key": "facebook",
+    "label": "Facebook",
+    "domains": [
+      "facebook.com",
+      "fb.watch",
+      "fb.com"
+    ],
+    "aliases": []
+  },
+  {
+    "key": "soundcloud",
+    "label": "SoundCloud",
+    "domains": [
+      "soundcloud.com",
+      "snd.sc"
+    ],
+    "aliases": []
+  },
+  {
+    "key": "vimeo",
+    "label": "Vimeo",
+    "domains": [
+      "vimeo.com"
+    ],
+    "aliases": []
+  },
+  {
+    "key": "dailymotion",
+    "label": "Dailymotion",
+    "domains": [
+      "dailymotion.com",
+      "dai.ly"
+    ],
+    "aliases": []
+  },
+  {
+    "key": "twitch",
+    "label": "Twitch",
+    "domains": [
+      "twitch.tv",
+      "clips.twitch.tv"
+    ],
+    "aliases": []
+  },
+  {
+    "key": "reddit",
+    "label": "Reddit",
+    "domains": [
+      "reddit.com",
+      "redd.it"
+    ],
+    "aliases": []
+  },
+  {
+    "key": "pinterest",
+    "label": "Pinterest",
+    "domains": [
+      "pinterest.com",
+      "pin.it"
+    ],
+    "aliases": []
+  },
+  {
+    "key": "telegram",
+    "label": "Telegram",
+    "domains": [
+      "t.me",
+      "telegram.me"
+    ],
+    "aliases": []
+  },
+  {
+    "key": "link",
+    "label": "Link",
+    "domains": [],
+    "aliases": []
+  }
+]

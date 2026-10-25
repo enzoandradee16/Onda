@@ -16,8 +16,9 @@ internal fun metadataPlatform(record:JSONObject?):String = when(val name=record?
     "youtube music"->"youtube"
     else->name
 }
-@Composable internal fun MetadataPlatformBadge(record:JSONObject?,modifier:Modifier=Modifier) {
-    val key=metadataPlatform(record)
+@Composable internal fun MetadataPlatformBadge(record:JSONObject?,modifier:Modifier=Modifier,source:String="",imageMedia:Boolean=false) {
+    val identity=identifyPlatform(source.ifBlank {record?.cleanString("source_url").orEmpty()},metadataPlatform(record))
+    val key=identity.key
     val entry=when(key) {
         "spotify"->R.drawable.metadata_spotify to "Spotify"
         "deezer"->R.drawable.metadata_deezer to "Deezer"
@@ -27,10 +28,26 @@ internal fun metadataPlatform(record:JSONObject?):String = when(val name=record?
         "tidal"->R.drawable.metadata_tidal to "TIDAL"
         "qobuz"->R.drawable.metadata_qobuz to "Qobuz"
         "bandcamp"->R.drawable.metadata_bandcamp to "Bandcamp"
+        "instagram"->R.drawable.metadata_instagram to identity.label
+        "tiktok"->R.drawable.metadata_tiktok to identity.label
+        "kwai"->R.drawable.metadata_kwai to identity.label
+        "twitter"->R.drawable.metadata_twitter to identity.label
+        "facebook"->R.drawable.metadata_facebook to identity.label
+        "soundcloud"->R.drawable.metadata_soundcloud to identity.label
+        "vimeo"->R.drawable.metadata_vimeo to identity.label
+        "dailymotion"->R.drawable.metadata_dailymotion to identity.label
+        "twitch"->R.drawable.metadata_twitch to identity.label
+        "reddit"->R.drawable.metadata_reddit to identity.label
+        "pinterest"->R.drawable.metadata_pinterest to identity.label
+        "telegram"->R.drawable.metadata_telegram to identity.label
+        "link"->R.drawable.metadata_link to identity.label
         else->null
     }
-    if(entry!=null) Row(modifier,verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(5.dp)) {
-        Image(painterResource(entry.first),translateUi("Origem dos metadados")+": "+entry.second,Modifier.size(18.dp),colorFilter=ColorFilter.tint(LocalContentColor.current))
-        Text(entry.second,style=MaterialTheme.typography.labelSmall)
+    if(entry!=null || imageMedia) Row(modifier,verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(5.dp)) {
+        if(imageMedia)OndaIcon("image","Imagens",Modifier.size(18.dp))
+        if(entry!=null) {
+            if(!imageMedia || key!="link")Image(painterResource(entry.first),translateUi("Plataforma")+": "+entry.second,Modifier.size(18.dp),colorFilter=ColorFilter.tint(LocalContentColor.current))
+            Text(identity.label,style=MaterialTheme.typography.labelSmall)
+        }
     }
 }

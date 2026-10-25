@@ -1,5 +1,23 @@
 # Histórico de versões
 
+## 1.2.2 — 2026-10-25
+
+- PC e Android: ícone de imagem nos cards de Downloads e histórico, preservando o domínio ou a plataforma de origem; imagens sem prévia usam o símbolo de imagem em vez de música.
+
+- Android: Downloads usa uma única tela simples, sem a alternativa Gerenciar fila nem as preferências de visualização e posição de ações. Busca, filtros, ordenação, seleção, remoção em lote, novas tentativas e detalhes ficam disponíveis na própria tela.
+
+- PC e Android: botão Remover e menu de contexto no histórico apagam somente o registro escolhido, preservando os arquivos baixados; filtros Todos, Áudio, Vídeo e Imagens alinhados.
+- Cards de histórico e downloads identificam Instagram, TikTok, Kwai e outras plataformas, incluindo links curtos; ícones acompanham o tema e preservam a identificação dos metadados de catálogo.
+
+- Android: interruptores visíveis no Preto Puro, inclusive desligados ou desabilitados; correção compartilhada pela janela de Aparência e demais controles.
+
+- PC e Android: pesquisa nas configurações mostra a aba de origem e encontra notificações sem exigir acentos; Android inclui controles de notificação e ação ao concluir a fila nos resultados.
+
+- Android: atalho de Aparência ao lado de Configurações, com janela para tema, cor de destaque e separações no Preto Puro.
+- PC e Android: novas instalações começam em Preto Puro com Verde-Água, preservando as preferências existentes.
+- Erros conhecidos traduzidos em português, inglês e espanhol; diagnósticos desconhecidos recebem explicação localizada com detalhes originais preservados.
+- PC: abas de reprodução agrupadas e filas de Efeitos e Jukebox no painel lateral compartilhado.
+
 ## 1.2.1 — 2026-10-24
 
 - Android: cancelamento cobre também processos nativos criados durante a corrida entre iniciar e registrar o processo; recursos são encerrados e coletados.

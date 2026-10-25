@@ -72,16 +72,23 @@ class LibraryStore:
             db.execute("INSERT INTO history(date,path,name,mode,source,source_key,mode_key) VALUES (?,?,?,?,?,?,?)",
                        (datetime.now().astimezone().isoformat(timespec="seconds"), path, Path(path).stem, mode, source,source_key(source),str(mode or '').lower()))
 
-    def history(self, query=""):
+    def history(self, query="", kind="Todos"):
         with self.connect() as db:
             db.row_factory = sqlite3.Row
+            limit=" LIMIT 1000" if kind=="Todos" else ""
             if query:
                 # SQLite lower() only folds ASCII; music titles commonly use accents.
                 db.create_function('casefold', 1, lambda value: (value or '').casefold(), deterministic=True)
-                cursor = db.execute("SELECT id,date,path,name,mode,source FROM history WHERE instr(casefold(name),?)>0 ORDER BY id DESC LIMIT 1000", (query.casefold(),))
+                cursor = db.execute("SELECT id,date,path,name,mode,source FROM history WHERE instr(casefold(name),?)>0 ORDER BY id DESC"+limit, (query.casefold(),))
             else:
-                cursor = db.execute("SELECT id,date,path,name,mode,source FROM history ORDER BY id DESC LIMIT 1000")
-            return [dict(row) for row in cursor]
+                cursor = db.execute("SELECT id,date,path,name,mode,source FROM history ORDER BY id DESC"+limit)
+            from platform_info import history_kind
+            from itertools import islice
+            return list(islice((dict(row) for row in cursor if kind=="Todos" or history_kind(row['mode'],row['path'])==kind),1000))
+
+    def remove_history(self,identity):
+        with self.connect() as db:
+            db.execute("DELETE FROM history WHERE id=?",(int(identity),))
 
     def find_duplicate(self, source, mode):
         from duplicate_links import source_key

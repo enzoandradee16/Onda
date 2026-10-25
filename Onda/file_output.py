@@ -53,8 +53,12 @@ def destination(config, record=None, info=None):
     return root
 
 
-def publish(source, folder, policy="keep", choose=None, *, config=None, record=None, info=None):
+def publish(source, folder, policy="keep", choose=None, *, config=None, record=None, info=None, companions=None):
+    """Publish a file, optionally reserving matching sidecars under keep policy."""
     source, folder = Path(source), Path(folder)
+    companions = {suffix: Path(path) for suffix, path in (companions or {}).items()}
+    if companions and (policy != 'keep' or any(not re.fullmatch(r'\.[A-Za-z0-9]+', suffix) or suffix.lower() == source.suffix.lower() for suffix in companions)):
+        raise ValueError('Arquivos auxiliares exigem extensões distintas e a opção Manter ambos.')
     folder.mkdir(parents=True, exist_ok=True)
     from output_rules import output_filename
     target = folder / (output_filename(source, config, record, info) if config is not None else source.name)
@@ -102,14 +106,35 @@ def publish(source, folder, policy="keep", choose=None, *, config=None, record=N
         except FileExistsError:
             index += 1
             continue
+        reserved = [(candidate, output, source)]
         try:
-            with output, source.open("rb") as original:
-                shutil.copyfileobj(original, output)
-                output.flush()
-                os.fsync(output.fileno())
-        except BaseException:
-            candidate.unlink(missing_ok=True)
+            # Reserve the entire name pair before copying. A pre-existing LRC
+            # belongs to the user even if its corresponding audio is absent.
+            for suffix, companion in companions.items():
+                path = candidate.with_suffix(suffix)
+                reserved.append((path, path.open('xb'), companion))
+        except BaseException as error:
+            for path, stream, _ in reserved:
+                stream.close()
+                path.unlink(missing_ok=True)
+            if isinstance(error, FileExistsError):
+                index += 1
+                continue
             raise
+        try:
+            for _, stream, original_path in reserved:
+                with original_path.open('rb') as original:
+                    shutil.copyfileobj(original, stream)
+                    stream.flush()
+                    os.fsync(stream.fileno())
+        except BaseException:
+            for path, stream, _ in reserved:
+                stream.close()
+                path.unlink(missing_ok=True)
+            raise
+        finally:
+            for _, stream, _ in reserved:
+                stream.close()
         source.unlink()
         return str(candidate), False
 

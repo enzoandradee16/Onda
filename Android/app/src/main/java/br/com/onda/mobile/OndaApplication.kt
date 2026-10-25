@@ -87,7 +87,7 @@ object MobileEngine {
         val observer=EventCallback {raw->
             if(action=="update")runCatching {
                 val event=org.json.JSONObject(raw)
-                if(event.has("message"))toolsState.value=ToolPreparation(true,event.optString("message"),event.optLong("done"),event.optLong("total"))
+                if(event.has("message"))toolsState.value=ToolPreparation(true,if(event.optString("type")=="error")translateError(event.optString("message")) else event.optString("message"),event.optLong("done"),event.optLong("total"))
             }
             callback.onEvent(raw)
         }

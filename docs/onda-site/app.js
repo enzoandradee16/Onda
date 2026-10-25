@@ -2,6 +2,23 @@ const repo = "https://github.com/enzoandradee16/Onda";
 const latest = `${repo}/releases/latest`;
 const copy = {
   pt: {
+    emulator: "Android para emulador",
+    emulatorBody: "Android 8 ou superior · x86_64. Para emuladores compatíveis, como BlueStacks.",
+    visualTitle: "Reprodução, com outra cara.",
+    visualIntro: "Jukebox infinito, efeitos, letras sincronizadas e um player que acompanha sua música.",
+    galleryTitle: "Seu player. Em cada tela.",
+    galleryIntro: "Da barra compacta à letra em tela cheia, com a capa do álbum sempre por perto.",
+    playerLabel: "Player no Android",
+    lyricsLabel: "Letras em tela cheia",
+    miniLabel: "Miniplayer no Windows",
+    emulatorDownload: "Baixar APK x86_64 (emulador)",
+    visualAlt: "Captura do ONDA no Windows: pesquisa de músicas no tema preto puro",
+    androidSearchAlt: "Pesquisa de músicas no ONDA para Android, no tema preto puro",
+    closeImage: "Fechar imagem",
+    moreTitle: "Conheça mais do ONDA.",
+    moreIntro: "Organize seus downloads, edite suas músicas e cuide das suas imagens. Clique nas capturas para ver os detalhes.",
+    moreLabels: ["Editar metadados no Windows", "Fila de downloads no Windows", "Efeitos de áudio no Windows", "Conversão de imagens no Windows", "Álbuns e playlists no Android", "Downloads no Android"],
+
     lang: "pt-BR",
     nav: ["Início", "Downloads", "Recursos", "Guia", "Novidades", "Sobre"],
     skip: "Ir para o conteúdo",
@@ -82,12 +99,29 @@ const copy = {
     license: "Distribuído sob a licença GPL-2.0.",
     privacyTitle: "Privacidade do site.",
     privacyBody:
-      "Este site não usa cookies de rastreamento, anúncios ou ferramentas de análise. A preferência de idioma é salva apenas neste navegador. Para mostrar a versão atual e os downloads, o site consulta a API pública do GitHub; a hospedagem e os downloads também usam os serviços do GitHub.",
+      "Este site não usa cookies de rastreamento, anúncios ou ferramentas de análise. As preferências de idioma e tema são salvas apenas neste navegador. Para mostrar a versão atual e os downloads, o site consulta a API pública do GitHub; a hospedagem e os downloads também usam os serviços do GitHub.",
     privacyMore: "Declaração de privacidade do GitHub ↗",
     localNote:
       "A preferência de idioma pode não ser salva se o armazenamento do navegador estiver bloqueado.",
   },
   es: {
+    emulator: "Android para emulador",
+    emulatorBody: "Android 8 o superior · x86_64. Para emuladores compatibles, como BlueStacks.",
+    visualTitle: "La reproducción tiene nueva cara.",
+    visualIntro: "Jukebox infinito, efectos, letras sincronizadas y un reproductor que acompaña tu música.",
+    galleryTitle: "Tu reproductor. En cada pantalla.",
+    galleryIntro: "Desde la barra compacta hasta las letras a pantalla completa, con la portada del álbum siempre cerca.",
+    playerLabel: "Reproductor en Android",
+    lyricsLabel: "Letras a pantalla completa",
+    miniLabel: "Minirreproductor en Windows",
+    emulatorDownload: "Descargar APK x86_64 (emulador)",
+    visualAlt: "Captura de ONDA en Windows: búsqueda de música con tema negro puro",
+    androidSearchAlt: "Búsqueda de música en ONDA para Android, con tema negro puro",
+    closeImage: "Cerrar imagen",
+    moreTitle: "Descubre más de ONDA.",
+    moreIntro: "Organiza tus descargas, edita tu música y trabaja con tus imágenes. Haz clic en las capturas para ver los detalles.",
+    moreLabels: ["Editar metadatos en Windows", "Cola de descargas en Windows", "Efectos de audio en Windows", "Conversión de imágenes en Windows", "Álbumes y playlists en Android", "Descargas en Android"],
+
     lang: "es",
     nav: ["Inicio", "Descargas", "Funciones", "Guía", "Novedades", "Acerca de"],
     skip: "Ir al contenido",
@@ -169,10 +203,27 @@ const copy = {
     license: "Distribuido bajo la licencia GPL-2.0.",
     privacyTitle: "Privacidad del sitio.",
     privacyBody:
-      "Este sitio no usa cookies de seguimiento, anuncios ni herramientas de análisis. La preferencia de idioma se guarda solo en este navegador. Para mostrar la versión actual y las descargas, consulta la API pública de GitHub; el alojamiento y las descargas también utilizan los servicios de GitHub.",
+      "Este sitio no usa cookies de seguimiento, anuncios ni herramientas de análisis. Las preferencias de idioma y tema se guardan solo en este navegador. Para mostrar la versión actual y las descargas, consulta la API pública de GitHub; el alojamiento y las descargas también utilizan los servicios de GitHub.",
     privacyMore: "Declaración de privacidad de GitHub ↗",
   },
   en: {
+    emulator: "Android for emulators",
+    emulatorBody: "Android 8 or later · x86_64. For compatible emulators, such as BlueStacks.",
+    visualTitle: "A fresh look for playback.",
+    visualIntro: "Infinite Jukebox, effects, synced lyrics and a player that follows your music.",
+    galleryTitle: "Your player. On every screen.",
+    galleryIntro: "From the compact bar to full-screen lyrics, with album artwork close at hand.",
+    playerLabel: "Android player",
+    lyricsLabel: "Full-screen lyrics",
+    miniLabel: "Windows miniplayer",
+    emulatorDownload: "Download x86_64 APK (emulator)",
+    visualAlt: "ONDA screenshot on Windows: music search with the pure black theme",
+    androidSearchAlt: "Music search in ONDA for Android, with the pure black theme",
+    closeImage: "Close image",
+    moreTitle: "Discover more of ONDA.",
+    moreIntro: "Organize downloads, edit your music and work with your images. Click the screenshots for a closer look.",
+    moreLabels: ["Edit metadata on Windows", "Download queue on Windows", "Audio effects on Windows", "Image conversion on Windows", "Albums and playlists on Android", "Downloads on Android"],
+
     lang: "en",
     nav: ["Home", "Downloads", "Features", "Guide", "News", "About"],
     skip: "Skip to content",
@@ -254,7 +305,7 @@ const copy = {
     license: "Distributed under the GPL-2.0 license.",
     privacyTitle: "Website privacy.",
     privacyBody:
-      "This website uses no tracking cookies, ads or analytics tools. Your language preference is saved only in this browser. To show the current version and downloads, the site queries the public GitHub API; hosting and downloads also use GitHub services.",
+      "This website uses no tracking cookies, ads or analytics tools. Your language and theme preferences are saved only in this browser. To show the current version and downloads, the site queries the public GitHub API; hosting and downloads also use GitHub services.",
     privacyMore: "GitHub privacy statement ↗",
   },
 };
@@ -277,6 +328,7 @@ function assetUrl(kind) {
     installer: /Setup-Windows-x64\.exe$/i,
     portable: /(?:Portable|Portatil)-Windows-x64\.zip$/i,
     apk: /Android-.*arm64-v8a\.apk$/i,
+    emulator: /Android-.*x86_64\.apk$/i,
   };
   const asset = release?.assets?.find((a) => patterns[kind].test(a.name));
   const url = asset?.browser_download_url;
@@ -326,6 +378,50 @@ function platformIcon(platform) {
   return "";
 }
 
+const themeButton = document.querySelector("#theme-toggle");
+const themeLabels = {
+  pt: ["Modo claro", "Modo escuro", "Pesquisa de músicas no ONDA para Windows, no tema claro"],
+  es: ["Modo claro", "Modo oscuro", "Búsqueda de música en ONDA para Windows, en tema claro"],
+  en: ["Light mode", "Dark mode", "Music search in ONDA for Windows, in light mode"],
+};
+function updateTheme() {
+  const light = document.documentElement.dataset.theme === "light";
+  const themeLabel = themeLabels[language][light ? 1 : 0];
+  themeButton.setAttribute("aria-label", themeLabel);
+  themeButton.title = themeLabel;
+  themeButton.innerHTML = `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${light
+    ? '<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/>'
+    : '<path d="M20.9 13A9 9 0 0 1 11 3.1 9 9 0 1 0 20.9 13Z"/>'}</svg>`;
+  themeButton.setAttribute("aria-pressed", String(light));
+  document.querySelector('meta[name="theme-color"]').content = light ? "#f3f6fa" : "#0d1318";
+  const desktop = main.querySelector(".hero-screens .shot, .feature-search .feature-desktop, .guide-search .feature-desktop");
+  if (desktop) {
+    const image = desktop.querySelector("img");
+    const source = `assets/desktop-search${light ? "-light" : ""}.png`;
+    desktop.href = source;
+    image.src = source;
+    image.alt = light ? themeLabels[language][2] : copy[language].visualAlt;
+    desktop.setAttribute("aria-label", `${copy[language].enlarge}: ${image.alt}`);
+    image.height = 1015;
+  }
+  const phone = main.querySelector(".hero-screens .phone-shot, .feature-search .feature-phone, .guide-search .feature-phone");
+  if (phone) {
+    const image = phone.querySelector("img");
+    const source = `assets/android-search${light ? "-light" : ""}-cropped.png`;
+    const alt = light ? themeLabels[language][2].replace("Windows", "Android") : copy[language].androidSearchAlt;
+    phone.href = source;
+    phone.setAttribute("aria-label", `${copy[language].enlarge}: ${alt}`);
+    image.src = source;
+    image.alt = alt;
+  }
+}
+themeButton.addEventListener("click", () => {
+  const theme = document.documentElement.dataset.theme === "light" ? "dark" : "light";
+  document.documentElement.dataset.theme = theme;
+  try { localStorage.setItem("onda-site-theme", theme); } catch {}
+  updateTheme();
+});
+
 function render() {
   const t = copy[language];
   const route = routes.includes(location.hash.slice(1)) ? location.hash.slice(1) : "home";
@@ -359,7 +455,7 @@ function render() {
     body = /* HTML */ `
       <section class="hero">
         <div>
-          <p class="eyebrow">Windows & Android</p>
+          <p class="eyebrow"><span class="live-dot" aria-hidden="true"></span> Windows & Android</p>
           <h1>${t.title}</h1>
           <p class="intro">${t.description}</p>
           <div class="actions">
@@ -371,22 +467,51 @@ function render() {
             )}
           </div>
           <p class="facts">${t.facts}</p>
+          ${link(assetUrl("emulator"), t.emulatorDownload, "emulator-link")}
         </div>
+        <div class="hero-screens">
         <a
           class="shot"
-          href="assets/app-${language}.png"
+          href="assets/desktop-search.png"
           target="_blank"
           rel="noopener"
           aria-label="${t.enlarge}"
         >
           <img
-            src="assets/app-${language}.png"
-            alt="${t.alt}"
-            width="1919"
-            height="1008"
+            src="assets/desktop-search.png"
+            alt="${t.visualAlt}"
+            width="1920"
+            height="1015"
             fetchpriority="high"
           />
         </a>
+        <a class="phone-shot" href="assets/android-search-cropped.png" target="_blank" rel="noopener" aria-label="${t.enlarge}: ${t.androidSearchAlt}">
+          <img src="assets/android-search-cropped.png" alt="${t.androidSearchAlt}" width="576" height="1184" />
+        </a>
+        </div>
+      </section>
+      <section class="showcase playback-showcase" aria-labelledby="visual-title">
+        <div class="section-heading"><p class="eyebrow">ONDA</p><h2 id="visual-title">${t.visualTitle}</h2><p>${t.visualIntro}</p></div>
+        <div class="gallery">
+          <figure class="gallery-player"><a href="assets/android-player.png" target="_blank" rel="noopener"><img src="assets/android-player.png" alt="${t.playerLabel}" width="576" height="1193" loading="lazy"></a><figcaption>${t.playerLabel}</figcaption></figure>
+          <figure class="gallery-lyrics"><a href="assets/android-lyrics.png" target="_blank" rel="noopener"><img src="assets/android-lyrics.png" alt="${t.lyricsLabel}" loading="lazy"></a><figcaption>${t.lyricsLabel}</figcaption></figure>
+          <div class="gallery-detail"><h3>${t.galleryTitle}</h3><p>${t.galleryIntro}</p><figure><a href="assets/desktop-miniplayer.png" target="_blank" rel="noopener"><img src="assets/desktop-miniplayer.png" alt="${t.miniLabel}" width="557" height="454" loading="lazy"></a><figcaption>${t.miniLabel}</figcaption></figure></div>
+        </div>
+      </section>
+    `;
+    body += /* HTML */ `
+      <section class="showcase" aria-labelledby="more-screens-title">
+        <div class="section-heading"><p class="eyebrow">Windows & Android</p><h2 id="more-screens-title">${t.moreTitle}</h2><p>${t.moreIntro}</p></div>
+        <div class="gallery more-desktop">
+          ${[['desktop-metadata.png',1005],['desktop-downloads.png',1014],['desktop-effects.png',1016],['desktop-images.png',1015]].map(([file,height],index) => `
+            <figure><a href="assets/${file}" aria-label="${t.enlarge}: ${t.moreLabels[index]}"><img src="assets/${file}" alt="${t.moreLabels[index]}" width="1920" height="${height}" loading="lazy" decoding="async"></a><figcaption>${t.moreLabels[index]}</figcaption></figure>
+          `).join('')}
+        </div>
+        <div class="gallery more-mobile">
+          ${['android-library.png','android-downloads.png'].map((file,index) => `
+            <figure><a href="assets/${file}" aria-label="${t.enlarge}: ${t.moreLabels[index+4]}"><img src="assets/${file}" alt="${t.moreLabels[index+4]}" width="576" height="1193" loading="lazy" decoding="async"></a><figcaption>${t.moreLabels[index+4]}</figcaption></figure>
+          `).join('')}
+        </div>
       </section>
     `;
   } else if (route === "downloads") {
@@ -394,8 +519,8 @@ function render() {
       heading(t.downloadTitle, t.downloadIntro) +
       releaseLabel(t) +
       /* HTML */ `
-        <div class="grid">
-          ${["installer", "portable", "apk"]
+        <div class="grid downloads-grid">
+          ${["installer", "portable", "apk", "emulator"]
             .map(
               (k) => /* HTML */ `
                 <article class="card">
@@ -405,7 +530,7 @@ function render() {
                     assetUrl(k),
                     t.get,
                     "button" + (k === "installer" ? "" : " outline"),
-                    k === "apk" ? "android" : "windows",
+                    ["apk", "emulator"].includes(k) ? "android" : "windows",
                   )}
                 </article>
               `,
@@ -416,39 +541,78 @@ function render() {
         <p class="prose small">${t.downloadNote}</p>
       `;
   } else if (route === "features") {
-    body =
-      heading(t.featuresTitle, t.featuresIntro) +
-      /* HTML */ `
-        <div class="grid">
-          ${t.features
-            .map(
-              ([a, b]) => /* HTML */ `
-                <article class="card">
-                  <h2>${a}</h2>
-                  <p>${b}</p>
-                </article>
-              `,
-            )
-            .join("")}
-        </div>
-        <div class="prose"><p>${t.featureNote}</p></div>
-      `;
+    const preview = (file, alt, cls = "", width = 1920, height = 1015) => `
+      <a data-preview class="${cls}" href="assets/${file}" aria-label="${t.enlarge}: ${alt}">
+        <img src="assets/${file}" alt="${alt}" width="${width}" height="${height}" loading="lazy" decoding="async">
+      </a>`;
+    body = heading(t.featuresTitle, t.featuresIntro) + `
+      <div class="features-showcase">
+        <article class="feature-story">
+          <div class="feature-copy"><span class="feature-number">01 / Windows & Android</span>
+            <h2>${t.features[0][0]}</h2><p>${t.features[0][1]}</p>
+            <div class="feature-tags"><span>Deezer</span><span>Apple Music</span><span>Spotify</span></div>
+          </div>
+          <div class="feature-media feature-search">
+            ${preview(document.documentElement.dataset.theme === "light" ? "desktop-search-light.png" : "desktop-search.png", t.visualAlt, "feature-desktop")}
+            ${preview(document.documentElement.dataset.theme === "light" ? "android-search-light-cropped.png" : "android-search-cropped.png", t.androidSearchAlt, "feature-phone", 576, 1184)}
+          </div>
+        </article>
+        <article class="feature-story feature-reverse">
+          <div class="feature-copy"><span class="feature-number">02 / Windows & Android</span>
+            <h2>${t.features[1][0]}</h2><p>${t.features[1][1]}</p>
+          </div>
+          <div class="feature-media">
+            ${preview("desktop-downloads.png", t.moreLabels[1], "feature-desktop", 1920, 1014)}
+            ${preview("android-library.png", t.moreLabels[4], "feature-phone", 576, 1193)}
+          </div>
+        </article>
+        <article class="feature-editor">
+          <div class="feature-copy"><span class="feature-number">03 / ONDA</span>
+            <h2>${t.features[2][0]}</h2><p>${t.features[2][1]}</p>
+          </div>
+          <div class="feature-tools">
+            ${[["desktop-metadata.png", 0, 1005], ["desktop-effects.png", 2, 1016], ["desktop-images.png", 3, 1015]].map(([file, index, height]) => `
+              <figure>${preview(file, t.moreLabels[index], "", 1920, height)}<figcaption>${t.moreLabels[index]}</figcaption></figure>`).join("")}
+          </div>
+        </article>
+        <aside class="feature-personal"><span class="feature-number">ONDA</span><p>${t.featureNote}</p></aside>
+      </div>`;
   } else if (route === "guide") {
-    body =
-      heading(t.guideTitle, t.guideIntro) +
-      t.guide
-        .map(
-          ([a, b]) => /* HTML */ `
-            <details>
-              <summary>${a}</summary>
-              <p>${b}</p>
-            </details>
-          `,
-        )
-        .join("") +
-      /* HTML */ `
-        <p>${link(doc, t.fullGuide)}</p>
-      `;
+    const light = document.documentElement.dataset.theme === "light";
+    const guideImage = (file, alt, cls = "", width = 1920, height = 1015) => `
+      <a data-preview class="${cls}" href="assets/${file}" aria-label="${t.enlarge}: ${alt}">
+        <img src="assets/${file}" alt="${alt}" width="${width}" height="${height}" loading="lazy" decoding="async">
+      </a>`;
+    body = heading(t.guideTitle, t.guideIntro) + `
+      <div class="features-showcase guide-showcase">
+        <div class="guide-platforms">
+          <article class="guide-platform">
+            <div class="guide-platform-heading">${platformIcon("windows")}<span class="feature-number">01 / Windows</span></div>
+            <div class="feature-copy"><h2>${t.guide[0][0]}</h2><p>${t.guide[0][1]}</p></div>
+            ${guideImage("desktop-downloads.png", t.moreLabels[1], "guide-windows", 1920, 1014)}
+            ${link(assetUrl("installer"), t.win, "button", "windows")}
+          </article>
+          <article class="guide-platform">
+            <div class="guide-platform-heading">${platformIcon("android")}<span class="feature-number">02 / Android</span></div>
+            <div class="feature-copy"><h2>${t.guide[1][0]}</h2><p>${t.guide[1][1]}</p></div>
+            ${guideImage("android-downloads.png", t.moreLabels[5], "guide-android", 576, 1193)}
+            ${link(assetUrl("apk"), t.android, "button outline", "android")}
+          </article>
+        </div>
+        <article class="feature-story guide-search">
+          <div class="feature-copy"><span class="feature-number">03 / ONDA</span>
+            <h2>${t.guide[2][0]}</h2><p>${t.guide[2][1]}</p>
+          </div>
+          <div class="feature-media">
+            ${guideImage(light ? "desktop-search-light.png" : "desktop-search.png", light ? themeLabels[language][2] : t.visualAlt, "feature-desktop")}
+            ${guideImage(light ? "android-search-light-cropped.png" : "android-search-cropped.png", t.androidSearchAlt, "feature-phone", 576, 1184)}
+          </div>
+        </article>
+        <aside class="guide-source">
+          <span class="feature-number">04 / ONDA</span><h2>${t.guide[3][0]}</h2><p>${t.guide[3][1]}</p>
+        </aside>
+        <div class="guide-documentation">${link(doc, t.fullGuide, "button outline")}</div>
+      </div>`;
   } else if (route === "news") {
     body =
       heading(t.newsTitle, t.newsIntro) +
@@ -492,7 +656,41 @@ function render() {
       : /* HTML */ `
           <section class="page">${body}</section>
         `;
+  updateTheme();
+  main.querySelectorAll('.hero-screens a, .gallery a, .features-showcase a[data-preview]').forEach((anchor) => {
+    anchor.removeAttribute('target');
+    anchor.setAttribute('aria-haspopup', 'dialog');
+  });
 }
+const imageViewer = document.querySelector('#image-viewer');
+const viewerImage = imageViewer.querySelector('img');
+const viewerClose = imageViewer.querySelector('button');
+let imageTrigger = null;
+main.addEventListener('click', (event) => {
+  const anchor = event.target.closest('.hero-screens a, .gallery a, .features-showcase a[data-preview]');
+  if (!anchor) return;
+  const image = anchor.querySelector('img');
+  if (!image) return;
+  event.preventDefault();
+  imageTrigger = anchor;
+  viewerImage.src = anchor.href;
+  viewerImage.alt = image.alt;
+  imageViewer.setAttribute('aria-label', image.alt);
+  viewerClose.textContent = copy[language].closeImage + ' ×';
+  imageViewer.showModal();
+  document.body.classList.add('viewing-image');
+});
+viewerClose.addEventListener('click', () => imageViewer.close());
+imageViewer.addEventListener('click', (event) => {
+  if (event.target === imageViewer) imageViewer.close();
+});
+imageViewer.addEventListener('close', () => {
+  document.body.classList.remove('viewing-image');
+  const trigger = imageTrigger?.isConnected ? imageTrigger :
+    [...main.querySelectorAll('.hero-screens a, .gallery a, .features-showcase a[data-preview]')].find((anchor) => anchor.href === viewerImage.src);
+  (trigger || main).focus({preventScroll: true});
+  viewerImage.removeAttribute('src');
+});
 document.querySelector("#language").addEventListener("change", (e) => {
   language = e.target.value;
   try {
@@ -504,8 +702,21 @@ document.querySelector(".skip").addEventListener("click", (e) => {
   e.preventDefault();
   main.focus();
 });
-window.addEventListener("hashchange", () => {
+let pageAnimation;
+window.addEventListener("hashchange", (event) => {
+  const routeIndex = (url) => {
+    const index = routes.indexOf(new URL(url).hash.slice(1));
+    return index < 0 ? 0 : index;
+  };
+  const direction = routeIndex(event.newURL) >= routeIndex(event.oldURL) ? 1 : -1;
   render();
+  pageAnimation?.cancel();
+  if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    pageAnimation = main.animate([
+      { opacity: 0, transform: `translateX(${direction * 56}px)` },
+      { opacity: 1, transform: "translateX(0)" },
+    ], { duration: 340, easing: "cubic-bezier(0.22, 1, 0.36, 1)" });
+  }
   main.focus({ preventScroll: true });
   window.scrollTo(0, 0);
 });

@@ -1,0 +1,459 @@
+{
+  "phrases": [
+    {
+      "en": "Permission denied",
+      "pt-BR": "Permissão negada",
+      "es": "Permiso denegado"
+    },
+    {
+      "en": "Access is denied",
+      "pt-BR": "Acesso negado",
+      "es": "Acceso denegado"
+    },
+    {
+      "en": "No such file or directory",
+      "pt-BR": "Arquivo ou diretório não encontrado",
+      "es": "Archivo o directorio no encontrado"
+    },
+    {
+      "en": "The system cannot find the file specified",
+      "pt-BR": "O sistema não encontrou o arquivo especificado",
+      "es": "El sistema no encuentra el archivo especificado"
+    },
+    {
+      "en": "The system cannot find the path specified",
+      "pt-BR": "O sistema não encontrou o caminho especificado",
+      "es": "El sistema no encuentra la ruta especificada"
+    },
+    {
+      "en": "No space left on device",
+      "pt-BR": "Não há espaço livre no dispositivo",
+      "es": "No queda espacio en el dispositivo"
+    },
+    {
+      "en": "Read-only file system",
+      "pt-BR": "Sistema de arquivos somente leitura",
+      "es": "Sistema de archivos de solo lectura"
+    },
+    {
+      "en": "File exists",
+      "pt-BR": "O arquivo já existe",
+      "es": "El archivo ya existe"
+    },
+    {
+      "en": "Is a directory",
+      "pt-BR": "O caminho é um diretório",
+      "es": "La ruta es un directorio"
+    },
+    {
+      "en": "Not a directory",
+      "pt-BR": "O caminho não é um diretório",
+      "es": "La ruta no es un directorio"
+    },
+    {
+      "en": "Invalid argument",
+      "pt-BR": "Argumento inválido",
+      "es": "Argumento no válido"
+    },
+    {
+      "en": "Too many open files",
+      "pt-BR": "Muitos arquivos abertos",
+      "es": "Demasiados archivos abiertos"
+    },
+    {
+      "en": "The process cannot access the file because it is being used by another process",
+      "pt-BR": "O arquivo está em uso por outro processo",
+      "es": "Otro proceso está utilizando el archivo"
+    },
+    {
+      "en": "Connection refused",
+      "pt-BR": "Conexão recusada",
+      "es": "Conexión rechazada"
+    },
+    {
+      "en": "Connection reset by peer",
+      "pt-BR": "Conexão interrompida pelo servidor",
+      "es": "El servidor interrumpió la conexión"
+    },
+    {
+      "en": "Connection reset",
+      "pt-BR": "Conexão interrompida",
+      "es": "Conexión interrumpida"
+    },
+    {
+      "en": "Connection aborted",
+      "pt-BR": "Conexão encerrada",
+      "es": "Conexión interrumpida"
+    },
+    {
+      "en": "Connection timed out",
+      "pt-BR": "Tempo limite de conexão esgotado",
+      "es": "Se agotó el tiempo de conexión"
+    },
+    {
+      "en": "Read timed out",
+      "pt-BR": "Tempo limite de leitura esgotado",
+      "es": "Se agotó el tiempo de lectura"
+    },
+    {
+      "en": "The read operation timed out",
+      "pt-BR": "Tempo limite de leitura esgotado",
+      "es": "Se agotó el tiempo de lectura"
+    },
+    {
+      "en": "timed out",
+      "pt-BR": "Tempo limite esgotado",
+      "es": "Tiempo de espera agotado"
+    },
+    {
+      "en": "Network is unreachable",
+      "pt-BR": "Rede inacessível",
+      "es": "Red inaccesible"
+    },
+    {
+      "en": "Temporary failure in name resolution",
+      "pt-BR": "Falha temporária na resolução de endereço",
+      "es": "Fallo temporal al resolver la dirección"
+    },
+    {
+      "en": "Name or service not known",
+      "pt-BR": "Endereço ou serviço não encontrado",
+      "es": "Dirección o servicio desconocido"
+    },
+    {
+      "en": "Name resolution failed",
+      "pt-BR": "Falha na resolução de endereço",
+      "es": "Error al resolver la dirección"
+    },
+    {
+      "en": "Failed to resolve",
+      "pt-BR": "Não foi possível resolver o endereço",
+      "es": "No se pudo resolver la dirección"
+    },
+    {
+      "en": "getaddrinfo failed",
+      "pt-BR": "Falha ao resolver o endereço de rede",
+      "es": "Error al resolver la dirección de red"
+    },
+    {
+      "en": "Unable to resolve host",
+      "pt-BR": "Não foi possível resolver o servidor",
+      "es": "No se pudo resolver el servidor"
+    },
+    {
+      "en": "Remote end closed connection without response",
+      "pt-BR": "O servidor encerrou a conexão sem responder",
+      "es": "El servidor cerró la conexión sin responder"
+    },
+    {
+      "en": "certificate verify failed",
+      "pt-BR": "Falha na verificação do certificado",
+      "es": "Error al verificar el certificado"
+    },
+    {
+      "en": "Max retries exceeded",
+      "pt-BR": "Limite de tentativas excedido",
+      "es": "Se superó el límite de reintentos"
+    },
+    {
+      "en": "Failed to establish a new connection",
+      "pt-BR": "Não foi possível estabelecer uma conexão",
+      "es": "No se pudo establecer una conexión"
+    },
+    {
+      "en": "HTTP Error",
+      "pt-BR": "Erro HTTP",
+      "es": "Error HTTP"
+    },
+    {
+      "en": "Bad Request",
+      "pt-BR": "Solicitação inválida",
+      "es": "Solicitud no válida"
+    },
+    {
+      "en": "Unauthorized",
+      "pt-BR": "Autorização necessária",
+      "es": "Se requiere autorización"
+    },
+    {
+      "en": "Forbidden",
+      "pt-BR": "Acesso proibido",
+      "es": "Acceso prohibido"
+    },
+    {
+      "en": "Not Found",
+      "pt-BR": "Não encontrado",
+      "es": "No encontrado"
+    },
+    {
+      "en": "Too Many Requests",
+      "pt-BR": "Muitas solicitações",
+      "es": "Demasiadas solicitudes"
+    },
+    {
+      "en": "Internal Server Error",
+      "pt-BR": "Erro interno do servidor",
+      "es": "Error interno del servidor"
+    },
+    {
+      "en": "Bad Gateway",
+      "pt-BR": "Resposta inválida do servidor intermediário",
+      "es": "Respuesta no válida del servidor intermediario"
+    },
+    {
+      "en": "Service Unavailable",
+      "pt-BR": "Serviço indisponível",
+      "es": "Servicio no disponible"
+    },
+    {
+      "en": "Gateway Timeout",
+      "pt-BR": "Tempo limite do servidor intermediário esgotado",
+      "es": "Se agotó el tiempo del servidor intermediario"
+    },
+    {
+      "en": "Unsupported URL",
+      "pt-BR": "Link não compatível",
+      "es": "Enlace no compatible"
+    },
+    {
+      "en": "Requested format is not available",
+      "pt-BR": "O formato solicitado não está disponível",
+      "es": "El formato solicitado no está disponible"
+    },
+    {
+      "en": "Video unavailable",
+      "pt-BR": "Vídeo indisponível",
+      "es": "Vídeo no disponible"
+    },
+    {
+      "en": "This video is private",
+      "pt-BR": "Este vídeo é privado",
+      "es": "Este vídeo es privado"
+    },
+    {
+      "en": "This video is not available",
+      "pt-BR": "Este vídeo não está disponível",
+      "es": "Este vídeo no está disponible"
+    },
+    {
+      "en": "Sign in to confirm you’re not a bot",
+      "pt-BR": "Entre na sua conta para confirmar que você não é um robô",
+      "es": "Inicia sesión para confirmar que no eres un robot"
+    },
+    {
+      "en": "Sign in to confirm you're not a bot",
+      "pt-BR": "Entre na sua conta para confirmar que você não é um robô",
+      "es": "Inicia sesión para confirmar que no eres un robot"
+    },
+    {
+      "en": "Login required",
+      "pt-BR": "Login necessário",
+      "es": "Se requiere iniciar sesión"
+    },
+    {
+      "en": "Unable to download webpage",
+      "pt-BR": "Não foi possível baixar a página",
+      "es": "No se pudo descargar la página"
+    },
+    {
+      "en": "Unable to download video data",
+      "pt-BR": "Não foi possível baixar os dados do vídeo",
+      "es": "No se pudieron descargar los datos del vídeo"
+    },
+    {
+      "en": "Unable to extract",
+      "pt-BR": "Não foi possível extrair",
+      "es": "No se pudo extraer"
+    },
+    {
+      "en": "Invalid data found when processing input",
+      "pt-BR": "Dados inválidos encontrados ao processar o arquivo de entrada",
+      "es": "Se encontraron datos no válidos al procesar el archivo de entrada"
+    },
+    {
+      "en": "Error opening input",
+      "pt-BR": "Erro ao abrir o arquivo de entrada",
+      "es": "Error al abrir el archivo de entrada"
+    },
+    {
+      "en": "Error opening output",
+      "pt-BR": "Erro ao abrir o arquivo de saída",
+      "es": "Error al abrir el archivo de salida"
+    },
+    {
+      "en": "Conversion failed",
+      "pt-BR": "Falha na conversão",
+      "es": "Error en la conversión"
+    },
+    {
+      "en": "Unknown encoder",
+      "pt-BR": "Codificador desconhecido",
+      "es": "Codificador desconocido"
+    },
+    {
+      "en": "Unknown decoder",
+      "pt-BR": "Decodificador desconhecido",
+      "es": "Decodificador desconocido"
+    },
+    {
+      "en": "Encoder not found",
+      "pt-BR": "Codificador não encontrado",
+      "es": "Codificador no encontrado"
+    },
+    {
+      "en": "Decoder not found",
+      "pt-BR": "Decodificador não encontrado",
+      "es": "Decodificador no encontrado"
+    },
+    {
+      "en": "Protocol not found",
+      "pt-BR": "Protocolo não encontrado",
+      "es": "Protocolo no encontrado"
+    },
+    {
+      "en": "Broken pipe",
+      "pt-BR": "Comunicação com o processo interrompida",
+      "es": "Comunicación con el proceso interrumpida"
+    },
+    {
+      "en": "Cannot allocate memory",
+      "pt-BR": "Não foi possível alocar memória",
+      "es": "No se pudo asignar memoria"
+    },
+    {
+      "en": "Out of memory",
+      "pt-BR": "Memória insuficiente",
+      "es": "Memoria insuficiente"
+    },
+    {
+      "en": "database is locked",
+      "pt-BR": "O banco de dados está em uso",
+      "es": "La base de datos está en uso"
+    },
+    {
+      "en": "database disk image is malformed",
+      "pt-BR": "O banco de dados está corrompido",
+      "es": "La base de datos está dañada"
+    },
+    {
+      "en": "Expecting value",
+      "pt-BR": "Valor esperado nos dados recebidos",
+      "es": "Se esperaba un valor en los datos recibidos"
+    },
+    {
+      "en": "Unexpected end of input",
+      "pt-BR": "Fim inesperado dos dados",
+      "es": "Fin inesperado de los datos"
+    },
+    {
+      "en": "No activity found to handle Intent",
+      "pt-BR": "Nenhum aplicativo disponível para esta ação",
+      "es": "No hay ninguna aplicación disponible para esta acción"
+    },
+    {
+      "en": "ERROR:",
+      "pt-BR": "ERRO:",
+      "es": "ERROR:"
+    },
+    {
+      "en": "WARNING:",
+      "pt-BR": "AVISO:",
+      "es": "ADVERTENCIA:"
+    },
+    {
+      "en": "cannot identify image file",
+      "pt-BR": "Não foi possível reconhecer o arquivo de imagem",
+      "es": "No se pudo reconocer el archivo de imagen"
+    },
+    {
+      "en": "image file is truncated",
+      "pt-BR": "O arquivo de imagem está incompleto",
+      "es": "El archivo de imagen está incompleto"
+    },
+    {
+      "en": "Invalid sample rate",
+      "pt-BR": "Taxa de amostragem inválida",
+      "es": "Frecuencia de muestreo no válida"
+    },
+    {
+      "en": "Output file is empty",
+      "pt-BR": "O arquivo de saída está vazio",
+      "es": "El archivo de salida está vacío"
+    },
+    {
+      "en": "Unable to find a suitable output format",
+      "pt-BR": "Não foi possível encontrar um formato de saída adequado",
+      "es": "No se pudo encontrar un formato de salida adecuado"
+    },
+    {
+      "en": "Invalid duration specification",
+      "pt-BR": "Duração especificada inválida",
+      "es": "Duración especificada no válida"
+    },
+    {
+      "en": "returned non-zero exit status",
+      "pt-BR": "retornou um código de saída diferente de zero",
+      "es": "devolvió un código de salida distinto de cero"
+    },
+    {
+      "en": "File is not a zip file",
+      "pt-BR": "O arquivo não é um ZIP válido",
+      "es": "El archivo no es un ZIP válido"
+    },
+    {
+      "en": "Bad magic number for central directory",
+      "pt-BR": "Cabeçalho inválido no diretório central do ZIP",
+      "es": "Cabecera no válida en el directorio central del ZIP"
+    },
+    {
+      "en": "CRC check failed",
+      "pt-BR": "Falha na verificação CRC",
+      "es": "Error en la verificación CRC"
+    },
+    {
+      "en": "unable to open database file",
+      "pt-BR": "Não foi possível abrir o banco de dados",
+      "es": "No se pudo abrir la base de datos"
+    },
+    {
+      "en": "unable to get local issuer certificate",
+      "pt-BR": "Não foi possível obter o certificado do emissor local",
+      "es": "No se pudo obtener el certificado del emisor local"
+    },
+    {
+      "en": "self-signed certificate",
+      "pt-BR": "Certificado autoassinado",
+      "es": "Certificado autofirmado"
+    },
+    {
+      "en": "Unsupported codec",
+      "pt-BR": "Codec não compatível",
+      "es": "Códec no compatible"
+    },
+    {
+      "en": "No audio stream found",
+      "pt-BR": "Nenhuma faixa de áudio encontrada",
+      "es": "No se encontró ninguna pista de audio"
+    },
+    {
+      "en": "No video formats found",
+      "pt-BR": "Nenhum formato de vídeo encontrado",
+      "es": "No se encontró ningún formato de vídeo"
+    },
+    {
+      "en": "The requested URL returned error",
+      "pt-BR": "O endereço solicitado retornou um erro",
+      "es": "La dirección solicitada devolvió un error"
+    },
+    {
+      "en": "Sign in to confirm your age",
+      "pt-BR": "Entre na sua conta para confirmar sua idade",
+      "es": "Inicia sesión para confirmar tu edad"
+    }
+  ],
+  "unknown": {
+    "pt-BR": "Não foi possível concluir esta operação. Detalhes técnicos originais:",
+    "en": "This operation could not be completed. Original technical details:",
+    "es": "No se pudo completar esta operación. Detalles técnicos originales:"
+  }
+}

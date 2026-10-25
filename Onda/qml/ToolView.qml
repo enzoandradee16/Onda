@@ -6,7 +6,6 @@ ScrollView {
     Timer { interval: 100; running: page.visible; repeat: true; onTriggered: page.effectsLyricFrame=workspace.lyricsFrame() }
     signal lyricsRequested()
     id: page
-    property bool effectsQueueExpanded: false
     property string mode: workspace.currentPage
     readonly property bool effectsSearching: workspace.activity.busy.indexOf("effects_search")>=0 || workspace.activity.busy.indexOf("effects_load")>=0 || workspace.activity.busy.indexOf("effects_queue_info")>=0
     property bool audioOnly: workspace.values.converterSources.some(function(path) { return /\.(mp3|m4a|aac|flac|wav|ogg|opus)$/i.test(path) })
@@ -35,8 +34,6 @@ ScrollView {
                 TaskButton { objectName: "effectsSearchButton"; idleText: bridge.translate("Pesquisar"); primary: true; operation: "effects_search"; taskNames: ["effects_search","effects_load","effects_queue_info"]; enabled: taskRunning || !!(workspace.values.effectsQuery || "").trim() }
             }
             Flow { Layout.fillWidth: true; spacing: 8
-                ActionButton {text: bridge.translate("Adicionar arquivos à fila"); enabled: !page.effectsSearching; onClicked: workspace.invoke("pick",{kind:"effects_queue"})}
-                ActionButton {text: bridge.translate("Fila de reprodução")+" ("+workspace.values.effectsQueue.length+")"; onClicked: workspace.setOption("effectsQueueOpen",true)}
                 ActionButton {text: bridge.translate("Próxima"); enabled: workspace.values.effectsQueueIndex+1<workspace.values.effectsQueue.length; onClicked: workspace.invoke("effects_next",{})}
                 OndaSwitch {text: bridge.translate("Transição gradual"); checked: workspace.preferences.jukebox_gradual_transition; onToggled: workspace.setSetting("jukebox_gradual_transition",checked)}
             }
@@ -88,7 +85,7 @@ ScrollView {
             TaskButton { idleText: bridge.translate("Detectar silêncio"); operation: "detect_silence"; enabled: taskRunning || workspace.values.converterSources.length > 0 }
             Repeater { model: workspace.values.silenceResults || []
                 Label { required property var modelData; Layout.fillWidth: true; wrapMode: Text.Wrap; color: modelData.error ? bridge.palette.error : bridge.palette.muted
-                    text: modelData.source.split(/[\\/]/).pop()+": "+(modelData.error || (modelData.silent ? bridge.translate("Arquivo inteiramente silencioso; recorte automático indisponível.") : bridge.translate("Silêncio inicial")+": "+modelData.leading.toFixed(2)+" s · "+bridge.translate("Silêncio final")+": "+modelData.trailing.toFixed(2)+" s"))
+                    text: modelData.source.split(/[\\/]/).pop()+": "+((modelData.error ? bridge.translateError(modelData.error) : "") || (modelData.silent ? bridge.translate("Arquivo inteiramente silencioso; recorte automático indisponível.") : bridge.translate("Silêncio inicial")+": "+modelData.leading.toFixed(2)+" s · "+bridge.translate("Silêncio final")+": "+modelData.trailing.toFixed(2)+" s"))
                 }
             }
             RowLayout {

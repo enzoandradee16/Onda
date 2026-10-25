@@ -31,10 +31,10 @@ class SettingsSearchTest {
             assertFalse(settingsSearchMatches("impossivelxyz","Limpar cache"))
             compose.setContent {MaterialTheme {SettingsWindow(vm,initialCategory="Geral") {}}}
             compose.onNodeWithTag("settings-search").performTextInput("limpar cache")
-            compose.onNodeWithText("Ferramentas · Limpar cache").performClick()
+            compose.onNodeWithTag("settings-result-Ferramentas-Limpar cache").performClick()
             compose.onNodeWithText("Limpar cache").assertIsDisplayed()
             compose.onNodeWithTag("settings-search").performTextInput("Tamanho máximo")
-            compose.onNodeWithText("Imagens · Tamanho máximo").performClick()
+            compose.onNodeWithTag("settings-result-Imagens-Tamanho máximo").performClick()
             compose.onNodeWithText("Tamanho máximo").assertIsDisplayed()
             compose.onNodeWithContentDescription("Tamanho máximo: Original").performClick()
             compose.onNodeWithText("Até 1920 × 1080").performClick()

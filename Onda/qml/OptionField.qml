@@ -6,6 +6,8 @@ ColumnLayout {
     objectName: "settingField_" + field.key
     required property var field
     property bool settings: false
+    property bool showCategory: false
+    signal categoryRequested(string category)
     readonly property bool timeField: field.key === "schedule_start" || field.key === "schedule_stop"
     readonly property bool transitionDuration: field.key === "jukebox_transition_seconds"
     readonly property var current: settings ? workspace.preferences[field.key] : workspace.values[field.key]
@@ -13,6 +15,16 @@ ColumnLayout {
     implicitWidth: 220
     Layout.minimumWidth: 0
     spacing: Math.round(6*bridge.spacing)
+    ToolButton {
+        objectName: "settingCategory_" + root.field.key
+        visible: root.settings && root.showCategory
+        text: bridge.translate("Configurações")+" › "+bridge.translate(root.field.category || "")
+        Layout.alignment: Qt.AlignLeft
+        leftPadding: 0; rightPadding: 8; topPadding: 4; bottomPadding: 4
+        contentItem: Text {text: parent.text;color: bridge.palette.accent;font.pixelSize: Math.round(12*bridge.fontScale);font.weight: Font.DemiBold}
+        background: Rectangle {radius: 6;color: parent.hovered ? bridge.palette.hover : "transparent";border.width: parent.visualFocus ? 1 : 0;border.color: bridge.palette.accent}
+        onClicked: root.categoryRequested(root.field.category)
+    }
     Label { visible: !!root.field.section; text: bridge.translate(root.field.section || ""); color: bridge.palette.text; font.pixelSize: Math.round(18*bridge.fontScale); font.bold: true; Layout.fillWidth: true; Layout.minimumWidth: 0; Layout.bottomMargin: 8 }
     Label { visible: root.field.kind !== "bool"; text: bridge.translate(root.field.label); color: bridge.palette.muted; wrapMode: Text.Wrap; Layout.fillWidth: true; Layout.minimumWidth: 0 }
     OndaSwitch { visible: root.field.kind === "bool"; text: bridge.translate(root.field.label); checked: root.current === true; onToggled: root.save(checked); Layout.fillWidth: true; Layout.minimumWidth: 0 }

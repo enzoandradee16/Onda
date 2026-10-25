@@ -53,7 +53,7 @@ import java.io.File
     val export=rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) {uri->if(uri!=null) {
         vm.operation("settings_export",JSONObject().put("settings",OndaStore.settings.value),dialog=true){result->
             runCatching {OndaStore.context.contentResolver.openOutputStream(uri)!!.bufferedWriter().use {it.write(result.getJSONObject("payload").toString(2))}}
-                .onSuccess {vm.showNotice("Exportar configurações","Configurações exportadas.")}.onFailure {vm.showNotice("Exportar configurações",it.message ?: "Não foi possível salvar.")}
+                .onSuccess {vm.showNotice("Exportar configurações","Configurações exportadas.")}.onFailure {vm.showNotice("Exportar configurações",uiExceptionMessage(it,"Não foi possível salvar."))}
         }
     }}
     val importFile=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) {uri->if(uri!=null) {
@@ -98,13 +98,13 @@ import java.io.File
     } else if(download.status==android.app.DownloadManager.STATUS_SUCCESSFUL) {
         Button(onClick={runCatching {updater.install()}.onSuccess {opened->
             if(!opened)vm.showNotice("Instalar atualização","Permita a instalação pelo ONDA e volte para tocar em Instalar atualização.")
-        }.onFailure {vm.showNotice("Instalar atualização",it.message ?: "Não foi possível iniciar a instalação.")}}) {UiText("Instalar atualização")}
+        }.onFailure {vm.showNotice("Instalar atualização",uiExceptionMessage(it,"Não foi possível iniciar a instalação."))}}) {UiText("Instalar atualização")}
         TextButton(onClick={updater.cancel();download=UpdateDownload()}) {UiText("Descartar atualização baixada")}
     } else {
         if(download.status==android.app.DownloadManager.STATUS_FAILED)UiText("Não foi possível baixar a atualização. Tente novamente.")
         if(update?.optBoolean("available")==true)Button(onClick={
             runCatching {updater.start(update!!.getString("url"),language);download=updater.state()}
-                .onFailure {vm.showNotice("Baixar nova versão",it.message ?: "Não foi possível baixar a atualização. Tente novamente.")}
+                .onFailure {vm.showNotice("Baixar nova versão",uiExceptionMessage(it,"Não foi possível baixar a atualização. Tente novamente."))}
         }){UiText("Baixar nova versão")}
     }
     UiText("A atualização é baixada dentro do ONDA e continua em segundo plano. Ao terminar, toque em Instalar atualização e confirme no Android. Seus dados são preservados.",style=MaterialTheme.typography.bodySmall)

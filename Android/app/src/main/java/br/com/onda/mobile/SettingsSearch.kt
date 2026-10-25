@@ -14,12 +14,20 @@ import org.json.JSONArray
 
 internal data class SettingsSearchEntry(val category:String,val label:String,val keywords:String="")
 internal val LocalSettingsSearchTarget=staticCompositionLocalOf {""}
-private fun settingsFold(value:String)=Normalizer.normalize(value.lowercase(),Normalizer.Form.NFD).replace(Regex("\\p{M}+"),"")
+private fun settingsFold(value:String)=Normalizer.normalize(value.lowercase(java.util.Locale.ROOT),Normalizer.Form.NFD).replace(Regex("\\p{M}+"),"")
 internal fun settingsSearchMatches(query:String,text:String)=settingsFold(query).split(Regex("\\s+")).filter {it.isNotBlank()}.all {it in settingsFold(text)}
+private val settingsSearchTerms by lazy {
+    org.json.JSONObject(OndaStore.context.assets.open("search_terms.json").bufferedReader().use {it.readText()})
+}
+internal fun settingsSearchText(entry:SettingsSearchEntry,language:String):String {
+    val values=listOf(entry.category,entry.label,entry.keywords)
+    val aliases=settingsSearchTerms.optJSONObject(entry.label)
+    return (values+values.map {translateUi(it,language)}+UI_LANGUAGES.map {aliases?.optString(it).orEmpty()}).joinToString(" ")
+}
 internal fun settingsSearchEntries():List<SettingsSearchEntry> {
     val data=JSONArray(OndaStore.context.assets.open("settings_search.json").bufferedReader().use {it.readText()})
     val legacy=(0 until data.length()).map {data.getJSONObject(it).let {row->SettingsSearchEntry(row.getString("category"),row.getString("label"),row.optString("keywords"))}}
-    return listOf(SettingsSearchEntry("Áudio","Duração da transição entre músicas (segundos)","crossfade sobreposição jukebox timer"))+legacy.filter {it.label !in setOf("Ordem das abas","Mostrar ou ocultar abas","Restaurar ordem das abas")}+listOf(
+    return (listOf(SettingsSearchEntry("Áudio","Duração da transição entre músicas (segundos)","crossfade sobreposição jukebox timer"))+legacy.filter {it.label !in setOf("Ordem das abas","Mostrar ou ocultar abas","Restaurar ordem das abas","Mostrar itens na fila","Mostrar ações antes das listas")}+listOf(
         SettingsSearchEntry("Aparência","Tamanho dos cards da pesquisa","capas resultados músicas"),
         SettingsSearchEntry("Aparência","Ordem das abas de reprodução","efeitos jukebox infinito inverter"),
         SettingsSearchEntry("Aparência","Ordem da barra inferior","reordenar pesquisar downloads reprodução navegação"),
@@ -27,8 +35,9 @@ internal fun settingsSearchEntries():List<SettingsSearchEntry> {
         SettingsSearchEntry("Aparência","Mostrar Reprodução na barra inferior","jukebox efeitos ocultar"),
         SettingsSearchEntry("Aparência","Ferramentas no menu Mais","ordem mostrar ocultar imagens conversor metadados"),
         SettingsSearchEntry("Aparência","Biblioteca no menu Mais","ordem mostrar ocultar álbuns playlists histórico"),
-        SettingsSearchEntry("Aparência","Gerenciamento avançado","ações listas fila")
-    )
+        SettingsSearchEntry("Downloads","Ação ao terminar a fila","som concluir finalização"),
+        SettingsSearchEntry("Downloads","Controles na notificação","botões pausar retomar parar fila")
+    )).distinctBy {it.category to it.label}
 }
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable internal fun settingsSearchModifier(text:String,modifier:Modifier):Modifier {

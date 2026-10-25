@@ -5,6 +5,7 @@ Pane {
     DownloadFormatPopup {}
     LyricsWindow { id: lyricsWindow }
     EffectsQueueDrawer {parent: Overlay.overlay}
+    EffectsQueueDrawer {parent: Overlay.overlay; effects: false}
     EffectsMiniPlayer {id: effectsFloatingPlayer; mainWindow: app.Window.window}
     MiniPlayer { id: floatingPlayer; mainWindow: app.Window.window; volumeValue: volume.value; onVolumeMoved: function(value){volume.value=value} }
 
@@ -53,12 +54,23 @@ Pane {
                 ActionButton { text: bridge.translate("Metadados"); onClicked: workspace.showMetadata() }
                 }
                 Text { visible: workspace.currentPage === "effects" || workspace.currentPage === "jukebox"; text: bridge.translate("Sua música, do seu jeito."); font.pixelSize: Math.round(15*bridge.fontScale); color: bridge.palette.muted }
-                RowLayout {
-                    visible: workspace.currentPage === "effects" || workspace.currentPage === "jukebox"; Layout.topMargin: 16; spacing: Math.round(12*bridge.spacing)
+                Rectangle {
                     objectName: "playbackTabs"
-                    layoutDirection: workspace.preferences.playback_tab_order === "Jukebox infinito primeiro" ? Qt.RightToLeft : Qt.LeftToRight
-                    ActionButton { text: bridge.translate("Efeitos"); primary: workspace.currentPage === "effects"; onClicked: workspace.selectPage("effects"); Layout.preferredWidth: 130 }
-                    ActionButton { text: bridge.translate("Jukebox infinito"); primary: workspace.currentPage === "jukebox"; onClicked: workspace.selectPage("jukebox"); Layout.preferredWidth: 178 }
+                    visible: workspace.currentPage === "effects" || workspace.currentPage === "jukebox"
+                    Layout.topMargin: 16
+                    implicitWidth: Math.max(340,2*Math.max(effectsTab.implicitWidth,jukeboxTab.implicitWidth)+12)
+                    implicitHeight: Math.max(effectsTab.implicitHeight,jukeboxTab.implicitHeight)+12
+                    radius: 16
+                    color: bridge.palette.input
+                    border.width: bridge.theme === "Alto contraste" ? 1 : 0
+                    border.color: bridge.palette.line
+                    RowLayout {
+                        objectName: "playbackTabsLayout"
+                        anchors.fill: parent; anchors.margins: 6; spacing: 6
+                        layoutDirection: workspace.preferences.playback_tab_order === "Jukebox infinito primeiro" ? Qt.RightToLeft : Qt.LeftToRight
+                        SegmentButton { id: effectsTab; objectName: "effectsTab"; text: bridge.translate("Efeitos"); primary: workspace.currentPage === "effects"; onClicked: workspace.selectPage("effects"); Layout.fillWidth: true; Layout.preferredWidth: 1 }
+                        SegmentButton { id: jukeboxTab; objectName: "jukeboxTab"; text: bridge.translate("Jukebox infinito"); primary: workspace.currentPage === "jukebox"; onClicked: workspace.selectPage("jukebox"); Layout.fillWidth: true; Layout.preferredWidth: 1 }
+                    }
                 }
             }
             Flow { Layout.fillWidth: true; Layout.leftMargin: 24; Layout.rightMargin: 24; spacing: Math.round(8*bridge.spacing); visible: app.remainingTasks.length > 0
@@ -132,7 +144,7 @@ Pane {
                     MicrophoneButton { onClicked: { if (lyricsWindow.visible) lyricsWindow.close(); else lyricsWindow.open() } }
                     TimerButton { onClicked: miniTimers.open() }
                     PlaybackButton { glyph: "mini"; Accessible.name: bridge.translate("Mini player"); ToolTip.visible: hovered; ToolTip.text: Accessible.name; onClicked: {floatingPlayer.openPlayer()} }
-                    ActionButton { text: bridge.translate("Fila"); onClicked: {workspace.selectPage("jukebox");jukebox.queueExpanded=true} }
+                    ActionButton { text: bridge.translate("Fila"); onClicked: {workspace.setOption("jukeboxQueueOpen",true)} }
                 }
             }
             Rectangle {
@@ -204,7 +216,7 @@ Pane {
                     RowLayout {
                         anchors.right: parent.right; anchors.rightMargin: 24; anchors.verticalCenter: parent.verticalCenter
                         width: Math.max(180,parent.width/2-jukeboxTransport.width/2-48); spacing: Math.round(12*bridge.spacing)
-                    PlaybackButton {glyph:"queue";Accessible.name:bridge.translate("Fila");onClicked:{workspace.selectPage("jukebox");jukebox.queueExpanded=true}}
+                    PlaybackButton {glyph:"queue";Accessible.name:bridge.translate("Fila");onClicked:{workspace.setOption("jukeboxQueueOpen",true)}}
                     PlaybackButton { glyph: "mini"; Accessible.name: bridge.translate("Mini player"); ToolTip.visible: hovered; ToolTip.text: Accessible.name; onClicked: {floatingPlayer.openPlayer()} }
                     LineIcon { glyph: "volume"; Layout.preferredWidth: 24; Layout.preferredHeight: 24 }
                     OndaSlider { id: volume; Layout.fillWidth: true; Layout.preferredWidth: 250; Layout.maximumWidth: 250; Layout.minimumWidth: 70; value: 80; Accessible.name: bridge.translate("Volume") }
@@ -253,7 +265,7 @@ Pane {
         background: Card {}
         contentItem: ColumnLayout { spacing: 12
             Label { id: messageHeading; wrapMode: Text.Wrap; text: messagePopup.heading; font.pixelSize: Math.round(22*bridge.fontScale); color: bridge.palette.text; Layout.fillWidth: true }
-            ScrollView { Layout.fillWidth: true; Layout.fillHeight: true; contentWidth: availableWidth; clip: true; TextArea { id: messageText; width: parent.availableWidth; padding: 0; textFormat: Text.PlainText; text: messagePopup.body; readOnly: true; wrapMode: Text.Wrap; selectByMouse: true; color: bridge.palette.text } }
+            ScrollView { Layout.fillWidth: true; Layout.fillHeight: true; contentWidth: availableWidth; clip: true; TextArea { id: messageText; width: parent.availableWidth; padding: 0; textFormat: Text.PlainText; text: bridge.translate(messagePopup.body); readOnly: true; wrapMode: Text.Wrap; selectByMouse: true; color: bridge.palette.text } }
             ActionButton { id: messageDone; primary: true; text: bridge.translate("Pronto"); Layout.alignment: Qt.AlignRight; onClicked: messagePopup.close() }
         }
     }

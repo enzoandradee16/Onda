@@ -8,6 +8,17 @@ def track(number,title=None):
             'artists':['Artist'],'album':'Album','duration_ms':180000}
 
 class PlaylistComparisonTests(unittest.TestCase):
+    def test_failed_or_cancelled_jobs_do_not_hide_missing_tracks(self):
+        row=track('retry')
+        for state in ('Falhou','Erro','Cancelado','Parado','Concluído'):
+            with self.subTest(state=state):
+                result=reconcile([row],[],[{'url':row['source_url'],'state':state}])
+                self.assertEqual(result['items'][0]['state'],'missing')
+        for state in ('Na fila','Pendente','Em andamento','Baixando','Aguardando escolha','Pausado'):
+            with self.subTest(state=state):
+                result=reconcile([row],[],[{'url':row['source_url'],'state':state}])
+                self.assertEqual(result['items'][0]['state'],'queued')
+
     def test_identity_presence_missing_review_and_queue(self):
         a,b,c,d,e=[track(i) for i in range(5)]
         inventory=[dict(a,path='one.mp3',source_url=a['source_url']+'?si=tracking'),

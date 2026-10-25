@@ -66,7 +66,7 @@ class App(UiMixin, tk.Tk):
         from performance import DEFAULTS as PERFORMANCE_DEFAULTS
         for key,value in PERFORMANCE_DEFAULTS.items():setattr(self,key,tk.StringVar(value=value))
         self.shortcut_keys = tk.StringVar(value='{}')
-        self.theme_mode = tk.StringVar(value='Seguir o sistema')
+        self.theme_mode = tk.StringVar(value='Preto puro')
         self.theme_accent = tk.StringVar(value='Verde-Água')
         from interface_fonts import DEFAULT_FONT
         self.interface_font = tk.StringVar(value=DEFAULT_FONT)

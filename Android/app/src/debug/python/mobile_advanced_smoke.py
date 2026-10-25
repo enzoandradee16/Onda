@@ -28,3 +28,29 @@ def verify(folder):
         assert 'secret' not in json.dumps(exported) and 'private' not in json.dumps(exported)
         assert import_settings(exported,'windows')['theme_mode']=='Claro'
     return True
+
+
+def verify_storage(folder):
+    """Exercise shared fixes with real Android storage and Mutagen."""
+    import wave
+    from audio_library import edit_copy
+    from playlist_sync import reconcile
+    with tempfile.TemporaryDirectory(prefix='storage-regression-',dir=folder) as directory:
+        root=Path(directory);source=root/'song.wav';lyrics=root/'input.lrc'
+        with wave.open(str(source),'wb') as audio:
+            audio.setnchannels(1);audio.setsampwidth(2);audio.setframerate(8000);audio.writeframes(b'\0\0'*8000)
+        lyrics.write_text('[00:00.00]New lyrics',encoding='utf-8')
+        existing=root/'song - Editada.lrc';existing.write_text('User lyrics',encoding='utf-8')
+        result=edit_copy({'source':str(source),'lyrics_path':str(lyrics)})
+        final=Path(result['path'])
+        assert existing.read_text(encoding='utf-8')=='User lyrics'
+        assert final.name=='song - Editada (2).wav'
+        assert final.with_suffix('.lrc').read_text(encoding='utf-8')==lyrics.read_text(encoding='utf-8')
+        from mutagen import File
+        assert 'New lyrics' in File(final).tags.getall('USLT')[0].text
+        track={'source_url':'https://example.com/song','title':'Song','artists':['Artist']}
+        for state in ('Erro','Cancelado','Concluído'):
+            assert reconcile([track],[],[{'url':track['source_url'],'state':state}])['items'][0]['state']=='missing'
+        for state in ('Pendente','Baixando','Aguardando escolha'):
+            assert reconcile([track],[],[{'url':track['source_url'],'state':state}])['items'][0]['state']=='queued'
+    return True

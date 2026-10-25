@@ -24,4 +24,14 @@ class MetadataPlatformBadgeTest {
         compose.setContent {MaterialTheme {MetadataPlatformBadge(JSONObject())}}
         compose.onNodeWithText("YouTube").assertDoesNotExist()
     }
+    @Test fun imageIconPreservesWebsiteAndSocialPlatform() {
+        compose.setContent {MaterialTheme {androidx.compose.foundation.layout.Column {
+            MetadataPlatformBadge(JSONObject(),source="https://images.example.com/photo.jpg",imageMedia=true)
+            MetadataPlatformBadge(JSONObject(),source="https://instagram.com/p/test",imageMedia=true)
+            MetadataPlatformBadge(JSONObject(),imageMedia=true)
+        }}}
+        compose.onAllNodesWithContentDescription("Imagens").assertCountEquals(3)
+        compose.onNodeWithText("images.example.com").assertExists()
+        compose.onNodeWithContentDescription("Plataforma: Instagram").assertExists()
+    }
 }

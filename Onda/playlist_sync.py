@@ -28,7 +28,8 @@ def reconcile(tracks,inventory,queued=(),previous=None):
         if item.get('title'):titles[normalized(item['title'])].append(item)
         filename=item.get('filename') or Path(item.get('path','')).name
         if filename:names[normalized(Path(filename).stem)].append(item)
-    queue={job_source(item) for item in queued if item.get('state') not in ('Concluído','Concluido')}
+    queue_states={'Na fila','Pendente','Em andamento','Baixando','Aguardando escolha','Pausado'}
+    queue={job_source(item) for item in queued if item.get('state') in queue_states}
     old={source_key(url) for url in previous or []}
     result=[]
     counts={key:0 for key in ('present','missing','review','queued')}

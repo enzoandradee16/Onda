@@ -87,7 +87,7 @@ internal fun saveCoverCrop(bitmap:Bitmap,zoom:Float,offset:Offset,destination:Fi
     var width by remember {mutableIntStateOf(1)}
     var saving by remember {mutableStateOf(false)}
     LaunchedEffect(path) {
-        runCatching {withContext(Dispatchers.IO) {loadCoverBitmap(path)}}.onSuccess {bitmap=it}.onFailure {error=it.message ?: "Não foi possível abrir a capa."}
+        runCatching {withContext(Dispatchers.IO) {loadCoverBitmap(path)}}.onSuccess {bitmap=it}.onFailure {error=uiExceptionMessage(it,"Não foi possível abrir a capa.")}
     }
     Dialog(onDismissRequest={if(!saving)onCancel()},properties=DialogProperties(usePlatformDefaultWidth=false)) {
         Surface(shape=MaterialTheme.shapes.extraLarge,modifier=Modifier.fillMaxWidth().padding(LayoutSpacing.inset)) {
@@ -141,7 +141,7 @@ internal fun saveCoverCrop(bitmap:Bitmap,zoom:Float,offset:Offset,destination:Fi
                     UiText("Zoom",style=MaterialTheme.typography.labelMedium)
                     RoundSlider(value=zoom,onValueChange={zoom=it;val offset=coverOffset(image,zoom,Offset(x,y));x=offset.x;y=offset.y},valueRange=1f..4f,enabled=!saving,modifier=Modifier.a11yLabel("Zoom da capa","${(zoom*100).toInt()}%"))
                 }
-                if(error.isNotBlank())UiText(error,color=MaterialTheme.colorScheme.error)
+                if(error.isNotBlank())UiErrorText(error,color=MaterialTheme.colorScheme.error)
                 if(saving)LinearProgressIndicator(Modifier.fillMaxWidth())
                 Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) {
                     TextButton(onClick={zoom=1f;x=0f;y=0f},enabled=!saving){UiText("Redefinir")}
@@ -153,7 +153,7 @@ internal fun saveCoverCrop(bitmap:Bitmap,zoom:Float,offset:Offset,destination:Fi
                     scope.launch {
                         runCatching {withContext(Dispatchers.IO) {saveCoverCrop(image!!,zoom,Offset(x,y),destination)}}
                             .onSuccess {onApply(destination.absolutePath)}
-                            .onFailure {destination.delete();error=it.message ?: "Não foi possível salvar a capa."}
+                            .onFailure {destination.delete();error=uiExceptionMessage(it,"Não foi possível salvar a capa.")}
                         saving=false
                     }
                 },modifier=Modifier.fillMaxWidth()){UiText("Aplicar capa")}

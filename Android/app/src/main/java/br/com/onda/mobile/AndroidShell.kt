@@ -87,6 +87,19 @@ import androidx.compose.ui.graphics.drawscope.rotate
             "history"->{drawCircle(tint,9*u,center,style=Stroke(stroke));path(12f to 6f,12f to 12f,17f to 14f)}
             "album"->{path(4f to 6f,20f to 6f,20f to 22f,4f to 22f,close=true);line(7f,2f,17f,2f);drawCircle(tint,4*u,Offset(12*u,14*v),style=Stroke(stroke))}
             "equalizer"->{line(5f,3f,5f,21f);line(12f,3f,12f,21f);line(19f,3f,19f,21f);drawCircle(tint,2.5f*u,Offset(5*u,8*v));drawCircle(tint,2.5f*u,Offset(12*u,16*v));drawCircle(tint,2.5f*u,Offset(19*u,10*v))}
+            "appearance"->{
+                val palette=Path().apply {
+                    moveTo(12*u,3*v)
+                    cubicTo(6*u,3*v,2*u,7*v,2*u,12*v)
+                    cubicTo(2*u,18*v,7*u,22*v,12*u,22*v)
+                    cubicTo(15*u,22*v,16*u,20*v,14*u,18*v)
+                    cubicTo(13*u,16*v,15*u,15*v,18*u,15*v)
+                    cubicTo(24*u,15*v,23*u,3*v,12*u,3*v)
+                    close()
+                }
+                drawPath(palette,tint,style=Stroke(stroke,join=androidx.compose.ui.graphics.StrokeJoin.Round))
+                listOf(7f to 9f,12f to 7f,17f to 9f,7f to 14f).forEach {(x,y)->drawCircle(tint,1.3f*u,Offset(x*u,y*v))}
+            }
             "settings"->{
                 val gear=Path().apply {
                     for(tooth in 0 until 8) {
@@ -109,11 +122,12 @@ import androidx.compose.ui.graphics.drawscope.rotate
     }
 }
 
-@Composable internal fun OndaAppBar(onSettings:()->Unit) {
+@Composable internal fun OndaAppBar(onAppearance:()->Unit,onSettings:()->Unit) {
     val accent=MaterialTheme.colorScheme.primary
     Row(Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal=24.dp,vertical=8.dp),verticalAlignment=Alignment.CenterVertically) {
         OndaBrandMark(Modifier.size(44.dp,36.dp),accent)
         Text("ONDA",Modifier.weight(1f).padding(start=10.dp),style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.Bold,color=accent)
+        IconButton(onClick=onAppearance,modifier=Modifier.testTag("open-appearance")){OndaIcon("appearance","Aparência",Modifier.size(25.dp))}
         IconButton(onClick=onSettings,modifier=Modifier.testTag("open-settings")){OndaIcon("settings","Configurações",Modifier.size(25.dp))}
     }
 }
@@ -254,72 +268,6 @@ private val LocalPageSwipeExclusions=staticCompositionLocalOf<MutableMap<Any,Lay
             Surface(shape=RoundedCornerShape(12.dp),color=MaterialTheme.colorScheme.surfaceContainerHigh){Box(Modifier.size(48.dp),contentAlignment=Alignment.Center){OndaIcon(icon,modifier=Modifier.size(27.dp))}}
             Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(4.dp)){UiText(title,style=MaterialTheme.typography.titleMedium);if(detail.isNotBlank())UiText(detail,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)}
             OndaIcon("chevron",modifier=Modifier.size(18.dp))
-        }
-    }
-}
-
-@Composable internal fun DownloadsHome(vm:OndaViewModel) {
-    var completed by rememberSaveable {mutableStateOf(false)}
-    var advanced by rememberSaveable {mutableStateOf(false)}
-    val settings by OndaStore.settings.collectAsStateWithLifecycle()
-    val queue by OndaStore.items.collectAsStateWithLifecycle()
-    val running by OndaStore.running.collectAsStateWithLifecycle()
-    var menu by remember {mutableStateOf(false)}
-    Column(Modifier.fillMaxSize().padding(horizontal=24.dp)) {
-        Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
-            UiText("Downloads",Modifier.weight(1f),style=MaterialTheme.typography.headlineMedium,fontWeight=FontWeight.Bold)
-            DownloadCardSizeControl(settings,compact=true)
-            Box {IconButton(onClick={menu=true}){OndaIcon("more","Mais ações",Modifier.size(24.dp))};DropdownMenu(menu,{menu=false}) {
-                DropdownMenuItem(text={UiText(if(advanced)"Visualização simples" else "Gerenciar fila")},onClick={advanced=!advanced;menu=false})
-                DropdownMenuItem(text={UiText("Baixar fila")},enabled=queue.any {it.state=="Pendente"},onClick={DownloadService.start(OndaStore.context);menu=false})
-                DropdownMenuItem(text={UiText(if(DownloadRuntime.paused)"Retomar fila" else "Pausar fila")},enabled=running,onClick={DownloadService.control(OndaStore.context,if(DownloadRuntime.paused)"resume" else "pause");menu=false})
-                DropdownMenuItem(text={UiText("Cancelar fila")},enabled=running,onClick={DownloadService.stop(OndaStore.context);menu=false})
-            }}
-        }
-        if(advanced){QueuePage(vm);return@Column}
-        Box(Modifier.fillMaxWidth().padding(vertical=16.dp)) {
-            ToolTabs(listOf("Em andamento","Concluídos"),if(completed)1 else 0){completed=it==1}
-        }
-        val finished=queue.filter {it.state=="Concluído"}
-        val shown=if(completed)finished else queue.filter {it.state!="Concluído"}
-        LazyColumn(verticalArrangement=Arrangement.spacedBy(12.dp),contentPadding=PaddingValues(bottom=96.dp)) {
-            if(shown.isEmpty() && (completed || finished.isEmpty()))item {UiText(if(completed)"Nenhum download concluído" else "Nenhum download na fila",style=MaterialTheme.typography.titleMedium,modifier=Modifier.padding(top=24.dp));UiText("Use + para adicionar links ou encontre músicas na pesquisa.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)}
-            items(shown,key={it.id}) {item->DownloadSummaryCard(item,vm,settings)}
-            if(!completed && finished.isNotEmpty()) {
-                item {UiText("Concluídos",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold,modifier=Modifier.padding(top=12.dp,bottom=4.dp))}
-                items(finished.takeLast(3),key={it.id}) {item->DownloadSummaryCard(item,vm,settings)}
-            }
-        }
-    }
-}
-@Composable private fun DownloadSummaryCard(item:DownloadItem,vm:OndaViewModel,settings:JSONObject) {
-    var menu by remember {mutableStateOf(false)}
-    val complete=settings.optString("queue_view","Completa")=="Completa"
-    val cardSize=settings.optString("queue_card_size","Grande")
-    val coverSide=when(cardSize){"Pequeno"->56.dp;"Médio"->80.dp;else->100.dp}
-    val cardPadding=when(cardSize){"Pequeno"->10.dp;"Médio"->12.dp;else->16.dp}
-    LaunchedEffect(item.id,complete){if(complete && item.config.optJSONObject("queue_info")==null)vm.loadQueueInformation(item)}
-    val info=item.config.optJSONObject("queue_info") ?: item.config.optJSONObject("catalog_record")
-    val artists=info?.optJSONArray("artists")?.let {a->(0 until a.length()).joinToString(", "){a.optString(it)}}.orEmpty()
-    Surface(shape=RoundedCornerShape(18.dp),color=MaterialTheme.colorScheme.surfaceContainerLow,modifier=Modifier.fillMaxWidth().testTag("download-summary-${item.id}")) {
-        Row(Modifier.padding(cardPadding).heightIn(min=if(complete)coverSide else 40.dp),horizontalArrangement=Arrangement.spacedBy(12.dp),verticalAlignment=Alignment.CenterVertically) {
-            if(complete)Box(Modifier.size(coverSide).clip(RoundedCornerShape(10.dp)),contentAlignment=Alignment.Center){if(info?.cleanString("cover_url").isNullOrBlank())OndaIcon("album",modifier=Modifier.size(32.dp)) else AsyncImage(info?.cleanString("cover_url"),translateUi("Capa do álbum"),Modifier.fillMaxSize(),contentScale=ContentScale.Crop)}
-            Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(5.dp)) {
-                Text(songCardTitle(info?.cleanString("title")?.ifBlank {item.title} ?: item.title,artists),fontWeight=FontWeight.Medium,maxLines=if(cardSize=="Pequeno")1 else 2,overflow=TextOverflow.Ellipsis,style=if(cardSize=="Pequeno")MaterialTheme.typography.bodyMedium else if(cardSize=="Médio")MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleSmall)
-                if(complete && artists.isNotBlank())Text(artists,maxLines=1,overflow=TextOverflow.Ellipsis,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-                if(item.state in listOf("Baixando","Aguardando escolha"))Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-                    LinearProgressIndicator(progress={item.progress/100},modifier=Modifier.weight(1f).height(4.dp),strokeCap=StrokeCap.Round,drawStopIndicator={})
-                    Text("${item.progress.toInt()}%",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                if(item.state !in listOf("Baixando","Aguardando escolha"))UiText(item.state,style=MaterialTheme.typography.labelSmall,color=if(item.state=="Erro")MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            if(item.state=="Concluído")Surface(shape=RoundedCornerShape(50),color=MaterialTheme.colorScheme.primary) {Box(Modifier.size(28.dp),contentAlignment=Alignment.Center){OndaIcon("check","Concluído",Modifier.size(17.dp),tint=MaterialTheme.colorScheme.onPrimary)}}
-            Box {IconButton(onClick={menu=true}){OndaIcon("more","Mais ações",Modifier.size(21.dp))};DropdownMenu(menu,{menu=false}) {
-                DropdownMenuItem(text={UiText("Baixar agora")},enabled=item.state=="Pendente",onClick={DownloadService.start(OndaStore.context,item.id);menu=false})
-                DropdownMenuItem(text={UiText("Tentar novamente")},enabled=item.state in listOf("Erro","Cancelado"),onClick={OndaStore.retry(setOf(item.id));menu=false})
-                DropdownMenuItem(text={UiText("Remover")},enabled=item.state !in listOf("Baixando","Aguardando escolha"),onClick={OndaStore.remove(setOf(item.id));menu=false})
-                DropdownMenuItem(text={UiText("Ver detalhes")},onClick={vm.showNotice(item.title,item.message.ifBlank {item.state});menu=false})
-            }}
         }
     }
 }

@@ -25,7 +25,7 @@ import org.json.JSONObject
 
 val categories=linkedMapOf(
     "Geral" to listOf("remember","language","clipboard_links","notice_duration","notice_animation"),
-    "Aparência" to listOf("simple_download_ui","queue_actions_at_top","queue_view","queue_card_size","catalog_card_size","history_card_size","pure_black_separators","history_view","theme","accent","playback_tab_order","bottom_bar_order","tab_order","hidden_tabs","interface_font","interface_font_size","interface_spacing"),
+    "Aparência" to listOf("simple_download_ui","queue_card_size","catalog_card_size","history_card_size","pure_black_separators","history_view","theme","accent","playback_tab_order","bottom_bar_order","tab_order","hidden_tabs","interface_font","interface_font_size","interface_spacing"),
     "Downloads" to listOf("wifi_only","wifi_loss","finish_action","notification_controls","auto_select_media","social_best_quality","detect_duplicates","filename_template","concurrent_downloads","resume_downloads","resume_queue","normalize_volume","schedule_enabled","schedule_start","schedule_stop","mode","audio_quality","height","fps","playlist_limit","link_playlist","organization","duplicate_policy","output_uri","auto_metadata","auto_match","review_metadata"),
     "Imagens" to listOf("image_format","image_size","image_width","image_height","keep_ratio"),
     "Áudio" to listOf("search_preview","synced_lyrics","jukebox_equalizer","jukebox_gradual_transition","jukebox_transition_seconds"),
@@ -54,7 +54,7 @@ val categories=linkedMapOf(
     val language=LocalUiLanguage.current
     val keyboard=LocalSoftwareKeyboardController.current
     val searchResults=remember(searchQuery,language,settings.optString("theme")) {if(searchQuery.isBlank())emptyList() else searchEntries.filter {entry->
-        (entry.label!="Mostrar bordas e separações no Preto puro" || settings.optString("theme")=="Preto puro") && settingsSearchMatches(searchQuery,listOf(entry.category,entry.label,entry.keywords).joinToString(" "){translateUi(it,language)})
+        (entry.label!="Mostrar bordas e separações no Preto puro" || settings.optString("theme")=="Preto puro") && settingsSearchMatches(searchQuery,settingsSearchText(entry,language))
     }.sortedWith(compareBy<SettingsSearchEntry> {!settingsSearchMatches(searchQuery,translateUi(it.label,language))}.thenBy {it.label.length})}
     fun put(key: String,value: Any) {OndaStore.saveSettings(JSONObject(settings.toString()).put(key,value))}
     val folder=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) {uri->if(uri!=null) {
@@ -78,13 +78,19 @@ val categories=linkedMapOf(
             OutlinedTextField(searchQuery,{searchQuery=it;searchTarget=""},label={UiText("Pesquisar configurações")},singleLine=true,shape=RoundedCornerShape(16.dp),modifier=Modifier.fillMaxWidth().testTag("settings-search"))
             if(searchQuery.isNotBlank()) {
                 if(searchResults.isEmpty())UiText("Nenhuma configuração encontrada.",style=MaterialTheme.typography.bodySmall)
-                Column(Modifier.fillMaxWidth().heightIn(max=170.dp).verticalScroll(rememberScrollState())) {
+                Column(Modifier.fillMaxWidth().heightIn(max=240.dp).verticalScroll(rememberScrollState())) {
                     searchResults.forEach {entry->
                         TextButton(onClick={
                             searchTarget=entry.label;searchQuery="";overview=false;keyboard?.hide()
                             scope.launch {pager.scrollToPage(names.indexOf(entry.category).coerceAtLeast(0))}
-                        },modifier=Modifier.fillMaxWidth()) {
-                            Text(translateUi(entry.category,language)+" · "+translateUi(entry.label,language))
+                        },modifier=Modifier.fillMaxWidth().testTag("settings-result-${entry.category}-${entry.label}")) {
+                            Row(Modifier.fillMaxWidth(),verticalAlignment=androidx.compose.ui.Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+                                Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(4.dp)) {
+                                    Text(translateUi(entry.label,language),style=MaterialTheme.typography.bodyMedium,maxLines=2,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                                    Text(translateUi("Configurações",language)+" › "+translateUi(entry.category,language),style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                OndaIcon("chevron",modifier=Modifier.size(20.dp))
+                            }
                         }
                     }
                 }
@@ -152,7 +158,6 @@ val categories=linkedMapOf(
                         Toggle("Simplificar controles de download",settings.optBoolean("simple_download_ui",false)){put("simple_download_ui",it)}
                         UiText("Oculta formato e qualidade ao adicionar links pelo botão + e ao baixar músicas da pesquisa. Usa a maior qualidade disponível.",style=MaterialTheme.typography.bodySmall)
                         SettingsDivider()
-                        Select("Mostrar itens na fila",settings.optString("queue_view","Completa"),listOf("Compacto","Completa")){put("queue_view",it)}
                         Select("Tamanho dos cards da fila",settings.optString("queue_card_size","Grande"),listOf("Pequeno","Médio","Grande")){put("queue_card_size",it)}
                         Select("Mostrar músicas no histórico",settings.optString("history_view","Compacto"),listOf("Compacto","Completa")){put("history_view",it)}
                         UiText("Compacto mostra título e andamento. Completa inclui capa e informações disponíveis da música e do álbum.",style=MaterialTheme.typography.bodySmall)
@@ -188,10 +193,6 @@ val categories=linkedMapOf(
                             }}
                         }
                         TextButton(onClick={put("tab_order",OndaStore.defaults().getJSONArray("tab_order"))}){UiText("Restaurar ordem do menu Mais")}
-                        SettingsDivider()
-                        UiText("Gerenciamento avançado",style=MaterialTheme.typography.titleMedium)
-                        Toggle("Mostrar ações antes das listas",settings.optBoolean("queue_actions_at_top",true)){put("queue_actions_at_top",it)}
-                        UiText("Aplica-se à tela Gerenciar fila e ao histórico. Em Downloads, as ações ficam no menu de três pontos.",style=MaterialTheme.typography.bodySmall)
 
                     }
                     "Downloads"->{

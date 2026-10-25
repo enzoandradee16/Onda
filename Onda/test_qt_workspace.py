@@ -3,7 +3,7 @@ import functools,http.server,json,os,sys,tempfile,threading,time,unittest
 from pathlib import Path
 from unittest.mock import patch
 ROOT=Path(__file__).resolve().parent
-TOOLS=Path(os.environ.get('LOCALAPPDATA',''))/'Onda/tools/ffmpeg/9.0.2'
+TOOLS=Path(os.environ['ONDA_FFMPEG']) if os.environ.get('ONDA_FFMPEG') else Path(os.environ.get('LOCALAPPDATA',''))/'Onda/tools/ffmpeg/9.0.2'
 sys.path.insert(0,str(ROOT.parent/'.venv/qt-packages'))
 
 @unittest.skipUnless(os.environ.get('ONDA_QT_TESTS'),'Optional Qt desktop tests')
@@ -511,6 +511,29 @@ class NativeDesktopTests(unittest.TestCase):
             self.wait_for(lambda:not self.ws.active,30000)
             self.assertEqual(self.ws.jobs[0]['state'],'Concluído',self.ws.jobs[0].get('last_error'));self.assertTrue(self.ws.library.history())
         finally:server.shutdown();server.server_close();thread.join()
+    def test_parallel_duplicate_downloads_publish_two_complete_files(self):
+        if not TOOLS.is_dir():self.skipTest('FFmpeg required')
+        source=self.tone()
+        class Handler(http.server.SimpleHTTPRequestHandler):
+            def log_message(self,*args):pass
+            def copyfile(self,*args):
+                try:super().copyfile(*args)
+                except ConnectionError:pass
+        server=http.server.ThreadingHTTPServer(('127.0.0.1',0),functools.partial(Handler,directory=str(self.root)))
+        thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
+        try:
+            self.ws.settings.update(detect_duplicates=False,concurrent_downloads='2',memory_reserve='Sem reserva')
+            url=f'http://127.0.0.1:{server.server_port}/{source.name}'
+            self.ws.enqueue([url,url],{'mode':'original','playlist':False,'duplicate_policy':'keep'},start=True)
+            self.assertEqual(len(self.ws.active),2)
+            self.wait_for(lambda:not self.ws.active,30000)
+            self.assertEqual([job['state'] for job in self.ws.jobs],['Concluído','Concluído'],self.ws.logs)
+            files=[Path(row['path']) for row in self.ws.library.history()]
+            self.assertEqual(len(set(files)),2)
+            for path in files:self.assertEqual(path.read_bytes(),source.read_bytes())
+            self.assertFalse((Path(self.ws.settings['folder'])/'.onda-work').exists())
+        finally:server.shutdown();server.server_close();thread.join()
+
     def test_worker_interactive_protocol_and_cancellation(self):
         fixture=self.root/'worker.py';fixture.write_text('import json,sys\njson.loads(sys.stdin.readline())\nprint(json.dumps({"type":"choose_media","candidates":[{"id":"a","kind":"Foto","title":"A"}]}),flush=True)\nreply=json.loads(sys.stdin.readline())\nassert reply["selected_ids"]==["a"]\nprint(json.dumps({"type":"done"}),flush=True)\n',encoding='utf-8')
         job=self.ws.enqueue(['https://example.com/a.mp3'])[0];identity=job['id'];cancel=threading.Event();self.ws.active[identity]={'cancel':cancel,'process':None};job['state']='Em andamento'

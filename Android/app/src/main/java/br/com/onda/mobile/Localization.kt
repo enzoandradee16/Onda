@@ -22,6 +22,14 @@ internal fun normalizedLanguage(value:String)=value.takeIf {it in UI_LANGUAGES} 
 private data class UiTemplate(val pattern:Regex,val placeholders:List<String>,val translation:String)
 
 private object UiCatalog {
+    private var diagnostics:TechnicalErrorCatalog?=null
+    @Synchronized fun errors(context:Context):TechnicalErrorCatalog = diagnostics ?: run {
+        val data=JSONObject(context.assets.open("technical_errors.json").bufferedReader().use {it.readText()})
+        val rows=data.getJSONArray("phrases")
+        val phrases=(0 until rows.length()).map {index->val row=rows.getJSONObject(index);UI_LANGUAGES.associateWith {row.getString(it)}}
+        val headings=data.getJSONObject("unknown")
+        TechnicalErrorCatalog(phrases,UI_LANGUAGES.associateWith {headings.getString(it)}).also {diagnostics=it}
+    }
     private val compiled=mutableMapOf<String,List<UiTemplate>>()
     private val loaded=mutableMapOf<String,Map<String,String>>()
     @Synchronized fun templates(context:Context,language:String):List<UiTemplate> = compiled.getOrPut(language) {
@@ -51,6 +59,13 @@ internal fun translateUi(text:String,language:String=OndaStore.settings.value.op
     if(selected=="pt-BR")return text
     val catalog=UiCatalog.get(context,selected)
     catalog[text]?.let {return it}
+    if('\n' in text)return text.split('\n').joinToString("\n"){translateUi(it,selected,context)}
+    if(Regex("^(?:(?:ERROR|ERRO|WARNING|AVISO):|[\\w.]+(?:Error|Exception):|\\[(?:Errno|WinError) )").containsMatchIn(text)) {
+        for(colon in Regex(": ").findAll(text)) {
+            val end=colon.range.last+1
+            catalog[text.substring(end)]?.let {return UiCatalog.errors(context).translate(text.substring(0,end),selected)+it}
+        }
+    }
     for(template in UiCatalog.templates(context,selected)) {
         val match=template.pattern.matchEntire(text) ?: continue
         var output=template.translation
@@ -62,6 +77,12 @@ internal fun translateUi(text:String,language:String=OndaStore.settings.value.op
         return output
     }
     return text
+}
+
+internal fun translateError(text:String,language:String=OndaStore.settings.value.optString("language","pt-BR"),context:Context=OndaStore.context):String {
+    val selected=normalizedLanguage(language)
+    val translated=UiCatalog.errors(context).translate(translateUi(text,selected,context),selected)
+    return UiCatalog.errors(context).explain(text,translated,selected,UiCatalog.get(context,"en").containsKey(text))
 }
 
 @Composable internal fun LocalizedTheme(language:String,colorScheme:ColorScheme,typography:Typography,spacing:String="Padrão",content:@Composable ()->Unit) {
@@ -79,3 +100,13 @@ internal fun translateUi(text:String,language:String=OndaStore.settings.value.op
     androidx.compose.material3.Text(translated,modifier=settingsSearchModifier(text,modifier),color=color,fontWeight=fontWeight,
         textAlign=textAlign,overflow=overflow,softWrap=softWrap,maxLines=maxLines,style=style)
 }
+
+@Composable internal fun UiErrorText(text:String,modifier:Modifier=Modifier,color:Color=Color.Unspecified,
+    maxLines:Int=Int.MAX_VALUE,style:TextStyle=MaterialTheme.typography.bodyMedium) {
+    val language=LocalUiLanguage.current
+    val context=LocalContext.current
+    val translated=remember(text,language){translateError(text,language,context)}
+    androidx.compose.material3.Text(translated,modifier=modifier,color=color,maxLines=maxLines,style=style)
+}
+
+internal fun uiExceptionMessage(error:Throwable,fallback:String)=translateError(error.message ?: fallback)

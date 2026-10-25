@@ -31,7 +31,7 @@ import kotlinx.coroutines.withContext
             if(result.has("error"))readError=result.optString("error")
             else bytes=result.optLong("bytes")+(loader.diskCache?.size ?: 0L)
         } catch(cancelled:CancellationException) {throw cancelled}
-        catch(error:Exception) {readError=error.message ?: "Erro na operação"}
+        catch(error:Exception) {readError=uiExceptionMessage(error,"Erro na operação")}
         finally {reading=false}
     }
     fun clear() {
@@ -52,7 +52,7 @@ import kotlinx.coroutines.withContext
     UiText("Cache",style=MaterialTheme.typography.titleMedium)
     UiText("Limpa capas, buscas e caches temporários. Downloads, fila, histórico, contas e escolhas salvas são preservados.",style=MaterialTheme.typography.bodySmall)
     bytes?.let {UiText((if(cleaned) "Cache limpo. Restante em disco: {size} MB." else "Cache em disco: {size} MB.").replace("{size}","%.2f".format(it/1048576.0)))}
-    if(readError.isNotBlank())UiText(readError,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.error)
+    if(readError.isNotBlank())UiErrorText(readError,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.error)
     OutlinedButton(enabled=!busy && !cleaning && !reading && active.isBlank(),onClick={clear()}){UiText("Limpar cache")}
     TextButton(enabled=!busy && !cleaning && !reading,onClick={scope.launch {readSize()}}){UiText("Atualizar tamanho")}
     if(active.isNotBlank())UiText("Aguarde as operações em andamento antes de limpar o cache.",style=MaterialTheme.typography.bodySmall)

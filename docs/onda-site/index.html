@@ -14,6 +14,11 @@
     </title>
 
     <link rel="icon" href="assets/onda.svg" type="image/svg+xml" />
+    <script>
+      try {
+        document.documentElement.dataset.theme = localStorage.getItem("onda-site-theme") === "light" ? "light" : "dark";
+      } catch {}
+    </script>
     <link rel="stylesheet" href="style.css" />
 
     <script src="app.js" defer>
@@ -28,7 +33,7 @@
     <div class="shell">
       <header>
         <a class="brand" href="#home" aria-label="ONDA">
-          <img src="assets/onda.svg" alt="" width="36" height="36" />
+          <svg width="36" height="36" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 64"><path fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" d="M 4 32 C 8 24 10 25 13 32 C 16 39 19 41 22 31 C 25 12 29 11 30 32 C 32 57 37 57 40 21 C 43 -5 48 -3 48 30 C 48 73 54 73 58 28 C 62 3 66 12 67 31 C 68 52 73 50 76 31 C 79 17 82 20 85 31 C 88 39 91 38 96 32"/></svg>
           ONDA
         </a>
 
@@ -54,9 +59,12 @@
         </nav>
 
         <div class="tools">
+          <button id="theme-toggle" type="button" aria-label="Modo claro" title="Modo claro" aria-pressed="false">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20.9 13A9 9 0 0 1 11 3.1 9 9 0 1 0 20.9 13Z" /></svg>
+          </button>
           <select id="language" aria-label="Idioma">
             <option value="pt">
-              PT
+              PT-BR
             </option>
             <option value="es">
               ES
@@ -106,5 +114,9 @@
         </div>
       </footer>
     </div>
+    <dialog id="image-viewer" aria-label="Ampliar captura do ONDA">
+      <button class="image-viewer-close" type="button" autofocus>Fechar ×</button>
+      <img class="image-viewer-image" alt="" />
+    </dialog>
   </body>
 </html>

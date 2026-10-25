@@ -42,6 +42,26 @@ class ReviewRegressionTests(unittest.TestCase):
         self.assertNotIn('image_preview',self.ws.background_tasks)
         self.assertNotIn('image_preview',self.ws.callbacks)
 
+    def test_parallel_duplicates_have_persistent_separate_staging_ids(self):
+        jobs=self.ws.enqueue(['https://example.com/song.mp3']*2)
+        identities=[job.get('work_id') for job in jobs]
+        self.assertTrue(all(identities))
+        self.assertEqual(len(set(identities)),2)
+        self.assertEqual([job['work_id'] for job in self.ws.library.load_queue()],identities)
+        from qt_workspace_ui import DesktopWorkspace
+        restored=DesktopWorkspace(self.bridge)
+        try:self.assertEqual([job['work_id'] for job in restored.jobs],identities)
+        finally:restored.shutdown()
+
+    def test_legacy_queue_gets_independent_staging_ids(self):
+        self.ws.library.save_queue([{'url':'https://example.com/song.mp3','mode':'mp3','folder':self.temp.name,'state':'Na fila'}]*2)
+        from qt_workspace_ui import DesktopWorkspace
+        restored=DesktopWorkspace(self.bridge)
+        try:
+            identities=[job.get('work_id') for job in restored.jobs]
+            self.assertTrue(all(identities));self.assertEqual(len(set(identities)),2)
+        finally:restored.shutdown()
+
     def test_selecting_new_metadata_sources_clears_previous_attachments_and_tags(self):
         self.ws.options.update(cover_path='old.png',lyrics_path='old.lrc',metadata={'title':'Previous'},metadataCover='old-cover',originalCover='old-original')
         self.ws.accept_files('metadata',['next.mp3'])

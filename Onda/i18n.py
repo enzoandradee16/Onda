@@ -44,11 +44,23 @@ def patterns(language="en"):
 
 def tr(text, language=None):
     selected = normalize_language(language or _language)
-    if not isinstance(text, str) or selected == "pt-BR":
+    if not isinstance(text, str):
+        return text
+    if selected == "pt-BR":
         return text
     direct = catalog(selected).get(text)
     if direct is not None:
         return direct
+    if "\n" in text:
+        return "\n".join(tr(line,selected) for line in text.split("\n"))
+    # Extractors/Java/Python often wrap a catalog message with a tool name and ID.
+    if re.match(r"^(?:(?:ERROR|ERRO|WARNING|AVISO):|[\w.]+(?:Error|Exception):|\[(?:Errno|WinError) )",text):
+        for colon in re.finditer(": ",text):
+            suffix=text[colon.end():]
+            direct=catalog(selected).get(suffix)
+            if direct is not None:
+                from error_localization import technical_text
+                return technical_text(text[:colon.end()],selected)+direct
     for pattern,names,value in patterns(selected):
         match = pattern.fullmatch(text)
         if match:

@@ -21,7 +21,7 @@ fun JSONArray.objects(): List<JSONObject> = (0 until length()).mapNotNull { optJ
 fun JSONObject.cleanString(key: String): String = if(isNull(key)) "" else optString(key)
 fun JSONObject.stringList(key: String): String = optJSONArray(key)?.let { a -> (0 until a.length()).joinToString(", ") { a.optString(it) } } ?: ""
 
-data class DialogNotice(val title:String,val message:String)
+data class DialogNotice(val title:String,val message:String,val error:Boolean=false)
 
 private fun operationNoticeTitle(action:String)=when(action) {
     "settings_export"->"Exportar configurações"
@@ -79,7 +79,7 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
     val queueNavigation=MutableStateFlow(false)
     val effectsNavigation=MutableStateFlow(false)
     val dialogNotice=MutableStateFlow<DialogNotice?>(null)
-    fun showNotice(title:String,message:String) {dialogNotice.value=DialogNotice(title,message)}
+    fun showNotice(title:String,message:String,error:Boolean=false) {dialogNotice.value=DialogNotice(title,message,error)}
     fun dismissNotice() {dialogNotice.value=null}
     val queryId=MutableStateFlow("")
     private var previewFromDialog=false
@@ -147,7 +147,7 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
                     if(lyricsCache.value[source]?.isEmpty()==true)lyricsCache.value=lyricsCache.value-source
                     lookupLyrics(source)
                 } catch(error:CancellationException){throw error}
-                catch(error:Exception){effectsInfo.value=effectsInfo.value+(source to JSONObject().put("error",error.message ?: "Não foi possível ler o áudio."))}
+                catch(error:Exception){effectsInfo.value=effectsInfo.value+(source to JSONObject().put("error",uiExceptionMessage(error,"Não foi possível ler o áudio.")))}
                 finally {effectsInfoRequests.remove(source);MobileEngine.cancel(id)}
             }
         }
@@ -177,7 +177,7 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 finished(result)
             } catch(error:CancellationException){throw error}
-            catch(error:Exception){finished(JSONObject().put("error",error.message ?: "Não foi possível buscar a letra."))}
+            catch(error:Exception){finished(JSONObject().put("error",uiExceptionMessage(error,"Não foi possível buscar a letra.")))}
             finally {MobileEngine.cancel(id)}
         }
     }
@@ -210,7 +210,7 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
         effectsQueueRequest=viewModelScope.launch {
             loadEffectsInfo(listOf(source),retryErrors=true)
             val info=effectsInfo.first {it.containsKey(source)}[source] ?: return@launch
-            if(info.has("error")){status.value=info.optString("error");return@launch}
+            if(info.has("error")){status.value=translateError(info.optString("error"));return@launch}
             val duration=info.optDouble("duration",0.0)
             if(duration<=0)return@launch
             effectsQueueRequest=null
@@ -325,7 +325,7 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
                 val result=if(cached!=null){JSONObject().put("path",cached)} else withContext(Dispatchers.IO) {MobileEngine.call(getApplication(),id,"preview",payload,EventCallback {})}
                 val path=result.optString("path")
                 if(revision!=effectRevision || !effectsPreviewEnabled.value) {if(path.isNotBlank()) java.io.File(path).delete();continue}
-                if(result.has("error")) {clearEffectTail();status.value=result.getString("error");effectsPreviewEnabled.value=false;effectsPreparing.value=false;continue}
+                if(result.has("error")) {clearEffectTail();status.value=translateError(result.getString("error"));effectsPreviewEnabled.value=false;effectsPreparing.value=false;continue}
                 val previous=effectOutput
                 player.stop()
                 effectOutput=path;effectAnchor=position;effectSpeed=payload.getInt("speed")
@@ -335,7 +335,7 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
                 fadeEffectsIn()
                 effectsPreparing.value=false
                 if(previous.isNotBlank() && previous!=path && previous!=effectTailPath) java.io.File(previous).delete()
-            } catch(error:Exception) {if(revision==effectRevision && effectsPreviewEnabled.value) {clearEffectTail();status.value=error.message ?: "Não foi possível atualizar a prévia";effectsPreviewEnabled.value=false;effectsPreparing.value=false}}
+            } catch(error:Exception) {if(revision==effectRevision && effectsPreviewEnabled.value) {clearEffectTail();status.value=uiExceptionMessage(error,"Não foi possível atualizar a prévia");effectsPreviewEnabled.value=false;effectsPreparing.value=false}}
             finally {if(effectRenderId==id) effectRenderId=""}
         }
     }}
@@ -409,7 +409,7 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
                 withContext(Dispatchers.IO) {for(uri in uris) {ensureActive();imported+=OndaStore.importDocument(uri,"conversion-batch")}}
                 finished(imported.map {it.absolutePath})
             } catch(error:CancellationException) {imported.forEach {it.delete()};throw error}
-            catch(error:Exception) {imported.forEach {it.delete()};status.value=error.message ?: "Não foi possível importar o arquivo"}
+            catch(error:Exception) {imported.forEach {it.delete()};status.value=uiExceptionMessage(error,"Não foi possível importar o arquivo")}
             finally {busy.value=false}
         }
     }
@@ -429,7 +429,7 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
         effectRequests.trySend(effectRevision to JSONObject().put("source",source).put("speed",speed).put("reverb",reverb).put("keep_pitch",pitch).put("start",start).put("continue_position",continuing).put("full_track",fullTrack).put("duration",25))
     }
     fun operation(action: String, payload: JSONObject, dialog: Boolean=false, finished: (JSONObject)->Unit = {}) {
-        fun report(text:String) {if(dialog) showNotice(operationNoticeTitle(action),text) else status.value=text}
+        fun report(text:String,error:Boolean=false) {if(dialog) showNotice(operationNoticeTitle(action),text,error) else status.value=if(error)translateError(text) else text}
         if(busy.value) { report("Aguarde a operação atual ou cancele."); return }
         val id=UUID.randomUUID().toString()
         busy.value=true; queryId.value=id; status.value="Preparando…"
@@ -448,7 +448,7 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
                         }
                         "done"->if(event.has("path")) OndaStore.publish(event.getString("path"),payload,event.getString("path").substringAfterLast('.'))
                         "progress"->status.value="Processando: ${event.optInt("percent")}%"
-                        "error"->status.value=event.optString("message")
+                        "error"->status.value=translateError(event.optString("message"))
                         else->if(event.has("message")) status.value=event.optString("message")
                     }
                 }) }
@@ -459,12 +459,12 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
                         finally {edited.delete();java.io.File(edited.parentFile,edited.nameWithoutExtension+".lrc").delete()}
                     }
                 }
-                if(result.has("error")) report(result.optString("error")) else {
+                if(result.has("error")) report(result.optString("error"),true) else {
                     report(result.optString("message","Concluído"))
                     if(result.has("connected"))spotifyConnected.value=result.optBoolean("connected")
                     finished(result)
                 }
-            } catch(error: Exception) { report(error.message ?: "Erro na operação") }
+            } catch(error: Exception) { report(uiExceptionMessage(error,"Erro na operação"),true) }
             finally {
                 if(action=="audio_batch_edit")payload.optJSONArray("sources")?.objects()?.forEach {entry->
                     val file=java.io.File(entry.optString("source"))
@@ -480,7 +480,7 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 val folder=withContext(Dispatchers.IO) {historyFolderUri(getApplication(),Uri.parse(uri))}
                 openHistoryFolder(getApplication(),folder)
-            } catch(error: Exception) {status.value=error.message ?: "Não foi possível abrir a pasta deste arquivo."}
+            } catch(error: Exception) {status.value=uiExceptionMessage(error,"Não foi possível abrir a pasta deste arquivo.")}
         }
     }
     fun connectSpotify() {
@@ -562,7 +562,7 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
                 collection.value=snapshot.first;collectionComparison.value=snapshot.second
                 status.value=collectionSyncSummary(snapshot.second)
             } catch(error:CancellationException) {status.value="Conferência cancelada.";throw error}
-            catch(error:Exception) {showNotice("Conferir arquivos locais",error.message ?: "Não foi possível conferir os arquivos.")}
+            catch(error:Exception) {showNotice("Conferir arquivos locais",uiExceptionMessage(error,"Não foi possível conferir os arquivos."))}
             finally {busy.value=false;queryId.value="";collectionSyncJob=null}
         }
     }
@@ -574,7 +574,7 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
                 val file=withContext(Dispatchers.IO) {OndaStore.importDocument(uri,category)}
                 status.value="Arquivo importado"
                 finished(file)
-            } catch(error: Exception) {val message=error.message ?: "Não foi possível importar o arquivo";if(dialog) showNotice(importNoticeTitle(category),message) else status.value=message}
+            } catch(error: Exception) {val message=uiExceptionMessage(error,"Não foi possível importar o arquivo");if(dialog) showNotice(importNoticeTitle(category),message) else status.value=message}
         }
     }
     fun enqueueLink(url: String, immediate: Boolean=false): String {
@@ -647,7 +647,7 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
                 previewLimit=viewModelScope.launch {delay(OndaStore.settings.value.optInt("search_preview",25)*1000L);player.pause()}
                 status.value="Prévia da versão selecionada"
             },
-            onError={error->showNotice("Ouvir prévia",error.message ?: "Não foi possível ouvir a prévia")}
+            onError={error->showNotice("Ouvir prévia",uiExceptionMessage(error,"Não foi possível ouvir a prévia"))}
         )
     }
     fun queueTrack(record: JSONObject, options: JSONObject=OndaStore.settings.value, group: String?=null, origin: String="", immediate: Boolean=false): String {
@@ -672,7 +672,7 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
                 if(now && ids.isNotEmpty()) {DownloadService.batch(getApplication(),ids);queueNavigation.value=true}
                 status.value="${ids.size} itens adicionados à fila"
             } catch(error:CancellationException) {throw error}
-            catch(error:Exception) {showNotice("Adicionar à fila","${ids.size} de ${urls.size} itens adicionados à fila"+"\n"+(error.message ?: "Falha ao adicionar itens. Os itens já adicionados foram preservados."))}
+            catch(error:Exception) {showNotice("Adicionar à fila","${ids.size} de ${urls.size} itens adicionados à fila"+"\n"+(uiExceptionMessage(error,"Falha ao adicionar itens. Os itens já adicionados foram preservados.")))}
             finally {addingToQueue.value=false}
         }
     }
@@ -692,7 +692,7 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
                 if(now && ids.isNotEmpty()) {DownloadService.batch(getApplication(),ids);queueNavigation.value=true}
                 status.value="${ids.size} itens adicionados à fila"
             } catch(error:CancellationException) {throw error}
-            catch(error:Exception) {showNotice("Adicionar à fila","${ids.size} de ${rows.size} itens adicionados à fila"+"\n"+(error.message ?: "Falha ao adicionar itens. Os itens já adicionados foram preservados."))}
+            catch(error:Exception) {showNotice("Adicionar à fila","${ids.size} de ${rows.size} itens adicionados à fila"+"\n"+(uiExceptionMessage(error,"Falha ao adicionar itens. Os itens já adicionados foram preservados.")))}
             finally {addingToQueue.value=false}
         }
     }

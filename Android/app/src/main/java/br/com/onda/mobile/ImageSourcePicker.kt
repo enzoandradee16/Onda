@@ -77,6 +77,6 @@ internal fun photoPermissions(sdk:Int):Array<String> = when {
             },modifier=Modifier.fillMaxWidth()){UiText("Procurar nos arquivos")}
         }
     },confirmButton={},dismissButton={TextButton(onClick={show=false}){UiText("Cancelar")}})
-    if(error.isNotBlank())AlertDialog(containerColor=ondaDialogContainerColor(),onDismissRequest={error=""},title={UiText(errorTitle)},text={UiText(error)},confirmButton={TextButton(onClick={error="";show=true}){UiText("Voltar")}})
+    if(error.isNotBlank())AlertDialog(containerColor=ondaDialogContainerColor(),onDismissRequest={error=""},title={UiText(errorTitle)},text={UiErrorText(error)},confirmButton={TextButton(onClick={error="";show=true}){UiText("Voltar")}})
     return {show=true}
 }

@@ -37,7 +37,7 @@ import org.json.JSONObject
     val export=rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) {uri->
         if(uri!=null)scope.launch {
             try {withContext(Dispatchers.IO) {OndaStore.context.contentResolver.openOutputStream(uri)?.use {it.write(report.toByteArray(Charsets.UTF_8))} ?: error("Não foi possível salvar a lista")}}
-            catch(error:Exception) {vm.showNotice("Salvar lista",error.message ?: "Não foi possível salvar a lista")}
+            catch(error:Exception) {vm.showNotice("Salvar lista",uiExceptionMessage(error,"Não foi possível salvar a lista"))}
         }
     }
     val item=queue.firstOrNull {it.id==selected}
@@ -60,14 +60,14 @@ import org.json.JSONObject
                         items(snapshot,key={it.id}) {failed->
                             Column(Modifier.fillMaxWidth().padding(vertical=8.dp)) {
                                 UiText(failed.title,style=MaterialTheme.typography.titleSmall)
-                                UiText(failed.message.ifBlank {"Motivo não informado"})
+                                UiErrorText(failed.message.ifBlank {"Motivo não informado"})
                                 UiText(failed.config.optString("url"),style=MaterialTheme.typography.bodySmall)
                                 TextButton(onClick={selected=failed.id;query=failed.title;results=emptyList();candidate=null;searchStarted=false},enabled=failed.config.optString("mode") in failureAudioModes && !failed.config.optBoolean("playlist"),modifier=Modifier.testTag("failure-metadata-${failed.id}")) {UiText("Escolher metadados")}
                             }
                             HorizontalDivider()
                         }
                     }
-                    TextButton(onClick={report=failureReportText(snapshot){translateUi(it,language)};export.launch("ONDA-falhas.txt")}) {UiText("Salvar lista")}
+                    TextButton(onClick={report=failureReportText(snapshot){translateError(it,language)};export.launch("ONDA-falhas.txt")}) {UiText("Salvar lista")}
                     TextButton(onClick={
                         val pending=queue.filter {it.id in selectedIds && it.state in setOf("Erro","Pendente") && it.id !in DownloadRuntime.ids}.map {it.id}
                         retrying=true
@@ -77,7 +77,7 @@ import org.json.JSONObject
                                 if(pending.isNotEmpty())DownloadService.batch(OndaStore.context,pending)
                                 onClose()
                             } catch(error:kotlinx.coroutines.CancellationException) {throw error}
-                            catch(error:Exception) {vm.showNotice("Falhas da fila",error.message ?: "Não foi possível tentar novamente")}
+                            catch(error:Exception) {vm.showNotice("Falhas da fila",uiExceptionMessage(error,"Não foi possível tentar novamente"))}
                             finally {retrying=false}
                         }
                     },enabled=!retrying && queue.any {it.id in selectedIds && it.state in setOf("Erro","Pendente")}) {UiText("Tentar novamente")}

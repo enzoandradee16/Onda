@@ -176,6 +176,10 @@ def edit_copy(config, emit=lambda *args,**kwargs:None, *, cancelled=lambda:False
         if config.get('normalize_volume'):normalize_audio(target,config,emit)
         if config.get('edit_metadata'):write_audio(target,config.get('changes',{}),config.get('cover_path',''),config.get('lyrics_path',''))
         elif config.get('lyrics_path'):write_audio(target,{},lyrics=config['lyrics_path'])
+        companion = None
+        if config.get('lyrics_path') and Path(config['lyrics_path']).suffix.lower()=='.lrc':
+            companion = target.with_suffix('.lrc')
+            companion.write_text(lyrics_text(config['lyrics_path']),encoding='utf-8')
         if cancelled():raise InterruptedError('Operação cancelada.')
         if overwrite:
             current=source.stat()
@@ -184,8 +188,7 @@ def edit_copy(config, emit=lambda *args,**kwargs:None, *, cancelled=lambda:False
             shutil.copymode(source,target)
             os.replace(target,source)
             final=str(source)
+            if companion is not None:os.replace(companion,source.with_suffix('.lrc'))
         else:
-            final,_=publish(target,folder,'keep',None)
-    if config.get('lyrics_path') and Path(config['lyrics_path']).suffix.lower()=='.lrc':
-        Path(final).with_suffix('.lrc').write_text(lyrics_text(config['lyrics_path']),encoding='utf-8')
+            final,_=publish(target,folder,'keep',None,companions={'.lrc':companion} if companion is not None else None)
     return {'path':final,'mode':source.suffix.lstrip('.'),'size':Path(final).stat().st_size,'overwritten':overwrite}

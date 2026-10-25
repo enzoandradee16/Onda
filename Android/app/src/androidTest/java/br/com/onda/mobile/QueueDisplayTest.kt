@@ -24,7 +24,8 @@ class QueueDisplayTest {
             for(remember in listOf(true,false)) for(view in listOf("Compacto","Completa")) {
                 OndaStore.saveSettings(JSONObject(original.toString()).put("remember",remember).put("queue_view",view).put("history_view",view).put("queue_card_size","Pequeno").put("history_card_size","Médio"))
                 OndaStore.initialize(context)
-                assertEquals(view,OndaStore.settings.value.getString("queue_view"))
+                assertFalse(OndaStore.settings.value.has("queue_view"))
+                assertFalse(OndaStore.settings.value.has("queue_actions_at_top"))
                 assertEquals(view,OndaStore.settings.value.getString("history_view"))
                 assertEquals("Pequeno",OndaStore.settings.value.getString("queue_card_size"))
                 assertEquals("Médio",OndaStore.settings.value.getString("history_card_size"))
@@ -38,32 +39,27 @@ class QueueDisplayTest {
         assertEquals("Public Spotify album. The public page may omit tracks; connect Spotify if the list is incomplete.",translateUi("Álbum Spotify público. A página pública pode omitir faixas; conecte Spotify se a lista estiver incompleta.","en"))
         assertEquals("Álbum público de Spotify. La página pública puede omitir canciones; conecta Spotify si la lista está incompleta.",translateUi("Álbum Spotify público. A página pública pode omitir faixas; conecte Spotify se a lista estiver incompleta.","es"))
     }
-    @Test fun queueSizesAndCompactModePreserveMetadataAndHistorySize() {
+    @Test fun summarySizesPreserveMetadataAndHistorySize() {
         OndaStore.initialize(InstrumentationRegistry.getInstrumentation().targetContext)
         val original=JSONObject(OndaStore.settings.value.toString())
         val id=OndaStore.enqueue("https://example.com/song","Artist - Song",extra=JSONObject().put("queue_info",JSONObject().put("album","Test Album").put("duration_ms",240000).put("cover_url","https://example.com/cover.png").put("artists",org.json.JSONArray().put("Fixture Artist")).put("release_date","2024-01-01")))
         val vm=OndaViewModel(androidx.test.core.app.ApplicationProvider.getApplicationContext())
         try {
             OndaStore.saveSettings(JSONObject(original.toString()).put("language","pt-BR").put("queue_view","Completa").put("queue_card_size","Grande").put("history_card_size","Médio"))
-            compose.setContent {MaterialTheme {QueuePage(vm)}}
-            compose.onNodeWithTag("queue-card-$id").performScrollTo()
-            val large=compose.onNodeWithTag("queue-card-$id").fetchSemanticsNode().boundsInRoot.height
+            compose.setContent {MaterialTheme {DownloadsHome(vm)}}
+            compose.onNodeWithTag("download-summary-$id").performScrollTo()
+            val large=compose.onNodeWithTag("download-summary-$id").fetchSemanticsNode().boundsInRoot.height
             compose.onNodeWithText("Test Album",substring=true).assertExists()
             compose.onNodeWithTag("queue-cover-$id",useUnmergedTree=true).assertExists()
-            compose.onNodeWithTag("queue-size-control").performScrollTo().performClick()
+            compose.onNodeWithTag("download-card-size").performClick()
             compose.onNodeWithText("Pequeno").performClick()
-            compose.onNodeWithTag("queue-card-$id").performScrollTo()
-            assertTrue(compose.onNodeWithTag("queue-card-$id").fetchSemanticsNode().boundsInRoot.height<large)
+            compose.onNodeWithTag("download-summary-$id").performScrollTo()
+            assertTrue(compose.onNodeWithTag("download-summary-$id").fetchSemanticsNode().boundsInRoot.height<large)
             assertEquals("Pequeno",OndaStore.settings.value.getString("queue_card_size"))
             assertEquals("Médio",OndaStore.settings.value.getString("history_card_size"))
-            compose.onNodeWithTag("queue-view-control").performScrollTo().performClick()
-            compose.onNodeWithText("Compacto").performClick()
-            compose.onNodeWithTag("queue-size-control").assertDoesNotExist()
-            compose.onNodeWithText("Test Album",substring=true).assertDoesNotExist()
+            compose.onNodeWithTag("queue-view-control").assertDoesNotExist()
+            compose.onNodeWithText("Gerenciar fila").assertDoesNotExist()
             assertEquals("Artist - Song",OndaStore.items.value.first {it.id==id}.title)
-            compose.onNodeWithTag("queue-view-control").performScrollTo().performClick()
-            compose.onNodeWithText("Completa").performClick()
-            compose.onNodeWithText("Test Album",substring=true).assertExists()
         } finally {OndaStore.remove(setOf(id));OndaStore.saveSettings(original)}
     }
     @Test fun historyOptionsRemainReachableInTheCurrentSheet() {

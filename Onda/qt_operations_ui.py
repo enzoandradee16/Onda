@@ -43,6 +43,8 @@ def perform(action,config,cancel,emit):
             if config.get('automatic'):return {}
             raise
     if action=='history_details':
+        from platform_info import platform_info
+        from history_details import history_platform
         from audio_library import read_audio,cover_preview,AUDIO_TYPES
         rows=[]
         for row in config['rows']:
@@ -59,7 +61,7 @@ def perform(action,config,cancel,emit):
                         if candidate.is_file():
                             from PySide6.QtCore import QUrl
                             cover_url=QUrl.fromLocalFile(str(candidate)).toString();break
-                rows.append(dict(id=row['id'],title=record['title'],artist=', '.join(record['artists']),album=record['album'],cover_url=cover_url))
+                rows.append(dict(id=row['id'],title=record['title'],artist=', '.join(record['artists']),album=record['album'],cover_url=cover_url,**platform_info(row.get('source',''),history_platform(path))))
             except (OSError,ValueError):continue
         return rows
 

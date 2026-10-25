@@ -37,7 +37,7 @@ import kotlinx.coroutines.withContext
         try {
             item=withContext(Dispatchers.IO) {localAudioItem(Uri.parse(value))}
         } catch(cancelled:CancellationException) {throw cancelled}
-        catch(error:Exception) {vm.showNotice("Escolher arquivo de áudio",error.message ?: "Não foi possível abrir o arquivo.");selectedUri=null}
+        catch(error:Exception) {vm.showNotice("Escolher arquivo de áudio",uiExceptionMessage(error,"Não foi possível abrir o arquivo."));selectedUri=null}
     }
     val audio=item
     if(audio!=null) {

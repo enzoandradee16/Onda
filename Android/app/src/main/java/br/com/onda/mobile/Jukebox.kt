@@ -164,7 +164,7 @@ internal class JukeboxController(private val context:Context,private val scope:C
                         if(autoplayQueueId==id){autoplayQueueId="";playQueued(playbackQueue.value.indexOfFirst {it.optString("_queue_id")==id})}
                     }
                 } catch(e:CancellationException){throw e}
-                catch(e:Exception){updateQueue(id,"Erro",e.message ?: "Não foi possível analisar.")}
+                catch(e:Exception){updateQueue(id,"Erro",uiExceptionMessage(e,"Não foi possível analisar."))}
                 finally {queuePreparing=""}
             }
         }
@@ -266,7 +266,7 @@ internal class JukeboxController(private val context:Context,private val scope:C
                 }
                 if(own==revision)state.value=JukeboxState(title=model.optString("media_title").ifBlank {model.optString("title")},model=model,message=if(model.optInt("links")>0)"Análise concluída." else "Sem saltos compatíveis: a faixa será repetida normalmente.")
                 if(own==revision && autoPlay)playPause()
-            } catch(e:CancellationException){throw e} catch(e:Exception){if(own==revision)state.value=state.value.copy(busy=false,message=e.message ?: "Não foi possível analisar a música.")}
+            } catch(e:CancellationException){throw e} catch(e:Exception){if(own==revision)state.value=state.value.copy(busy=false,message=uiExceptionMessage(e,"Não foi possível analisar a música."))}
         }
     }
     val searching=MutableStateFlow(false)
@@ -288,7 +288,7 @@ internal class JukeboxController(private val context:Context,private val scope:C
                 val records=searchQueue(query,id)
                 if(searchIdentity==id)state.update {it.copy(records=records,message=if(records.isEmpty())"Nenhuma música encontrada." else "Escolha uma música nos resultados.")}
             } catch(e:CancellationException){throw e}
-            catch(e:Exception){if(searchIdentity==id)state.update {it.copy(message=e.message ?: "Falha de pesquisa.")}}
+            catch(e:Exception){if(searchIdentity==id)state.update {it.copy(message=uiExceptionMessage(e,"Falha de pesquisa."))}}
             finally {if(searchIdentity==id){searchIdentity="";searching.value=false}}
         }
     }
@@ -304,7 +304,7 @@ internal class JukeboxController(private val context:Context,private val scope:C
         stopOtherAudio();stop(clearTimer=false);pendingSeek.set(initial);val own=++revision;val id="jukebox-play-"+UUID.randomUUID();identity=id
         state.value=state.value.copy(model=model,playing=true,paused=false,message="Reproduzindo…",elapsed=0.0,jumps=0,phase=0f,flow=emptyList(),used=emptySet(),nextIndex=-1,jumpBlend=0f)
         try {ContextCompat.startForegroundService(context,Intent(context,JukeboxService::class.java))}
-        catch(e:Exception){state.update {it.copy(playing=false,message=e.message ?: "Não foi possível reproduzir.")};return}
+        catch(e:Exception){state.update {it.copy(playing=false,message=uiExceptionMessage(e,"Não foi possível reproduzir."))};return}
         if(audio.requestAudioFocus(focus)!=AudioManager.AUDIOFOCUS_REQUEST_GRANTED){state.value=state.value.copy(playing=false,message="A saída de áudio está ocupada.");return}
         ContextCompat.registerReceiver(context,noisy,IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY),ContextCompat.RECEIVER_NOT_EXPORTED);noisyRegistered=true
         fadeTask?.cancel()
@@ -368,7 +368,7 @@ internal class JukeboxController(private val context:Context,private val scope:C
                         switchModels[request.model.getString("cache")]=request
                         try {call("jukebox_switch",JSONObject().put("session",id).put("cache",request.model.getString("cache")).put("seconds",request.seconds),id)}
                         catch(e:CancellationException){throw e}
-                        catch(e:Exception){switchModels.remove(request.model.optString("cache"));state.update {it.copy(message=e.message ?: "Não foi possível trocar a música.")}}
+                        catch(e:Exception){switchModels.remove(request.model.optString("cache"));state.update {it.copy(message=uiExceptionMessage(e,"Não foi possível trocar a música."))}}
                     }
                     val config=JSONObject().put("equalizer",OndaStore.settings.value.optJSONObject("jukebox_equalizer")).put("session",id).put("variation",variation).put("smooth",smooth).put("volume",100).put("normal",normal)
                     val seek=pendingSeek.getAndSet(-1)
@@ -387,7 +387,7 @@ internal class JukeboxController(private val context:Context,private val scope:C
                     }
                     progress()
                 }
-            } catch(e:CancellationException){throw e} catch(e:Exception){if(own==revision)state.value=state.value.copy(message=e.message ?: "Não foi possível reproduzir.")}
+            } catch(e:CancellationException){throw e} catch(e:Exception){if(own==revision)state.value=state.value.copy(message=uiExceptionMessage(e,"Não foi possível reproduzir."))}
             finally {
                 runCatching {output?.pause();output?.flush();output?.release()}
                 withContext(NonCancellable+Dispatchers.IO) {runCatching {call("jukebox_close",JSONObject().put("session",id),id+"-close")}}
@@ -556,7 +556,7 @@ internal class JukeboxController(private val context:Context,private val scope:C
     var busy by remember {mutableStateOf(false)}
     var message by remember {mutableStateOf("")}
     val files=rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) {uris->vm.importConversionBatch(uris) {paths->paths.forEach {path->controller.enqueue(JSONObject().put("title",importedAudioName(path).substringBeforeLast('.')).put("_local_source",path))}}}
-    fun search(){if(!busy && query.isNotBlank())scope.launch {busy=true;message="";try{results=controller.searchQueue(query);if(results.isEmpty())message="Nenhuma música encontrada."}catch(e:CancellationException){throw e}catch(e:Exception){message=e.message ?: "Falha de pesquisa."}finally{busy=false}}}
+    fun search(){if(!busy && query.isNotBlank())scope.launch {busy=true;message="";try{results=controller.searchQueue(query);if(results.isEmpty())message="Nenhuma música encontrada."}catch(e:CancellationException){throw e}catch(e:Exception){message=uiExceptionMessage(e,"Falha de pesquisa.")}finally{busy=false}}}
     var editing by remember {mutableStateOf(false)}
     ModalBottomSheet(onDismissRequest=close,sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true)) {
         Column(Modifier.fillMaxWidth().fillMaxHeight(.85f).padding(horizontal=LayoutSpacing.inset),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
@@ -568,7 +568,7 @@ internal class JukeboxController(private val context:Context,private val scope:C
                 Row {OutlinedButton(onClick={files.launch(arrayOf("audio/*"))}){UiText("Adicionar arquivos")};TextButton(onClick=controller::clearPlaybackQueue){UiText("Limpar fila")}}
                 OutlinedTextField(query,{query=it},label={UiText("Música, artista ou link")},singleLine=true,keyboardOptions=KeyboardOptions(imeAction=ImeAction.Search),keyboardActions=KeyboardActions(onSearch={search()}),modifier=Modifier.fillMaxWidth())
                 TextButton(enabled=!busy&&query.isNotBlank(),onClick=::search){UiText(if(busy)"Pesquisando…" else "Pesquisar")}
-                if(message.isNotBlank())Text(message)
+                if(message.isNotBlank())UiText(message)
                 if(results.isNotEmpty())Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())) {
                 results.forEach {record->
                     OutlinedButton(onClick={controller.enqueue(record);results=results.filter {it!==record}},modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(12.dp)) {
@@ -595,7 +595,7 @@ internal class JukeboxController(private val context:Context,private val scope:C
                     val row=queue[index]
                     PlaybackQueueRow(row,row.optString("_cover"),row.optLong("duration_ms")/1000,index==active,editing,{controller.playQueued(index)},
                         {controller.moveQueued(index,-1)},{controller.moveQueued(index,1)},{controller.removeQueued(index)},index>0,index+1<queue.size)
-                    if(row.optString("_analysis")!="Pronta")UiText(row.optString("_error").ifBlank {row.optString("_analysis")},style=MaterialTheme.typography.labelSmall)
+                    if(row.optString("_analysis")!="Pronta")UiText(if(row.optString("_error").isNotBlank())translateError(row.optString("_error")) else row.optString("_analysis"),style=MaterialTheme.typography.labelSmall)
                     if(editing&&row.optString("_analysis")=="Erro")TextButton(onClick={controller.retryQueued(index)}){UiText("Tentar novamente")}
                 }
             }

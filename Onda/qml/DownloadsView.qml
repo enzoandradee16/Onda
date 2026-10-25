@@ -130,16 +130,18 @@ ColumnLayout {
                 }
                 Rectangle { Layout.preferredWidth: Math.min(page.smallCards ? 56 : page.cardSize === "Médio" ? 96 : 132,card.height-24); Layout.preferredHeight: Layout.preferredWidth; radius: 8; color: bridge.palette.input
                     RoundedArtwork { id: queueCover; objectName: "downloadQueueArtwork"; anchors.fill: parent; source: card.entry.track_cover || ""; sourceSize.width: 264; sourceSize.height: 264; fillMode: Image.PreserveAspectFit; asynchronous: true }
-                    Label { anchors.centerIn: parent; visible: queueCover.status !== Image.Ready; text: "♪"; color: bridge.palette.muted; font.pixelSize: 30 }
+                    LineIcon {anchors.centerIn:parent;visible:queueCover.status!==Image.Ready && !!card.entry.is_image;glyph:"images";width:30;height:30;ink:bridge.palette.muted}
+                    Label { anchors.centerIn: parent; visible: queueCover.status !== Image.Ready && !card.entry.is_image; text: "♪"; color: bridge.palette.muted; font.pixelSize: 30 }
                 }
                 ColumnLayout { id: queueDetails; Layout.fillWidth: true; spacing: page.smallCards ? 3 : 5
                     Label { text: card.entry.track_title; font.pixelSize: Math.round((page.smallCards ? 13 : page.cardSize === "Médio" ? 14 : 16)*bridge.fontScale); color: bridge.palette.text; font.weight: Font.DemiBold; Layout.fillWidth: true; elide: Text.ElideRight }
                     Label { visible: !!card.entry.track_artist; text: card.entry.track_artist; color: bridge.palette.muted; Layout.fillWidth: true; elide: Text.ElideRight }
                     Label { visible: !page.smallCards && !!card.entry.track_album; text: card.entry.track_album; color: bridge.palette.muted; Layout.fillWidth: true; elide: Text.ElideRight }
                     Label { visible: !page.smallCards && card.entry.track_duration > 0; text: workspace.clock(card.entry.track_duration); color: bridge.palette.muted }
+                    PlatformBadge {imageMedia:!!card.entry.is_image;platformKey:card.entry.platform_key || "";label:card.entry.platform || ""}
                     Label { text: bridge.translate(card.entry.state)+" · "+String(card.entry.mode).toUpperCase(); color: bridge.palette.muted }
                     OndaProgressBar { Layout.fillWidth: true; from: 0; to: 100; value: card.entry.percent || 0; visible: card.entry.state === "Em andamento" }
-                    Label { visible: workspace.preferences.queue_view === "Completa"; text: card.entry.last_error || card.entry.url; color: card.entry.last_error ? bridge.palette.error : bridge.palette.muted; wrapMode: Text.Wrap; Layout.fillWidth: true; maximumLineCount: 2 }
+                    Label { visible: workspace.preferences.queue_view === "Completa"; text: card.entry.last_error ? bridge.translateError(card.entry.last_error) : card.entry.url; color: card.entry.last_error ? bridge.palette.error : bridge.palette.muted; wrapMode: Text.Wrap; Layout.fillWidth: true; maximumLineCount: 2 }
                 }
                 PlaybackButton { glyph: "close"; Accessible.name: bridge.translate("Remover"); onClicked: workspace.invoke("queue_action",{name:"remove",id:card.entry.id}) }
             }

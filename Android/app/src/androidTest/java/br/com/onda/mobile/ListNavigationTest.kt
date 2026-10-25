@@ -17,26 +17,21 @@ import java.util.UUID
 class ListNavigationTest {
     @get:Rule val compose=createComposeRule()
     private val context get()=InstrumentationRegistry.getInstrumentation().targetContext
-    @Test fun largeQueueCanJumpToLastAndFirstWithActionsAboveOrBelow() {
+    @Test fun simpleDownloadsNavigateLargeQueueWithFixedActions() {
         val settings=JSONObject(OndaStore.settings.value.toString())
         val vm=OndaViewModel(androidx.test.core.app.ApplicationProvider.getApplicationContext())
         val ids=mutableListOf<String>();val prefix=UUID.randomUUID().toString()
         try {
             OndaStore.saveSettings(JSONObject(settings.toString()).put("language","pt-BR").put("queue_view","Compacto").put("queue_actions_at_top",true))
             OndaStore.enqueueBatch {repeat(80) {ids+=OndaStore.enqueue("https://example.com/$prefix/$it","Track $it")}}
-            compose.setContent {MaterialTheme {QueuePage(vm)}}
+            compose.setContent {MaterialTheme {DownloadsHome(vm)}}
             compose.onNodeWithTag("queue-last").performClick()
-            compose.onNodeWithTag("queue-card-${ids.last()}").assertIsDisplayed()
+            compose.onNodeWithTag("download-summary-${ids.last()}").assertIsDisplayed()
             compose.onNodeWithTag("queue-first").performClick()
-            compose.onNodeWithText("Baixar fila").performScrollTo().assertIsDisplayed()
-            val actionsY=compose.onNodeWithText("Baixar fila").fetchSemanticsNode().boundsInRoot.top
-            compose.onNodeWithTag("queue-card-${ids.first()}").performScrollTo()
-            assertTrue(actionsY<compose.onNodeWithTag("queue-card-${ids.first()}").fetchSemanticsNode().boundsInRoot.top+1000)
-            OndaStore.saveSettings(JSONObject(OndaStore.settings.value.toString()).put("queue_actions_at_top",false))
-            compose.waitForIdle()
-            compose.onNodeWithTag("queue-last").performClick()
             compose.onNodeWithText("Baixar fila").assertIsDisplayed()
+            compose.onNodeWithTag("download-summary-${ids.first()}").assertIsDisplayed()
             compose.onNodeWithTag("queue-position").assertExists()
+            compose.onNodeWithText("Fila de downloads").assertDoesNotExist()
         } finally {OndaStore.remove(ids.toSet());OndaStore.saveSettings(settings);compose.runOnIdle {vm.player.release()}}
     }
     @Test fun collectionActionsAreBeforeLargeTrackListAndNavigationReachesEnd() {
@@ -52,7 +47,8 @@ class ListNavigationTest {
             compose.onNodeWithTag("collection-last").performClick()
             compose.onNodeWithText("Collection track 1299").assertIsDisplayed()
             compose.onNodeWithTag("collection-first").performClick()
-            compose.onNodeWithText("Seus álbuns e playlists na biblioteca.").assertIsDisplayed()
+            compose.waitForIdle()
+            compose.onNodeWithText("Álbuns e playlists").assertIsDisplayed()
         } finally {OndaStore.saveSettings(old);compose.runOnIdle {vm.player.release()}}
     }
     @Test fun newLabelsAndProgressTranslateInBothLanguages() {
