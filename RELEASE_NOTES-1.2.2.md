@@ -15,4 +15,14 @@
 - Avisos de erro em português, inglês e espanhol, com preservação de caminhos, códigos e detalhes originais quando o diagnóstico não é conhecido.
 - PC: abas Efeitos/Jukebox agrupadas e fila lateral comum às duas abas.
 
-Pacotes desta atualização local: portátil Windows x64 e APK Android x86_64 (emulador). Versão 1.2.2; metadados Windows 1.2.2.0; Android versionCode 29. O APK ARM64 e o instalador não foram gerados nesta atualização.
+## Pacotes
+
+- Windows x64: portátil e instalador, versão 1.2.2.0.
+- Android 8 ou superior: APK ARM64 para aparelhos e x86_64 para emuladores compatíveis; versão 1.2.2, código 29, assinatura original.
+- Fontes do ONDA, fontes de terceiros e fontes nativas Android, acompanhadas dos avisos de licença e hashes SHA-256.
+
+## Validação
+
+Testes do PC, testes JVM e testes de interface no BlueStacks Android 11/x86_64 cobriram as alterações recentes. Assinatura, arquitetura, versão, alinhamento e ferramentas nativas são verificados nos dois APKs. O APK ARM64 ainda precisa de validação em aparelho físico; o emulador x86_64 não substitui esse teste. Consulte VALIDACAO.md para os resultados e limites.
+
+A release permanece em rascunho até a publicação ser autorizada.

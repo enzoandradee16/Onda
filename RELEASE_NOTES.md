@@ -1,31 +1,28 @@
-# ONDA 1.2.1
+# ONDA 1.2.2
 
-## Downloads e TikTok
+- Ícone próprio para imagens nos cards de Downloads e histórico do PC e Android, mantendo a identificação da origem.
 
-Corrige a falha reproduzida no Android em que o TikTok retorna uma página intermediária sem os dados da publicação. O extrator mantém a tentativa normal e, somente para falhas de extração específicas, consulta a página móvel e o player público oficial do mesmo ID. Fotos usam os itens explícitos da publicação, sem tratar a capa do vídeo como uma foto. Conteúdo privado ou que exige login não é liberado por esse fluxo.
+- Android: Downloads mantém apenas a tela simples; gerenciamento da fila integrado aos menus e painel de filtros, com remoção das configurações da tela antiga.
 
-O Android inclui yt-dlp 2026.10.21 e gallery-dl 1.32.17. Um extrator antigo salvo no aparelho não substitui o motor mais novo do APK. Os formatos de redes sociais agora compartilham o mesmo worker do PC.
+- Histórico no PC e Android: remoção individual pelo botão ou menu de contexto, sem excluir os arquivos; filtros Todos, Áudio, Vídeo e Imagens.
+- Ícones de plataforma nos cards incluem Instagram, TikTok, Kwai e outros serviços, com reconhecimento de links curtos.
+- Android: interruptores da janela de Aparência e demais telas permanecem visíveis no Preto Puro, inclusive desligados ou desabilitados.
 
-## Reprodução e desempenho no Android
+- Pesquisa de configurações com a aba de origem, navegação para a categoria correta e busca de notificações sem acentos nas duas versões.
 
-A fila do Jukebox prepara as próximas duas músicas e prioriza a seleção manual, mantendo as músicas anteriores na lista. Modelos distantes saem da memória e podem ser preparados novamente ao voltar; os arquivos de cache continuam disponíveis para reutilização.
-
-Corrige pedidos de reprodução antigos que podiam substituir uma seleção recente ou iniciar depois de Parar, a retomada após recriar a análise e campos vazios da fila de arquivos locais. Metadados com erro podem ser consultados novamente. Letras longas reutilizam o texto e as marcações por palavra já calculados.
-
-## Cancelamento e preparação da release
-
-Corrige uma corrida em que um processo nativo podia continuar executando após o cancelamento por ainda não ter sido registrado. O processo recém-criado agora é encerrado e seus recursos são liberados nesse caso. Avisos e arquivos de fontes de terceiros foram alinhados às versões incluídas nos APKs.
-
-## Validação
-
-Verificação final: 91 testes instrumentados no BlueStacks, mais um download TikTok real; 102 testes do PC e extratores, 34 testes de interface Tkinter e 76 testes JVM aprovados. A pasta local Testes e seus dados não fazem parte dos pacotes.
-
-Testes reais em BlueStacks com Android 11/x86_64 cobriram o TikTok fornecido em MP4, MP3, M4A, original e FLAC, fotos TikTok, Reel e carrossel Instagram. O modo automático também passou. Arquivos foram publicados e lidos pelos provedores Android, com limpeza dos itens de teste ao final. Três verificações instrumentadas de ferramentas nativas, downloads paralelos e limites de vídeo passaram.
-
-O aparelho físico ARM64 ainda precisa confirmar o resultado. BlueStacks não substitui a validação em hardware ARM64.
+- Android: botão de Aparência ao lado de Configurações, com ícone de paleta e uma janela rápida para tema, cor e separações no Preto Puro.
+- Novas instalações no PC e Android usam Preto Puro com Verde-Água. Preferências já salvas continuam sendo respeitadas.
+- Avisos de erro em português, inglês e espanhol, com preservação de caminhos, códigos e detalhes originais quando o diagnóstico não é conhecido.
+- PC: abas Efeitos/Jukebox agrupadas e fila lateral comum às duas abas.
 
 ## Pacotes
 
-Windows x64: portátil e instalador 1.2.1, metadados 1.2.1.0. Android: APKs ARM64 e x86_64, versão 1.2.1/código 28, assinados com a chave original do ONDA.
+- Windows x64: portátil e instalador, versão 1.2.2.0.
+- Android 8 ou superior: APK ARM64 para aparelhos e x86_64 para emuladores compatíveis; versão 1.2.2, código 29, assinatura original.
+- Fontes do ONDA, fontes de terceiros e fontes nativas Android, acompanhadas dos avisos de licença e hashes SHA-256.
 
-Release preparada como rascunho no GitHub, sem publicação automática.
+## Validação
+
+Testes do PC, testes JVM e testes de interface no BlueStacks Android 11/x86_64 cobriram as alterações recentes. Assinatura, arquitetura, versão, alinhamento e ferramentas nativas são verificados nos dois APKs. O APK ARM64 ainda precisa de validação em aparelho físico; o emulador x86_64 não substitui esse teste. Consulte VALIDACAO.md para os resultados e limites.
+
+A release permanece em rascunho até a publicação ser autorizada.
