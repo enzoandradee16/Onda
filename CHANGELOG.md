@@ -1,5 +1,30 @@
 # Histórico de versões
 
+## 1.2.3 — 2026-10-26
+
+- Controles de mídia do Windows também em Efeitos, com pausa, retomada, parada e navegação direcionadas ao player em uso.
+
+
+- Prévia de imagens antes de baixar: consultar links e carrosséis, navegar por miniaturas temporárias e baixar os originais somente ao escolher Baixar imagens, no PC e Android. Disponível em Links, Imagens e cards compatíveis da fila.
+
+
+- Galeria de imagens: abrir pelo card de Downloads ou Histórico, incluindo publicações mistas; usar os arquivos salvos para a prévia e manter leitura e compartilhamento das imagens do carrossel.
+
+
+- Entrada unificada de músicas, álbuns e playlists nos players e nas pesquisas das filas, sem abrir a fila ao adicionar.
+- Coleções com Carregar / Cancelar / Atualizar no mesmo botão e ações secundárias agrupadas.
+- Capas e datas de lançamento dos cards completadas em segundo plano; ações por card usam sua própria faixa.
+- Letras escolhidas automaticamente por gravação, com menus de contexto e de toque nas áreas relacionadas.
+
+
+- Histórico: desfazer a remoção de um registro durante 8 segundos, preservando o arquivo.
+- Imagens: abrir a prévia pelo card, navegar pelas imagens da mesma origem e compartilhar (no Windows, copiar o arquivo para colar no aplicativo desejado).
+- Downloads: causa provável da falha e ações para tentar novamente, atualizar o link ou verificar acesso; etapa atual, tamanho e velocidade quando informados pela fonte.
+- Reprodução: restaurar música, posição e filas de Efeitos e Jukebox sem iniciar áudio automaticamente.
+- Reprodução aleatória com ícone nas barras de Efeitos e Jukebox, removendo o controle das abas e preservando estados independentes por fila.
+- Textos de reprodução atualizados para músicas, álbuns e playlists.
+- Álbuns e playlists: enviar a seleção ou a coleção inteira às filas de Efeitos e Jukebox pela tela de coleções.
+
 ## 1.2.2 — 2026-10-25
 
 - PC e Android: ícone de imagem nos cards de Downloads e histórico, preservando o domínio ou a plataforma de origem; imagens sem prévia usam o símbolo de imagem em vez de música.

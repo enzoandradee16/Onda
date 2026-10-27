@@ -31,6 +31,7 @@ import org.json.JSONObject
     val busy by vm.busy.collectAsStateWithLifecycle()
     var libraryTab by rememberSaveable {mutableIntStateOf(if(collection.optString("title").isNotBlank())1 else 0)}
     var advanced by rememberSaveable {mutableStateOf(false)}
+    var moreActions by remember {mutableStateOf(false)}
     var saved by remember {mutableStateOf<List<JSONObject>>(emptyList())}
     val libraryScope=rememberCoroutineScope()
     val listState=rememberLazyListState()
@@ -80,10 +81,14 @@ import org.json.JSONObject
             Button(onClick={enqueue(true)},enabled=chosen().isNotEmpty() && !adding){UiText("Baixar agora")}
             TextButton(onClick={enqueue(false)},enabled=chosen().isNotEmpty() && !adding){UiText("Adicionar à fila")}
         }
+
     }
     NavigableList(Modifier.fillMaxSize().imePadding().padding(horizontal=20.dp),navigationId="collection",state=listState) {
         item {ToolHeading("Álbuns e playlists")}
-        item {ToolLink(url,{url=it},"Link da playlist ou álbum",submit={libraryTab=1;vm.loadCollection(url,options)})}
+        item {
+            OutlinedTextField(url,{url=it},label={UiText("Link da playlist ou álbum")},singleLine=true,modifier=Modifier.fillMaxWidth(),keyboardOptions=androidx.compose.foundation.text.KeyboardOptions(imeAction=androidx.compose.ui.text.input.ImeAction.Go),keyboardActions=androidx.compose.foundation.text.KeyboardActions(onGo={if(!busy&&url.isNotBlank()){libraryTab=1;vm.loadCollection(url,options)}}))
+            Button(onClick={if(busy)vm.cancel() else {libraryTab=1;vm.loadCollection(url,options)}},enabled=busy||url.isNotBlank()) {UiText(if(busy)"Cancelar" else if(tracks.isNotEmpty()&&collection.optString("_collection_url")==url)"Atualizar" else "Carregar")}
+        }
         item {ToolTabs(listOf("Salvos","Importar"),libraryTab){libraryTab=it}}
         if(libraryTab==0) {
             if(saved.isEmpty())item {ToolEmpty("album","Suas coleções ficam aqui","Importe um álbum ou playlist e salve para acessar depois.")}
@@ -111,18 +116,21 @@ import org.json.JSONObject
             }
             item {OutlinedButton(onClick={libraryTab=1;import.launch(arrayOf("text/*","application/octet-stream","application/vnd.ms-excel"))},modifier=Modifier.fillMaxWidth()){OndaIcon("add",modifier=Modifier.size(20.dp));Spacer(Modifier.width(8.dp));UiText("Importar lista")}}
         } else {
-        item {Row(Modifier.horizontalScroll(rememberScrollState())) {
-            Button(onClick={vm.loadCollection(url,options)},enabled=url.isNotBlank()){UiText("Carregar álbum ou playlist")}
-            TextButton(onClick={import.launch(arrayOf("text/*","application/octet-stream","application/vnd.ms-excel"))}){UiText("Importar arquivo")}
-            TextButton(onClick={listOnly=true}){UiText("Ver lista")}
+        item {Box {
+            TextButton(onClick={moreActions=true}){UiText("Mais ações")}
+            DropdownMenu(moreActions,{moreActions=false}) {
+                DropdownMenuItem(text={UiText("Importar arquivo")},onClick={moreActions=false;import.launch(arrayOf("text/*","application/octet-stream","application/vnd.ms-excel"))})
+                DropdownMenuItem(text={UiText("Selecionar visíveis")},onClick={moreActions=false;selected=selected+visible.map {it.optString("source_url")}})
+                DropdownMenuItem(text={UiText("Limpar seleção")},onClick={moreActions=false;selected=emptySet()})
+                DropdownMenuItem(text={UiText("Conferir correspondências")},enabled=chosen().isNotEmpty()&&!busy,onClick={moreActions=false;vm.operation("matches",OndaStore.config(options).put("tracks",JSONArray(chosen()))){vm.collection.value=JSONObject(collection.toString()).put("tracks",JSONArray(mergeTrackMatches(tracks,it.getJSONArray("tracks").objects())))}})
+                DropdownMenuItem(text={UiText("Conferir arquivos locais")},enabled=tracks.isNotEmpty()&&!busy,onClick={moreActions=false;syncReload=false;folderPicker.launch(null)})
+                DropdownMenuItem(text={UiText("Adicionar ausentes à fila")},enabled=missingTracks.isNotEmpty()&&!busy,onClick={moreActions=false;vm.queueCollection(missingTracks,options,collection.optString("title","Playlist"),false)})
+                for(format in listOf("txt","m3u"))DropdownMenuItem(text={UiText("Exportar ${format.uppercase()}")},enabled=tracks.isNotEmpty()&&!busy,onClick={moreActions=false;vm.operation("export_list",JSONObject().put("tracks",JSONArray(tracks)).put("format",format)){exported=it.getString("text");export.launch("${collection.optString("title","Playlist")}.$format")}})
+                DropdownMenuItem(text={UiText("Ver lista")},enabled=tracks.isNotEmpty(),onClick={moreActions=false;listOnly=true})
+                DropdownMenuItem(text={UiText("Opções de download")},onClick={moreActions=false;advanced=!advanced})
+            }
         }}
-        item {TextButton(onClick={advanced=!advanced}){UiText(if(advanced)"Ocultar opções avançadas" else "Opções avançadas")}}
         if(advanced) {
-        item {Row(Modifier.horizontalScroll(rememberScrollState())) {
-            TextButton(onClick={syncReload=false;folderPicker.launch(null)},enabled=tracks.isNotEmpty() && !busy && !adding){UiText("Conferir arquivos locais")}
-            TextButton(onClick={syncReload=true;folderPicker.launch(null)},enabled=url.isNotBlank() && !busy && !adding){UiText("Atualizar playlist baixada")}
-            TextButton(onClick={vm.queueCollection(missingTracks,options,collection.optString("folder_title",collection.optString("title","Playlist")),false);vm.collectionComparison.value=null},enabled=missingTracks.isNotEmpty() && !busy && !adding){UiText("Adicionar ausentes à fila")}
-        }}
         comparison?.let {report->item {Text(collectionSyncSummary(report),style=MaterialTheme.typography.bodySmall)}}
         item {ToolCard {FormatOptions(options,changed={options=it},separated=true)}}
         }
@@ -142,22 +150,30 @@ import org.json.JSONObject
             }
         }
         item {OutlinedTextField(filter,{filter=it},label={UiText("Buscar nesta lista")},modifier=Modifier.fillMaxWidth(),singleLine=true);UiText("${visible.size} de ${tracks.size}",style=MaterialTheme.typography.bodySmall)}
-        item {Row(Modifier.horizontalScroll(rememberScrollState())) {
-            TextButton(onClick={selected=selected+visible.map {it.optString("source_url")}}){UiText("Selecionar visíveis")}
-            TextButton(onClick={selected=emptySet()}){UiText("Limpar seleção")}
-            TextButton(onClick={vm.operation("matches",OndaStore.config(options).put("tracks",JSONArray(chosen()))){vm.collection.value=JSONObject(collection.toString()).put("tracks",JSONArray(mergeTrackMatches(tracks,it.getJSONArray("tracks").objects())))}}){UiText("Conferir correspondências")}
-        }}
         item {collectionActions()}
         if(adding)item {LinearProgressIndicator(Modifier.fillMaxWidth())}
-        items(visible,contentType={"collection_track"}) {record->Surface(shape=RoundedCornerShape(16.dp),color=MaterialTheme.colorScheme.surfaceVariant.copy(alpha=.45f)){Row(Modifier.fillMaxWidth().heightIn(min=64.dp).toggleable(value=record.optString("source_url") in selected,role=Role.Checkbox,onValueChange={checked->val id=record.optString("source_url");selected=if(checked) selected+id else selected-id}).a11yState(if(record.optString("source_url") in selected) "Selecionado" else "Não selecionado"),verticalAlignment=Alignment.CenterVertically) {
+        items(visible,contentType={"collection_track"}) {original->
+            val record=rememberCardMetadata(original,vm)
+            var actions by remember {mutableStateOf(false)}
+            Surface(modifier=Modifier.onSecondaryClick(record.optString("source_url")){actions=true},shape=RoundedCornerShape(16.dp),color=MaterialTheme.colorScheme.surfaceVariant.copy(alpha=.45f)){Row(Modifier.fillMaxWidth().heightIn(min=64.dp).toggleable(value=record.optString("source_url") in selected,role=Role.Checkbox,onValueChange={checked->val id=record.optString("source_url");selected=if(checked) selected+id else selected-id}).a11yState(if(record.optString("source_url") in selected) "Selecionado" else "Não selecionado"),verticalAlignment=Alignment.CenterVertically) {
             Checkbox(record.optString("source_url") in selected,null,modifier=Modifier.padding(end=LayoutSpacing.checkboxLabel))
-            Column(Modifier.weight(1f)) {Text(record.optString("title"));Text(record.stringList("artists"),style=MaterialTheme.typography.bodySmall);record.optJSONObject("youtube_match")?.let {Text(it.optString("title"),color=MaterialTheme.colorScheme.primary,style=MaterialTheme.typography.bodySmall)};syncBySource[record.optString("source_url")]?.let {state->
+            EffectsArtwork(JSONObject().put("record",record),Modifier.size(56.dp).padding(end=8.dp))
+            Column(Modifier.weight(1f)) {Text(record.optString("title"));Text(record.stringList("artists"),style=MaterialTheme.typography.bodySmall);Text(record.cleanString("album"),style=MaterialTheme.typography.bodySmall);ReleaseDateLabel(record);record.optJSONObject("youtube_match")?.let {Text(it.optString("title"),color=MaterialTheme.colorScheme.primary,style=MaterialTheme.typography.bodySmall)};syncBySource[record.optString("source_url")]?.let {state->
                 UiText(collectionSyncState(state.optString("state")),style=MaterialTheme.typography.bodySmall)
                 UiText(state.optString("reason"),style=MaterialTheme.typography.bodySmall)
                 state.optJSONArray("paths")?.optString(0)?.takeIf {it.isNotBlank()}?.let {Text(it,style=MaterialTheme.typography.bodySmall)}
             }}
+            Box {
+                IconButton(onClick={actions=true}){OndaIcon("more-vertical","Mais ações",Modifier.size(22.dp))}
+                DropdownMenu(actions,{actions=false}) {
+                    DropdownMenuItem(text={UiText("Baixar agora")},onClick={actions=false;vm.queueCollection(listOf(record),options,collection.optString("title","Playlist"),true)})
+                    DropdownMenuItem(text={UiText("Adicionar à fila")},onClick={actions=false;vm.queueCollection(listOf(record),options,collection.optString("title","Playlist"),false)})
+                    DropdownMenuItem(text={UiText("Ver no catálogo")},onClick={actions=false;openRecordLink(record)})
+                    DropdownMenuItem(text={UiText("Copiar link")},onClick={actions=false;copyRecordLink(record)})
+                }
+            }
         }}}
-        item {Row {for(format in listOf("txt","m3u")) TextButton(onClick={vm.operation("export_list",JSONObject().put("tracks",JSONArray(tracks)).put("format",format)){exported=it.getString("text");export.launch("${collection.optString("title","Playlist")}.$format")}}){UiText("Exportar ${format.uppercase()}")}}}
+
         }
         item {Spacer(Modifier.height(16.dp))}
     }

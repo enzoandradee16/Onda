@@ -39,7 +39,7 @@ ApplicationWindow {
     readonly property string trackAlbum: effects ? (workspace.values.effectsRecord.album || "") : (bridge.state.album || "")
     readonly property bool playing: effects ? workspace.values.previewActive && workspace.values.previewKind==="effects" : bridge.state.playing && !bridge.state.paused
     readonly property bool ready: effects ? workspace.values.duration>0 : bridge.state.ready
-    readonly property bool hasNext: effects ? workspace.values.effectsQueueIndex+1<workspace.values.effectsQueue.length : bridge.playback.current+1<bridge.queuedTracks.length
+    readonly property bool hasNext: effects ? (workspace.values.effectsQueueIndex+1<workspace.values.effectsQueue.length || workspace.values.effectsRepeat==="Todas" && workspace.values.effectsQueue.length>0) : (bridge.playback.current+1<bridge.queuedTracks.length || bridge.queueRepeat==="Todas" && bridge.queuedTracks.length>0)
     property real volumeValue: effects ? workspace.values.effectsVolume : 80
     property bool queueVisible: false
     property bool lyricsVisible: false
@@ -102,6 +102,7 @@ ApplicationWindow {
         RowLayout {
             Layout.fillWidth: true; spacing: 8
             Item {Layout.fillWidth: true}
+            MiniControl {objectName:"miniShuffle";glyph:"shuffle";primary:mini.effects ? !!workspace.values.effectsShuffle : bridge.queueShuffle;Accessible.name:bridge.translate("Reprodução aleatória");ToolTip.visible:hovered;ToolTip.text:Accessible.name;onClicked:mini.effects ? workspace.setOption("effectsShuffle",!workspace.values.effectsShuffle) : bridge.setQueueShuffle(!bridge.queueShuffle)}
             PlaybackButton {objectName: "miniPrevious"; glyph: "previous"; Accessible.name: bridge.translate("Retroceder"); enabled: mini.ready; onClicked: {if(mini.effects)workspace.invoke("effects_previous",{});else bridge.previousTrack()}}
             PlaybackButton {objectName: "miniPlayPause"; glyph: mini.playing ? "pause" : "play"; primary: true; enabled: mini.ready; Accessible.name: bridge.translate(mini.playing ? "Pausar" : "Reproduzir"); onClicked: {if(mini.effects)workspace.invoke("effects_play_pause",{});else bridge.playPause()}}
             PlaybackButton {objectName: "miniNext"; glyph: "next"; Accessible.name: bridge.translate("Avançar"); enabled: mini.hasNext; onClicked: {if(mini.effects)workspace.invoke("effects_next",{});else bridge.nextTrack()}}

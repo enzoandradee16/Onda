@@ -53,6 +53,7 @@ def create_application(*, complete=True):
     if not engine.rootObjects():raise RuntimeError('\n'.join(warnings))
     bridge.window=engine.rootObjects()[0];workspace.attach(bridge.window)
     if complete:QTimer.singleShot(0,workspace.start)
+    app.aboutToQuit.connect(workspace.shutdown)
     app.aboutToQuit.connect(bridge.shutdown)
     return app,engine,bridge
 

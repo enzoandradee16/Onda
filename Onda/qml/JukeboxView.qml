@@ -8,6 +8,15 @@ ScrollView {
     objectName: "jukeboxView"
     contentWidth: availableWidth
     clip: true
+    Menu {id:jukeboxActions;objectName:"jukeboxContextMenu"
+        OndaMenuItem {text:bridge.translate("Abrir arquivo");onTriggered:fileDialog.open()}
+        OndaMenuItem {text:bridge.translate("Fila de reprodução");onTriggered:workspace.setOption("jukeboxQueueOpen",true)}
+        OndaMenuItem {text:bridge.translate("Reproduzir / Pausar");enabled:bridge.state.ready;onTriggered:bridge.playPause()}
+        OndaMenuItem {text:bridge.translate("Buscar letra online");enabled:bridge.state.ready;onTriggered:workspace.invoke("lyrics_online",{jukebox:true})}
+        OndaMenuItem {text:bridge.translate("Equalizador");onTriggered:equalizer.open()}
+    }
+    TapHandler {enabled:!bridge.state.results.length;acceptedButtons:Qt.RightButton;onTapped:jukeboxActions.popup()}
+
     FileDialog { id: fileDialog; title: bridge.translate("Abrir arquivo"); nameFilters: [bridge.translate("Áudio")+" (*.mp3 *.m4a *.flac *.wav *.ogg *.opus *.aac *.webm)",bridge.translate("Todos os arquivos")+" (*)"]; onAccepted: bridge.openFile(selectedFile) }
     property string currentLyric: ""
     property string currentLine: ""
@@ -20,7 +29,7 @@ ScrollView {
             Layout.fillWidth: true; spacing: Math.round(10*bridge.spacing)
             ActionButton { primary: true; text: bridge.translate("Abrir arquivo"); enabled: !bridge.state.busy; onClicked: fileDialog.open() }
             OndaTextField {
-                id: query; Layout.fillWidth: true; implicitHeight: 44; placeholderText: bridge.translate("Pesquise uma música ou cole um link"); selectByMouse: true
+                id: query; Layout.fillWidth: true; implicitHeight: 44; placeholderText: bridge.translate("Música, artista ou link de música, álbum ou playlist"); selectByMouse: true
                 color: bridge.palette.text; placeholderTextColor: bridge.palette.muted; font.pixelSize: Math.round(14*bridge.fontScale)
                 background: Rectangle { radius: 8; color: bridge.palette.surface; border.color: query.activeFocus ? bridge.palette.accent : bridge.palette.line; border.width: query.activeFocus ? 2 : 1 }
                 onAccepted: if (!bridge.state.busy) bridge.search(text)
@@ -44,7 +53,17 @@ ScrollView {
                 id: resultList; anchors.fill: parent; anchors.margins: 6; anchors.topMargin: 56; clip: true; model: bridge.state.results
                 delegate: ItemDelegate {
                     required property var modelData; required property int index
-                    width: resultList.width; height: 84
+                        Component.onCompleted: workspace.invoke("request_card_details",{model:"jukeboxSearch",source:modelData.source_url || ""})
+                        ListView.onReused: workspace.invoke("request_card_details",{model:"jukeboxSearch",source:modelData.source_url || ""})
+                        Menu {id:resultActions
+                            OndaMenuItem {text:bridge.translate("Reproduzir");onTriggered:bridge.selectResult(index)}
+                            OndaMenuItem {text:bridge.translate("Adicionar à fila");onTriggered:bridge.enqueueResult(index)}
+                            OndaMenuItem {text:bridge.translate("Ver no catálogo");onTriggered:workspace.invoke("open_url",{url:modelData.source_url})}
+                            OndaMenuItem {text:bridge.translate("Copiar link");onTriggered:workspace.invoke("copy_link",{url:modelData.source_url})}
+                        }
+                        TapHandler {acceptedButtons:Qt.RightButton;onTapped:resultActions.popup()}
+
+                    width: resultList.width; height: modelData.release_date ? 108 : 84
                     contentItem: RowLayout {
                         Rectangle { Layout.preferredWidth: 64; Layout.preferredHeight: 64; radius: 6; color: bridge.palette.input
                             RoundedArtwork { id: searchCover; objectName: "jukeboxSearchArtwork"; anchors.fill: parent; source: modelData.cover || ""; fillMode: Image.PreserveAspectFit; sourceSize.width: 128; sourceSize.height: 128; asynchronous: true }
@@ -54,8 +73,9 @@ ScrollView {
                             Label { Layout.fillWidth: true; text: modelData.title; color: bridge.palette.text; elide: Text.ElideRight }
                             Label { Layout.fillWidth: true; text: modelData.artist; color: bridge.palette.muted; elide: Text.ElideRight }
                             Label { Layout.fillWidth: true; text: modelData.album || ""; color: bridge.palette.muted; elide: Text.ElideRight }
+                                Label {Layout.fillWidth:true;visible:!!modelData.release_date;text:bridge.translate("Data de lançamento")+": "+workspace.releaseDateText(modelData.release_date || "");color:bridge.palette.muted;elide:Text.ElideRight}
                         }
-                        ActionButton { text: bridge.translate("Adicionar à fila"); onClicked: {bridge.enqueueResult(index);workspace.setOption("jukeboxQueueOpen",true)} }
+                        ActionButton { text: bridge.translate("Adicionar à fila"); onClicked: {bridge.enqueueResult(index)} }
                     }
                     onClicked: bridge.selectResult(index)
                 }

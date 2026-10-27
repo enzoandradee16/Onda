@@ -53,7 +53,7 @@ import kotlinx.coroutines.flow.first
             }
         } else ToolEmpty("image","Sua imagem aparece aqui","Escolha um arquivo ou cole um link para visualizar e exportar.")
         if(source.isNotBlank())Text(File(source).name.replaceFirst(Regex("^image-[0-9a-f-]{36}-"),""),style=MaterialTheme.typography.bodySmall,maxLines=2)
-        if(link.isNotBlank())OutlinedButton(onClick={loadPreview()},modifier=Modifier.fillMaxWidth()){UiText("Visualizar")}
+        if(link.isNotBlank())OnlineImagePreviewButton(vm,link)
         ToolCard {ImageOptions(settings,OndaStore::saveSettings,forceVisible=true)}
         Button(onClick={if(source.isNotBlank()) vm.operation("image_convert",imageConfig()) else {val id=OndaStore.enqueue(link,options=JSONObject(settings.toString()).put("mode","photos"),extra=JSONObject().put("_immediate",true));DownloadService.start(OndaStore.context,id);link="";preview=""}},modifier=Modifier.fillMaxWidth().heightIn(min=52.dp),enabled=link.isNotBlank() || source.isNotBlank()) {UiText("Exportar / baixar")}
         if(link.isNotBlank())OutlinedButton(onClick={OndaStore.enqueue(link,options=JSONObject(settings.toString()).put("mode","photos"));link="";preview=""},modifier=Modifier.fillMaxWidth()){UiText("Adicionar à fila")}

@@ -21,6 +21,7 @@ import org.json.JSONObject
 @Composable fun HistoryPage(vm: OndaViewModel,onEditMetadata:(HistoryItem)->Unit) {
     LaunchedEffect(Unit) {invalidateHistoryDetails()}
     val history by OndaStore.history.collectAsStateWithLifecycle()
+    val removed by OndaStore.removedHistory.collectAsStateWithLifecycle()
     val settings by OndaStore.settings.collectAsStateWithLifecycle()
     var filter by rememberSaveable {mutableStateOf("")}
     var kind by rememberSaveable {mutableStateOf("Todos")}
@@ -43,6 +44,7 @@ import org.json.JSONObject
     var exported by remember {mutableStateOf("")}
     val export=rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")){uri->if(uri!=null)runCatching {OndaStore.context.contentResolver.openOutputStream(uri)?.use {it.write(exported.toByteArray())}}.onFailure {vm.showNotice("Exportar histórico","Não foi possível salvar o histórico.")}}
     LazyColumn(Modifier.fillMaxSize().testTag("history-list").imePadding().padding(horizontal=20.dp),verticalArrangement=Arrangement.spacedBy(12.dp),contentPadding=PaddingValues(bottom=20.dp)) {
+        if(removed!=null)item {Snackbar(action={TextButton(onClick={OndaStore.undoHistory()}){UiText("Desfazer")}}){UiText("Registro removido")}}
         item {ToolHeading("Histórico") {Row {IconButton(onClick={exported=JSONArray(visible.map {JSONObject().put("title",it.title).put("uri",it.uri).put("format",it.mode).put("source",it.source).put("completed_at",it.completedAt)}).toString(2);export.launch("ONDA-historico.json")}){OndaIcon("download","Exportar histórico",Modifier.size(24.dp))};IconButton(onClick={showOptions=true}){OndaIcon("more-vertical","Opções do histórico",Modifier.size(22.dp))}}}}
         item {OutlinedTextField(filter,{filter=it},label={UiText("Pesquisar no histórico")},modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(16.dp),singleLine=true,leadingIcon={OndaIcon("search",modifier=Modifier.size(20.dp))})}
         item {Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)){listOf("Todos","Áudio","Vídeo","Imagens").forEach {label->FilterChip(kind==label,{kind=label},label={UiText(label)},modifier=Modifier.testTag("history-filter-$label"),colors=FilterChipDefaults.filterChipColors(selectedContainerColor=MaterialTheme.colorScheme.primary,selectedLabelColor=MaterialTheme.colorScheme.onPrimary))}}}

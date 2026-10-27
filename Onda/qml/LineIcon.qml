@@ -20,6 +20,8 @@ Canvas {
         else if(g==="next"){line(19,5,19,19);path([6,5,16,12,6,19],true)}
         else if(g==="stop")c.strokeRect(6,6,12,12)
         else if(g==="close"){line(6,6,18,18);line(6,18,18,6)}
+        else if(g==="add"){line(12,4,12,20);line(4,12,20,12)}
+        else if(g==="shuffle"){path([3,6,7,6,17,18,21,18]);path([3,18,7,18,17,6,21,6]);path([18,3,21,6,18,9]);path([18,15,21,18,18,21])}
         else if(g==="up"){path([6,10,12,4,18,10]);line(12,4,12,20)}
         else if(g==="down"){path([6,14,12,20,18,14]);line(12,4,12,20)}
         else if(g==="minimize")line(5,12,19,12)

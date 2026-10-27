@@ -4,6 +4,19 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class PlaybackParityTest {
+    @Test fun shuffleKeepsPlayedPrefixAndSkipsCurrentWhenWrapping() {
+        assertEquals(2,shuffledNextIndex(5,1,2){0})
+        assertEquals(4,shuffledNextIndex(5,1,2){it-1})
+        assertEquals(3,shuffledNextIndex(5,4,0){it-1})
+        assertEquals(0,shuffledNextIndex(1,0,0){0})
+    }
+    @Test fun repeatRespectsEndAndManualSkip() {
+        assertEquals(-1,nextPlaybackIndex(0,-1,"Todas"))
+        assertEquals(-1,nextPlaybackIndex(3,2,"Desativada",true))
+        assertEquals(0,nextPlaybackIndex(3,2,"Todas",true))
+        assertEquals(1,nextPlaybackIndex(3,1,"Uma",true))
+        assertEquals(2,nextPlaybackIndex(3,1,"Uma",false))
+    }
     @Test fun reorderedQueueKeepsCurrentTrackIdentity() {
         val original=listOf("first","playing","last")
         val result=movePlaybackEntry(original,1,1)

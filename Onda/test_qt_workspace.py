@@ -231,6 +231,7 @@ class NativeDesktopTests(unittest.TestCase):
             with patch('qt_workspace_ui.time.monotonic',return_value=180):self.ws.tick()
             self.assertFalse(player.active);jukebox_sleep.assert_not_called()
             player.active=True;self.ws.preview_kind='effects'
+            self.ws.options['effectsQueue']=[dict(source='next.wav',record={},duration=60)]
             self.ws.invoke('effects_timer',{'next':True,'minutes':1})
             with patch.object(self.ws,'play_effects_entry') as next_track,patch('qt_workspace_ui.time.monotonic',return_value=241):
                 self.ws.tick();next_track.assert_called_once_with(0)
@@ -453,11 +454,12 @@ class NativeDesktopTests(unittest.TestCase):
             for name in ('remote.png','page.html'):
                 self.ws.setOption('imageUrl',f'http://127.0.0.1:{server.server_port}/{name}')
                 self.assertEqual(self.ws.options['imageSource'],'')
-                self.ws.invoke('image_preview',{});self.task_done('image_preview')
-                self.assertTrue(self.ws.options['imagePreview'],self.ws.status)
-                self.assertEqual(self.ws.options['imageInfo']['source'],{'width':160,'height':90,'format':'PNG'})
-                from PySide6.QtCore import QUrl
-                with Image.open(QUrl(self.ws.options['imagePreview']).toLocalFile()) as preview:self.assertEqual(preview.size,(160,90))
+                before=self.ws.library.history()
+                self.ws.invoke('image_preview',{});self.task_done('image_gallery_manifest');self.task_done('image_gallery_thumbnail')
+                images=self.ws.options.get('imageGallery',[])
+                self.assertEqual(len(images),1,self.ws.status)
+                with Image.open(images[0]['path']) as preview:self.assertEqual(preview.size,(160,90))
+                self.assertEqual(self.ws.library.history(),before)
         finally:server.shutdown();server.server_close();thread.join()
     def test_embedded_artwork_is_a_qt_image_url(self):
         import base64,io
@@ -696,6 +698,7 @@ class NativeDesktopTests(unittest.TestCase):
                         return value.toVariant() if hasattr(value,'toVariant') else value
                     self.wait_for(lambda:frame()['position']==42)
                     self.assertFalse(frame()['jukebox'])
+                    ws.options['effectsQueue']=[dict(source='next.wav',record={},duration=60)]
                     with patch.object(ws,'play_effects_entry') as play:
                         QMetaObject.invokeMethod(mini.findChild(QObject,'miniNext'),'clicked')
                         play.assert_called_once_with(0)

@@ -69,7 +69,11 @@ import coil.compose.AsyncImage
     val duration=(if(useJukebox)model?.optDouble("duration",0.0) ?: 0.0 else info?.optDouble("duration",0.0) ?: fxMedia?.duration ?: 0.0).coerceAtLeast(0.0)
     val preparing=if(useJukebox)juke.busy else fxPreparing
     val playing=if(useJukebox)juke.playing&&!juke.paused else fxEnabled
-    val hasNext=if(useJukebox)vm.jukebox.nextQueueIndex<jukeQueue.size else vm.effectsQueueIndex(source)+1<fxQueue.size
+    val fxRepeat by vm.effectsRepeat.collectAsStateWithLifecycle()
+    val fxShuffle by vm.effectsShuffle.collectAsStateWithLifecycle()
+    val jukeRepeat by vm.jukebox.queueRepeat.collectAsStateWithLifecycle()
+    val jukeShuffle by vm.jukebox.queueShuffle.collectAsStateWithLifecycle()
+    val hasNext=if(useJukebox)(vm.jukebox.nextQueueIndex<jukeQueue.size || jukeRepeat=="Todas" && jukeQueue.isNotEmpty()) else (vm.effectsQueueIndex(source)+1<fxQueue.size || fxRepeat=="Todas" && fxQueue.isNotEmpty())
     var queue by rememberSaveable {mutableStateOf(false)}
     var menu by remember {mutableStateOf(false)}
     var timer by remember {mutableStateOf(false)}
@@ -97,6 +101,7 @@ import coil.compose.AsyncImage
                     Text(title,maxLines=1,overflow=TextOverflow.Ellipsis,style=MaterialTheme.typography.labelLarge)
                     Text(artist,maxLines=1,overflow=TextOverflow.Ellipsis,style=MaterialTheme.typography.bodySmall,color=glass.secondary)
                 }
+                ShufflePlaybackButton(if(useJukebox)jukeShuffle else fxShuffle,{if(useJukebox)vm.jukebox.queueShuffle.value=it else vm.effectsShuffle.value=it})
                 LyricsButton(vm,source,{position},duration,::seek,::toggle,isPlaying={playing},title=title,artist=artist)
                 IconButton(onClick=::openQueue,modifier=Modifier.testTag("compact-player-queue")){OndaIcon("queue","Fila",Modifier.size(24.dp))}
                 IconButton(onClick=::toggle,enabled=duration>0,modifier=Modifier.testTag("compact-player-toggle"),colors=IconButtonDefaults.iconButtonColors(contentColor=glass.ink,disabledContentColor=glass.ink.copy(alpha=if(glass.highContrast)1f else .38f))) {
@@ -115,6 +120,7 @@ import coil.compose.AsyncImage
                     Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
                         IconButton(onClick={expanded=false}){OndaIcon("down","Recolher reprodução",Modifier.size(26.dp))}
                         Column(Modifier.weight(1f),horizontalAlignment=Alignment.CenterHorizontally){UiText("Reproduzindo",style=MaterialTheme.typography.labelSmall);UiText(if(useJukebox)"Jukebox infinito" else "Efeitos",style=MaterialTheme.typography.titleSmall)}
+                        ShufflePlaybackButton(if(useJukebox)jukeShuffle else fxShuffle,{if(useJukebox)vm.jukebox.queueShuffle.value=it else vm.effectsShuffle.value=it})
                         Box {
                             IconButton(onClick={menu=true}){OndaIcon("more-vertical","Mais",Modifier.size(24.dp))}
                             DropdownMenu(menu,{menu=false}) {

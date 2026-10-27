@@ -3,6 +3,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 Pane {
     DownloadFormatPopup {}
+    ImageGalleryPopup {}
     LyricsWindow { id: lyricsWindow }
     EffectsQueueDrawer {parent: Overlay.overlay}
     EffectsQueueDrawer {parent: Overlay.overlay; effects: false}
@@ -12,7 +13,7 @@ Pane {
     Connections { target: workspace; function onLyricsRequested() {lyricsWindow.open()} }
     id: app
     width: 1360; height: 900
-    readonly property var inlineTasks: ({catalog:["search"],playlists:["collection","compare_collection","check_matches"],converter:["convert","detect_silence"],effects:["effects_export","effects_search","effects_load","effects_queue_info"],images:["image_preview","image_export"],metadata:["audio_edit","normalize_preview"]})[workspace.currentPage] || []
+    readonly property var inlineTasks: ({downloads:["image_gallery_manifest"],queue:["image_gallery_manifest"],catalog:["search"],playlists:["collection","compare_collection","check_matches"],converter:["convert","detect_silence"],effects:["effects_export","effects_search","effects_load","effects_queue_info","effects_collection"],images:["image_preview","image_export","image_gallery_manifest"],metadata:["audio_edit","normalize_preview"]})[workspace.currentPage] || []
     readonly property var remainingTasks: workspace.activity.busy.filter(function(name) { return app.inlineTasks.indexOf(name)<0 && workspace.activity.background.indexOf(name)<0 })
     padding: 0
     background: Rectangle { color: bridge.palette.bg }
@@ -118,7 +119,7 @@ Pane {
                         Accessible.name: bridge.translate(bridge.state.paused ? "Retomar" : "Pausar")
                         onClicked: bridge.playPause()
                     }
-                    PlaybackButton { glyph: "next"; Accessible.name: bridge.translate("Próxima música"); ToolTip.visible: hovered; ToolTip.text: Accessible.name; enabled: bridge.playback.current+1<bridge.queuedTracks.length; onClicked: bridge.nextTrack() }
+                    PlaybackButton { glyph: "next"; Accessible.name: bridge.translate("Próxima música"); ToolTip.visible: hovered; ToolTip.text: Accessible.name; enabled: bridge.queuedTracks.length>0 && (bridge.queueRepeat==="Todas" || bridge.playback.current+1<bridge.queuedTracks.length); onClicked: bridge.nextTrack() }
                     PlaybackButton { glyph: "stop"; Accessible.name: bridge.translate("Parar"); ToolTip.visible: hovered; ToolTip.text: Accessible.name; onClicked: bridge.stop() }
                     ActionButton {
                         implicitWidth: 44; Accessible.name: bridge.translate("Equalizador")
@@ -157,6 +158,7 @@ Pane {
                     RowLayout {
                         anchors.left: parent.left; anchors.leftMargin: 24; anchors.verticalCenter: parent.verticalCenter; spacing: Math.round(12*bridge.spacing)
                     TimerButton {onClicked: effectsTimers.open()}
+                    PlaybackButton {objectName:"effectsShuffleButton";glyph:"shuffle";primary:!!workspace.values.effectsShuffle;Accessible.name:bridge.translate("Reprodução aleatória");Accessible.checkable:true;Accessible.checked:!!workspace.values.effectsShuffle;ToolTip.visible:hovered;ToolTip.text:Accessible.name;onClicked:workspace.setOption("effectsShuffle",!workspace.values.effectsShuffle)}
                     MicrophoneButton { onClicked: {if(lyricsWindow.visible)lyricsWindow.close();else lyricsWindow.open()} }
 
                     }
@@ -166,7 +168,7 @@ Pane {
                         anchors.centerIn: parent; spacing: Math.round(12*bridge.spacing)
                     PlaybackButton { glyph: "previous"; Accessible.name: bridge.translate("Retroceder"); enabled: !!workspace.values.effectsSource; onClicked: workspace.invoke("effects_previous",{}) }
                     PlaybackButton { objectName: "effectsPlayButton"; primary: true; glyph: workspace.values.previewActive && workspace.values.previewKind==="effects" ? "pause" : "play"; Accessible.name: bridge.translate(glyph==="pause" ? "Pausar" : "Reproduzir"); enabled: !!workspace.values.effectsSource && workspace.values.duration>0; onClicked: workspace.invoke("effects_play_pause",{}) }
-                    PlaybackButton { glyph: "next"; Accessible.name: bridge.translate("Avançar"); enabled: workspace.values.effectsQueueIndex+1<workspace.values.effectsQueue.length; onClicked: workspace.invoke("effects_next",{}) }
+                    PlaybackButton { glyph: "next"; Accessible.name: bridge.translate("Avançar"); enabled: workspace.values.effectsQueue.length>0 && (workspace.values.effectsRepeat==="Todas" || workspace.values.effectsQueueIndex+1<workspace.values.effectsQueue.length); onClicked: workspace.invoke("effects_next",{}) }
                     }
                     RowLayout {
                         anchors.right: parent.right; anchors.rightMargin: 24; anchors.verticalCenter: parent.verticalCenter
@@ -194,6 +196,7 @@ Pane {
                     RowLayout {
                         anchors.left: parent.left; anchors.leftMargin: 24; anchors.verticalCenter: parent.verticalCenter; spacing: Math.round(12*bridge.spacing)
                     TimerButton { onClicked: miniTimers.open() }
+                    PlaybackButton {objectName:"jukeboxShuffleButton";glyph:"shuffle";primary:bridge.queueShuffle;Accessible.name:bridge.translate("Reprodução aleatória");Accessible.checkable:true;Accessible.checked:bridge.queueShuffle;ToolTip.visible:hovered;ToolTip.text:Accessible.name;onClicked:bridge.setQueueShuffle(!bridge.queueShuffle)}
                     MicrophoneButton { onClicked: { if (lyricsWindow.visible) lyricsWindow.close(); else lyricsWindow.open() } }
                     Column { spacing: Math.round(5*bridge.spacing); Text { text: bridge.translate("Tempo ouvido"); font.pixelSize: Math.round(11*bridge.fontScale); color: bridge.palette.muted } Text { text: bridge.elapsed; font.pixelSize: Math.round(14*bridge.fontScale); color: bridge.palette.text } }
                     Rectangle { width: 1; height: 30; color: bridge.palette.line; Layout.leftMargin: 8; Layout.rightMargin: 8 }
@@ -211,7 +214,7 @@ Pane {
                         enabled: bridge.state.ready && (!bridge.state.busy || bridge.state.playing)
                         onClicked: bridge.playPause()
                     }
-                    PlaybackButton { glyph: "next"; Accessible.name: bridge.translate("Avançar"); enabled: bridge.playback.current+1<bridge.queuedTracks.length; onClicked: bridge.nextTrack() }
+                    PlaybackButton { glyph: "next"; Accessible.name: bridge.translate("Avançar"); enabled: bridge.queuedTracks.length>0 && (bridge.queueRepeat==="Todas" || bridge.playback.current+1<bridge.queuedTracks.length); onClicked: bridge.nextTrack() }
                     }
                     RowLayout {
                         anchors.right: parent.right; anchors.rightMargin: 24; anchors.verticalCenter: parent.verticalCenter

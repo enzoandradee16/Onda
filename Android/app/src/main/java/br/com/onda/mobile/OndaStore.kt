@@ -278,6 +278,16 @@ object OndaStore {
         if(items.value.isEmpty())queueTiming.reset()
     }
     fun retry(ids: Set<String>) { ids.filter { it!=active.value && it !in DownloadRuntime.ids }.forEach { update(it,"Pendente",0f,"") } }
+    @Synchronized fun replaceDownloadLink(id:String,url:String):Boolean {
+        val value=url.trim()
+        val valid=runCatching {java.net.URI(value).let {it.scheme?.lowercase(java.util.Locale.ROOT) in listOf("http","https") && !it.host.isNullOrBlank() && it.userInfo==null}}.getOrDefault(false)
+        if(!valid || id==active.value || id in DownloadRuntime.ids)return false
+        val item=items.value.firstOrNull {it.id==id} ?: return false
+        val config=JSONObject(item.config.toString()).put("url",value)
+        listOf("queue_info","catalog_record","selected_catalog_url").forEach {config.remove(it)}
+        database.writableDatabase.update("queue",ContentValues().apply {put("config",config.toString());put("title",value);put("state","Pendente")},"id=?",arrayOf(id))
+        refreshQueue();return true
+    }
     @Synchronized fun useFailureMetadata(id:String,record:JSONObject):Boolean {
         val item=items.value.firstOrNull {it.id==id && it.state in setOf("Erro","Pendente")} ?: return false
         if(id in DownloadRuntime.ids || id==active.value)return false
@@ -480,11 +490,48 @@ object OndaStore {
         context.startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(value,if(mode.isEmpty()) "*/*" else mimeFor("file.$mode"))
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION))
     }
-    fun share(uri: String, title: String) {
-        val intent = Intent(Intent.ACTION_SEND).setType(mimeFor(title)).putExtra(Intent.EXTRA_STREAM,Uri.parse(uri)).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        context.startActivity(Intent.createChooser(intent,"Compartilhar").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    internal fun shareIntent(uri:String,title:String):Intent {
+        val value=Uri.parse(uri)
+        val type=runCatching {context.contentResolver.getType(value)}.getOrNull() ?: mimeFor(title)
+        return Intent(Intent.ACTION_SEND).setType(type).putExtra(Intent.EXTRA_STREAM,value).apply {clipData=android.content.ClipData.newUri(context.contentResolver,title,value)}.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
-    @Synchronized fun removeHistory(id: Long) { database.writableDatabase.delete("history_dates","history_id=?",arrayOf(id.toString())); database.writableDatabase.delete("history_metadata_platform","history_id=?",arrayOf(id.toString())); database.writableDatabase.delete("history_sources","history_id=?",arrayOf(id.toString())); database.writableDatabase.delete("history","id=?",arrayOf(id.toString())); refreshHistory() }
-    @Synchronized fun clearHistory() { database.writableDatabase.execSQL("DELETE FROM history_dates"); database.writableDatabase.execSQL("DELETE FROM history_metadata_platform"); database.writableDatabase.execSQL("DELETE FROM history_sources"); database.writableDatabase.execSQL("DELETE FROM history"); refreshHistory() }
+    fun share(uri: String, title: String) {
+        context.startActivity(Intent.createChooser(shareIntent(uri,title),translateUi("Compartilhar")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    }
+    val removedHistory=MutableStateFlow<HistoryItem?>(null)
+    private var historyUndoDeadline=0L
+    @Synchronized fun undoHistory() {
+        val row=removedHistory.value ?: return
+        if(android.os.SystemClock.elapsedRealtime()>historyUndoDeadline){removedHistory.value=null;return}
+        val db=database.writableDatabase
+        db.beginTransaction()
+        try {
+            val identityAvailable=db.rawQuery("SELECT 1 FROM history WHERE id=?",arrayOf(row.id.toString())).use {!it.moveToFirst()}
+            val id=db.insertOrThrow("history",null,ContentValues().apply {
+                if(identityAvailable)put("id",row.id)
+                put("title",row.title);put("uri",row.uri);put("mode",row.mode);put("size",row.size)
+            })
+            db.execSQL("INSERT INTO history_dates VALUES(?,?)",arrayOf<Any>(id,row.completedAt))
+            db.execSQL("INSERT INTO history_sources VALUES(?,?,?)",arrayOf<Any>(id,row.source,row.mode))
+            db.execSQL("INSERT INTO history_metadata_platform VALUES(?,?)",arrayOf<Any>(id,row.metadataPlatform))
+            db.setTransactionSuccessful()
+        } finally {db.endTransaction()}
+        removedHistory.value=null;refreshHistory()
+    }
+    @Synchronized fun removeHistory(id: Long) {
+        removedHistory.value=history.value.firstOrNull {it.id==id}
+        historyUndoDeadline=android.os.SystemClock.elapsedRealtime()+8000
+        val deadline=historyUndoDeadline
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({if(historyUndoDeadline==deadline)removedHistory.value=null},8000)
+        val db=database.writableDatabase
+        db.beginTransaction()
+        try {
+            for(table in listOf("history_dates","history_metadata_platform","history_sources"))db.delete(table,"history_id=?",arrayOf(id.toString()))
+            db.delete("history","id=?",arrayOf(id.toString()))
+            db.setTransactionSuccessful()
+        } finally {db.endTransaction()}
+        refreshHistory()
+    }
+    @Synchronized fun clearHistory() { removedHistory.value=null; database.writableDatabase.execSQL("DELETE FROM history_dates"); database.writableDatabase.execSQL("DELETE FROM history_metadata_platform"); database.writableDatabase.execSQL("DELETE FROM history_sources"); database.writableDatabase.execSQL("DELETE FROM history"); refreshHistory() }
     fun mimeFor(name: String): String = mediaMimeType(name)
 }

@@ -54,7 +54,7 @@ class MainActivity : ComponentActivity() {
         receive(intent)
         setContent { OndaApp(model) }
     }
-    override fun onStop() {super.onStop()}
+    override fun onStop() {model.savePlaybackSession();model.jukebox.savePlaybackSession();super.onStop()}
     override fun onNewIntent(intent: Intent) { super.onNewIntent(intent); setIntent(intent); receive(intent) }
     // Public Activity override; AndroidX's bridge carries an internal annotation.
     @android.annotation.SuppressLint("RestrictedApi")
@@ -160,7 +160,7 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
                         UiText("${(progress*100).toInt()}%",style=MaterialTheme.typography.bodySmall)
                     } else LinearProgressIndicator(Modifier.fillMaxWidth())
                 }
-                TopStatusNotice(status,statusVisible && !(busy && status.trim().startsWith("Preparando",ignoreCase=true)),busy,settings.optBoolean("notice_animation",true),onCancel={vm.cancel()},onDismiss={statusVisible=false},cancellable=!tools.running,onOpenSettings={category->if(category=="Sessão do YouTube")youtubeSession=true else {settingsCategory=category;showSettings=true}})
+                TopStatusNotice(status,statusVisible && !(busy && status.trim().startsWith("Preparando",ignoreCase=true)),busy,settings.optBoolean("notice_animation",true),onCancel={vm.cancel()},onDismiss={statusVisible=false},cancellable=!tools.running && (showSettings || tab !in listOf("Pesquisar","Efeitos","Playlists / Álbuns")),onOpenSettings={category->if(category=="Sessão do YouTube")youtubeSession=true else {settingsCategory=category;showSettings=true}})
                 if(showSettings)Box(Modifier.weight(1f).fillMaxWidth()){SettingsWindow(vm,initialCategory=settingsCategory){showSettings=false}} else SwipePageHost(current=tab,pages=mainDestinations(tabs,bottomBarOrder(settings)),onNavigate={tab=it},modifier=Modifier.weight(1f).fillMaxWidth()) {
                     pages.SaveableStateProvider(tab) {when(tab) {
                         "Pesquisar"->SearchPage(vm,onConnectSpotify={settingsCategory="Contas";showSettings=true})
@@ -199,6 +199,7 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
             text={UiText("Ajuste o básico para começar. Você pode fechar esta janela e configurar tudo depois.")},
             confirmButton={TextButton(onClick={preferences.edit().putBoolean("welcome_seen",true).apply();welcome=false;settingsCategory="Geral";showSettings=true}){UiText("Configurações")}},
             dismissButton={TextButton(onClick={preferences.edit().putBoolean("welcome_seen",true).apply();welcome=false}){UiText("Agora não")}})
+        OnlineImageGallery(vm)
         notice?.let {current->
             val destination=noticeDestination(current.message)
             AlertDialog(containerColor=ondaDialogContainerColor(),onDismissRequest=vm::dismissNotice,title={UiText(current.title)},
@@ -380,19 +381,19 @@ internal fun displayReleaseDate(value:String):String {
     return text
 }
 
-@Composable fun TrackCard(record: JSONObject, vm: OndaViewModel, onDownload:()->Unit, onCompare:(()->Unit)?=null) {
+@Composable fun TrackCard(original: JSONObject, vm: OndaViewModel, onDownload:()->Unit, onCompare:(()->Unit)?=null) {
+    val record=rememberCardMetadata(original,vm)
     val cardSettings by OndaStore.settings.collectAsStateWithLifecycle()
     val cardSize=cardSettings.optString("catalog_card_size","Grande")
     val coverSide=when(cardSize){"Pequeno"->56.dp;"Médio"->76.dp;else->94.dp}
 
     val playing by vm.previewActive.collectAsStateWithLifecycle()
     val playingUrl by vm.previewUrl.collectAsStateWithLifecycle()
-    var releaseDate by remember(record) {mutableStateOf(record.cleanString("release_date"))}
-    LaunchedEffect(record) {releaseDate=vm.releaseDate(record)}
+    val releaseDate=record.cleanString("release_date")
     val url=record.cleanString("preview_url")
     val thisPlaying=playing && playingUrl==url
     var actions by remember {mutableStateOf(false)}
-    Surface(Modifier.fillMaxWidth(),shape=RoundedCornerShape(18.dp),color=MaterialTheme.colorScheme.surfaceContainerLow) {
+    Surface(Modifier.fillMaxWidth().onSecondaryClick(record.cleanString("source_url")){actions=true},shape=RoundedCornerShape(18.dp),color=MaterialTheme.colorScheme.surfaceContainerLow) {
         Row(Modifier.padding(if(cardSize=="Pequeno")10.dp else 14.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
             AsyncImage(record.cleanString("cover_url"),translateUi("Capa do álbum"),Modifier.size(coverSide).clip(RoundedCornerShape(10.dp)),contentScale=androidx.compose.ui.layout.ContentScale.Crop)
             Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(5.dp)) {
@@ -444,6 +445,7 @@ internal fun displayReleaseDate(value:String):String {
     NavigableList(Modifier.fillMaxSize().padding(horizontal=LayoutSpacing.inset),navigationId="links") {
         item {PageTitle("Adicionar links","YouTube, Instagram, TikTok e outros sites.")}
         item {OutlinedTextField(link,{link=it},label={UiText("LINKS")},placeholder={UiText("YouTube, Instagram, TikTok, Kwai… um link por linha")},shape=RoundedCornerShape(14.dp),minLines=2,modifier=Modifier.fillMaxWidth().testTag("links-input"),singleLine=false)}
+        if(canPreviewOnlineImages(OndaStore.config(settings).put("url",link)))item {OnlineImagePreviewButton(vm,link)}
         item {FormatOptions(settings,OndaStore::saveSettings)}
         item {Toggle("Baixar playlist de vídeo",settings.optBoolean("link_playlist")){OndaStore.saveSettings(JSONObject(settings.toString()).put("link_playlist",it))}}
         item {Row(horizontalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
@@ -477,14 +479,15 @@ fun mediaClock(seconds:Long):String {val value=seconds.coerceAtLeast(0);return "
 }
 
 @Composable fun EffectsPage(vm: OndaViewModel,heading:Boolean=true) {
+    val initialControls=remember(vm){vm.effectsControlSnapshot()}
     val compactMode by vm.compactPlaybackMode.collectAsStateWithLifecycle()
     val lyricSettings by OndaStore.settings.collectAsStateWithLifecycle()
     var source by rememberSaveable {mutableStateOf("")}
     val lyricCache by vm.lyricsCache.collectAsStateWithLifecycle()
     val infos by vm.effectsInfo.collectAsStateWithLifecycle()
-    var speed by rememberSaveable {mutableFloatStateOf(85f)}
-    var reverb by rememberSaveable {mutableFloatStateOf(25f)}
-    var pitch by rememberSaveable {mutableStateOf(false)}
+    var speed by rememberSaveable {mutableFloatStateOf(initialControls.first.toFloat())}
+    var reverb by rememberSaveable {mutableFloatStateOf(initialControls.second.toFloat())}
+    var pitch by rememberSaveable {mutableStateOf(initialControls.third)}
     var duration by rememberSaveable {mutableFloatStateOf(0f)}
     var format by rememberSaveable {mutableStateOf("mp3")}
     val liveEffects by vm.effectsPreviewEnabled.collectAsStateWithLifecycle()
@@ -526,30 +529,28 @@ fun mediaClock(seconds:Long):String {val value=seconds.coerceAtLeast(0);return "
     var effectsQuery by rememberSaveable {mutableStateOf("")}
     var effectsResults by remember {mutableStateOf<List<JSONObject>>(emptyList())}
     val searchBusy by vm.busy.collectAsStateWithLifecycle()
+    val collectionBusy by vm.loadingPlaybackCollection.collectAsStateWithLifecycle()
     fun searchEffects() {
-        if(searchBusy)vm.cancel() else if(effectsQuery.isNotBlank())vm.operation("effects_search",JSONObject().put("query",effectsQuery).put("provider",OndaStore.settings.value.optString("catalog_provider","Deezer"))) {result->effectsResults=result.optJSONArray("tracks")?.objects().orEmpty()}
+        if(collectionBusy)vm.cancelPlaybackCollection() else if(searchBusy)vm.cancel() else if(effectsQuery.isNotBlank())vm.operation("effects_search",JSONObject().put("query",effectsQuery).put("provider",OndaStore.settings.value.optString("catalog_provider","Deezer"))) {result->
+            val rows=result.optJSONArray("tracks")?.objects().orEmpty()
+            if(result.optBoolean("is_collection")){effectsResults=emptyList();vm.addPlaybackCollection(rows,false)}else effectsResults=rows
+        }
     }
     Column(Modifier.fillMaxSize()) {
     Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(LayoutSpacing.inset),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.section)) {
         if(heading)ToolHeading("Efeitos")
         ToolCard(Modifier.testTag("effects-source-card")) {
-            UiText("Sua música",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold)
-            UiText("Desacelere ou acelere sua música. Adicione reverb se quiser.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-            OutlinedTextField(effectsQuery,{effectsQuery=it},label={UiText("Pesquise uma música ou cole um link")},singleLine=true,modifier=Modifier.fillMaxWidth(),keyboardOptions=KeyboardOptions(imeAction=ImeAction.Search),keyboardActions=KeyboardActions(onSearch={searchEffects()}))
+            UiText("Suas músicas",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold)
+            UiText("Ajuste velocidade e reverb das suas músicas, álbuns e playlists.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+            OutlinedTextField(effectsQuery,{effectsQuery=it},label={UiText(PLAYBACK_INPUT_HINT)},singleLine=true,modifier=Modifier.fillMaxWidth(),keyboardOptions=KeyboardOptions(imeAction=ImeAction.Search),keyboardActions=KeyboardActions(onSearch={searchEffects()}))
             Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
-                OutlinedButton(enabled=searchBusy || effectsQuery.isNotBlank(),onClick=::searchEffects){UiText(if(searchBusy) "Cancelar" else "Pesquisar")}
-                OutlinedButton(enabled=!searchBusy,onClick={choose.launch(arrayOf("audio/*"))}){UiText("Abrir arquivo")}
+                OutlinedButton(enabled=searchBusy || collectionBusy || effectsQuery.isNotBlank(),onClick=::searchEffects){UiText(if(searchBusy || collectionBusy) "Cancelar" else "Pesquisar")}
+                OutlinedButton(enabled=!searchBusy && !collectionBusy,onClick={choose.launch(arrayOf("audio/*"))}){UiText("Abrir arquivo")}
             }
             if(effectsResults.isNotEmpty())Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){UiText("Resultados",Modifier.weight(1f));IconButton(onClick={effectsResults=emptyList()}){OndaIcon("close","Fechar pesquisa",Modifier.size(22.dp))}}
             effectsResults.forEach {record->
-                Column(Modifier.fillMaxWidth()) {
-                    SearchTrackInformation(record)
-                    Row(horizontalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
-                        fun load(play:Boolean) {vm.operation("effects_load",JSONObject().put("record",record)) {result->val path=result.getString("source");vm.appendEffectsRecord(path,record);if(play)vm.playEffectsQueueTrack(vm.effectsPlaylist.value.indexOf(path))}}
-                        TextButton(enabled=!searchBusy,onClick={load(true)}){UiText("Reproduzir")}
-                        TextButton(enabled=!searchBusy,onClick={load(false)}){UiText("Adicionar à fila")}
-                    }
-                }
+                fun load(play:Boolean) {vm.operation("effects_load",JSONObject().put("record",record)) {result->val path=result.getString("source");vm.appendEffectsRecord(path,result.optJSONObject("record") ?: record);if(play)vm.playEffectsQueueTrack(vm.effectsPlaylist.value.indexOf(path))}}
+                PlaybackSearchResult(record,vm,!searchBusy&&!collectionBusy,{load(true)},{load(false)})
             }
         }
         infos[source]?.let {info->EffectsTrackInformation(info,source){

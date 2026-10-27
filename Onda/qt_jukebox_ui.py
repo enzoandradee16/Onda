@@ -37,13 +37,14 @@ class JukeboxBridge(QObject):
         set_language(self.store.load_language())
         self.closed=False;self.revision=0;self.cancelled=threading.Event();self.paused=threading.Event()
         from playback_controls import SleepTimer
+        self.queue_repeat='Desativada';self.queue_shuffle=False
         self.sleep=SleepTimer();self.playlist=[];self.queue_index=-1;self.track_minutes=0;self.autoplay_revision=None;self.request_number=0;self.lookup_cancelled=threading.Event();self.task_is_lookup=False
         self.clock_timer=QTimer(self);self.clock_timer.setInterval(500);self.clock_timer.timeout.connect(self.tick_sleep)
         self.workers=[];self.seeks=queue.SimpleQueue();self.model=None;self.records=[]
-        self._state={'title':tr('Escolha sua música.'),'artist':'','album':'','cover':'','status':tr('Abra um arquivo ou pesquise uma música para começar.'),'busy':False,'playing':False,'paused':False,'ready':False,'progress':0,'results':[]}
+        self._state={'title':tr('Escolha suas músicas.'),'artist':'','album':'','cover':'','status':tr('Abra arquivos, pesquise músicas ou adicione álbuns e playlists à fila.'),'busy':False,'playing':False,'paused':False,'ready':False,'progress':0,'results':[]}
         self._topology_rows=None;self._topology_options=None;self._topology_links=[];self._graph_cache=None;self._position=0.;self._phase=0.;self._elapsed=0.;self._jumps=0;self.flow=[];self.used_edges=set()
         self._params=(45.,35.,80.,False);self._equalizer=clean(self.preferences.get('jukebox_equalizer'))
-        self.config_provider=None;self.window=None;self.media=None;self.media_failed=False
+        self.config_provider=None;self.media_state_provider=None;self.media_command_handler=None;self.window=None;self.media=None;self.media_failed=False
         self.media_timer=QTimer(self);self.media_timer.setInterval(100);self.media_timer.timeout.connect(self.sync_media)
         self.save_timer=QTimer(self);self.save_timer.setSingleShot(True);self.save_timer.setInterval(400);self.save_timer.timeout.connect(self.save_preferences)
         self._prepared={};self._queue_cancel={};self._queue_preparing=False;self._autoplay_entry=None;self._beat_index=0;self._next_index=-1;self._jump_blend=0.;self._track_started=0.;self._timer_last=self.sleep.clock();self._switch_requests=queue.SimpleQueue();self._switch_pending=None;self._switch_models={};self._fade_initial=False
@@ -185,9 +186,28 @@ class JukeboxBridge(QObject):
     def previousTrack(self):
         if self.queue_index>0:self.playQueued(self.queue_index-1)
         elif self.model:self.seek(0)
+    @Property(str,notify=queueChanged)
+    def queueRepeat(self):return self.queue_repeat
+    @Property(bool,notify=queueChanged)
+    def queueShuffle(self):return self.queue_shuffle
+    @Slot(str)
+    def setQueueRepeat(self,value):
+        if value in ('Desativada','Todas','Uma'):self.queue_repeat=value;self.queueChanged.emit()
+    @Slot(bool)
+    def setQueueShuffle(self,value):self.queue_shuffle=value;self.queueChanged.emit()
     @Slot()
     def nextTrack(self):
-        if self.queue_index+1<len(self.playlist):self.playQueued(self.queue_index+1)
+        if self._autoplay_entry is not None or self._switch_pending is not None:return
+        import random
+        target=self.queue_index+1
+        if target>=len(self.playlist) and self.queue_repeat=='Todas':target=0
+        if target<len(self.playlist):
+            if self.queue_shuffle:
+                current=self.playlist[self.queue_index]['id'] if self.queue_index>=0 else None
+                choices=[i for i in range(target,len(self.playlist)) if i!=self.queue_index]
+                chosen=random.choice(choices) if choices else target;self.playlist[target],self.playlist[chosen]=self.playlist[chosen],self.playlist[target]
+                self.queue_index=next((i for i,row in enumerate(self.playlist) if row['id']==current),-1);self.queueChanged.emit()
+            self.playQueued(target)
         else:self.setTrackMinutes(0);self.update_state(status=tr('Fim da fila de reprodução. A música atual continua.'))
 
     @Property(float,notify=positionChanged)
@@ -268,6 +288,9 @@ class JukeboxBridge(QObject):
     def translate(self,text):return tr(text)
     @Slot(str,result=str)
     def translateError(self,text):return error_text(text)
+    def refreshSearchResults(self):
+        self.update_state(results=[dict(r,artist=', '.join(r.get('artists',[])),album=r.get('album') or '',cover=r.get('cover_url') or '') for r in self.records])
+
     def update_state(self,**values):
         if "status" in values:values.setdefault("status_error",False)
         if any(self._state.get(k)!=v for k,v in values.items()):self._state.update(values);self.changed.emit()
@@ -346,12 +369,11 @@ class JukeboxBridge(QObject):
         config=self.config();provider=self.preferences.get('catalog_provider','Todos')
         self.update_state(status=tr('Pesquisando…'))
         def search(cancel,progress):
-            from metadata import MetadataClient,is_streaming_link
-            if query.startswith(('http://','https://')) and not is_streaming_link(query):return {'tracks':[{'title':query,'artists':[],'source_url':query,'_jukebox_direct':True}]}
-            from music_search import search_music
+            from metadata import MetadataClient
+            from playback_input import resolve_input
             from spotify_account import SpotifyAccount
             client=MetadataClient(config['spotify_client_id'],config['spotify_client_secret'])
-            try:return {'tracks':search_music(client,query,provider,account=SpotifyAccount(self.store.path.with_name('spotify-account.dpapi')),limit=12,cancelled=cancel.is_set,automatic=True)['tracks']}
+            try:return resolve_input(query,client,dict(config,catalog_provider=provider),SpotifyAccount(self.store.path.with_name('spotify-account.dpapi')),cancel.is_set)
             finally:client.close()
         self.task(search,stop_current=False)
     @Slot(int)
@@ -388,7 +410,10 @@ class JukeboxBridge(QObject):
         if kind=='progress':self.update_state(progress=value)
         elif kind=='result':
             if 'tracks' in value:
-                self.records=value['tracks'];self.update_state(results=[{'title':r['title'],'artist':', '.join(r.get('artists',[])),'album':r.get('album') or '', 'cover':r.get('cover_url') or ''} for r in self.records],status=tr('Escolha uma música nos resultados.') if self.records else tr('Nenhuma música encontrada.'))
+                if value.get('is_collection'):
+                    for row in value['tracks']:self.enqueueRecord(row)
+                    self.records=[];self.update_state(results=[],status=tr('{count} músicas adicionadas à fila.').replace('{count}',str(len(value['tracks']))));return
+                self.records=value['tracks'];self.refreshSearchResults();self.update_state(status=tr('Escolha uma música nos resultados.') if self.records else tr('Nenhuma música encontrada.'))
             else:
                 self.model=value;self.flow=[];self.used_edges=set();self._position=0;self._phase=0;self._beat_index=0;self._next_index=-1;self._jump_blend=0.
                 cover=value.get('_cover','');cover=base64.b64encode(cover).decode() if isinstance(cover,bytes) else cover
@@ -418,12 +443,12 @@ class JukeboxBridge(QObject):
             self.positionChanged.emit()
             if self.track_minutes:
                 remaining=self.track_minutes*60-(self._elapsed-self._track_started)
-                target=self.queue_index+1
-                ready=target<len(self.playlist) and self.playlist[target].get('analysis')=='ready'
+                if self.queue_repeat=='Uma':self._track_started=self._elapsed;return
+                target=0 if self.queue_repeat=='Todas' and self.queue_index+1>=len(self.playlist) else self.queue_index+1
                 if remaining<=0:
                     if target>=len(self.playlist):self.nextTrack()
                     elif self.playlist[target].get('analysis')=='error':self.setTrackMinutes(0);self.update_state(status=self.playlist[target].get('error',''),status_error=True)
-                    elif ready:self.nextTrack()
+                    else:self.nextTrack()
         elif kind=='lookup_error':self.update_state(status=str(value),status_error=True)
         elif kind=='error':self.autoplay_revision=None;self.update_state(status=str(value),status_error=True,playing=False,paused=False);self.media_timer.stop();self.sync_media()
         elif kind=='idle':
@@ -490,7 +515,7 @@ class JukeboxBridge(QObject):
     def closeSearch(self):
         if self.task_is_lookup and self._state['busy']:self.cancelOperation()
         self.records=[]
-        self.update_state(results=[],status=tr('Pausado.' if self._state['paused'] else 'Reproduzindo…') if self._state['playing'] else tr('Análise concluída.') if self._state['ready'] else tr('Abra um arquivo ou pesquise uma música para começar.'))
+        self.update_state(results=[],status=tr('Pausado.' if self._state['paused'] else 'Reproduzindo…') if self._state['playing'] else tr('Análise concluída.') if self._state['ready'] else tr('Abra arquivos, pesquise músicas ou adicione álbuns e playlists à fila.'))
     @Slot()
     def cancelOperation(self):
         if self.task_is_lookup:
@@ -508,9 +533,14 @@ class JukeboxBridge(QObject):
     def seek(self,index):
         if self.model and 0<=index<len(self.model['neighbors']):
             self.seeks.put(index);self._position=float(index);self._phase=0.;self.flow=[];self.used_edges=set();self.update_graph();self.positionChanged.emit()
+    def media_state(self):
+        state=self.media_state_provider() if self.media_state_provider else None
+        return state or dict(self._state,owner='jukebox',previous=bool(self.model),next=bool(self.playlist) and (self.queue_repeat=='Todas' or self.queue_index+1<len(self.playlist)))
     def sync_media(self):
         if self.closed:return
-        if self._state['playing'] and self.media is None and not self.media_failed and self.window is not None and os.name=='nt':
+        state=self.media_state()
+        if state['playing']:self.media_timer.start()
+        if state['playing'] and self.media is None and not self.media_failed and self.window is not None and os.name=='nt':
             try:
                 from windows_media import MediaControls
                 self.media=MediaControls(SimpleNamespace(winfo_id=lambda:int(self.window.winId())))
@@ -519,10 +549,16 @@ class JukeboxBridge(QObject):
             for _ in range(8):
                 try:button=self.media.events.get_nowait()
                 except queue.Empty:break
+                if self.media_command_handler and self.media_command_handler(button):continue
                 if button==0 and (not self._state['playing'] or self.paused.is_set()):self.playPause()
                 elif button==1 and self._state['playing'] and not self.paused.is_set():self.playPause()
                 elif button==2:self.stop()
-            self.media.update(self._state['title'],self._state['artist'],self._state['playing'],self._state['paused'],self._state['cover'])
+                elif button==6:self.nextTrack()
+                elif button==7:self.previousTrack()
+            state=self.media_state()
+            if hasattr(self.media,'navigation'):self.media.navigation(state.get('previous',False),state.get('next',False))
+            self.media.update(state['title'],state['artist'],state['playing'],state['paused'],state.get('cover',''))
+        if not state['playing']:self.media_timer.stop()
     @Slot()
     def shutdown(self):
         if self.closed:return

@@ -406,11 +406,25 @@ def perform(action, config):
             if not record.get(field) and supplied.get(field):record[field]=supplied[field]
         details=perform('probe',config)
         return {'record':record,'cover':cover_preview(source),'duration':float(details.get('format',{}).get('duration') or 0)}
+    if action=='image_gallery_manifest':
+        from online_image_preview import discover
+        return discover(dict(config,_root=str(_root)),_local.state['cancel'].is_set)
+    if action=='image_gallery_thumbnail':
+        from online_image_preview import thumbnail
+        return thumbnail(config['token'],int(config['index']),_local.state['cancel'].is_set)
     if action=='effects_load':
         import jukebox
         return jukebox.fetch_audio(config,config.get('record'),_local.state['cancel'].is_set,lambda value:emit('progress',percent=value),analyze=False)
-    if action=='effects_search':
-        action='search';config=dict(config,auto_metadata=True)
+    if action in ('effects_search','playback_input'):
+        from playback_input import resolve_input
+        value=client(config)
+        try:return resolve_input(config['query'],value,config,account(),_local.state['cancel'].is_set)
+        finally:value.close()
+    if action=='record_details':
+        from catalog_details import complete_record
+        value=client(config)
+        try:return complete_record(config['record'],value,_local.state['cancel'].is_set)
+        finally:value.close()
 
     if action in ('jukebox_prepare','jukebox_open','jukebox_chunk','jukebox_close','jukebox_switch'):
         return jukebox_action(action,config)
@@ -517,7 +531,8 @@ def perform(action, config):
         from playlist_import import load_playlist
         value = client(config)
         try:
-            return load_playlist(config['url'], value, limit=int(config.get('playlist_limit', 2000)), account=account(), cancelled=_local.state['cancel'].is_set)
+            from catalog_details import collection_artwork
+            return collection_artwork(load_playlist(config['url'], value, limit=int(config.get('playlist_limit', 2000)), account=account(), cancelled=_local.state['cancel'].is_set))
         finally:
             value.close()
     if action == 'import':

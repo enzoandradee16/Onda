@@ -62,6 +62,23 @@ private fun importNoticeTitle(category:String)=when(category) {
 }
 
 class OndaViewModel(application: Application) : AndroidViewModel(application) {
+    private val cardSlots=kotlinx.coroutines.sync.Semaphore(3)
+    private val cardDetails=linkedMapOf<String,JSONObject>()
+    suspend fun completeCard(record:JSONObject):JSONObject {
+        val url=record.cleanString("source_url")
+        if(url.isBlank() || record.optBoolean("_details_checked"))return record
+        cardDetails[url]?.let {cached->return JSONObject(record.toString()).apply {cached.keys().forEach {put(it,cached.get(it))}}}
+        return cardSlots.withPermit {
+            val id="card-details-"+UUID.randomUUID()
+            try {
+                val result=withContext(Dispatchers.IO){MobileEngine.call(getApplication(),id,"record_details",OndaStore.config().put("record",record),EventCallback {})}
+                val value=if(result.has("error"))record else result
+                cardDetails[url]=JSONObject().apply {for(field in listOf("cover_url","release_date","album","album_artists","duration_ms","preview_url","_details_checked"))if(value.has(field))put(field,value.get(field))};while(cardDetails.size>256)cardDetails.remove(cardDetails.keys.first())
+                value
+            } catch(e:CancellationException){throw e} catch(e:Exception){record}
+            finally {MobileEngine.cancel(id)}
+        }
+    }
     private val titleSlots=kotlinx.coroutines.sync.Semaphore(2)
     val effectsSource=MutableStateFlow("")
     val effectsQueueOpen=MutableStateFlow(false)
@@ -101,12 +118,51 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
             .onFailure {status.value="Não foi possível preparar as ferramentas. Tente novamente nas Configurações."}
     }}
     private var previewLimit: Job?=null
+    val onlineImageGallery=MutableStateFlow<JSONObject?>(null)
+    val onlineImageLoading=MutableStateFlow("")
+    val onlineImageIndex=MutableStateFlow(0)
+    val onlineImageThumbnail=MutableStateFlow<JSONObject?>(null)
+    private val onlineThumbnailRequest=PreviewRequest(viewModelScope) {MobileEngine.cancel(it)}
+    fun closeOnlineImages(){onlineThumbnailRequest.cancel();onlineImageGallery.value=null;onlineImageThumbnail.value=null}
+    fun previewOnlineImageAt(index:Int) {
+        val gallery=onlineImageGallery.value ?: return
+        if(index !in 0 until (gallery.optJSONArray("images")?.length() ?: 0))return
+        onlineImageIndex.value=index;onlineImageThumbnail.value=null
+        onlineThumbnailRequest.start(
+            resolve={id->withContext(Dispatchers.IO){MobileEngine.call(getApplication(),id,"image_gallery_thumbnail",JSONObject().put("token",gallery.getString("token")).put("index",index),EventCallback {})}},
+            onResult={onlineImageThumbnail.value=it},
+            onError={onlineImageThumbnail.value=JSONObject().put("error",uiExceptionMessage(it,"Não foi possível abrir este arquivo."))}
+        )
+    }
+    private val onlineImageRequest=PreviewRequest(viewModelScope) {MobileEngine.cancel(it)}
+    fun cancelOnlineImagePreview(){onlineImageRequest.cancel();onlineImageLoading.value=""}
+    fun previewOnlineImages(url:String) {
+        closeOnlineImages();onlineImageLoading.value=url
+        onlineImageRequest.start(
+            resolve={id->withContext(Dispatchers.IO){MobileEngine.call(getApplication(),id,"image_gallery_manifest",OndaStore.config().put("url",url),EventCallback {})}},
+            onResult={result->onlineImageLoading.value="";if(result.has("error"))showNotice("Prévia de imagens",result.optString("error")) else {onlineImageGallery.value=result;previewOnlineImageAt(0)}},
+            onError={error->onlineImageLoading.value="";showNotice("Prévia de imagens",uiExceptionMessage(error,"Não foi possível abrir este arquivo."))}
+        )
+    }
+    fun downloadOnlineImages() {
+        val url=onlineImageGallery.value?.optString("source_url").orEmpty()
+        if(url.isBlank())return
+        val id=OndaStore.enqueue(url,options=JSONObject(OndaStore.settings.value.toString()).put("mode","photos"),extra=JSONObject().put("_immediate",true))
+        closeOnlineImages()
+        if(id.isNotBlank())DownloadService.start(getApplication(),id)
+    }
     private val previewRequest=PreviewRequest(viewModelScope) {MobileEngine.cancel(it)}
     val effectsPreviewEnabled=MutableStateFlow(false)
     val effectsPreparing=MutableStateFlow(false)
     val effectsPosition=MutableStateFlow(0.0)
     val effectsEnded=MutableStateFlow(false)
     val effectsVolume=MutableStateFlow(1f)
+    val effectsRepeat=MutableStateFlow("Desativada")
+    val effectsShuffle=MutableStateFlow(false)
+    val loadingPlaybackCollection=MutableStateFlow(false)
+    private var playbackCollectionJob:Job?=null
+    private var playbackCollectionId=""
+    fun cancelPlaybackCollection(){playbackCollectionJob?.cancel();if(playbackCollectionId.isNotBlank())MobileEngine.cancel(playbackCollectionId)}
     val effectsPlaylist=MutableStateFlow<List<String>>(emptyList())
     val effectsInfo=MutableStateFlow<Map<String,JSONObject>>(emptyMap())
     private var effectsCursor=-1
@@ -169,11 +225,11 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
                 val record=effectsInfo.value[source]?.optJSONObject("record") ?: effectsCatalogRecords[source]
                     ?: jukebox.state.value.model?.takeIf {it.optString("source")==source}
                 val payload=JSONObject().put("source",source).put("alternatives",alternatives)
-                record?.let {payload.put("record",it)}
+                record?.let {payload.put("record",JSONObject(it.toString()).apply {if(!has("duration") && !has("duration_ms"))put("duration",effectsInfo.value[source]?.optDouble("duration",0.0) ?: 0.0)})}
                 val result=withContext(Dispatchers.IO){MobileEngine.call(getApplication(),id,"lyrics_online",payload,EventCallback {})}
                 ensureActive()
                 if(!result.has("error")) {
-                    result.optJSONArray("lines")?.let {rows->if(!lyricsCache.value.containsKey(source))storeLyrics(source,(0 until rows.length()).map {i->rows.getJSONArray(i).let {it.getDouble(0) to it.getString(1)}})}
+                    result.optJSONArray("lines")?.let {rows->if(refresh || !lyricsCache.value.containsKey(source))storeLyrics(source,(0 until rows.length()).map {i->rows.getJSONArray(i).let {it.getDouble(0) to it.getString(1)}})}
                 }
                 finished(result)
             } catch(error:CancellationException){throw error}
@@ -197,11 +253,39 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
     private var effectsMediaVisible=false
     private var effectsQueueRequest:Job?=null
     fun rememberEffectsControls(speed:Int,reverb:Int,pitch:Boolean){effectsSelectedSpeed=speed;effectsSelectedReverb=reverb;effectsSelectedPitch=pitch}
+    fun effectsControlSnapshot()=Triple(effectsSelectedSpeed,effectsSelectedReverb,effectsSelectedPitch)
     fun effectsControlsMatch(speed:Int,reverb:Int,pitch:Boolean)=effectsSelectedSpeed==speed&&effectsSelectedReverb==reverb&&effectsSelectedPitch==pitch
     internal fun mediaToggleEffects(){if(effectSource.isNotBlank())toggleEffectsPlayback(effectSource,effectsSelectedSpeed,effectsSelectedReverb,effectsSelectedPitch)}
     internal fun mediaSeekEffects(seconds:Double){if(effectSource.isNotBlank())seekEffectsPlayback(seconds,effectSource,effectsSelectedSpeed,effectsSelectedReverb,effectsSelectedPitch)}
     internal fun mediaPreviousEffects(){val current=effectsQueueIndex(effectSource);if(current>0)playEffectsQueueTrack(current-1) else mediaSeekEffects(0.0)}
-    internal fun mediaNextEffects(){playEffectsQueueTrack(effectsQueueIndex(effectSource)+1)}
+    internal fun mediaNextEffects(){advanceEffects(false)}
+    private fun advanceEffects(automatic:Boolean) {
+        val rows=effectsPlaylist.value.toMutableList()
+        val current=effectsQueueIndex(effectSource)
+        val target=nextPlaybackIndex(rows.size,current,effectsRepeat.value,automatic)
+        if(target !in rows.indices)return
+        if(effectsShuffle.value && !(automatic && effectsRepeat.value=="Uma")) {
+            val chosen=shuffledNextIndex(rows.size,current,target)
+            val temp=rows[target];rows[target]=rows[chosen];rows[chosen]=temp;effectsPlaylist.value=rows
+        }
+        playEffectsQueueTrack(target)
+    }
+    fun addPlaybackCollection(records:List<JSONObject>,jukeboxTarget:Boolean) {
+        if(jukeboxTarget){records.forEach {jukebox.enqueue(it)};return}
+        if(loadingPlaybackCollection.value)return
+        loadingPlaybackCollection.value=true
+        playbackCollectionJob=viewModelScope.launch {
+            var failures=0
+            try {for(record in records) {
+                try {
+                    val id="playback-collection-"+UUID.randomUUID();playbackCollectionId=id
+                    val result=try {withContext(Dispatchers.IO){MobileEngine.call(getApplication(),id,"effects_load",OndaStore.config().put("record",record),EventCallback {})}} finally {MobileEngine.cancel(id)}
+                    ensureActive();val source=result.getString("source");appendEffectsRecord(source,result.optJSONObject("record") ?: record)
+                } catch(e:CancellationException){throw e} catch(e:Exception){failures++}
+            }} finally {loadingPlaybackCollection.value=false;playbackCollectionId=""}
+            if(failures>0)showNotice("Fila de reprodução","$failures músicas não puderam ser carregadas. Tente novamente.")
+        }
+    }
     internal fun mediaPauseEffects(){pauseEffectsPlayback()}
     fun stopTransientPreview(){if(!effectFullTrack)stopPreview(false)}
     fun playEffectsQueueTrack(index:Int) {
@@ -345,7 +429,7 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
                 effectsPosition.value=EffectsTimeline.position(effectAnchor,player.currentPosition,effectSpeed,effectDuration)
                 if(player.playbackState==androidx.media3.common.Player.STATE_ENDED) {
                     effectsPosition.value=effectDuration;effectsPreviewEnabled.value=false;effectsEnded.value=true
-                    if(effectsQueueIndex(effectSource)+1<effectsPlaylist.value.size && effectsQueueRequest?.isActive!=true)mediaNextEffects()
+                    if(effectsQueueRequest?.isActive!=true)advanceEffects(true)
                 }
                 val upcoming=effectsPlaylist.value.drop((effectsQueueIndex(effectSource)+1).coerceAtLeast(0)).take(2)
                 if(!effectsPreparing.value) {
@@ -359,7 +443,7 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 }
                 upcoming.firstOrNull()?.let {next->
-                    if(player.isPlaying&&!effectsPreparing.value&&effectsQueueRequest?.isActive!=true&&effectsTransitionSeconds()>0&&isEffectsTrackPreloaded(next,effectsSelectedSpeed,effectsSelectedReverb,effectsSelectedPitch)&&EffectsTimeline.remaining(effectsPosition.value,effectDuration,effectSpeed)<=effectsTransitionSeconds())mediaNextEffects()
+                    if(!effectsShuffle.value&&effectsRepeat.value!="Uma"&&player.isPlaying&&!effectsPreparing.value&&effectsQueueRequest?.isActive!=true&&effectsTransitionSeconds()>0&&isEffectsTrackPreloaded(next,effectsSelectedSpeed,effectsSelectedReverb,effectsSelectedPitch)&&EffectsTimeline.remaining(effectsPosition.value,effectDuration,effectSpeed)<=effectsTransitionSeconds())mediaNextEffects()
                 }
             }
             publishEffectsMedia()
@@ -696,5 +780,28 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
             finally {addingToQueue.value=false}
         }
     }
-    override fun onCleared() { jukebox.stopOtherAudio={};stopPreview(false);EffectsPlaybackRuntime.clear(this);cancel();effectRequests.close();effectPreload?.cancel();if(effectPreloadId.isNotBlank())MobileEngine.cancel(effectPreloadId);preloadedEffects.values.forEach {java.io.File(it).delete()};player.release(); super.onCleared() }
+    internal fun savePlaybackSession() {
+        val data=JSONObject().put("source",effectsSource.value).put("position",effectsPosition.value.takeIf {it.isFinite()} ?: 0.0).put("duration",effectDuration.takeIf {it.isFinite()} ?: 0.0)
+            .put("queue",JSONArray(effectsPlaylist.value)).put("repeat",effectsRepeat.value).put("shuffle",effectsShuffle.value)
+            .put("speed",effectsSelectedSpeed).put("reverb",effectsSelectedReverb).put("pitch",effectsSelectedPitch).put("mode",playbackMode.value)
+            .put("info",JSONObject().apply {effectsInfo.value.forEach {(key,value)->put(key,JSONObject(value.toString()).apply {remove("cover")})}})
+        PlaybackSessions.save(getApplication(),"effects",data)
+    }
+    init {
+        PlaybackSessions.load(getApplication(),"effects")?.let {data->
+            effectsPlaylist.value=data.optJSONArray("queue")?.let {a->(0 until a.length()).map {a.optString(it)}.filter {java.io.File(it).isFile}} ?: emptyList()
+            data.optJSONObject("info")?.let {infos->effectsInfo.value=infos.keys().asSequence().mapNotNull {key->infos.optJSONObject(key)?.let {key to it}}.toMap()}
+            val source=data.optString("source")
+            if(java.io.File(source).isFile()) {
+                effectSource=source;effectsSource.value=source;effectDuration=data.optDouble("duration",0.0).takeIf {it.isFinite()&&it>=0} ?: 0.0
+                effectsPosition.value=(data.optDouble("position",0.0).takeIf {it.isFinite()} ?: 0.0).coerceIn(0.0,effectDuration)
+                effectsCursor=effectsPlaylist.value.indexOf(source)
+            }
+            effectsRepeat.value=data.optString("repeat").takeIf {it in listOf("Desativada","Todas","Uma")} ?: "Desativada";effectsShuffle.value=data.optBoolean("shuffle")
+            effectsSelectedSpeed=data.optInt("speed",85).coerceIn(50,150);effectsSelectedReverb=data.optInt("reverb",25).coerceIn(0,100);effectsSelectedPitch=data.optBoolean("pitch")
+            if(!data.isNull("mode"))playbackMode.value=data.optInt("mode").takeIf {it in 0..1}
+        }
+        viewModelScope.launch {while(isActive){delay(5000);savePlaybackSession()}}
+    }
+    override fun onCleared() { closeOnlineImages();cancelOnlineImagePreview();cancelPlaybackCollection();savePlaybackSession();jukebox.stopOtherAudio={};stopPreview(false);EffectsPlaybackRuntime.clear(this);cancel();effectRequests.close();effectPreload?.cancel();if(effectPreloadId.isNotBlank())MobileEngine.cancel(effectPreloadId);preloadedEffects.values.forEach {java.io.File(it).delete()};player.release(); super.onCleared() }
 }

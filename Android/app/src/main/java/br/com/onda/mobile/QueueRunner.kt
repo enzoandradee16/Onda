@@ -65,11 +65,11 @@ suspend fun runDownloads(context:Context,only:String?=null,batch:Set<String>?=nu
                             when(event.optString("type")) {
                                 "progress"->{val total=event.optDouble("total",0.0);val percent=if(total>0)(event.optDouble("downloaded")/total*100).toFloat().coerceIn(0f,100f) else 0f
                                     val finished=event.optString("status")=="finished"
-                                    if(progressGate.allow(finished)) OndaStore.update(item.id,"Baixando",percent,event.optString("title"),if(finished) "Preparando o arquivo…" else "Baixando arquivo…")
+                                    if(progressGate.allow(finished)) OndaStore.update(item.id,"Baixando",percent,event.optString("title"),downloadDetail(event))
                                     if(notificationGate.allow(finished)) notify("${DownloadRuntime.ids.size} em andamento · ${item.title}",percent.toInt())}
                                 "stage"->OndaStore.update(item.id,"Baixando",message=event.optString("message"),activity=event.optString("message"))
                                 "processing"->OndaStore.update(item.id,"Baixando",activity="Convertendo arquivo…")
-                                "file"->if(!event.optBoolean("skipped")) {val uri=OndaStore.publish(event.getString("path"),OndaStore.publicationConfig(config,event),event.optString("mode"));OndaStore.log("Salvo: $uri")}
+                                "file"->if(!event.optBoolean("skipped")) {OndaStore.update(item.id,"Baixando",activity="Salvando");val uri=OndaStore.publish(event.getString("path"),OndaStore.publicationConfig(config,event),event.optString("mode"));OndaStore.log("Salvo: $uri")}
                                 "done"->{
                                     if(event.has("path")) OndaStore.publish(event.getString("path"),OndaStore.publicationConfig(config,event),event.getString("path").substringAfterLast('.'))
                                     OndaStore.update(item.id,"Baixando",100f,"Arquivo salvo; finalizando a execução…",activity="Finalizando arquivo…")

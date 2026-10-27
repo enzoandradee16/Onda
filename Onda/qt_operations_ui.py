@@ -19,6 +19,15 @@ def image_details(source):
     except (OSError,ValueError):return {}
 
 def perform(action,config,cancel,emit):
+    if action=='image_gallery_manifest':
+        from online_image_preview import discover
+        return discover(config,cancel.is_set)
+    if action=='image_gallery_thumbnail':
+        from online_image_preview import thumbnail
+        try:return thumbnail(config['token'],int(config['index']),cancel.is_set)
+        except Exception as error:
+            if cancel.is_set():raise
+            return {'error':str(error)}
     if action=='effects_queue_info':
         rows=[]
         for source in config['sources']:
@@ -26,12 +35,31 @@ def perform(action,config,cancel,emit):
             try:rows.append(dict(perform('effects_info',dict(config,source=source),cancel,emit),source=source))
             except Exception as error:rows.append({'source':source,'error':str(error)})
         return rows
-    if action=='effects_search':
+    if action in ('effects_search','playback_input'):
         value=client(config,cancel)
         try:
-            from music_search import search_music
-            return search_music(value,config['query'],config.get('catalog_provider','Todos'),account=config.get('_account'),automatic=True,limit=12,cancelled=cancel.is_set)
+            from playback_input import resolve_input
+            return resolve_input(config['query'],value,config,config.get('_account'),cancel.is_set)
         finally:value.close()
+    if action=='card_details':
+        value=client(config,cancel)
+        try:
+            from catalog_details import complete_record
+            return [dict(row,record=complete_record(row['record'],value,cancel.is_set)) for row in config['requests'] if not cancel.is_set()]
+        finally:value.close()
+    if action=='effects_collection':
+        rows=[]
+        for record in config['tracks']:
+            if cancel.is_set():raise InterruptedError('Cancelado')
+            try:
+                result=perform('effects_load',dict(config,record=record),cancel,emit)
+                source=result['source']
+                info=perform('effects_info',dict(config,source=source,record=result.get('record') or record),cancel,emit)
+                rows.append(dict(info,source=source,cover_url=record.get('cover_url','')))
+            except Exception as error:
+                if cancel.is_set():raise
+                rows.append({'error':str(error)})
+        return rows
     if action=='effects_load':
         from jukebox import fetch_audio
         return fetch_audio(config,config['record'],cancel.is_set,lambda value:emit('stage',message=str(value)+'%'),analyze=False)
@@ -74,7 +102,8 @@ def perform(action,config,cancel,emit):
                 return search_music(value,config['query'],config.get('provider','Deezer'),account=config.get('_account'),automatic=config.get('auto_metadata',False),refresh=config.get('refresh',False),cancelled=cancel.is_set)
             if action=='collection':
                 from playlist_import import load_playlist
-                return load_playlist(config['url'],value,limit=int(config.get('playlist_limit',1000)),account=config.get('_account'),cancelled=cancel.is_set)
+                from catalog_details import collection_artwork
+                return dict(collection_artwork(load_playlist(config['url'],value,limit=int(config.get('playlist_limit',1000)),account=config.get('_account'),cancelled=cancel.is_set)),_collection_url=config['url'])
             if action=='release_date':
                 from metadata import deezer_release_date
                 return deezer_release_date(config['record'],value)

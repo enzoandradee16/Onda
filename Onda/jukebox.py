@@ -501,12 +501,13 @@ def fetch_audio(config,record=None,cancelled=lambda:False,progress=lambda _:None
     from metadata import is_streaming_link
     import tempfile
     url=(record or {}).get('source_url') or config.get('url','')
+    direct_source=not is_streaming_link(url)
     root=cache_root();root.mkdir(parents=True,exist_ok=True)
     options=build_options(dict(config,mode='original',folder=str(root),playlist=False,playlist_limit=1))
     if config.get('youtube_cookies_file'):options['cookiefile']=config['youtube_cookies_file']
     if config.get('youtube_user_agent'):options['http_headers']={'User-Agent':config['youtube_user_agent']}
     logger=SearchLog(options,cancelled)
-    if record is not None or is_streaming_link(url):
+    if is_streaming_link(url):
         if record is None:
             from metadata import MetadataClient
             client=MetadataClient(config.get('spotify_client_id',''),config.get('spotify_client_secret',''));client.cancelled=cancelled
@@ -514,12 +515,13 @@ def fetch_audio(config,record=None,cancelled=lambda:False,progress=lambda _:None
             finally:client.close()
         from matching import resolve_youtube
         url=resolve_youtube(record,logger,lambda *_:None,automatic=True)['source_url']
-    url=validate_url(url);saved=[]
+    url=validate_url(url);saved=[];captured=[]
     from yt_dlp.postprocessor.common import PostProcessor
     class Capture(PostProcessor):
         def run(self,info):
             path=info.get('filepath') or info.get('_filename')
             if path:saved.append(path)
+            captured.append(info)
             return [],info
     def hook(data):
         check(cancelled)
@@ -536,6 +538,14 @@ def fetch_audio(config,record=None,cancelled=lambda:False,progress=lambda _:None
         result=download_with_recovery(url,options,configure,saved)
         check(cancelled)
         if result or len(saved)!=1:raise ValueError('Não foi possível obter uma única faixa de áudio.')
+        if direct_source and captured:
+            info=captured[-1];record=dict(record or {})
+            artists=info.get('artists') or [info.get('artist') or info.get('uploader') or info.get('channel') or '']
+            if isinstance(artists,str):artists=[artists]
+            record.update(title=info.get('track') or info.get('title') or record.get('title',''),artists=artists,
+                          source_url=record.get('source_url') or url,cover_url=info.get('thumbnail') or record.get('cover_url',''),
+                          album=info.get('album') or record.get('album',''),duration_ms=(info.get('duration') or 0)*1000)
+            if info.get('release_date'):record['release_date']=info['release_date']
         if not analyze:
             import uuid,shutil
             destination=root/('effects-'+uuid.uuid4().hex)

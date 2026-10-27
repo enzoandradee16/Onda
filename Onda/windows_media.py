@@ -1,4 +1,4 @@
-"""Native Windows SMTC session for the existing Jukebox PCM output; no helper player."""
+"""Native Windows SMTC session shared by the existing ONDA players."""
 import ctypes as c
 from ctypes import wintypes as w
 import base64
@@ -96,6 +96,12 @@ class MediaControls:
             checked(method(self.updater,11,P)(self.updater,reference))
         finally:
             release(reference);release(factory);release(random);release(stream)
+    def navigation(self,previous,next):
+        value=(bool(previous),bool(next))
+        if value==getattr(self,'_navigation',None):return
+        checked(method(self.controls,25,c.c_bool)(self.controls,value[0]))
+        checked(method(self.controls,27,c.c_bool)(self.controls,value[1]))
+        self._navigation=value
     def update(self,title,artist,playing,paused,cover=''):
 
         signature=(title,artist,playing,paused,cover)

@@ -118,7 +118,7 @@ class QtJukeboxTests(unittest.TestCase):
         records=[{'title':'Choice','artists':['Artist'],'source_url':'https://www.deezer.com/track/1'}]
         with patch('music_search.search_music',return_value={'tracks':records}),patch('qt_jukebox_ui.fetch_audio') as download:
             bridge.search('Choice');self.wait_for(lambda:not bridge.state['busy'])
-            self.assertEqual(bridge.state['results'],[{'title':'Choice','artist':'Artist','album':'','cover':''}]);download.assert_not_called();self.assertFalse(bridge.state['playing'])
+            self.assertEqual([{key:row[key] for key in ('title','artist','album','cover')} for row in bridge.state['results']],[{'title':'Choice','artist':'Artist','album':'','cover':''}]);self.assertEqual(bridge.state['results'][0]['source_url'],records[0]['source_url']);download.assert_not_called();self.assertFalse(bridge.state['playing'])
     def prepare_model(self,bridge):
         from test_jukebox import song
         tools=TOOLS

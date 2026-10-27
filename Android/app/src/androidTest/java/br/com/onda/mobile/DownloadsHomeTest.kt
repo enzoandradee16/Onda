@@ -52,7 +52,7 @@ class DownloadsHomeTest {
             compose.onNodeWithText("Aplicar").performClick()
             compose.onNodeWithTag("download-summary-${ids[0]}").assertDoesNotExist()
             compose.onNodeWithTag("download-menu-${ids[1]}").performScrollTo().performClick()
-            compose.onNodeWithText("Tentar novamente").performClick()
+            compose.onAllNodesWithText("Tentar novamente").onLast().performClick()
             compose.waitUntil(5000){OndaStore.items.value.first {it.id==ids[1]}.state=="Pendente"}
             compose.onNodeWithTag("downloads-clear-filter").performClick()
             menu("Selecionar")

@@ -21,6 +21,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import org.json.JSONObject
+import kotlinx.coroutines.*
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
 
 @Composable internal fun EffectsArtwork(info:JSONObject,modifier:Modifier=Modifier) {
     val encoded=info.optString("cover")
@@ -50,15 +54,27 @@ import org.json.JSONObject
 
 
 @Composable internal fun PlaybackQueueRow(record:JSONObject,cover:String,duration:Long,current:Boolean,editing:Boolean,play:()->Unit,up:()->Unit,down:()->Unit,remove:()->Unit,canUp:Boolean,canDown:Boolean) {
-    Column(Modifier.fillMaxWidth()) {
+    var actions by remember {mutableStateOf(false)}
+    Column(Modifier.fillMaxWidth().onSecondaryClick(record.optString("source_url")){actions=true}) {
         Row(Modifier.fillMaxWidth().clickable(onClick=play).padding(vertical=10.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
             EffectsArtwork(JSONObject().put("record",record).put("cover",cover),Modifier.size(48.dp))
             Column(Modifier.weight(1f)) {
                 Text(record.optString("title"),maxLines=1,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis,color=if(current)MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
                 Text(record.stringList("artists"),style=MaterialTheme.typography.bodySmall,maxLines=1,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                Text(record.cleanString("album"),style=MaterialTheme.typography.labelSmall,maxLines=1)
             }
             if(duration>0)Text(mediaClock(duration),style=MaterialTheme.typography.labelSmall)
             IconButton(onClick=play){OndaIcon("play",if(current)"Reproduzir novamente" else "Reproduzir",Modifier.size(22.dp))}
+            Box {
+                IconButton(onClick={actions=true}){OndaIcon("more-vertical","Mais ações",Modifier.size(20.dp))}
+                DropdownMenu(actions,{actions=false}) {
+                    DropdownMenuItem(text={UiText("Reproduzir")},onClick={actions=false;play()})
+                    DropdownMenuItem(text={UiText("Mover para cima")},enabled=canUp,onClick={actions=false;up()})
+                    DropdownMenuItem(text={UiText("Mover para baixo")},enabled=canDown,onClick={actions=false;down()})
+                    DropdownMenuItem(text={UiText("Remover da fila")},onClick={actions=false;remove()})
+                    DropdownMenuItem(text={UiText("Copiar link")},enabled=record.cleanString("source_url").isNotBlank(),onClick={actions=false;copyRecordLink(record)})
+                }
+            }
         }
         if(editing)Row {
             IconButton(onClick=up,enabled=canUp){OndaIcon("up","Mover para cima",Modifier.size(22.dp))}
@@ -73,10 +89,13 @@ import org.json.JSONObject
     var editing by remember {mutableStateOf(false)}
     Column(Modifier.fillMaxSize().padding(horizontal=LayoutSpacing.inset).testTag("effects-queue-panel")) {
         Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){UiText("Fila",Modifier.weight(1f),style=MaterialTheme.typography.titleLarge);TextButton(onClick={editing=!editing}){UiText(if(editing)"Pronto" else "Editar")}}
+        val repeat by vm.effectsRepeat.collectAsStateWithLifecycle()
+        PlaybackOrderControls(repeat,{vm.effectsRepeat.value=it})
         if(editing)TextButton(onClick=vm::clearEffectsQueue){UiText("Limpar fila")}
+        PlaybackQueueSearch(vm,false)
         val active=queue.indexOf(source)
         LazyColumn(Modifier.weight(1f)) {
-            if(queue.isEmpty())item {UiText("Adicione arquivos ou músicas dos resultados.")}
+            if(queue.isEmpty())item {UiText("Adicione arquivos, músicas, álbuns ou playlists à fila.")}
             itemsIndexed(queue,key={_,path->path}) {index,path->
                 if(index==0&&active>0)UiText("Já tocadas",style=MaterialTheme.typography.labelLarge)
                 if(index==active)UiText("Tocando agora",style=MaterialTheme.typography.labelLarge)
@@ -98,13 +117,72 @@ import org.json.JSONObject
     }
 }
 
-@Composable internal fun SearchTrackInformation(record:JSONObject) {
+@Composable internal fun SearchTrackInformation(original:JSONObject,vm:OndaViewModel?=null) {
+    val record=rememberCardMetadata(original,vm)
     Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
         EffectsArtwork(JSONObject().put("record",record),Modifier.size(56.dp))
         Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(4.dp)) {
             Text(record.optString("title"),maxLines=2,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)
             Text(record.stringList("artists"),style=MaterialTheme.typography.bodySmall,maxLines=1,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)
             Text(record.optString("album"),style=MaterialTheme.typography.bodySmall,maxLines=1,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+            ReleaseDateLabel(record)
+        }
+    }
+}
+
+@Composable internal fun PlaybackQueueSearch(vm:OndaViewModel,jukeboxTarget:Boolean) {
+    val scope=rememberCoroutineScope()
+    var query by rememberSaveable {mutableStateOf("")}
+    var results by remember {mutableStateOf<List<JSONObject>>(emptyList())}
+    var searching by remember {mutableStateOf(false)}
+    var message by remember {mutableStateOf("")}
+    var job by remember {mutableStateOf<Job?>(null)}
+    val id=remember {"queue-input-"+java.util.UUID.randomUUID()}
+    val loading by vm.loadingPlaybackCollection.collectAsStateWithLifecycle()
+    DisposableEffect(id){onDispose {job?.cancel();MobileEngine.cancel(id)}}
+    fun search() {
+        if(searching){job?.cancel();MobileEngine.cancel(id);return}
+        if(loading&&!jukeboxTarget){vm.cancelPlaybackCollection();return}
+        if(query.isBlank())return
+        job=scope.launch {
+            searching=true;message=""
+            try {
+                val resolved=vm.jukebox.resolveQueueInput(query,id)
+                val rows=resolved.optJSONArray("tracks")?.objects().orEmpty()
+                if(resolved.optBoolean("is_collection")){vm.addPlaybackCollection(rows,jukeboxTarget);results=emptyList();message="${rows.size} músicas adicionadas à fila."}
+                else {results=rows;if(rows.isEmpty())message="Nenhuma música encontrada."}
+            } catch(e:CancellationException){throw e} catch(e:Exception){message=uiExceptionMessage(e,"Falha de pesquisa.")} finally {searching=false;MobileEngine.cancel(id)}
+        }
+    }
+    OutlinedTextField(query,{query=it},label={UiText(PLAYBACK_INPUT_HINT)},singleLine=true,keyboardOptions=KeyboardOptions(imeAction=ImeAction.Search),keyboardActions=KeyboardActions(onSearch={search()}),modifier=Modifier.fillMaxWidth().testTag("playback-queue-search"))
+    TextButton(onClick=::search,enabled=searching||(!jukeboxTarget&&loading)||query.isNotBlank()){UiText(if(searching||(!jukeboxTarget&&loading))"Cancelar" else "Pesquisar")}
+    if(message.isNotBlank())UiText(message,style=MaterialTheme.typography.bodySmall)
+    if(results.isNotEmpty())LazyColumn(Modifier.fillMaxWidth().heightIn(max=230.dp)) {
+        itemsIndexed(results) {_,record->
+            OutlinedButton(onClick={vm.addPlaybackCollection(listOf(record),jukeboxTarget);results=results.filter {it!==record}},enabled=jukeboxTarget||!loading,modifier=Modifier.fillMaxWidth()) {
+                Column(Modifier.weight(1f)){SearchTrackInformation(record,vm)}
+                OndaIcon("add","Adicionar à fila",Modifier.size(22.dp))
+            }
+        }
+    }
+}
+
+@Composable internal fun PlaybackSearchResult(record:JSONObject,vm:OndaViewModel,enabled:Boolean,play:()->Unit,add:()->Unit) {
+    var actions by remember {mutableStateOf(false)}
+    Column(Modifier.fillMaxWidth().onSecondaryClick(record.optString("source_url")){actions=true}) {
+        SearchTrackInformation(record,vm)
+        Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
+            TextButton(enabled=enabled,onClick=play){UiText("Reproduzir")}
+            TextButton(enabled=enabled,onClick=add){UiText("Adicionar à fila")}
+            Box {
+                IconButton(onClick={actions=true}){OndaIcon("more-vertical","Mais ações",Modifier.size(22.dp))}
+                DropdownMenu(actions,{actions=false}) {
+                    DropdownMenuItem(text={UiText("Reproduzir")},enabled=enabled,onClick={actions=false;play()})
+                    DropdownMenuItem(text={UiText("Adicionar à fila")},enabled=enabled,onClick={actions=false;add()})
+                    DropdownMenuItem(text={UiText("Ver no catálogo")},onClick={actions=false;openRecordLink(record)})
+                    DropdownMenuItem(text={UiText("Copiar link")},onClick={actions=false;copyRecordLink(record)})
+                }
+            }
         }
     }
 }

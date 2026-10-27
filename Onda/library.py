@@ -88,7 +88,19 @@ class LibraryStore:
 
     def remove_history(self,identity):
         with self.connect() as db:
+            db.row_factory = sqlite3.Row
+            row = db.execute("SELECT * FROM history WHERE id=?", (int(identity),)).fetchone()
             db.execute("DELETE FROM history WHERE id=?",(int(identity),))
+            return dict(row) if row else None
+
+    def restore_history(self, row):
+        # Keep the original order unless a new download reused the highest ID.
+        fields = ('date','path','name','mode','source','source_key','mode_key')
+        with self.connect() as db:
+            if row.get('id') is not None and not db.execute('SELECT 1 FROM history WHERE id=?',(row['id'],)).fetchone():
+                fields=('id',)+fields
+            db.execute("INSERT INTO history("+','.join(fields)+") VALUES ("+','.join('?' for _ in fields)+")",
+                       tuple(row.get(key, '') for key in fields))
 
     def find_duplicate(self, source, mode):
         from duplicate_links import source_key

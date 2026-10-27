@@ -4,9 +4,10 @@ import QtQuick.Layouts
 Button {
     id: control
     property bool primary: false
+    property bool compact: false
     property string symbol: ""
-    implicitHeight: Math.max(34,Math.round(42*bridge.spacing))
-    implicitWidth: Math.max(42, label.implicitWidth + 32)
+    implicitHeight: Math.max(compact ? 28 : 34,Math.round((compact ? 32 : 42)*bridge.spacing))
+    implicitWidth: Math.max(42, label.implicitWidth + (compact ? 24 : 32))
     readonly property bool iconOnly: !/[A-Za-zÀ-ÖØ-öø-ÿ0-9]/.test(text) && (!!text || !!symbol || !!Accessible.name)
     ToolTip.visible: hovered && iconOnly && !!Accessible.name
     ToolTip.text: Accessible.name
@@ -25,7 +26,7 @@ Button {
         id: label
         text: (control.symbol ? control.symbol + "  " : "") + control.text
         color: control.primary ? bridge.palette.accent_text : bridge.palette.text
-        font.family: control.font.family; font.pixelSize: Math.round(14*bridge.fontScale); font.weight: control.primary ? Font.DemiBold : Font.Medium
+        font.family: control.font.family; font.pixelSize: Math.round((control.compact ? 12 : 14)*bridge.fontScale); font.weight: control.primary ? Font.DemiBold : Font.Medium
         horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
     }
 }

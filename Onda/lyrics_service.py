@@ -57,13 +57,15 @@ def best_recording(rows,title,artist,album='',duration=0):
     def similarity(a,b):return SequenceMatcher(None,normalize(a),normalize(b)).ratio()
     ranked=[]
     for row in rows:
+        if not isinstance(row,dict):continue
         if row.get('instrumental') or not (row.get('syncedLyrics') or row.get('plainLyrics') or row.get('lyricsfile')):continue
         name=similarity(title,row.get('trackName','')); performer=similarity(artist,row.get('artistName',''))
         if name<.72 or performer<.6:continue
         # A live/remix/radio version is a different recording, even at a similar length.
         versions={'live','remix','acoustic','instrumental','radio','extended'}
         if (set(normalize(title).split()) & versions)!=(set(normalize(row.get('trackName','')).split()) & versions):continue
-        length=float(row.get('duration') or 0)
+        try:length=float(row.get('duration') or 0)
+        except (ValueError,TypeError):continue
         if not math.isfinite(length):continue
         delta=abs(length-duration) if duration and length else None
         limit=max(8,duration*.04)
@@ -106,7 +108,7 @@ def fetch_lyrics(source,record=None,cancel=None,session=None,alternatives=False)
                 if len(data)>1024*1024:raise ValueError('Resposta de letra muito grande.')
         return json.loads(data)
     result=request('search' if alternatives else 'get',params)
-    if not alternatives and result is None:
+    if not alternatives and (result is None or isinstance(result,dict) and not result.get('instrumental') and not any(result.get(key) for key in ('syncedLyrics','plainLyrics','lyricsfile'))):
         matches=request('search',{'track_name':title,'artist_name':artist})
         result=best_recording(matches if isinstance(matches,list) else [],title,artist,record.get('album',''),float(duration or 0))
     if result is None:raise ValueError('Letra não encontrada para esta gravação.')

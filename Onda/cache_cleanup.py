@@ -17,7 +17,7 @@ def cache_files(root):
     import re
     root=Path(root)
     if linked(root):return
-    for folder in ('extractor-cache','image-preview','jukebox'):
+    for folder in ('extractor-cache','image-preview','online-image-preview','jukebox'):
         base=root/folder
         if linked(base):continue
         for directory,dirs,files in os.walk(base,followlinks=False):
@@ -54,7 +54,7 @@ def clear_cache(root=None):
                 db.execute('DELETE FROM aliases');db.commit();db.execute('VACUUM')
         except sqlite3.Error:failed+=1
     # Clear only reconstructible in-memory results; user-confirmed choices are kept.
-    for module,function in [('music_search','clear_cache'),('catalog_ui','cached_cover_png'),('history_details','_cached_details')]:
+    for module,function in [('online_image_preview','clear_cache'),('music_search','clear_cache'),('catalog_ui','cached_cover_png'),('history_details','_cached_details')]:
         loaded=sys.modules.get(module)
         target=getattr(loaded,function,None) if loaded else None
         if target:

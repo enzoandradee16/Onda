@@ -138,24 +138,49 @@ import org.json.JSONObject
     val cardSize=settings.optString("queue_card_size","Grande")
     val coverSide=when(cardSize){"Pequeno"->56.dp;"Médio"->80.dp;else->100.dp}
     val cardPadding=when(cardSize){"Pequeno"->10.dp;"Médio"->12.dp;else->16.dp}
-    LaunchedEffect(item.id){if(item.config.optJSONObject("queue_info")==null && item.config.optJSONObject("catalog_record")==null)vm.loadQueueInformation(item)}
+    LaunchedEffect(item.id,item.config.optString("url")){if(item.config.optJSONObject("queue_info")==null && item.config.optJSONObject("catalog_record")==null)vm.loadQueueInformation(item)}
     val info=item.config.optJSONObject("queue_info") ?: item.config.optJSONObject("catalog_record")
     val artists=info?.optJSONArray("artists")?.let {a->(0 until a.length()).joinToString(", "){a.optString(it)}}.orEmpty()
     val immediate=item.config.optBoolean("_immediate")
     val imageMedia=historyKind(item.config.optString("mode"),item.title)=="Imagens"
+    val published by OndaStore.history.collectAsStateWithLifecycle()
+    val initialImage=remember(published,item.id,item.state) {if(item.state=="Concluído")published.filter {historyKind(it.mode,it.title)=="Imagens" && it.source==jobSource(item.config)}.minByOrNull {it.id} else null}
+    var imagePreview by remember(item.id){mutableStateOf(false)}
+    if(imagePreview && initialImage!=null)HistoryImageGallery(initialImage,vm){imagePreview=false}
+    var repairLink by remember(item.id){mutableStateOf(false)}
+    var replacement by remember(item.id){mutableStateOf(item.config.optString("url"))}
+    var invalidLink by remember(item.id){mutableStateOf(false)}
+    if(repairLink)AlertDialog(containerColor=ondaDialogContainerColor(),onDismissRequest={repairLink=false},title={UiText("Atualizar link")},text={OutlinedTextField(replacement,{replacement=it;invalidLink=false},label={UiText("Cole o link atualizado.")},isError=invalidLink,singleLine=true,modifier=Modifier.testTag("repair-download-link"))},confirmButton={TextButton(onClick={if(OndaStore.replaceDownloadLink(item.id,replacement)){repairLink=false;DownloadService.start(OndaStore.context,item.id)}else invalidLink=true}){UiText("Tentar novamente")}},dismissButton={TextButton(onClick={repairLink=false}){UiText("Cancelar")}})
     val modifier=Modifier.fillMaxWidth().testTag("download-summary-${item.id}").then(if(selectionMode && !immediate)Modifier.toggleable(selected,role=Role.Checkbox,onValueChange=onSelect) else Modifier)
-    Surface(shape=RoundedCornerShape(18.dp),color=MaterialTheme.colorScheme.surfaceContainerLow,modifier=modifier) {
+    Surface(shape=RoundedCornerShape(18.dp),color=MaterialTheme.colorScheme.surfaceContainerLow,modifier=modifier.onSecondaryClick(item.id){menu=true}.then(if(initialImage!=null&&!selectionMode)Modifier.clickable(onClickLabel=translateUi("Ver imagens")){imagePreview=true} else Modifier)) {
         Row(Modifier.padding(cardPadding).heightIn(min=coverSide),horizontalArrangement=Arrangement.spacedBy(12.dp),verticalAlignment=Alignment.CenterVertically) {
             if(selectionMode && !immediate)Checkbox(selected,null)
-            Box(Modifier.size(coverSide).clip(RoundedCornerShape(10.dp)).testTag("queue-cover-${item.id}"),contentAlignment=Alignment.Center){if(info?.cleanString("cover_url").isNullOrBlank())OndaIcon(if(imageMedia)"image" else "album",modifier=Modifier.size(32.dp)) else AsyncImage(info?.cleanString("cover_url"),translateUi("Capa do álbum"),Modifier.fillMaxSize(),contentScale=ContentScale.Crop)}
+            Box(Modifier.size(coverSide).clip(RoundedCornerShape(10.dp)).testTag("queue-cover-${item.id}"),contentAlignment=Alignment.Center){
+                val artwork=initialImage?.uri ?: info?.cleanString("cover_url").orEmpty()
+                if(artwork.isBlank())OndaIcon(if(imageMedia)"image" else "album",modifier=Modifier.size(32.dp)) else AsyncImage(artwork,translateUi(if(initialImage!=null)"Prévia da imagem" else "Capa do álbum"),Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
+            }
             Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(5.dp)) {
                 Text(songCardTitle(info?.cleanString("title")?.ifBlank {item.title} ?: item.title,artists),fontWeight=FontWeight.Medium,maxLines=if(cardSize=="Pequeno")1 else 2,overflow=TextOverflow.Ellipsis,style=if(cardSize=="Pequeno")MaterialTheme.typography.bodyMedium else MaterialTheme.typography.titleSmall)
                 if(artists.isNotBlank())Text(artists,maxLines=1,overflow=TextOverflow.Ellipsis,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
                 if(cardSize!="Pequeno" && !info?.cleanString("album").isNullOrBlank())Text(info!!.cleanString("album"),maxLines=1,overflow=TextOverflow.Ellipsis,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                info?.let {ReleaseDateLabel(it)}
                 MetadataPlatformBadge(info,source=item.config.optString("url"),imageMedia=imageMedia)
+                if(initialImage==null && canPreviewOnlineImages(item.config))OnlineImagePreviewButton(vm,item.config.optString("url"))
+                if(initialImage!=null)TextButton(onClick={imagePreview=true},modifier=Modifier.testTag("download-image-preview-${item.id}")){UiText("Ver imagens")}
+                if(item.state=="Erro") {
+                    val advice=failureAdvice(item.message)
+                    UiText(advice.first,style=MaterialTheme.typography.bodySmall)
+                    TextButton(onClick={when(advice.second) {
+                        "Atualizar link"->{replacement=item.config.optString("url");invalidLink=false;repairLink=true}
+                        "Verificar acesso"->runCatching {OndaStore.context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW,android.net.Uri.parse(item.config.optString("url"))).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))}.onFailure {vm.showNotice("Verificar acesso","Não foi possível abrir a origem.")}
+                        else->{OndaStore.retry(setOf(item.id));DownloadService.start(OndaStore.context,item.id)}
+                    }}){UiText(advice.second)}
+                }
                 if(item.state in listOf("Baixando","Aguardando escolha"))Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-                    LinearProgressIndicator(progress={item.progress/100},modifier=Modifier.weight(1f).height(4.dp),strokeCap=StrokeCap.Round,drawStopIndicator={})
-                    Text("${item.progress.toInt()}%",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                    if(activity.startsWith("Baixando") && item.progress>0) {
+                        LinearProgressIndicator(progress={item.progress/100},modifier=Modifier.weight(1f).height(4.dp),strokeCap=StrokeCap.Round,drawStopIndicator={})
+                        Text("${item.progress.toInt()}%",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                    } else LinearProgressIndicator(modifier=Modifier.weight(1f).height(4.dp),strokeCap=StrokeCap.Round)
                 } else UiText(item.state,style=MaterialTheme.typography.labelSmall,color=if(item.state=="Erro")MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
                 if(activity.isNotBlank() && item.state in listOf("Baixando","Pausado","Aguardando escolha"))UiText(activity,style=MaterialTheme.typography.bodySmall,maxLines=2,overflow=TextOverflow.Ellipsis)
             }

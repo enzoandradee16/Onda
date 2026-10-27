@@ -7,10 +7,21 @@ ScrollView {
     signal lyricsRequested()
     id: page
     property string mode: workspace.currentPage
-    readonly property bool effectsSearching: workspace.activity.busy.indexOf("effects_search")>=0 || workspace.activity.busy.indexOf("effects_load")>=0 || workspace.activity.busy.indexOf("effects_queue_info")>=0
+    readonly property bool effectsSearching: workspace.activity.busy.indexOf("effects_collection")>=0 || workspace.activity.busy.indexOf("effects_search")>=0 || workspace.activity.busy.indexOf("effects_load")>=0 || workspace.activity.busy.indexOf("effects_queue_info")>=0
     property bool audioOnly: workspace.values.converterSources.some(function(path) { return /\.(mp3|m4a|aac|flac|wav|ogg|opus)$/i.test(path) })
     clip: true
     contentWidth: availableWidth
+    Menu {id:toolActions;objectName:"toolContextMenu"
+        OndaMenuItem {text:bridge.translate("Abrir arquivo");onTriggered:workspace.invoke("pick",{kind:page.mode==="images" ? "image" : page.mode})}
+        OndaMenuItem {visible:page.mode==="effects";text:bridge.translate("Fila de reprodução");onTriggered:workspace.setOption("effectsQueueOpen",true)}
+        OndaMenuItem {visible:page.mode==="effects";text:bridge.translate("Reproduzir / Pausar");enabled:!!workspace.values.effectsSource;onTriggered:workspace.invoke("effects_play_pause",{})}
+        OndaMenuItem {visible:page.mode==="effects";text:bridge.translate("Buscar letra online");enabled:!!workspace.values.effectsSource;onTriggered:workspace.invoke("lyrics_online",{jukebox:false})}
+        OndaMenuItem {visible:page.mode==="converter";text:bridge.translate("Converter");enabled:workspace.values.converterSources.length>0;onTriggered:workspace.invoke("convert",{})}
+        OndaMenuItem {visible:page.mode==="images";text:bridge.translate("Prévia");enabled:!!workspace.values.imageSource;onTriggered:workspace.invoke("image_preview",{})}
+        OndaMenuItem {visible:page.mode==="metadata";text:bridge.translate("Salvar");enabled:workspace.values.metadataSources.length>0;onTriggered:workspace.invoke("audio_edit",{})}
+    }
+    TapHandler {enabled:page.mode!=="effects" || !(workspace.values.effectsResults || []).length;acceptedButtons:Qt.RightButton;onTapped:toolActions.popup()}
+
     ColumnLayout { width: page.availableWidth; spacing: Math.round(18*bridge.spacing)
         Card { visible: page.mode !== "effects"; Layout.fillWidth: true; implicitHeight: sourceBody.implicitHeight+36
             ColumnLayout { id: sourceBody; anchors.fill: parent; anchors.margins: 18; spacing: Math.round(12*bridge.spacing)
@@ -25,16 +36,17 @@ ScrollView {
             RowLayout { Layout.fillWidth: true; spacing: Math.round(10*bridge.spacing)
                 ActionButton { primary: true; text: bridge.translate("Abrir arquivo"); enabled: !page.effectsSearching; onClicked: workspace.invoke("pick",{kind:"effects"}) }
                 OndaTextField {
-                    id: effectsQuery; Layout.fillWidth: true; implicitHeight: 44; placeholderText: bridge.translate("Pesquise uma música ou cole um link"); selectByMouse: true
+                    id: effectsQuery; Layout.fillWidth: true; implicitHeight: 44; placeholderText: bridge.translate("Música, artista ou link de música, álbum ou playlist"); selectByMouse: true
                     color: bridge.palette.text; placeholderTextColor: bridge.palette.muted; font.pixelSize: Math.round(14*bridge.fontScale)
                     background: Rectangle { radius: 8; color: bridge.palette.surface; border.color: effectsQuery.activeFocus ? bridge.palette.accent : bridge.palette.line; border.width: effectsQuery.activeFocus ? 2 : 1 }
                     text: workspace.values.effectsQuery || ""; onTextEdited: workspace.setOption("effectsQuery",text)
                     onAccepted: if(!page.effectsSearching && text.trim().length)workspace.invoke("effects_search",{})
                 }
-                TaskButton { objectName: "effectsSearchButton"; idleText: bridge.translate("Pesquisar"); primary: true; operation: "effects_search"; taskNames: ["effects_search","effects_load","effects_queue_info"]; enabled: taskRunning || !!(workspace.values.effectsQuery || "").trim() }
+                TaskButton { objectName: "effectsSearchButton"; idleText: bridge.translate("Pesquisar"); primary: true; operation: "effects_search"; taskNames: ["effects_search","effects_load","effects_queue_info","effects_collection"]; enabled: taskRunning || !!(workspace.values.effectsQuery || "").trim() }
             }
             Flow { Layout.fillWidth: true; spacing: 8
-                ActionButton {text: bridge.translate("Próxima"); enabled: workspace.values.effectsQueueIndex+1<workspace.values.effectsQueue.length; onClicked: workspace.invoke("effects_next",{})}
+                ActionButton {text: bridge.translate("Próxima"); enabled: workspace.values.effectsQueue.length>0 && (workspace.values.effectsRepeat==="Todas" || workspace.values.effectsQueueIndex+1<workspace.values.effectsQueue.length); onClicked: workspace.invoke("effects_next",{})}
+                ChoiceBox {model:["Desativada","Todas","Uma"];currentIndex:model.indexOf(workspace.values.effectsRepeat);onActivated:workspace.setOption("effectsRepeat",currentText);Accessible.name:bridge.translate("Repetição")}
                 OndaSwitch {text: bridge.translate("Transição gradual"); checked: workspace.preferences.jukebox_gradual_transition; onToggled: workspace.setSetting("jukebox_gradual_transition",checked)}
             }
             Card {
@@ -50,7 +62,17 @@ ScrollView {
                     model: workspace.values.effectsResults || []; ScrollBar.vertical: ScrollBar {}
                     delegate: ItemDelegate {
                         required property var modelData; required property int index
-                        width: effectsResultsList.width; height: 84
+                        Component.onCompleted: workspace.invoke("request_card_details",{model:"effectsResults",source:modelData.source_url || ""})
+                        ListView.onReused: workspace.invoke("request_card_details",{model:"effectsResults",source:modelData.source_url || ""})
+                        Menu {id:resultActions
+                            OndaMenuItem {text:bridge.translate("Reproduzir");onTriggered:workspace.invoke("effects_load",{index:index})}
+                            OndaMenuItem {text:bridge.translate("Adicionar à fila");onTriggered:workspace.invoke("effects_enqueue_result",{index:index})}
+                            OndaMenuItem {text:bridge.translate("Ver no catálogo");onTriggered:workspace.invoke("open_url",{url:modelData.source_url})}
+                            OndaMenuItem {text:bridge.translate("Copiar link");onTriggered:workspace.invoke("copy_link",{url:modelData.source_url})}
+                        }
+                        TapHandler {acceptedButtons:Qt.RightButton;onTapped:resultActions.popup()}
+
+                        width: effectsResultsList.width; height: modelData.release_date ? 108 : 84
                         contentItem: RowLayout {
                             Rectangle { Layout.preferredWidth: 64; Layout.preferredHeight: 64; radius: 6; color: bridge.palette.input
                                 RoundedArtwork { id: effectResultCover; anchors.fill: parent; source: modelData.cover_url || ""; fillMode: Image.PreserveAspectFit; sourceSize.width: 128; sourceSize.height: 128; asynchronous: true }
@@ -60,8 +82,9 @@ ScrollView {
                                 Label { Layout.fillWidth: true; text: modelData.title; color: bridge.palette.text; elide: Text.ElideRight }
                                 Label { Layout.fillWidth: true; text: (modelData.artists || []).join(", "); color: bridge.palette.muted; elide: Text.ElideRight }
                                 Label { Layout.fillWidth: true; text: modelData.album || ""; color: bridge.palette.muted; elide: Text.ElideRight }
+                                Label {Layout.fillWidth:true;visible:!!modelData.release_date;text:bridge.translate("Data de lançamento")+": "+workspace.releaseDateText(modelData.release_date || "");color:bridge.palette.muted;elide:Text.ElideRight}
                             }
-                            ActionButton { text: bridge.translate("Adicionar à fila"); enabled: workspace.activity.busy.indexOf("effects_load")<0; onClicked: {workspace.invoke("effects_enqueue_result",{index:index});workspace.setOption("effectsQueueOpen",true)} }
+                            ActionButton { text: bridge.translate("Adicionar à fila"); enabled: workspace.activity.busy.indexOf("effects_load")<0; onClicked: {workspace.invoke("effects_enqueue_result",{index:index})} }
                         }
                         enabled: workspace.activity.busy.indexOf("effects_load")<0
                         onClicked: workspace.invoke("effects_load",{index:index})
@@ -153,7 +176,7 @@ ScrollView {
                 OptionField { visible: workspace.preferences.image_size === "Personalizado"; settings: true; field: ({key:"image_height",label:"Altura",kind:"text"}) }
             }
             OndaSwitch { text: bridge.translate("Manter proporção"); checked: workspace.preferences.image_keep_ratio; onToggled: workspace.setSetting("image_keep_ratio",checked) }
-            RowLayout { spacing: Math.round(10*bridge.spacing); TaskButton { idleText: bridge.translate("Visualizar"); operation: "image_preview"; taskNames: ["image_preview"] } TaskButton { primary: true; idleText: bridge.translate("Exportar / baixar"); operation: "image_export"; taskNames: ["image_export"] } }
+            RowLayout { spacing: Math.round(10*bridge.spacing); TaskButton { idleText: bridge.translate("Visualizar"); operation: "image_preview"; taskNames: ["image_preview","image_gallery_manifest"] } TaskButton { primary: true; idleText: bridge.translate("Exportar / baixar"); operation: "image_export"; taskNames: ["image_export"] } }
             Label {
                 objectName: "imageInformation"
                 readonly property var original: (workspace.values.imageInfo || {}).source || ({})
