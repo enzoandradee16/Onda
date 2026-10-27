@@ -62,3 +62,28 @@ def clear_cache(root=None):
             else:target()
     after=cache_info(root)['bytes']
     return {'bytes':after,'removed':max(0,before-after),'failed':failed}
+
+
+def automatic_cleanup(root=None, *, now=None, max_bytes=512*1024*1024, max_age=7*86400):
+    """Bound disposable caches only; never remove partial downloads or playback audio.
+
+    Recent files have a one-hour lease, including when the size limit is exceeded.
+    Run on startup/idle, not during a gallery or rendering operation.
+    """
+    import time
+    root=Path(root) if root is not None else root_path()
+    now=time.time() if now is None else now
+    candidates=[]
+    for path in cache_files(root):
+        try:
+            relative=path.relative_to(root)
+            if relative.parts[0]=='jukebox':continue
+            info=path.stat();candidates.append((info.st_mtime,path,info.st_size))
+        except OSError:continue
+    total=sum(size for _,_,size in candidates);removed=failed=0
+    for modified,path,size in sorted(candidates):
+        age=now-modified
+        if age<3600 or age<max_age and total<=max_bytes:continue
+        try:path.unlink();removed+=size;total-=size
+        except OSError:failed+=1
+    return {'bytes':total,'removed':removed,'failed':failed}

@@ -12,6 +12,7 @@ Button {
     ToolTip.visible: hovered && iconOnly && !!Accessible.name
     ToolTip.text: Accessible.name
     ToolTip.delay: 450
+    activeFocusOnTab: true
     hoverEnabled: true
     opacity: enabled ? 1 : 0.45
     scale: down ? 0.97 : 1
@@ -19,7 +20,8 @@ Button {
     background: Rectangle {
         radius: 8
         color: control.primary ? (control.hovered ? bridge.palette.accent_hover : bridge.palette.accent) : (control.hovered ? bridge.palette.hover : bridge.palette.surface)
-        border.color: control.primary ? "transparent" : bridge.palette.line
+        border.width:control.activeFocus ? 2 : 1
+        border.color: control.activeFocus ? (control.primary ? bridge.palette.accent_text : bridge.palette.accent) : control.primary ? "transparent" : bridge.palette.line
         Behavior on color { ColorAnimation { duration: bridge.animations ? 120 : 0 } }
     }
     contentItem: Text {

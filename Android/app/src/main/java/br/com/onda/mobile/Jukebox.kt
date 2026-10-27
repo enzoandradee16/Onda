@@ -595,16 +595,19 @@ internal class JukeboxController(private val context:Context,private val scope:C
             if(editing)Row {OutlinedButton(onClick={files.launch(arrayOf("audio/*"))}){UiText("Adicionar arquivos")};TextButton(onClick=controller::clearPlaybackQueue){UiText("Limpar fila")}}
             PlaybackQueueSearch(vm,true)
             val active=queue.indexOfFirst {it.optString("_queue_id")==current}
-            androidx.compose.foundation.lazy.LazyColumn(Modifier.weight(1f).fillMaxWidth()) {
+            val dragListState=androidx.compose.foundation.lazy.rememberLazyListState()
+            androidx.compose.foundation.lazy.LazyColumn(Modifier.weight(1f).fillMaxWidth(),state=dragListState) {
                 if(queue.isEmpty())item {UiText("Nenhuma música na fila.")}
                 items(queue.size,key={queue[it].getString("_queue_id")}) {index->
                     if(index==0&&active>0)UiText("Já tocadas",style=MaterialTheme.typography.labelLarge)
                     if(index==active)UiText("Tocando agora",style=MaterialTheme.typography.labelLarge)
                     if(index==active+1)UiText("A seguir",style=MaterialTheme.typography.labelLarge)
                     val row=queue[index]
+                    DraggableQueueCard(dragListState,index,queue.size,move={from,to->controller.moveQueued(from,to-from)}) {
                     PlaybackQueueRow(row,row.optString("_cover"),row.optLong("duration_ms")/1000,index==active,editing,{controller.playQueued(index)},
-                        {controller.moveQueued(index,-1)},{controller.moveQueued(index,1)},{controller.removeQueued(index)},index>0,index+1<queue.size)
-                    if(row.optString("_analysis")!="Pronta")UiText(if(row.optString("_error").isNotBlank())translateError(row.optString("_error")) else row.optString("_analysis"),style=MaterialTheme.typography.labelSmall)
+                        {controller.moveQueued(index,-1)},{controller.moveQueued(index,1)},{controller.removeQueued(index)},index>0,index+1<queue.size,preparation=row.optString("_analysis"),drag={QueueDragHandle(dragListState,index,queue.size,itemLabel=row.optString("title")){from,to->controller.moveQueued(from,to-from)}})
+                    }
+                    if(row.optString("_error").isNotBlank())UiText(if(row.optString("_error").isNotBlank())translateError(row.optString("_error")) else row.optString("_analysis"),style=MaterialTheme.typography.labelSmall)
                     if(editing&&row.optString("_analysis")=="Erro")TextButton(onClick={controller.retryQueued(index)}){UiText("Tentar novamente")}
                 }
             }

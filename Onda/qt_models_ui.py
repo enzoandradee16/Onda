@@ -1,5 +1,5 @@
 """Qt list models with row updates instead of rebuilding long queues."""
-from PySide6.QtCore import QAbstractListModel,QModelIndex,Qt,Signal,Property
+from PySide6.QtCore import QAbstractListModel,QModelIndex,Qt,Signal,Property,Slot
 class RowsModel(QAbstractListModel):
     countChanged=Signal()
     def __init__(self,parent=None):super().__init__(parent);self.rows=[]
@@ -9,6 +9,8 @@ class RowsModel(QAbstractListModel):
         if index.isValid() and role==Qt.UserRole+1:return dict(self.rows[index.row()])
     @Property(int,notify=countChanged)
     def count(self):return len(self.rows)
+    @Slot(int,result='QVariantMap')
+    def get(self,index):return dict(self.rows[index]) if 0<=index<len(self.rows) else {}
     def replace(self,rows):
         rows=[dict(row) for row in rows]
         if rows==self.rows:return

@@ -80,6 +80,11 @@ object OndaStore {
             }
         }
         normalizeAppearance(settings.value)
+        database.writableDatabase.rawQuery("SELECT id,config FROM queue WHERE state IN ('Baixando','Aguardando escolha')",null).use {cursor->
+            val recovered=mutableListOf<Pair<String,String>>()
+            while(cursor.moveToNext())recovered+=cursor.getString(0) to JSONObject(cursor.getString(1)).put("_interrupted",true).toString()
+            recovered.forEach {(id,config)->database.writableDatabase.execSQL("UPDATE queue SET config=? WHERE id=?",arrayOf(config,id))}
+        }
         database.writableDatabase.execSQL("UPDATE queue SET state='Pendente' WHERE state IN ('Baixando','Aguardando escolha')")
         database.writableDatabase.execSQL("CREATE TABLE IF NOT EXISTS queue_order (id TEXT PRIMARY KEY, position INTEGER NOT NULL)")
         database.writableDatabase.execSQL("INSERT OR IGNORE INTO queue_order SELECT id,rowid FROM queue")
@@ -94,7 +99,7 @@ object OndaStore {
         .put("queue_card_size","Grande").put("catalog_card_size","Grande").put("pure_black_separators",false).put("history_card_size","Grande").put("history_view","Compacto").put("playlist_limit",2000).put("link_playlist",false).put("auto_metadata",false).put("auto_match",false).put("confirm_version",false).put("review_metadata",false)
         .put("detect_duplicates",true).put("filename_template","Original").put("duplicate_policy","ask").put("organization","Pasta de destino").put("interface_font",DEFAULT_INTERFACE_FONT).put("interface_font_size","100%").put("interface_spacing","Padrão").put("theme","Preto puro").put("accent","Verde-Água")
         .put("concurrent_downloads","1").put("resume_downloads",true).put("resume_queue",false).put("normalize_volume",false)
-        .put("schedule_enabled",false).put("schedule_start","22:00").put("schedule_stop","07:00").put("check_updates",true).put("notice_duration","Após 3 segundos").put("notice_animation",true)
+        .put("schedule_enabled",false).put("schedule_start","22:00").put("schedule_stop","07:00").put("check_updates",true).put("automatic_cache_cleanup",true).put("notice_duration","Após 3 segundos").put("notice_animation",true)
         .put("playback_tab_order","Efeitos primeiro").put("jukebox_transition_seconds",2).put("jukebox_gradual_transition",true).put("jukebox_equalizer",JSONObject()).put("jukebox_background",true).put("synced_lyrics",false).put("search_preview",25).put("effects_preview",25).put("keep_preview",false).put("remember",true)
         .put("image_format","Original").put("image_size","Original").put("image_width",0).put("image_height",0).put("keep_ratio",true)
         .put("bottom_bar_order",JSONArray(bottomBarDefaults))
@@ -162,7 +167,8 @@ object OndaStore {
             while(cursor.moveToNext()) {
                 val id=cursor.getString(0)
                 val old=previous[id]
-                queue += DownloadItem(id,cursor.getString(1),JSONObject(cursor.getString(2)),cursor.getString(3),old?.progress ?: 0f,old?.message ?: "",old?.activity ?: "")
+                val config=JSONObject(cursor.getString(2))
+                queue += DownloadItem(id,cursor.getString(1),config,cursor.getString(3),old?.progress ?: config.optDouble("_resume_progress",0.0).toFloat(),old?.message ?: if(config.optBoolean("_interrupted"))"Interrompido; o arquivo será retomado quando possível." else "",old?.activity ?: "")
             }
         }
         items.value = queue
@@ -227,9 +233,13 @@ object OndaStore {
     @Synchronized fun update(id: String, state: String, progress: Float? = null, message: String? = null, activity:String?=null) {
         val previous = items.value.firstOrNull { it.id == id } ?: return
         if(previous.state==state && (progress==null || progress==previous.progress) && (message==null || message==previous.message) && (activity==null || activity==previous.activity)) return
+        val checkpoint=(progress ?: previous.progress).coerceIn(0f,100f)
+        val saveCheckpoint=state!=previous.state || kotlin.math.abs(checkpoint-previous.config.optDouble("_resume_progress",0.0))>=5
+        val updatedConfig=if(saveCheckpoint)JSONObject(previous.config.toString()).put("_resume_progress",checkpoint).put("_interrupted",state in listOf("Baixando","Aguardando escolha") || state=="Pendente"&&previous.config.optBoolean("_interrupted")) else previous.config
+        if(saveCheckpoint)database.writableDatabase.execSQL("UPDATE queue SET config=? WHERE id=?",arrayOf(updatedConfig.toString(),id))
         if(previous.state != state) database.writableDatabase.execSQL("UPDATE queue SET state=? WHERE id=?",arrayOf(state,id))
         if(previous.state!="Concluído" && state=="Concluído")queueTiming.recordCompletion()
-        items.value = items.value.map { if(it.id==id) it.copy(state=state,progress=progress ?: it.progress,message=message ?: it.message,activity=if(state in listOf("Baixando","Aguardando escolha"))activity ?: it.activity else "") else it }
+        items.value = items.value.map { if(it.id==id) it.copy(config=updatedConfig,state=state,progress=progress ?: it.progress,message=message ?: it.message,activity=if(state in listOf("Baixando","Aguardando escolha"))activity ?: it.activity else "") else it }
     }
     @Synchronized fun rename(id: String, title: String) {
         if(title.isBlank() || items.value.firstOrNull {it.id==id}?.title==title) return

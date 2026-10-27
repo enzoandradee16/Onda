@@ -54,7 +54,7 @@ suspend fun runDownloads(context:Context,only:String?=null,batch:Set<String>?=nu
                 OndaStore.update(item.id,"Baixando",activity="Consultando a plataforma…")
                 tasks[item.id]=launch(Dispatchers.IO) {
                     try {
-                        val config=applyVersionSelection(OndaStore.executionConfig(item.config),OndaStore.settings.value).put("spotify_client_secret",SecureVault.get("spotify-api") ?: "").put("_identity",item.id)
+                        val config=applyVersionSelection(OndaStore.executionConfig(item.config),OndaStore.settings.value).put("spotify_client_secret",SecureVault.get("spotify-api") ?: "").put("_identity",item.id).put("_cleanup_work",true)
                         if(interruptForGate(network.gate(OndaStore.settings.value),OndaStore.settings.value.optString("wifi_loss"))) {
                             DownloadRuntime.pauseCancelled.add(item.id);OndaStore.update(item.id,"Pendente");return@launch
                         }

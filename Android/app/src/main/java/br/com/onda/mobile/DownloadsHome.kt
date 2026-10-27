@@ -90,6 +90,11 @@ import org.json.JSONObject
                 }
             }
         }
+        val interrupted=queue.filter {it.config.optBoolean("_interrupted")&&it.state=="Pendente"}
+        if(interrupted.isNotEmpty()&&!running) {
+            UiText("Há downloads interrompidos. Retome de onde pararam quando a plataforma permitir.",style=MaterialTheme.typography.bodySmall)
+            OutlinedButton(onClick={DownloadService.batch(OndaStore.context,interrupted.map {it.id})}){UiText("Retomar interrompidos")}
+        }
         Box(Modifier.fillMaxWidth().padding(vertical=16.dp)) {
             ToolTabs(listOf("Em andamento","Concluídos"),if(completed)1 else 0){completed=it==1;stateFilter="Todos";selected=emptySet()}
         }
@@ -108,7 +113,12 @@ import org.json.JSONObject
         }
         NavigableList(Modifier.weight(1f),navigationId="queue",state=listState,verticalArrangement=Arrangement.spacedBy(12.dp)) {
             if(shown.isEmpty())item {UiText(if(query.isNotBlank() || stateFilter!="Todos")"Nenhum item corresponde aos filtros." else if(completed)"Nenhum download concluído" else "Nenhum download na fila",style=MaterialTheme.typography.titleMedium,modifier=Modifier.padding(top=24.dp));if(query.isBlank() && stateFilter=="Todos")UiText("Use + para adicionar links ou encontre músicas na pesquisa.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)}
-            items(shown,key={it.id}) {item->DownloadSummaryCard(item,vm,settings,selectionMode,item.id in selected,{checked->selected=if(checked)selected+item.id else selected-item.id},queueActivity(item,running,settings,connected,pauseReason))}
+            itemsIndexed(shown,key={_,it->it.id}) {index,item->
+                DraggableQueueCard(listState,index,shown.size,enabled=!completed&&!selectionMode&&item.state=="Pendente",move={from,to->OndaStore.movePendingBefore(shown[from].id,shown[to].id)}) {
+                    DownloadSummaryCard(item,vm,settings,selectionMode,item.id in selected,{checked->selected=if(checked)selected+item.id else selected-item.id},queueActivity(item,running,settings,connected,pauseReason))
+                    if(!completed&&!selectionMode)QueueDragHandle(listState,index,shown.size,enabled=item.state=="Pendente",itemLabel=item.title,modifier=Modifier.align(Alignment.BottomEnd).padding(end=12.dp,bottom=6.dp)){from,to->OndaStore.movePendingBefore(shown[from].id,shown[to].id)}
+                }
+            }
         }
     }
 }

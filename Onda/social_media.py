@@ -147,7 +147,14 @@ def save_media(session, url, metadata, config, emit, ask_duplicate, index):
     headers.setdefault("Referer", config["url"])
     started, last = time.monotonic(), 0
     size=partial.stat().st_size if config.get('resume_downloads',True) and partial.is_file() else 0
-    if size:headers['Range']=f'bytes={size}-'
+    validator_file=partial.with_suffix(partial.suffix+'.validator')
+    validator=''
+    if size:
+        headers['Range']=f'bytes={size}-'
+        try:validator=validator_file.read_text(encoding='utf-8')
+        except OSError:pass
+        if validator:headers['If-Range']=validator
+    resumed_bytes=size
     with session.get(url, headers=headers, stream=True, timeout=(20, 30)) as response:
         if response.status_code==416 and size:
             response.close();partial.unlink(missing_ok=True)
@@ -160,6 +167,13 @@ def save_media(session, url, metadata, config, emit, ask_duplicate, index):
         content_type = response.headers.get("Content-Type", "").lower()
         if "text/" in content_type or "json" in content_type:
             raise ValueError("A plataforma devolveu uma página de acesso em vez da mídia.")
+        new_validator=response.headers.get('ETag') or response.headers.get('Last-Modified') or ''
+        if size and validator and new_validator and validator!=new_validator:
+            response.close();partial.unlink(missing_ok=True);validator_file.unlink(missing_ok=True)
+            return save_media(session,url,metadata,dict(config,resume_downloads=False),emit,ask_duplicate,index)
+        if new_validator:validator_file.write_text(new_validator,encoding='utf-8')
+        else:validator_file.unlink(missing_ok=True)
+        resumed_bytes=size
         remaining=int(response.headers.get("Content-Length") or 0)
         total = remaining+size if remaining else None
         emit("estimate", size=total, title=str(title), playlist=True, reason="Tamanho informado pelo servidor; por arquivo")
@@ -171,13 +185,14 @@ def save_media(session, url, metadata, config, emit, ask_duplicate, index):
                 size += len(chunk)
                 now = time.monotonic()
                 if now - last > .15:
-                    speed = size / max(now - started, .001)
+                    speed = (size-resumed_bytes) / max(now - started, .001)
                     emit("progress", status="downloading", title=str(title), downloaded=size, total=total,
                          speed=speed, eta=(total-size)/speed if total else None, index=index)
                     last = now
         if not size or (total is not None and size != total):
             raise ValueError("Transferência incompleta; tente baixar a publicação novamente.")
     partial.replace(path)
+    validator_file.unlink(missing_ok=True)
     if extension in IMAGES and config['mode'] == 'photo_video':
         from photo_music import render_photo_video
         path = render_photo_video(path, metadata.get('_photo_audio'), session, headers, config, emit)

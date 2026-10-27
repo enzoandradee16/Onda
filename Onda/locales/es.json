@@ -2046,5 +2046,19 @@
   "A prévia expirou. Abra o link novamente.": "La vista previa ha caducado. Abre el enlace de nuevo.",
   "Imagem inválida para prévia.": "Imagen no válida para la vista previa.",
   "Imagem carregada": "Imagen cargada",
-  "Fila de reprodução de Efeitos": "Cola de reproducción de Efectos"
+  "Fila de reprodução de Efeitos": "Cola de reproducción de Efectos",
+  "Limpar temporários automaticamente": "Limpiar archivos temporales automáticamente",
+  "Prévias antigas são removidas após 7 dias; o cache temporário tem limite de 512 MB. Arquivos recentes e downloads interrompidos são preservados.": "Las vistas previas antiguas se eliminan tras 7 días; la caché temporal tiene un límite de 512 MB. Se conservan los archivos recientes y las descargas interrumpidas.",
+  "Arrastar para reorganizar": "Arrastrar para reordenar",
+  "Use as setas para mover o item na fila.": "Usa las flechas para mover este elemento en la cola.",
+  "Há downloads interrompidos. Retome de onde pararam quando a plataforma permitir.": "Hay descargas interrumpidas. Reanúdalas desde donde se detuvieron cuando la plataforma lo permita.",
+  "Retomar interrompidos": "Reanudar descargas interrumpidas",
+  "Aguardando preparação": "Esperando preparación",
+  "Pronta para reproduzir": "Lista para reproducir",
+  "Preparando efeitos…": "Preparando efectos…",
+  "Efeitos prontos": "Efectos listos",
+  "Erro na preparação": "Error de preparación",
+  "Lendo informações…": "Leyendo información…",
+  "Processando em tempo real": "Procesando en tiempo real",
+  "Baixar nova versão?": "¿Descargar la nueva versión?"
 }

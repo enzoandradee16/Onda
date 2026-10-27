@@ -197,6 +197,9 @@ def perform(action,config,cancel,emit):
                 return {'path':str(target),'preview':True,'image_info':{'source':original,'output':output_info}}
             final,skipped=publish(output,config['folder'],'keep',None)
             return {'path':str(final),'skipped':skipped,'image_info':{'source':original,'output':output_info}}
+    if action=='cache_auto':
+        from cache_cleanup import automatic_cleanup
+        return automatic_cleanup(config['_root'])
     if action in ('cache_info','cache_clear'):
         from cache_cleanup import cache_info,clear_cache
         return (clear_cache if action=='cache_clear' else cache_info)(config['_root'])

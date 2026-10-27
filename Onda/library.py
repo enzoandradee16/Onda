@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 import sqlite3
 
-JOB_FIELDS = {"output_files", "queue_original", "_queue_estimate", "failure_original_url", "last_error", "filename_template", "detect_duplicates", "work_id", "normalize_volume", "resume_downloads", "url", "mode", "height", "fps", "audio_quality", "folder", "playlist", "playlist_limit", "state", "streaming",
+JOB_FIELDS = {"ui_origin", "percent", "interrupted", "output_files", "queue_original", "_queue_estimate", "failure_original_url", "last_error", "filename_template", "detect_duplicates", "work_id", "normalize_volume", "resume_downloads", "url", "mode", "height", "fps", "audio_quality", "folder", "playlist", "playlist_limit", "state", "streaming",
               "selected_catalog_url", "review_metadata", "organization", "duplicate_policy", "confirm_version", "playlist_title", "image_options", "catalog_record", "display_name", "queue_info", "_pause_reason"}
 
 
@@ -43,6 +43,7 @@ class LibraryStore:
             data = {key: value for key, value in job.items() if key in JOB_FIELDS}
             if data.get("state") == "Em andamento":
                 data["state"] = "Na fila"
+                data["interrupted"] = True
             rows.append((len(rows), json.dumps(data, ensure_ascii=False)))
         with self.connect() as db:
             previous=dict(db.execute('SELECT position,data FROM queue'))

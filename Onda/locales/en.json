@@ -2046,5 +2046,19 @@
   "A prévia expirou. Abra o link novamente.": "The preview has expired. Open the link again.",
   "Imagem inválida para prévia.": "Invalid image for preview.",
   "Imagem carregada": "Image loaded",
-  "Fila de reprodução de Efeitos": "Effects playback queue"
+  "Fila de reprodução de Efeitos": "Effects playback queue",
+  "Limpar temporários automaticamente": "Clean temporary files automatically",
+  "Prévias antigas são removidas após 7 dias; o cache temporário tem limite de 512 MB. Arquivos recentes e downloads interrompidos são preservados.": "Old previews are removed after 7 days; the temporary cache is limited to 512 MB. Recent files and interrupted downloads are preserved.",
+  "Arrastar para reorganizar": "Drag to reorder",
+  "Use as setas para mover o item na fila.": "Use the arrow keys to move this item in the queue.",
+  "Há downloads interrompidos. Retome de onde pararam quando a plataforma permitir.": "Some downloads were interrupted. Resume where they stopped when the platform supports it.",
+  "Retomar interrompidos": "Resume interrupted downloads",
+  "Aguardando preparação": "Waiting for preparation",
+  "Pronta para reproduzir": "Ready to play",
+  "Preparando efeitos…": "Preparing effects…",
+  "Efeitos prontos": "Effects ready",
+  "Erro na preparação": "Preparation failed",
+  "Lendo informações…": "Reading information…",
+  "Processando em tempo real": "Processing in real time",
+  "Baixar nova versão?": "Download the new version?"
 }

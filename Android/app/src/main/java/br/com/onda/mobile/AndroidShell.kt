@@ -57,6 +57,7 @@ import androidx.compose.ui.graphics.drawscope.rotate
             "shuffle"->{path(3f to 6f,7f to 6f,17f to 18f,21f to 18f);path(3f to 18f,7f to 18f,17f to 6f,21f to 6f);path(18f to 3f,21f to 6f,18f to 9f);path(18f to 15f,21f to 18f,18f to 21f)}
             "share"->{line(6f,12f,18f,5f);line(6f,12f,18f,19f);listOf(6f to 12f,18f to 5f,18f to 19f).forEach {(x,y)->drawCircle(tint,3f*u,Offset(x*u,y*v),style=Stroke(stroke))}}
             "mini"->{path(3f to 4f,21f to 4f,21f to 20f,3f to 20f,close=true);path(12f to 12f,19f to 12f,19f to 18f,12f to 18f,close=true)}
+            "drag"->{for(x in listOf(9f,15f))for(y in listOf(6f,12f,18f))drawCircle(tint,1.5f*u,Offset(x*u,y*v))}
             "queue"->{for(y in listOf(5f,12f,19f)){drawCircle(tint,1f*u,Offset(3*u,y*v));line(7f,y,21f,y)}}
             "expand"->{path(3f to 9f,3f to 3f,9f to 3f);path(15f to 3f,21f to 3f,21f to 9f);path(21f to 15f,21f to 21f,15f to 21f);path(9f to 21f,3f to 21f,3f to 15f)}
             "search"->{drawCircle(tint,7*u,Offset(10*u,10*v),style=Stroke(stroke));line(15f,15f,21f,21f)}

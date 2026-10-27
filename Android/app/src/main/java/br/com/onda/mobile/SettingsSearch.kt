@@ -36,7 +36,8 @@ internal fun settingsSearchEntries():List<SettingsSearchEntry> {
         SettingsSearchEntry("Aparência","Ferramentas no menu Mais","ordem mostrar ocultar imagens conversor metadados"),
         SettingsSearchEntry("Aparência","Biblioteca no menu Mais","ordem mostrar ocultar álbuns playlists histórico"),
         SettingsSearchEntry("Downloads","Ação ao terminar a fila","som concluir finalização"),
-        SettingsSearchEntry("Downloads","Controles na notificação","botões pausar retomar parar fila")
+        SettingsSearchEntry("Downloads","Controles na notificação","botões pausar retomar parar fila"),
+        SettingsSearchEntry("Desempenho","Limpar temporários automaticamente","cache espaço armazenamento prévias limpeza")
     )).distinctBy {it.category to it.label}
 }
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)

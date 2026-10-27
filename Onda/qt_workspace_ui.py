@@ -53,7 +53,7 @@ class DesktopWorkspace(QObject):
         for index,job in enumerate(self.library.load_queue()):
             # Persisted work IDs survive restarts; UI IDs are session-local.
             job['work_id']=job.get('work_id') or uuid.uuid4().hex
-            self.jobs.append(dict(job,id=uuid.uuid4().hex,checked=False,percent=0,queue_original=index))
+            self.jobs.append(dict(job,id=uuid.uuid4().hex,checked=False,percent=job.get("percent",0),queue_original=index))
         from queue_titles import TitleLookup
         from queue_timing import QueueTiming
         self.title_events=queue.SimpleQueue();self.title_lookup=TitleLookup(self.title_events);self.title_lookup.spotify_account=self.account;self.timing=QueueTiming()
@@ -90,7 +90,7 @@ class DesktopWorkspace(QObject):
     @Property('QVariantMap',notify=choiceChanged)
     def choice(self):return dict(self._choice)
     @Property('QVariantMap',notify=statusChanged)
-    def activity(self):return {'hasCredentials':any(self.saved_credentials) or bool(self.settings.get('spotify_client_id','') or self.settings.get('spotify_client_secret','')),'spotifySearchReady':self.account.connected or bool(self.settings.get('spotify_client_id','').strip() and self.settings.get('spotify_client_secret','').strip()),'credentialsSaved':any(self.saved_credentials) and self.saved_credentials==(self.settings.get('spotify_client_id',''),self.settings.get('spotify_client_secret','')),'tools':dict(self.tool_progress),'selected':sum(bool(job.get('checked')) for job in self.jobs),'visibleSelected':sum(bool(row.get('checked')) for row in self.models['queue'].rows),'total':len(self.jobs),'undoCount':len(self.undo_history.entries),'running':self.running,'active':len(self.active),'background':list(self.background_tasks),'busy':list(dict.fromkeys(list(self.tasks)+[state['operation'] for state in self.active.values() if state.get('operation')]+[job['ui_operation'] for job in self.jobs if job.get('ui_operation') and job['state']=='Na fila'])),'logs':'\n'.join(self.logs[-200:]),'spotify':self.account.connected,'elapsed':self.timing.snapshot(sum(job['state'] in ('Na fila','Em andamento') for job in self.jobs))[0] if hasattr(self,'timing') else 0}
+    def activity(self):return {'hasCredentials':any(self.saved_credentials) or bool(self.settings.get('spotify_client_id','') or self.settings.get('spotify_client_secret','')),'spotifySearchReady':self.account.connected or bool(self.settings.get('spotify_client_id','').strip() and self.settings.get('spotify_client_secret','').strip()),'credentialsSaved':any(self.saved_credentials) and self.saved_credentials==(self.settings.get('spotify_client_id',''),self.settings.get('spotify_client_secret','')),'tools':dict(self.tool_progress),'selected':sum(bool(job.get('checked')) for job in self.jobs),'visibleSelected':sum(bool(row.get('checked')) for row in self.models['queue'].rows),'total':len(self.jobs),'undoCount':len(self.undo_history.entries),'interrupted':sum(bool(job.get('interrupted')) and job['state'] not in ('Concluído','Em andamento') for job in self.jobs),'running':self.running,'active':len(self.active),'background':list(self.background_tasks),'busy':list(dict.fromkeys(list(self.tasks)+[state['operation'] for state in self.active.values() if state.get('operation')]+[job['ui_operation'] for job in self.jobs if job.get('ui_operation') and job['state']=='Na fila'])),'logs':'\n'.join(self.logs[-200:]),'spotify':self.account.connected,'elapsed':self.timing.snapshot(sum(job['state'] in ('Na fila','Em andamento') for job in self.jobs))[0] if hasattr(self,'timing') else 0}
     @Property(QObject,constant=True)
     def queueModel(self):return self.models['queue']
     @Property(QObject,constant=True)
@@ -157,8 +157,17 @@ class DesktopWorkspace(QObject):
         if tools:self.settings['ffmpeg']=str(tools)
         elif self.prepare_tools:self.run_task('prepare_tools',{},lambda result:self.setSetting('ffmpeg',result))
         if self.settings.get('resume_queue') and not self.settings.get('schedule_enabled'):QTimer.singleShot(500,self.start_queue)
-        if self.settings.get('check_updates'):QTimer.singleShot(3000,lambda:self.run_task('app_update',{},lambda result:self.notify(result.get('message','')),background=True))
+        QTimer.singleShot(5000,self.clean_idle_temporaries)
+        if self.settings.get('check_updates'):QTimer.singleShot(3000,lambda:self.run_task('app_update',{},self.update_available,background=True))
         self.from_bridge();self.bind_shortcuts()
+    def update_available(self,result):
+        self.options['appUpdate']=result;self.optionsChanged.emit()
+        if result.get('available'):self.notify(result.get('message',''))
+    def clean_idle_temporaries(self):
+        if self.closed or not self.settings.get('automatic_cache_cleanup',True):return
+        if self.active or self.tasks or self.player.active or self.bridge.state.get('playing') or self.options.get('imageGallery') or self.currentPage=='images' and self.options.get('imagePreview'):
+            QTimer.singleShot(60000,self.clean_idle_temporaries);return
+        self.run_task('cache_auto',{},lambda result:QTimer.singleShot(6*3600000,self.clean_idle_temporaries),background=True)
     def config(self):
         from engine import MODES,HEIGHTS,FPS_OPTIONS
         from file_output import DUPLICATES
@@ -380,9 +389,9 @@ class DesktopWorkspace(QObject):
         elif action=='effects_queue_move':
             index=int(p.get('index',-1));target=index+int(p.get('direction',0));rows=self.options['effectsQueue']
             if 0<=index<len(rows) and 0<=target<len(rows):
-                current=self.options['effectsQueueIndex'];rows[index],rows[target]=rows[target],rows[index]
-                if current==index:self.options['effectsQueueIndex']=target
-                elif current==target:self.options['effectsQueueIndex']=index
+                current=self.options['effectsQueueIndex'];source=rows[current]['source'] if 0<=current<len(rows) else None
+                rows.insert(target,rows.pop(index))
+                self.options['effectsQueueIndex']=next((i for i,row in enumerate(rows) if row['source']==source),-1)
                 self.optionsChanged.emit()
         elif action=='effects_queue_clear':self.options.update(effectsQueue=[],effectsQueueIndex=-1);self.optionsChanged.emit()
         elif action=='effects_load':
@@ -436,8 +445,20 @@ class DesktopWorkspace(QObject):
             self.options['linksNotice']=(str(len(added))+' '+tr('itens adicionados à fila')) if added else tr('Nenhum novo item adicionado à fila.')
             self.optionsChanged.emit()
 
+        elif action=='resume_interrupted':
+            ids={job['id'] for job in self.jobs if job.get('interrupted') and job['state'] not in ('Concluído','Em andamento')}
+            for job in self.jobs:
+                if job['id'] in ids:job['state']='Na fila'
+            self.start_queue(ids)
         elif action=='start_queue':self.start_queue()
         elif action=='stop_queue':self.stop_queue()
+        elif action=='queue_reorder':
+            source=next((job for job in self.jobs if job['id']==p.get('id')),None)
+            target=next((job for job in self.jobs if job['id']==p.get('target')),None)
+            if source and target and source['state']=='Na fila' and target['state']=='Na fila' and source['id'] not in self.active and target['id'] not in self.active:
+                from copy import deepcopy
+                before=deepcopy(self.jobs);destination=self.jobs.index(target);self.jobs.remove(source);self.jobs.insert(destination,source)
+                self.undo_history.remember(before,'reorder',[source['id']]);self.refresh_queue();self.save_queue()
         elif action=='queue_action':self.queue_action(p['name'],p.get('id',''))
         elif action=='check':self.toggle_row(p['model'],p['index'],p['checked'])
         elif action=='check_all':
@@ -992,6 +1013,7 @@ class DesktopWorkspace(QObject):
         if identity=='finished':
             key=event['id'];state=self.active.pop(key,None);job=next((job for job in self.jobs if job['id']==key),None)
             if job:
+                job['interrupted']=bool(event['cancelled'])
                 if event['success']:self.timing.record_completion()
                 job['state']='Pausado' if job.pop('_paused',False) else 'Cancelado' if event['cancelled'] else 'Concluído' if event['success'] else 'Falhou'
                 if job.pop('_resume_requested',False):job['state']='Na fila'
@@ -1035,6 +1057,8 @@ class DesktopWorkspace(QObject):
                 for model in (self.models['queue'],self.models['links']):
                     for index,row in enumerate(model.rows):
                         if row['id']==identity:model.update(index,percent=job['percent'])
+                if time.monotonic()-getattr(self,'_last_checkpoint',0)>5:
+                    self._last_checkpoint=time.monotonic();self.save_queue()
             if kind=='error':job['last_error']=event.get('message','')
         if kind in ('error','log','stage'):self.log(event.get('message',''))
     def show_result(self,result,notification=True):
@@ -1043,7 +1067,8 @@ class DesktopWorkspace(QObject):
             if not notification or self.settings.get('notifications_enabled',True):self.message.emit(tr('ONDA'),error_text(reason))
             return
         if isinstance(result,dict) and result.get('available'):
-            self.confirm('Atualização do ONDA',result.get('message','')+'\n'+tr('Abrir página da atualização?'),lambda:QDesktopServices.openUrl(QUrl(result.get('page') or result.get('url',''))));return
+            self.options['appUpdate']=result;self.optionsChanged.emit()
+            self.confirm('Atualização do ONDA',result.get('message','')+'\n'+tr('Baixar nova versão?'),lambda:QDesktopServices.openUrl(QUrl(result.get('url',''))));return
         if isinstance(result,dict) and result.get('path'):
             self.library.add_history(result['path'],Path(result['path']).suffix.lstrip('.'));self.refresh_history()
         text=result.get('message') if isinstance(result,dict) else str(result)

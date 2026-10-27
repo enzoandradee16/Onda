@@ -94,7 +94,8 @@
     "jukebox_background": true,
     "sidebar_width": 220,
     "lyrics_animation": "Suave",
-    "minimize_on_miniplayer": true
+    "minimize_on_miniplayer": true,
+    "automatic_cache_cleanup": true
   },
   "fields": [
     {
@@ -1007,6 +1008,13 @@
       "key": "minimize_on_miniplayer",
       "label": "Minimizar ONDA ao abrir o miniplayer",
       "kind": "bool"
+    },
+    {
+      "category": "Desempenho",
+      "key": "automatic_cache_cleanup",
+      "label": "Limpar temporários automaticamente",
+      "kind": "bool",
+      "choices": []
     }
   ]
 }

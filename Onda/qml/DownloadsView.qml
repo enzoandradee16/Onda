@@ -77,6 +77,10 @@ ColumnLayout {
             Label { text: bridge.translate("Baixe vídeos, músicas e fotos. Cole um link por linha e escolha Baixar agora ou Adicionar à fila."); color: bridge.palette.muted; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.Wrap }
         }
     }
+    RowLayout {visible:page.queuePage && workspace.activity.interrupted>0;Layout.fillWidth:true
+        Label {Layout.fillWidth:true;text:bridge.translate("Há downloads interrompidos. Retome de onde pararam quando a plataforma permitir.");wrapMode:Text.Wrap;color:bridge.palette.muted}
+        ActionButton {text:bridge.translate("Retomar interrompidos");onClicked:workspace.invoke("resume_interrupted",{})}
+    }
     RowLayout { objectName: "downloadQueueFilters"; visible: page.queuePage; Layout.fillWidth: true
         OndaTextField { Layout.fillWidth: true; placeholderText: bridge.translate("Buscar na fila"); text: workspace.values.queueQuery; onTextEdited: workspace.setOption("queueQuery",text) }
         ChoiceBox { model: ["Todos","Na fila","Em andamento","Pausado","Concluído","Falhou","Cancelado"]; onActivated: workspace.setOption("queueState",currentText) }
@@ -114,9 +118,9 @@ ColumnLayout {
         Label {text:bridge.translate("Downloads");color:bridge.palette.text;Layout.fillWidth:true;font.bold:true}
         ActionButton {text:bridge.translate("Ver fila");onClicked:workspace.selectPage("queue")}
     }
-    ListView { objectName: "downloadQueueList"; visible: page.queuePage || workspace.linksModel.count>0; Layout.fillWidth: true; Layout.fillHeight: true; clip: true; spacing: Math.round(8*bridge.spacing); model: page.queuePage ? workspace.queueModel : workspace.linksModel; reuseItems: true
+    ListView { id:downloadList; property var activeDrag:null; objectName: "downloadQueueList"; visible: page.queuePage || workspace.linksModel.count>0; Layout.fillWidth: true; Layout.fillHeight: true; clip: true; spacing: Math.round(8*bridge.spacing); model: page.queuePage ? workspace.queueModel : workspace.linksModel; reuseItems: true
         ScrollBar.vertical: ScrollBar {}
-        delegate: Card { id: card; objectName: "downloadQueueCard"; required property var entry; required property int index; width: ListView.view.width; height: Math.max(page.smallCards ? 88 : page.cardSize === "Médio" ? 128 : 176,queueDetails.implicitHeight+24)
+        delegate: Card { id: card; z:downloadDrag.dragging ? 20 : 0; transform:Translate {y:downloadDrag.cardOffset;Behavior on y {enabled:downloadList.activeDrag!==null && !downloadDrag.dragging;NumberAnimation {duration:140;easing.type:Easing.OutCubic}}} objectName: "downloadQueueCard"; required property var entry; required property int index; width: ListView.view.width; height: Math.max(page.smallCards ? 88 : page.cardSize === "Médio" ? 128 : 176,queueDetails.implicitHeight+24)
             function openContext() {
                 queueContext.targetId = card.entry.id
                 queueContext.targetChecked = page.queuePage && !!card.entry.checked
@@ -130,7 +134,8 @@ ColumnLayout {
                 }
             }
             MouseArea {objectName:"openDownloadImages";anchors.fill:parent;acceptedButtons:Qt.LeftButton;enabled:!!card.entry.has_images;cursorShape:enabled ? Qt.PointingHandCursor : Qt.ArrowCursor;onClicked:workspace.invoke("download_preview",{id:card.entry.id})}
-            RowLayout { anchors.fill: parent; anchors.margins: 12
+            RowLayout { z:1; anchors.fill: parent; anchors.margins: 12
+                QueueDragHandle {id:downloadDrag;dragItem:card;onTapped:if(card.entry.has_images)workspace.invoke("download_preview",{id:card.entry.id});objectName:"downloadQueueDrag";visible:page.queuePage;enabled:card.entry.state==="Na fila";listView:downloadList;rowIndex:card.index;itemCount:downloadList.count;onMoved:function(target){workspace.invoke("queue_reorder",{id:card.entry.id,target:downloadList.model.get(target).id})}}
                 CheckBox { id: queueCheck; visible:page.queuePage; checked: card.entry.checked || false; onToggled: workspace.invoke("check",{model:"queue",index:card.index,checked:checked}); Accessible.name: bridge.translate("Selecionar")+" "+card.entry.track_title
                     indicator: Rectangle { implicitWidth: 20; implicitHeight: 20; x: queueCheck.leftPadding; y: (queueCheck.height-height)/2; radius: 4; color: queueCheck.checked ? bridge.palette.accent : bridge.palette.input; border.color: queueCheck.checked || queueCheck.activeFocus ? bridge.palette.accent : bridge.palette.muted; Label { anchors.centerIn: parent; text: "✓"; visible: queueCheck.checked; color: bridge.palette.accent_text } }
                 }

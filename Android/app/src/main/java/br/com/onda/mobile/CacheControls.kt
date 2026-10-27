@@ -49,6 +49,9 @@ import kotlinx.coroutines.withContext
         }
     }
     LaunchedEffect(Unit) {readSize()}
+    val settings by OndaStore.settings.collectAsStateWithLifecycle()
+    Toggle("Limpar temporários automaticamente",settings.optBoolean("automatic_cache_cleanup",true)){OndaStore.saveSettings(JSONObject(settings.toString()).put("automatic_cache_cleanup",it))}
+    UiText("Prévias antigas são removidas após 7 dias; o cache temporário tem limite de 512 MB. Arquivos recentes e downloads interrompidos são preservados.",style=MaterialTheme.typography.bodySmall)
     UiText("Cache",style=MaterialTheme.typography.titleMedium)
     UiText("Limpa capas, buscas e caches temporários. Downloads, fila, histórico, contas e escolhas salvas são preservados.",style=MaterialTheme.typography.bodySmall)
     bytes?.let {UiText((if(cleaned) "Cache limpo. Restante em disco: {size} MB." else "Cache em disco: {size} MB.").replace("{size}","%.2f".format(it/1048576.0)))}

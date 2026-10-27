@@ -30,6 +30,7 @@ val categories=linkedMapOf(
     "Imagens" to listOf("image_format","image_size","image_width","image_height","keep_ratio"),
     "Áudio" to listOf("search_preview","synced_lyrics","jukebox_equalizer","jukebox_gradual_transition","jukebox_transition_seconds"),
     "Contas" to listOf("spotify_client_id","cookies_file","youtube_cookies_file"),
+    "Desempenho" to listOf("automatic_cache_cleanup"),
     "Ferramentas" to listOf("check_updates"))
 
 @Composable fun SettingsDivider() {

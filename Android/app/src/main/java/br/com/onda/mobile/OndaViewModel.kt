@@ -180,12 +180,16 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
         appendEffectsFiles(listOf(source))
     }
     private val effectsInfoSlots=kotlinx.coroutines.sync.Semaphore(2)
+    val appUpdate=MutableStateFlow<JSONObject?>(null)
+    val effectsPreparation=MutableStateFlow<Map<String,String>>(emptyMap())
+    private fun effectPreparation(source:String,value:String){effectsPreparation.value=effectsPreparation.value+(source to value)}
     fun loadEffectsInfo(sources:List<String>,retryErrors:Boolean=false) {
         for(source in sources) {
             val cached=effectsInfo.value[source]
             if(cached!=null && (!cached.has("error") || !retryErrors))continue
             if(!effectsInfoRequests.add(source))continue
             if(cached!=null)effectsInfo.value=effectsInfo.value-source
+            effectPreparation(source,"Lendo informações…")
             viewModelScope.launch {
                 val id="effects-info-"+UUID.randomUUID()
                 try {
@@ -198,12 +202,13 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
                         result.put("record",tags)
                     }
                     effectsInfo.value=effectsInfo.value+(source to result)
+                    effectPreparation(source,"Pronta para reproduzir")
                     lyricRequests.remove(source)?.cancel()
                     // Metadata may arrive after an initial lookup without usable tags.
                     if(lyricsCache.value[source]?.isEmpty()==true)lyricsCache.value=lyricsCache.value-source
                     lookupLyrics(source)
                 } catch(error:CancellationException){throw error}
-                catch(error:Exception){effectsInfo.value=effectsInfo.value+(source to JSONObject().put("error",uiExceptionMessage(error,"Não foi possível ler o áudio.")))}
+                catch(error:Exception){effectPreparation(source,"Erro na preparação");effectsInfo.value=effectsInfo.value+(source to JSONObject().put("error",uiExceptionMessage(error,"Não foi possível ler o áudio.")))}
                 finally {effectsInfoRequests.remove(source);MobileEngine.cancel(id)}
             }
         }
@@ -252,7 +257,10 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
     private var effectsSelectedPitch=false
     private var effectsMediaVisible=false
     private var effectsQueueRequest:Job?=null
-    fun rememberEffectsControls(speed:Int,reverb:Int,pitch:Boolean){effectsSelectedSpeed=speed;effectsSelectedReverb=reverb;effectsSelectedPitch=pitch}
+    fun rememberEffectsControls(speed:Int,reverb:Int,pitch:Boolean){
+        if(!effectsControlsMatch(speed,reverb,pitch))effectsPreparation.value=effectsPreparation.value.mapValues {if(it.value in listOf("Efeitos prontos","Preparando efeitos…"))"Aguardando preparação" else it.value}
+        effectsSelectedSpeed=speed;effectsSelectedReverb=reverb;effectsSelectedPitch=pitch
+    }
     fun effectsControlSnapshot()=Triple(effectsSelectedSpeed,effectsSelectedReverb,effectsSelectedPitch)
     fun effectsControlsMatch(speed:Int,reverb:Int,pitch:Boolean)=effectsSelectedSpeed==speed&&effectsSelectedReverb==reverb&&effectsSelectedPitch==pitch
     internal fun mediaToggleEffects(){if(effectSource.isNotBlank())toggleEffectsPlayback(effectSource,effectsSelectedSpeed,effectsSelectedReverb,effectsSelectedPitch)}
@@ -363,8 +371,10 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
         if(duration<=0)return
         val key=EffectRenderKey(source,speed,reverb,pitch)
         if(preloadedEffects.containsKey(key) || (effectPreloadKey==key && effectPreload?.isActive==true))return
+        effectPreloadKey?.let {old->if(effectsPreparation.value[old.source]=="Preparando efeitos…")effectPreparation(old.source,"Aguardando preparação")}
         effectPreload?.cancel();if(effectPreloadId.isNotBlank())MobileEngine.cancel(effectPreloadId)
         effectPreloadKey=key
+        effectPreparation(source,"Preparando efeitos…")
         effectPreload=viewModelScope.launch {
             val id=UUID.randomUUID().toString();effectPreloadId=id
             try {
@@ -372,10 +382,10 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
                 val result=withContext(Dispatchers.IO){MobileEngine.call(getApplication(),id,"preview",payload,EventCallback {})}
                 val path=result.optString("path")
                 if(!isActive||effectPreloadKey!=key){if(path.isNotBlank())java.io.File(path).delete()}
-                else if(path.isNotBlank())preloadedEffects[key]=path
-                else if(effectPreloadKey==key)effectPreloadKey=null
+                else if(path.isNotBlank()){preloadedEffects[key]=path;effectPreparation(source,"Efeitos prontos")}
+                else if(effectPreloadKey==key){effectPreloadKey=null;effectPreparation(source,"Erro na preparação")}
             } catch(error:CancellationException){throw error}
-            catch(error:Exception){if(effectPreloadKey==key)effectPreloadKey=null}
+            catch(error:Exception){if(effectPreloadKey==key){effectPreloadKey=null;effectPreparation(source,"Erro na preparação")}}
             finally {MobileEngine.cancel(id);if(effectPreloadId==id)effectPreloadId=""}
         }
     }
@@ -383,14 +393,23 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             delay(2000)
             val options=OndaStore.settings.value
+            if(options.optBoolean("automatic_cache_cleanup",true) && !DownloadRuntime.running.get() && !previewActive.value && onlineImageGallery.value==null)withContext(Dispatchers.IO){MobileEngine.call(getApplication(),"auto-cache-cleanup","cache_auto",JSONObject(),EventCallback {})}
             DownloadSchedule.configure(getApplication(),options,keepExisting=true)
             if(options.optBoolean("resume_queue") && !options.optBoolean("schedule_enabled") && OndaStore.items.value.any {it.state=="Pendente"})DownloadService.start(getApplication())
             if(options.optBoolean("check_updates")) {
                 val result=withContext(Dispatchers.IO){MobileEngine.call(getApplication(),"startup-update","app_update",JSONObject().put("version",BuildConfig.VERSION_NAME),EventCallback {})}
+                appUpdate.value=result
                 if(result.optBoolean("available"))status.value=result.optString("message")+" · Configurações → Ferramentas"
             }
         }
     }
+    init {viewModelScope.launch {
+        while(isActive) {
+            delay(6*3600000L)
+            if(OndaStore.settings.value.optBoolean("automatic_cache_cleanup",true) && !busy.value && !DownloadRuntime.running.get() && !previewActive.value && !jukebox.state.value.playing && onlineImageGallery.value==null)
+                withContext(Dispatchers.IO){MobileEngine.call(getApplication(),"auto-cache-cleanup","cache_auto",JSONObject(),EventCallback {})}
+        }
+    }}
     init {viewModelScope.launch {
         for(initial in effectRequests) {
             delay(300)
@@ -434,7 +453,7 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
                 val upcoming=effectsPlaylist.value.drop((effectsQueueIndex(effectSource)+1).coerceAtLeast(0)).take(2)
                 if(!effectsPreparing.value) {
                     val wanted=upcoming.map {EffectRenderKey(it,effectsSelectedSpeed,effectsSelectedReverb,effectsSelectedPitch)}.toSet()
-                    preloadedEffects.keys.filter {it !in wanted}.forEach {key->preloadedEffects.remove(key)?.takeIf {it!=effectOutput&&it!=effectTailPath}?.let {java.io.File(it).delete()}}
+                    preloadedEffects.keys.filter {it !in wanted}.forEach {key->preloadedEffects.remove(key)?.also {effectPreparation(key.source,"Aguardando preparação")}?.takeIf {it!=effectOutput&&it!=effectTailPath}?.let {java.io.File(it).delete()}}
                     if(effectPreload?.isActive!=true || effectPreloadKey !in wanted) {
                         upcoming.firstOrNull {!isEffectsTrackPreloaded(it,effectsSelectedSpeed,effectsSelectedReverb,effectsSelectedPitch)}?.let {next->
                             val duration=effectsInfo.value[next]?.optDouble("duration",0.0) ?: 0.0

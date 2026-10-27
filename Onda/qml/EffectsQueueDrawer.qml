@@ -82,23 +82,27 @@ Drawer {
                     Label {Layout.fillWidth:true;text:modelData.album || "";elide:Text.ElideRight;color:bridge.palette.muted}
                     Label {Layout.fillWidth:true;elide:Text.ElideRight;visible:!!modelData.release_date;text:bridge.translate("Data de lançamento")+": "+workspace.releaseDateText(modelData.release_date || "");color:bridge.palette.muted}
                 }
-                PlaybackButton {glyph:"add";Accessible.name:bridge.translate("Adicionar à fila");enabled:!drawer.searching;onClicked:workspace.invoke("playback_queue_add",{effects:drawer.effects,index:index})}
+                PlaybackButton {z:1;glyph:"add";Accessible.name:bridge.translate("Adicionar à fila");enabled:!drawer.searching;onClicked:workspace.invoke("playback_queue_add",{effects:drawer.effects,index:index})}
             }
         }
         ListView {
             id: queueList
+            property var activeDrag:null
             objectName: "playbackQueueList"
             Layout.fillWidth: true; Layout.fillHeight: true
             clip: true; spacing: 10; model: drawer.tracks
             ScrollBar.vertical: ScrollBar {}
-            delegate: RowLayout {
+            delegate: Item {
                 id:queueTrack
+                z:playbackDrag.dragging ? 20 : 0
+                transform:Translate {y:playbackDrag.cardOffset;Behavior on y {enabled:queueList.activeDrag!==null && !playbackDrag.dragging;NumberAnimation {duration:140;easing.type:Easing.OutCubic}}}
                 required property var modelData
                 required property int index
                 readonly property var record: drawer.effects ? modelData.record : modelData
                 readonly property bool current: drawer.effects ? index===workspace.values.effectsQueueIndex : !!modelData.current
                 width: queueList.width; height: Math.max(110,trackInformation.implicitHeight+20)
-                spacing: 8
+                Rectangle {anchors.fill:parent;color:bridge.palette.surface;visible:playbackDrag.dragging}
+                RowLayout {anchors.fill:parent;spacing:8;z:1
                 Menu {id:trackActions
                     OndaMenuItem {text:bridge.translate("Reproduzir");onTriggered:drawer.play(queueTrack.index)}
                     OndaMenuItem {text:bridge.translate("Mover para cima");enabled:queueTrack.index>0;onTriggered:drawer.move(queueTrack.index,-1)}
@@ -106,34 +110,36 @@ Drawer {
                     OndaMenuItem {text:bridge.translate("Remover da fila");onTriggered:drawer.remove(queueTrack.index)}
                 }
                 TapHandler {acceptedButtons:Qt.RightButton;onTapped:trackActions.popup()}
-                Rectangle {
+                QueueDragHandle {id:playbackDrag;z:1;dragItem:queueTrack;objectName:"playbackQueueDrag";listView:queueList;rowIndex:queueTrack.index;itemCount:drawer.tracks.length;onMoved:function(target){drawer.move(queueTrack.index,target-queueTrack.index)}}
+                Rectangle {z:1
                     Layout.preferredWidth:48;Layout.preferredHeight:48;radius:8;color:bridge.palette.input
                     RoundedArtwork {id:artwork;anchors.fill:parent;source:drawer.effects ? modelData.cover_url || "" : modelData.cover || "";fillMode:Image.PreserveAspectFit;asynchronous:true;sourceSize.width:96;sourceSize.height:96}
                     Label {anchors.centerIn:parent;visible:artwork.status!==Image.Ready;text:"♪";color:bridge.palette.muted}
                 }
                 ColumnLayout {
-                    id: trackInformation
+                    id: trackInformation;z:1
                     Layout.fillWidth: true; Layout.minimumWidth: 0; spacing: 3
                     Label {text:record.title || "";Layout.fillWidth:true;elide:Text.ElideRight;color:current ? bridge.palette.accent : bridge.palette.text}
                     Label {text:drawer.effects ? (record.artists || []).join(", ") : modelData.artist || "";Layout.fillWidth:true;elide:Text.ElideRight;color:bridge.palette.muted}
                     Label {text:record.album || "";visible:!!text;Layout.fillWidth:true;elide:Text.ElideRight;color:bridge.palette.muted}
                     Label {text:workspace.clock(modelData.duration || 0);color:bridge.palette.muted}
                     Label {
-                        visible:!drawer.effects && modelData.analysis!=="ready"
-                        text:bridge.translate(({pending:"Aguardando análise",preparing:"Analisando ritmo e trechos…",error:"Erro na análise"})[modelData.analysis] || "")
+                        visible:true
+                        text:bridge.translate(drawer.effects ? (current && workspace.values.previewActive ? "Processando em tempo real" : "Pronta para reproduzir") : ({ready:"Pronta para reproduzir",pending:"Aguardando análise",preparing:"Analisando ritmo e trechos…",error:"Erro na análise"})[modelData.analysis] || "Aguardando preparação")
                         Layout.fillWidth:true;elide:Text.ElideRight;color:bridge.palette.muted
                     }
                 }
-                PlaybackButton {
+                PlaybackButton {z:1;
                     objectName:"playQueueTrack"
                     implicitWidth:32;glyph:"play"
                     Accessible.name:bridge.translate(!drawer.effects && modelData.analysis==="error" ? "Tentar novamente" : "Reproduzir")
                     ToolTip.visible:hovered;ToolTip.text:Accessible.name
                     onClicked:drawer.play(index)
                 }
-                PlaybackButton {implicitWidth:28;glyph:"up";Accessible.name:bridge.translate("Mover para cima");enabled:index>0;onClicked:drawer.move(index,-1)}
-                PlaybackButton {implicitWidth:28;glyph:"down";Accessible.name:bridge.translate("Mover para baixo");enabled:index+1<drawer.tracks.length;onClicked:drawer.move(index,1)}
+                PlaybackButton {z:1;implicitWidth:28;glyph:"up";Accessible.name:bridge.translate("Mover para cima");enabled:index>0;onClicked:drawer.move(index,-1)}
+                PlaybackButton {z:1;implicitWidth:28;glyph:"down";Accessible.name:bridge.translate("Mover para baixo");enabled:index+1<drawer.tracks.length;onClicked:drawer.move(index,1)}
                 PlaybackButton {implicitWidth:28;glyph:"close";Accessible.name:bridge.translate("Remover da fila");onClicked:drawer.remove(index)}
+                }
             }
             Label {
                 anchors.centerIn:parent;width:parent.width;horizontalAlignment:Text.AlignHCenter;wrapMode:Text.Wrap

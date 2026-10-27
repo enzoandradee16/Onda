@@ -4,6 +4,7 @@ import android.util.Base64
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -14,6 +15,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
@@ -53,8 +57,9 @@ import androidx.compose.ui.text.input.ImeAction
 }
 
 
-@Composable internal fun PlaybackQueueRow(record:JSONObject,cover:String,duration:Long,current:Boolean,editing:Boolean,play:()->Unit,up:()->Unit,down:()->Unit,remove:()->Unit,canUp:Boolean,canDown:Boolean) {
+@Composable internal fun PlaybackQueueRow(record:JSONObject,cover:String,duration:Long,current:Boolean,editing:Boolean,play:()->Unit,up:()->Unit,down:()->Unit,remove:()->Unit,canUp:Boolean,canDown:Boolean,preparation:String="",drag:@Composable ()->Unit={}) {
     var actions by remember {mutableStateOf(false)}
+    Box(Modifier.fillMaxWidth()) {
     Column(Modifier.fillMaxWidth().onSecondaryClick(record.optString("source_url")){actions=true}) {
         Row(Modifier.fillMaxWidth().clickable(onClick=play).padding(vertical=10.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
             EffectsArtwork(JSONObject().put("record",record).put("cover",cover),Modifier.size(48.dp))
@@ -62,6 +67,7 @@ import androidx.compose.ui.text.input.ImeAction
                 Text(record.optString("title"),maxLines=1,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis,color=if(current)MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
                 Text(record.stringList("artists"),style=MaterialTheme.typography.bodySmall,maxLines=1,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                 Text(record.cleanString("album"),style=MaterialTheme.typography.labelSmall,maxLines=1)
+                if(preparation.isNotBlank())UiText(preparation,modifier=Modifier.semantics {liveRegion=LiveRegionMode.Polite},style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
             }
             if(duration>0)Text(mediaClock(duration),style=MaterialTheme.typography.labelSmall)
             IconButton(onClick=play){OndaIcon("play",if(current)"Reproduzir novamente" else "Reproduzir",Modifier.size(22.dp))}
@@ -82,10 +88,16 @@ import androidx.compose.ui.text.input.ImeAction
             IconButton(onClick=remove){OndaIcon("close","Remover da fila",Modifier.size(22.dp))}
         }
     }
+        Box(Modifier.align(Alignment.BottomEnd).padding(end=12.dp,bottom=2.dp)){drag()}
+    }
 }
 @Composable internal fun EffectsQueuePanel(vm:OndaViewModel,source:String,onPlay:(Int)->Unit) {
     val queue by vm.effectsPlaylist.collectAsStateWithLifecycle()
     val infos by vm.effectsInfo.collectAsStateWithLifecycle()
+    val preparations by vm.effectsPreparation.collectAsStateWithLifecycle()
+    val preparing by vm.effectsPreparing.collectAsStateWithLifecycle()
+    val playing by vm.previewActive.collectAsStateWithLifecycle()
+    val listState=rememberLazyListState()
     var editing by remember {mutableStateOf(false)}
     Column(Modifier.fillMaxSize().padding(horizontal=LayoutSpacing.inset).testTag("effects-queue-panel")) {
         Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){UiText("Fila",Modifier.weight(1f),style=MaterialTheme.typography.titleLarge);TextButton(onClick={editing=!editing}){UiText(if(editing)"Pronto" else "Editar")}}
@@ -94,7 +106,7 @@ import androidx.compose.ui.text.input.ImeAction
         if(editing)TextButton(onClick=vm::clearEffectsQueue){UiText("Limpar fila")}
         PlaybackQueueSearch(vm,false)
         val active=queue.indexOf(source)
-        LazyColumn(Modifier.weight(1f)) {
+        LazyColumn(Modifier.weight(1f),state=listState) {
             if(queue.isEmpty())item {UiText("Adicione arquivos, músicas, álbuns ou playlists à fila.")}
             itemsIndexed(queue,key={_,path->path}) {index,path->
                 if(index==0&&active>0)UiText("Já tocadas",style=MaterialTheme.typography.labelLarge)
@@ -102,7 +114,9 @@ import androidx.compose.ui.text.input.ImeAction
                 if(index==active+1)UiText("A seguir",style=MaterialTheme.typography.labelLarge)
                 val info=infos[path] ?: JSONObject()
                 val record=info.optJSONObject("record") ?: JSONObject().put("title",importedAudioName(path))
-                PlaybackQueueRow(record,info.optString("cover"),info.optDouble("duration",0.0).toLong(),path==source,editing,{onPlay(index)},{vm.moveEffectsTrack(index,-1)},{vm.moveEffectsTrack(index,1)},{vm.removeEffectsTrack(index)},index>0,index+1<queue.size)
+                DraggableQueueCard(listState,index,queue.size,move={from,to->vm.moveEffectsTrack(from,to-from)}) {
+                PlaybackQueueRow(record,info.optString("cover"),info.optDouble("duration",0.0).toLong(),path==source,editing,{onPlay(index)},{vm.moveEffectsTrack(index,-1)},{vm.moveEffectsTrack(index,1)},{vm.removeEffectsTrack(index)},index>0,index+1<queue.size,preparation=if(path==source&&preparing)"Preparando efeitos…" else if(path==source&&playing)"Reproduzindo" else preparations[path] ?: if(info.has("error"))"Erro na preparação" else "Aguardando preparação",drag={QueueDragHandle(listState,index,queue.size,itemLabel=record.optString("title")){from,to->vm.moveEffectsTrack(from,to-from)}})
+                }
                 if(info.has("error"))TextButton(onClick={vm.loadEffectsInfo(listOf(path),retryErrors=true)}){UiText("Tentar novamente")}
             }
         }

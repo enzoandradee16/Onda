@@ -72,11 +72,16 @@ import java.io.File
 
 @Composable fun AppUpdateControls(vm:OndaViewModel) {
     val settings by OndaStore.settings.collectAsStateWithLifecycle()
-    var update by remember {mutableStateOf<JSONObject?>(null)}
+    val update by vm.appUpdate.collectAsStateWithLifecycle()
     SettingsDivider()
     Toggle("Verificar atualizações do ONDA ao abrir",settings.optBoolean("check_updates")){OndaStore.saveSettings(JSONObject(settings.toString()).put("check_updates",it))}
     SettingsDivider()
-    OutlinedButton(onClick={vm.operation("app_update",JSONObject().put("version",BuildConfig.VERSION_NAME),dialog=true){update=it;vm.showNotice("Verificar atualização do ONDA",it.optString("message"))}}){UiText("Verificar atualização do ONDA")}
+    OutlinedButton(onClick={vm.operation("app_update",JSONObject().put("version",BuildConfig.VERSION_NAME),dialog=true){vm.appUpdate.value=it;vm.showNotice("Verificar atualização do ONDA",it.optString("message"))}}){UiText("Verificar atualização do ONDA")}
+    update?.takeIf {it.optBoolean("available")}?.let {info->
+        Text(info.optString("asset"),style=MaterialTheme.typography.labelMedium)
+        if(info.optLong("size")>0)Text("%.1f MB".format(info.optLong("size")/1048576.0),style=MaterialTheme.typography.labelSmall)
+        if(info.optString("notes").isNotBlank())Text(info.optString("notes"),maxLines=8,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis,style=MaterialTheme.typography.bodySmall)
+    }
     val updater=remember {InAppUpdate(OndaStore.context)}
     var download by remember {mutableStateOf(UpdateDownload())}
     val language=LocalUiLanguage.current

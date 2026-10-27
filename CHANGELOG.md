@@ -2,6 +2,15 @@
 
 ## 1.2.3 — 2026-10-26
 
+- Reorganização visual durante o arraste: os cards vizinhos deslizam para abrir espaço e mostrar o encaixe antes de soltar, no PC e Android.
+- Arraste das filas: o card completo acompanha o mouse ou toque prolongado; captura do gesto no PC não é tomada pela rolagem, preservando os botões dos cards.
+- Limpeza automática de temporários antigos, com limite de 512 MB e preservação de arquivos recentes, downloads parciais e áudio de reprodução; opção nas configurações de desempenho.
+- Recuperação de downloads interrompidos com progresso aproximado, botão para retomada e validação de alterações no arquivo de origem nas transferências diretas.
+- Filas de downloads, Efeitos e Jukebox reorganizáveis por arraste no PC e toque prolongado no Android; faixa atual preservada e ações alternativas por teclado/leitor de tela.
+- Estado de preparação por música nas filas, incluindo análise, efeitos prontos e processamento em tempo real quando usado pelo PC.
+- Acessibilidade: foco visível nos botões do PC, alças identificadas por faixa e ações de reorganização para leitores de tela no Android.
+- Atualização: notas, tamanho e pacote disponíveis no aplicativo; versões estáveis não oferecem pré-releases e o Android mantém a seleção por arquitetura e validação de assinatura.
+
 - Controles de mídia do Windows também em Efeitos, com pausa, retomada, parada e navegação direcionadas ao player em uso.
 
 

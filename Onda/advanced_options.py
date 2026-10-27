@@ -3,7 +3,7 @@ from datetime import datetime
 import re
 
 DEFAULTS={'finish_action':'Notificação','close_behavior':'Encerrar','taskbar_progress':True,'wifi_only':False,'wifi_loss':'Pausar downloads','notification_controls':True,'synced_lyrics':False,'clipboard_links':True,'auto_select_media':True,'simple_download_ui':False,'social_best_quality':True,'concurrent_downloads':'1','detect_duplicates':True,'auto_metadata':False,'resume_downloads':True,'resume_queue':False,'normalize_volume':False,
-          'schedule_enabled':False,'schedule_start':'22:00','schedule_stop':'07:00','check_updates':True,'notice_animation':True,'queue_actions_at_top':True,'confirm_version':False}
+          'schedule_enabled':False,'schedule_start':'22:00','schedule_stop':'07:00','check_updates':True,'automatic_cache_cleanup':True,'notice_animation':True,'queue_actions_at_top':True,'confirm_version':False}
 
 ANDROID_ONLY=frozenset(('wifi_only','wifi_loss','notification_controls'))
 PC_DEFAULTS={key:value for key,value in DEFAULTS.items() if key not in ANDROID_ONLY}
@@ -95,12 +95,15 @@ def release_update(platform,current,releases=None,abi=None):
     if not isinstance(releases,list):raise ValueError('Resposta de atualização inválida.')
     matches=[]
     for release in releases:
-        if release.get('draft'):continue
-        for asset in release.get('assets',[]):
-            name=asset.get('name','')
+        if not isinstance(release,dict) or release.get('draft'):continue
+        if release.get('prerelease') and version_key(current)[3:4]==(3,):continue
+        for asset in release.get('assets',[]) or []:
+            if not isinstance(asset,dict):continue
+            name=str(asset.get('name') or '')
             if platform=='android' and abi and any(tag in name for tag in ('arm64-v8a','x86_64')) and abi not in name:continue
             if (platform=='android' and name.lower().endswith('.apk')) or (platform=='windows' and 'setup' in name.lower() and name.lower().endswith('.exe')):
                 version=name if version_key(name)!=(-1,) else release.get('tag_name','')
+                if version_key(current)[3:4]==(3,) and version_key(version)[3:4]!=(3,):continue
                 url=asset.get('browser_download_url','')
                 if url.startswith('https://github.com/enzoandradee16/Onda/releases/download/'):
                     matches.append((version_key(version),release,asset))
@@ -108,4 +111,4 @@ def release_update(platform,current,releases=None,abi=None):
     key,release,asset=max(matches,key=lambda entry:entry[0])
     available=key>version_key(current)
     return {'available':available,'message':('Nova versão disponível: ' if available else 'Você está na versão mais recente publicada: ')+asset['name'],
-            'url':asset['browser_download_url'],'page':release.get('html_url',''),'version':release.get('tag_name','')}
+            'url':asset['browser_download_url'],'page':release.get('html_url',''),'version':release.get('tag_name',''),'notes':str(release.get('body') or '')[:6000],'size':asset.get('size',0),'published':release.get('published_at',''),'asset':asset['name']}
