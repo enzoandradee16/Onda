@@ -1,6 +1,8 @@
 # Fila, biblioteca e ferramentas
 
-## Formato por música e miniplayers no PC — 1.2.0
+Referência de uso revisada para **1.2.3**, em 27/10/2026. Consulte também o [inventário completo](docs/INVENTARIO-FUNCIONALIDADES.md).
+
+## Formato por música e miniplayers no PC
 
 Na pesquisa, Baixar agora abre formato e qualidade, com a preferência de Álbuns e playlists selecionada. MP3 e M4A oferecem os bitrates compatíveis; FLAC e áudio original não mostram bitrate de recodificação. A janela preserva a faixa escolhida mesmo se a lista de pesquisa mudar. Confirmar baixa ou adiciona à fila; Voltar/Esc cancela. A seleção explícita não é substituída pelo modo simplificado de downloads e não altera as preferências globais.
 
@@ -16,13 +18,13 @@ Os recursos abaixo estão disponíveis no Windows e no Android. Agendamento, ret
 - **Mover acima / abaixo / Próximo:** muda a ordem dos itens pendentes. Os downloads em andamento continuam; a ordem é salva para a próxima abertura.
 - **Normalizar volume dos próximos downloads:** checkbox que aplica normalização em duas passagens, com alvo de −16 LUFS e pico verdadeiro de −1,5 dBTP, aos arquivos de áudio compatíveis. Áudios em silêncio são preservados. Não modifica o volume de vídeos.
 
-No PC, essas opções ficam em **Configurações → Geral**, e o checkbox de normalização também está em **Links e fila**. No Android, ficam em **Configurações → Downloads**. Itens já adicionados guardam suas opções de processamento; escolha a normalização antes de adicionar novos itens.
+Nas duas versões, essas opções ficam em **Configurações → Downloads**. Itens já adicionados guardam suas opções de processamento; escolha a normalização antes de adicionar novos itens.
 
 ## Exibição da fila e do histórico
 
-Em **Links e fila**, os controles discretos da própria aba alternam entre compacto e completo e ajustam o tamanho dos cards. O modo completo mostra capa, artista, álbum, duração e demais informações disponíveis. Imagens e dados são carregados em segundo plano; fontes sem esses dados mantêm as informações básicas do item.
+No PC, use a aba **Fila**; no Android, use **Downloads → Em andamento**. Os controles da área ajustam a visualização e o tamanho dos cards. O modo completo mostra capa, artista, álbum, duração e demais informações disponíveis. Imagens e dados são carregados em segundo plano; fontes sem esses dados mantêm as informações básicas do item.
 
-No **Histórico**, Limpar histórico, visualização e tamanho ficam lado a lado, centralizados abaixo da pesquisa. Os tamanhos da fila e do histórico são independentes. No PC, **Ctrl + roda do mouse** ajusta os cards da aba ativa. As opções de exibição também ficam em Aparência; ative Lembrar configurações para mantê-las ao reabrir.
+No **Histórico**, Limpar histórico, visualização e tamanho ficam lado a lado, centralizados abaixo da pesquisa. Os tamanhos da fila e do histórico são independentes. No PC, **Ctrl + roda do mouse** ajusta os cards da aba ativa. As opções de exibição também ficam em Aparência. Visualização e tamanho dos cards da fila e do histórico são preservados mesmo com Lembrar configurações desativado.
 
 ## Idioma e reinício
 
@@ -34,7 +36,7 @@ No **Histórico**, use **Editar áudio / letra** na lista do Windows ou **Editar
 
 O checkbox **Editar metadados** permite alterar título, artistas, álbum, gênero, data e capa. Desmarque para conservar esses dados. **Normalizar volume** é independente: pode ser usado sozinho. **Ouvir original** e **Ouvir normalizado** permitem comparar uma prévia de até 20 segundos antes de salvar.
 
-Importe uma letra **TXT ou LRC**, de até 1 MB. A letra é incorporada nas tags; um LRC também é salvo ao lado da cópia. A exibição sincronizada depende do player. O ONDA não busca letras automaticamente.
+Importe uma letra **TXT ou LRC**, de até 1 MB. A letra é incorporada nas tags; um LRC também é salvo ao lado da cópia. A exibição sincronizada depende do formato da letra e do player. Efeitos e Jukebox também buscam letras online pelo LRCLIB e escolhem uma gravação compatível considerando título, artista, versão, álbum e duração; quando necessário, é possível buscar alternativas manualmente. Uma letra pode não estar disponível para a gravação.
 
 **Salvar cópia editada** mantém o arquivo original. A cópia recebe o sufixo “ - Editada”. No PC, fica ao lado do original; no Android, usa a pasta de destino configurada. Tags não alteradas e a capa existente são preservadas. São aceitos MP3, M4A, FLAC, WAV, OGG e OPUS. A normalização recodifica o áudio; em formatos com perdas, isso representa uma nova compressão. Exportar em FLAC não recupera qualidade que a fonte já perdeu.
 
@@ -48,7 +50,12 @@ No Android, o agendamento usa WorkManager com conexão de rede. Economia de bate
 
 ## Atualizações e transferência de preferências
 
-**Verificar atualização do ONDA** consulta as Releases oficiais do projeto e compara a versão do instalador Windows ou APK Android. A consulta ao abrir é opcional. Se houver uma versão mais recente, o botão abre o download oficial no navegador. A instalação permanece sob controle do usuário e do sistema; o ONDA não executa instaladores silenciosamente. Só são detectadas versões publicadas com número superior ao atual.
+**Verificar atualização do ONDA** consulta as releases oficiais, compara versões e mostra notas, pacote e tamanho quando disponíveis. A consulta ao abrir é opcional. Instalações estáveis não oferecem rascunhos ou pré-releases.
+
+- **PC:** Baixar nova versão abre o download oficial no navegador; execute o instalador ou atualize o pacote portátil conforme a distribuição escolhida.
+- **Android:** Baixar nova versão transfere o APK compatível dentro do ONDA, com progresso e continuidade em segundo plano. É possível cancelar ou descartar. Ao terminar, use Instalar atualização; permita a instalação pelo ONDA se o sistema solicitar. O aplicativo confere pacote, versão e assinatura antes de pedir a instalação.
+
+A instalação exige ação do usuário/sistema; não é silenciosa. Não há garantia de atualização enquanto a versão nova permanecer somente em rascunho.
 
 **Exportar configurações** salva um JSON com as preferências compatíveis entre as plataformas: aparência, formato/qualidade, organização, limite de playlist e opções avançadas de fila/agendamento. **Importar configurações** aplica essas preferências no outro ONDA. Contas, tokens, cookies, histórico, fila, arquivos e caminhos de pastas não são transferidos. Recursos específicos de uma plataforma permanecem locais.
 
@@ -86,6 +93,20 @@ No PC, a edição é preparada em um arquivo temporário e substituída ao termi
 - A aba se chama Editar metadados nas duas versões. No Android, o formulário fica na própria página; o Histórico abre o arquivo nessa aba e os campos são preservados ao navegar entre abas.
 - Android: capa em uma área central de destaque, com prévia e Desfazer capa. PC: capa maior na área inferior direita do editor, com rolagem para telas menores.
 
-## Desinstalação no Windows — 1.2.0
+## Desinstalação no Windows
 
 Em Aplicativos do Windows ou no atalho Desinstalar ONDA, a janela própria oferece **Apagar configurações, fila e histórico** e **Remover ferramentas baixadas (FFmpeg)**. As duas opções vêm desativadas e são independentes. Dados compartilhados com o portátil só são removidos se você marcar a opção correspondente. Downloads, cookies externos e ferramentas de outras pastas são preservados. Cancelar fecha sem remover; depois de confirmar, aguarde a conclusão. Consulte [o funcionamento e os testes](docs/INSTALADOR-WINDOWS.md).
+
+## Arraste, preparação e recuperação da sessão
+
+Filas de downloads e reprodução permitem arrastar o card inteiro; os vizinhos abrem espaço antes de soltar. No Android, use toque prolongado no card ou o marcador compacto. No PC, use o mouse ou os comandos de reorganização por teclado.
+
+Efeitos e Jukebox compartilham música, fila e player e podem funcionar juntos. A fila mostra o estado de preparação por faixa; a próxima música pode ser preparada enquanto a atual toca. A sessão recupera música, posição e fila ao reabrir, sem iniciar áudio automaticamente. Arquivos removidos ou permissões revogadas podem impedir a recuperação. Veja [Reprodução unificada](docs/REPRODUCAO-UNIFICADA.md).
+
+## Prévias de imagens e carrosséis
+
+Nos cards elegíveis, Prévia de imagens abre a galeria antes de baixar. A prévia sozinha não adiciona downloads ou registros ao histórico. Use setas, arraste com o mouse ou as setas do teclado no PC; no Android, deslize horizontalmente. Há também galeria de imagens já baixadas e compartilhamento conforme a origem.
+
+## Limpeza automática de temporários
+
+Limpar temporários automaticamente pode ser desligado em Desempenho. Caches descartáveis antigos são removidos após 7 dias e existe limite suave de 512 MiB. Arquivos recentes, parciais de downloads interrompidos e áudio de reprodução protegido pelo fluxo são preservados. A limpeza manual fica nos controles de cache e pode aguardar o fim das operações.

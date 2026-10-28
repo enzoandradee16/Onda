@@ -27,9 +27,8 @@ internal fun settingsSearchText(entry:SettingsSearchEntry,language:String):Strin
 internal fun settingsSearchEntries():List<SettingsSearchEntry> {
     val data=JSONArray(OndaStore.context.assets.open("settings_search.json").bufferedReader().use {it.readText()})
     val legacy=(0 until data.length()).map {data.getJSONObject(it).let {row->SettingsSearchEntry(row.getString("category"),row.getString("label"),row.optString("keywords"))}}
-    return (listOf(SettingsSearchEntry("Áudio","Duração da transição entre músicas (segundos)","crossfade sobreposição jukebox timer"))+legacy.filter {it.label !in setOf("Ordem das abas","Mostrar ou ocultar abas","Restaurar ordem das abas","Mostrar itens na fila","Mostrar ações antes das listas")}+listOf(
+    return (listOf(SettingsSearchEntry("Áudio","Duração da transição entre músicas (segundos)","crossfade sobreposição jukebox timer"))+legacy.filter {it.label !in setOf("Ordem das abas de reprodução","Ordem das abas","Mostrar ou ocultar abas","Restaurar ordem das abas","Mostrar itens na fila","Mostrar ações antes das listas")}+listOf(
         SettingsSearchEntry("Aparência","Tamanho dos cards da pesquisa","capas resultados músicas"),
-        SettingsSearchEntry("Aparência","Ordem das abas de reprodução","efeitos jukebox infinito inverter"),
         SettingsSearchEntry("Aparência","Ordem da barra inferior","reordenar pesquisar downloads reprodução navegação"),
         SettingsSearchEntry("Aparência","Navegação","abas barra inferior links downloads"),
         SettingsSearchEntry("Aparência","Mostrar Reprodução na barra inferior","jukebox efeitos ocultar"),

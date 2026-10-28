@@ -19,6 +19,13 @@ def image_details(source):
     except (OSError,ValueError):return {}
 
 def perform(action,config,cancel,emit):
+    if action=='tools_status':
+        from tool_status import read,present,display
+        report=read(config['_root'])
+        return dict(report=report,display=display(report),message=present(report))
+    if action=='compare_collection_file':
+        from collection_coverage import compare_file
+        return compare_file(config['tracks'],config['source'])
     if action=='image_gallery_manifest':
         from online_image_preview import discover
         return discover(config,cancel.is_set)
@@ -58,7 +65,8 @@ def perform(action,config,cancel,emit):
                 rows.append(dict(info,source=source,cover_url=record.get('cover_url','')))
             except Exception as error:
                 if cancel.is_set():raise
-                rows.append({'error':str(error)})
+                rows.append({'error':str(error),'source':record.get('source_url',''),'record':dict(record),
+                             'remote':True,'duration':float(record.get('duration_ms') or 0)/1000,'cover_url':record.get('cover_url','')})
         return rows
     if action=='effects_load':
         from jukebox import fetch_audio
@@ -207,13 +215,15 @@ def perform(action,config,cancel,emit):
         from ffmpeg_runtime import download_tools
         return str(download_tools(cancel=cancel,progress=lambda done,total,message:emit('stage',message=message,done=done,total=total)))
     if action=='verify_tools':
-        from audio_tools import executable,process_options
-        results=[]
+        from audio_tools import executable
+        from tool_status import check,present,display
+        commands={}
         for name in ('ffmpeg','ffprobe','ffplay'):
-            value=subprocess.run([executable(name,config.get('ffmpeg','')),'-version'],capture_output=True,text=True,timeout=20,**process_options())
-            if value.returncode:raise ValueError(value.stderr[-1000:])
-            results.append(value.stdout.splitlines()[0])
-        return {'message':'\n'.join(results)}
+            try:commands[name]=[executable(name,config.get('ffmpeg','')),'-version']
+            except (OSError,ValueError):commands[name]=['onda-missing-'+name,'-version']
+        commands['Node.js']=[shutil.which('node') or str(Path(__import__('sys').executable).parents[1]/'node/node.exe'),'--version']
+        report=check(config['_root'],commands)
+        return dict(report=report,display=display(report),message=present(report))
     if action=='app_update':
         from advanced_options import release_update
         from app_version import VERSION
@@ -224,8 +234,10 @@ def perform(action,config,cancel,emit):
         import sys
         python=Path(sys.executable).with_name('python.exe')
         result=subprocess.run([str(python),'-m','pip','install','--upgrade','yt-dlp[default,curl-cffi]','gallery-dl<2','Pillow>=10'],capture_output=True,text=True,timeout=240,**process_options())
-        if result.returncode:raise ValueError(result.stderr[-2000:])
-        return {'message':'Ferramentas atualizadas. Reinicie o ONDA.'}
+        from tool_status import updated,present,display
+        report=updated(config['_root'],not result.returncode)
+        if result.returncode:raise ValueError('Falha na atualização das ferramentas. Verifique a conexão e tente novamente.')
+        return dict(report=report,display=display(report),message=present(report))
     if action=='spotify_connect':
         from spotify_account import authorize
         identity,tokens=authorize(config['spotify_client_id'],cancel,language=config.get('language','pt-BR'))

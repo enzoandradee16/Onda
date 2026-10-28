@@ -1,20 +1,22 @@
 # ONDA — uso e desenvolvimento
 
-## Novidades e uso na versão 1.2.0
+## Uso na versão 1.2.3
+
+Revisado em 27/10/2026. Consulte o [inventário de funcionalidades](../docs/INVENTARIO-FUNCIONALIDADES.md) para a lista completa e os limites.
 
 Na pesquisa, **Baixar agora** abre a escolha de MP3, M4A, FLAC ou áudio original e da qualidade compatível. A seleção inicial vem de Configurações → Downloads → Formato de álbuns e playlists e das qualidades MP3/M4A dessa categoria. A escolha é aplicada somente à música; permite iniciar ou adicionar à fila, e Voltar/Esc cancela sem baixar. A opção direta de adicionar à fila continua usando as preferências salvas.
 
-Efeitos e Jukebox usam o mesmo miniplayer flutuante, com dados, letras, volume e filas próprios. Minimizar a janela principal não minimiza o player. Em Aparência, **Minimizar ONDA ao abrir o miniplayer** controla apenas a janela principal. Arraste pelo cabeçalho, capa ou informações; os botões continuam disponíveis. Fixar mantém o player acima de outras janelas.
+Efeitos e Jukebox compartilham música, fila e miniplayer flutuante, com dados, letras e volume. Os ajustes podem funcionar juntos na tela Reprodução; veja [Reprodução unificada](../docs/REPRODUCAO-UNIFICADA.md). Minimizar a janela principal não minimiza o player. Em Aparência, **Minimizar ONDA ao abrir o miniplayer** controla apenas a janela principal. Arraste pelo cabeçalho, capa ou informações; os botões continuam disponíveis. Fixar mantém o player acima de outras janelas.
 
-O instalador próprio oferece português, espanhol e inglês desde a abertura, além de pasta, atalho e progresso. O idioma escolhido vale também para as confirmações do desinstalador, sem alterar o idioma do app. Veja [o instalador](../docs/INSTALADOR-WINDOWS.md) e [a validação 1.2.0](../docs/VALIDACAO-RELEASE-1.2.0.md). As capturas atualizadas ficam no [README principal](../README.md).
+O instalador próprio oferece português, espanhol e inglês desde a abertura, além de pasta, atalho e progresso. O idioma escolhido vale também para as confirmações do desinstalador, sem alterar o idioma do app. Veja [o instalador](../docs/INSTALADOR-WINDOWS.md) e [a validação 1.2.3](../docs/VALIDACAO-RELEASE-1.2.3.md). As capturas atualizadas ficam no [README principal](../README.md).
 
-O [README principal](../README.md) apresenta o aplicativo e os pacotes 1.1.7 para Windows e Android.
+O [README principal](../README.md) apresenta o aplicativo e os pacotes da versão atual para Windows e Android.
 
 ## Executar o código-fonte
 
 Requisitos: Windows 10/11 x64, Python 3.11 ou superior com Tcl/Tk e acesso à internet. Para conversão e efeitos, use Configurações → Ferramentas → Preparar FFmpeg, ou selecione uma pasta existente com FFmpeg, ffprobe e ffplay. Nos pacotes Windows, a preparação começa automaticamente na primeira abertura. Node.js é usado pelo yt-dlp em desafios JavaScript do YouTube.
 
-Dentro da pasta `Onda` deste repositório, execute `instalar.bat` para criar o ambiente Python e instalar as dependências; depois execute `iniciar.bat`.
+Dentro da pasta `Onda`, `instalar.bat` prepara o ambiente Python básico. A interface atual dos pacotes Windows usa **Qt/QML**; instale também `requirements-qt.txt` e execute `qt_desktop_ui.py`. `iniciar.bat` executa a interface Tk conservada quando não encontra o launcher empacotado; não é o comando de referência para desenvolver a interface Qt.
 
 Se o Python original foi removido ou mudou de pasta, execute `instalar.bat` novamente. Ele detecta o ambiente inválido, preserva a pasta anterior em `.venv-backup-...` e cria um ambiente com o Python instalado atualmente.
 
@@ -22,15 +24,15 @@ Alternativa pelo terminal, dentro dessa mesma pasta:
 
 ```powershell
 py -3 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
-.\.venv\Scripts\python.exe app.py
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt -r requirements-qt.txt
+.\.venv\Scripts\python.exe qt_desktop_ui.py
 ```
 
 ## Abas e fluxo
 
 **Pesquisar músicas:** escolha a plataforma, procure artista/título, confira metadados e a versão de áudio encontrada. Spotify requer conexão para alguns recursos; links podem usar dados públicos e correspondências de outras plataformas.
 
-**Links e fila:** cole links, selecione formato, qualidade e, para vídeo, resolução/FPS. Use Baixar agora para os itens atuais ou Adicionar à fila. É possível selecionar/remover itens, limpar a fila e tentar novamente. Downloads concluídos aparecem no histórico. O seletor na própria aba alterna entre lista compacta e cards completos, com capas e metadados disponíveis. Ajuste o tamanho pelo controle discreto; no PC, Ctrl + roda do mouse também altera os cards.
+**Links e Fila:** no PC são páginas separadas. Em Links, cole URLs e selecione formato, qualidade e, para vídeo, resolução/FPS. Fila reúne os trabalhos; Links também exibe os adicionados por essa página. Use Baixar agora para os itens atuais ou Adicionar à fila. É possível selecionar/remover itens, limpar a fila e tentar novamente. Downloads concluídos aparecem no histórico. O seletor na própria aba alterna entre lista compacta e cards completos, com capas e metadados disponíveis. Ajuste o tamanho pelo controle discreto; no PC, Ctrl + roda do mouse também altera os cards.
 
 **Imagens:** escolha formato e tamanho máximo. Manter proporção evita distorção e ampliação. Links de publicações são analisados para identificar as mídias disponíveis.
 
@@ -38,11 +40,11 @@ py -3 -m venv .venv
 
 **Histórico:** consulte downloads anteriores, abra arquivos/pastas e envie o áudio para o editor ou para os efeitos. Abaixo da pesquisa ficam Limpar histórico, visualização compacta/completa e tamanho dos cards, centralizados na mesma linha. O tamanho é independente da fila; no PC, Ctrl + roda do mouse também o ajusta. As opções de duplicados e organização ficam em Configurações.
 
-**Efeitos:** abra uma música local, ajuste velocidade (50–150%) e reverb de forma independente ou use presets. Manter tom evita que a mudança de velocidade altere o pitch. Gere/ouça a prévia e navegue pela barra de reprodução. O título e o nome exportados indicam apenas os efeitos usados; as demais tags são preservadas quando suportadas pelo formato.
+**Efeitos:** abra música local, pesquise ou cole link de faixa, álbum ou playlist; ajuste velocidade e reverb independentemente ou use presets. Manter tom preserva o pitch ao mudar a velocidade. Reproduza a música e navegue pela barra; a fila tem busca, preparação por faixa, reorganização e controles de ordem. O título e o nome exportados indicam apenas os efeitos usados; as demais tags são preservadas quando suportadas pelo formato.
 
 ## Preferências e contas
 
-Configurações são separadas por categorias, incluindo Aparência, Downloads, Áudio, Contas e Ferramentas. Lembrar configurações permite restaurar preferências ao abrir. Há restauração seletiva ou completa, duração das prévias e reprodução de efeitos ao trocar de aba. A janela inicial é opcional e aparece uma única vez por perfil.
+Configurações são separadas por categorias, incluindo Aparência, Downloads, Áudio, Contas e Ferramentas. Lembrar configurações permite restaurar preferências ao abrir. Há restauração seletiva ou completa e duração das prévias de pesquisa. Efeitos/Jukebox usam reprodução integral e fila compartilhada; navegar não encerra a música. Letras podem ser buscadas e escolhidas automaticamente pelo LRCLIB. A janela inicial é opcional e aparece uma única vez por perfil.
 
 Em **Configurações → Geral → Idioma**, escolha Português (Brasil), Español ou English, nessa ordem. Português é o padrão. No PC, o botão Reiniciar aparece abaixo do idioma somente enquanto a alteração está pendente; ao reiniciar, a fila é preservada. No Android, a mudança é imediata. O nome ONDA e os dados de músicas/arquivos permanecem originais. O idioma, a visualização e o tamanho dos cards da fila e do histórico são salvos mesmo sem Lembrar configurações.
 
@@ -65,9 +67,9 @@ Os módulos são executados em processos separados para isolar as raízes Tk e a
 
 ## Construir executáveis
 
-Os scripts de empacotamento ficam fora do Git por opção de organização. O pacote de fontes da release inclui `empacotamento/Build-Windows.ps1`, `build_package.py`, `Launcher.cs`, `Onda.iss` e instruções. A construção requer CPython com Tcl/Tk, Node.js, compilador C# do Windows e Inno Setup. O FFmpeg não deve ser incluído no pacote: é baixado diretamente do fornecedor no primeiro uso. As versões efetivamente incluídas estão no manifesto da release; dependências com limites abertos podem mudar em construções futuras.
+Os fontes de empacotamento estão rastreados em `empacotamento/`: `prepare_release.py`, `build_package.py`, `build_installer.py`, `Launcher.cs`, `Installer.cs` e `Uninstaller.cs`, entre outros. A construção atual usa runtime Python/Qt, Node.js e as ferramentas de compilação Windows exigidas pelos scripts. Consulte [PUBLICAR_RELEASE.md](../PUBLICAR_RELEASE.md) para o fluxo de preparação; scripts antigos ou `Onda.iss` não substituem o instalador próprio atual. O FFmpeg não deve ser incluído no pacote: é baixado diretamente do fornecedor no primeiro uso. As versões efetivamente incluídas estão no manifesto da release; dependências com limites abertos podem mudar em construções futuras.
 
-O launcher inicia o Python privado, e o Inno Setup cria instalação por usuário, atalhos e desinstalador. Preserve o AppId para que atualizações reconheçam a instalação anterior.
+O launcher inicia o Python privado e a interface Qt. O instalador próprio prepara a instalação por usuário, atalhos e desinstalador. Preserve a identidade do aplicativo e os contratos de atualização dos scripts.
 
 Na desinstalação, você pode manter os dados ou apagar configurações, fila, histórico, contas salvas e o registro da primeira abertura. A escolha padrão é manter; desinstalação silenciosa também mantém. Uma segunda escolha independente permite remover as ferramentas baixadas pelo ONDA, como o FFmpeg. Por padrão, o cache é mantido; a desinstalação silenciosa também o preserva. Downloads, cookies externos e ferramentas de outras pastas são preservados. Esses dados são compartilhados entre as versões instalada e portátil no mesmo PC.
 

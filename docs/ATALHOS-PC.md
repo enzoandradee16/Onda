@@ -4,7 +4,7 @@ Abra **Atalhos** no topo da janela ou pressione **F1**. A lista inclui os comand
 
 | Atalho | Ação |
 | --- | --- |
-| Ctrl+1 … Ctrl+8 | Abrir aba pela posição atual |
+| Ctrl+1 … Ctrl+9 | Abrir aba pela posição atual |
 | Ctrl+Tab / Ctrl+Shift+Tab | Ir para a próxima aba / aba anterior |
 | Ctrl+L | Abrir Links e focar o campo de links |
 | Ctrl+J | Abrir a Fila |
@@ -21,7 +21,7 @@ Abra **Atalhos** no topo da janela ou pressione **F1**. A lista inclui os comand
 | Ctrl+Shift+Delete | Limpar a fila |
 | Ctrl+O | Abrir a pasta de downloads |
 | Ctrl+, | Abrir configurações |
-| Ctrl+M | Abrir janela de metadados |
+| Ctrl+M | Abrir Editar metadados |
 | Ctrl+Shift+L | Ver detalhes dos downloads |
 | Ctrl+Shift+E | Ver falhas da fila |
 | F1 | Mostrar atalhos de teclado |
@@ -39,3 +39,9 @@ A referência interna está disponível em português, inglês e espanhol. Não 
 Ctrl + ↑ / Ctrl + ↓: rolar a página atual para cima ou para baixo, uma tela por vez.
 
 Ctrl + A: selecionar todos os itens na Fila, Histórico ou Álbuns e playlists. Em campos de edição, mantém a seleção de texto.
+
+## Controles adicionais na versão 1.2.3
+
+Atalhos configuráveis podem ser alterados e restaurados na janela Atalhos; combinações reservadas ou em conflito são recusadas. As teclas de mídia do Windows atendem Efeitos e Jukebox conforme a reprodução ativa.
+
+Nas galerias de imagens, as setas esquerda/direita navegam entre imagens. Nas filas, os controles focados de reorganização permitem mover os cards por teclado; o foco dos botões é visível.

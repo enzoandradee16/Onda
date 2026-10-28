@@ -9,7 +9,7 @@ from library import LibraryStore
 from error_localization import error_text
 from i18n import tr
 ROOT=Path(__file__).resolve().parent
-PAGES={'catalog':'Pesquisar músicas','downloads':'Links','queue':'Fila','images':'Imagens','converter':'Conversor','playlists':'Álbuns e playlists','history':'Histórico','effects':'Reprodução e efeitos','metadata':'Editar metadados','jukebox':'Reprodução e efeitos'}
+PAGES={'catalog':'Pesquisar músicas','downloads':'Links','queue':'Fila','images':'Imagens','converter':'Conversor','playlists':'Álbuns e playlists','history':'Histórico','effects':'Reprodução','metadata':'Editar metadados','jukebox':'Reprodução'}
 TAB_GROUPS=[('BIBLIOTECA',('catalog','downloads','queue','playlists','history')),('FERRAMENTAS',('images','converter','effects','metadata'))]
 CHOICES={'choose_flac','choose_media','choose_version','choose_catalog','choose_duplicate','review_metadata'}
 class DesktopWorkspace(QObject):
@@ -21,6 +21,7 @@ class DesktopWorkspace(QObject):
         from performance import thread_choices
         for field in self.fields:
             if field['key']=='conversion_threads':field['choices']=list(thread_choices())
+        self.fields=[field for field in self.fields if field['key']!='playback_tab_order']
         self.settings=dict(self.defaults,**bridge.preferences);self.settings['remember_settings']=bridge.store.remember_enabled();self.settings['language']=bridge.store.load_language();self.settings['folder']=self.settings.get('folder') or str(Path.home()/'Downloads/Onda')
         self.store=bridge.store;self.library=LibraryStore(self.store.path.parent/'library.sqlite3')
         from spotify_account import SpotifyAccount
@@ -59,16 +60,19 @@ class DesktopWorkspace(QObject):
         self.title_events=queue.SimpleQueue();self.title_lookup=TitleLookup(self.title_events);self.title_lookup.spotify_account=self.account;self.timing=QueueTiming()
         self.refresh_queue();self.refresh_history()
         from playback_session import restore
+        self.options['effectsEnabled']=False
         restore(self)
+        self._page='jukebox' if self._page in ('effects','jukebox') else self._page
+        self.sync_unified_effects()
         self.media_owner='jukebox';self.bridge.media_state_provider=self.effects_media_state;self.bridge.media_command_handler=self.media_command
         self.session_timer=QTimer(self);self.session_timer.setInterval(5000);self.session_timer.timeout.connect(self.save_playback_session);self.session_timer.start()
-    def save_playback_session(self):
+    def save_playback_session(self,strict=False):
         from playback_session import save
-        save(self)
+        save(self,strict=strict)
     @Property(str,notify=changed)
     def currentPage(self):return self._page
     @Property(str,notify=changed)
-    def title(self):return tr(PAGES[self._page])
+    def title(self):return tr('Reprodução' if self._page in ('effects','jukebox') else PAGES[self._page])
     @Property(bool,notify=changed)
     def ready(self):return True
     @Property(str,notify=statusChanged)
@@ -186,7 +190,12 @@ class DesktopWorkspace(QObject):
     def log(self,text):self.logs.append(str(text));self.logs=self.logs[-400:];self.statusChanged.emit()
     @Slot(str,'QVariant')
     def setOption(self,key,value):
+        original_key=key
+        if key=='effectsQueueOpen':key='jukeboxQueueOpen'
+        if key=='effectsQueueResults':key='jukeboxQueueResults'
+        if key!=original_key:self.options[original_key]=value
         self.options[key]=value
+        if key in ('speed','reverb','keep_pitch','effectsEnabled'):self.sync_unified_effects()
         if key=='imageUrl':
             self.cancel_task('image_info');self.cancel_task('image_preview');self.options['imageInfo']={};self.options['imageSource']='';self.options['imagePreview']=''
         self.optionsChanged.emit()
@@ -195,6 +204,8 @@ class DesktopWorkspace(QObject):
         if key in ('historyQuery','historyKind'):self.refresh_history()
         if key.startswith('filter'):self.filter_catalog()
         if key in ('speed','reverb','keep_pitch','position','effectsVolume') and self.player.active and self.preview_kind=='effects':self.preview_timer.start()
+    def sync_unified_effects(self):
+        self.bridge.setEffects(dict(enabled=self.options.get('effectsEnabled',False),speed=self.options['speed'],reverb=self.options['reverb'],keep_pitch=self.options['keep_pitch']))
     @Slot(str,'QVariant')
     def setSetting(self,key,value):
         if key in ("background_preview","jukebox_background","effects_preview_duration"):return
@@ -229,7 +240,7 @@ class DesktopWorkspace(QObject):
         for key in ('theme_mode','theme_accent','qt_animations','jukebox_equalizer','jukebox_gradual_transition','jukebox_transition_seconds'):self.settings[key]=self.bridge.preferences.get(key,self.settings.get(key))
         self.settingsChanged.emit();self.save_timer.start()
         if self.tray:self.tray.setIcon(QGuiApplication.windowIcon())
-    def persist(self):
+    def persist(self,strict=False):
         self.save_timer.stop()
         try:
             self.store.save_display(self.settings)
@@ -240,17 +251,20 @@ class DesktopWorkspace(QObject):
                     self.credentials.save(*pair);self.saved_credentials=pair;self.statusChanged.emit()
                 elif not all(pair) and any(self.saved_credentials):
                     self.credentials.forget();self.saved_credentials=('','');self.statusChanged.emit()
-        except (OSError,ValueError) as error:self.notify(error)
+        except (OSError,ValueError) as error:
+            self.notify(error)
+            if strict:raise
     @Slot()
     def pause_background_jukebox(self):
         if getattr(self,"_mini_active",False):return
         return
     @Slot(str)
     def selectNavigationPage(self,key):
-        if key=='effects':key='jukebox' if self.settings.get('playback_tab_order')=='Jukebox infinito primeiro' else 'effects'
+        if key=='effects':key='jukebox'
         self.selectPage(key)
     @Slot(str)
     def selectPage(self,key):
+        if key=='effects':key='jukebox'
         if key not in PAGES or key in self.hiddenTabs:return
         if key!=self._page:
             if key!='jukebox':self.pause_background_jukebox()
@@ -305,9 +319,53 @@ class DesktopWorkspace(QObject):
     @Slot(str,'QVariantMap')
     def invoke(self,action,params):
         try:self.dispatch(action,dict(params))
-        except Exception as error:self.notify(error);self.message.emit(tr('ONDA'),error_text(error))
+        except Exception as error:
+            if action in ('effects_queue_play','effects_play_pause'):
+                rows=self.options.get('effectsQueue',[]);index=int(params.get('index',self.options.get('effectsQueueIndex',-1)))
+                if 0<=index<len(rows):rows[index]['error']=str(error);self.optionsChanged.emit()
+            self.notify(error);self.message.emit(tr('ONDA'),error_text(error))
     def dispatch(self,action,p):
-        if action=='preview_images':
+        if action=='playback_queue_close_search':
+            self.cancel_task('playback_input');self.setOption('jukeboxQueueResults',[]);return
+        if action=='unified_effects_export':
+            if not self.bridge.model:return
+            self.dispatch('effects_export',{});return
+        # Legacy entry points remain usable, but all new audio belongs to one queue.
+        if action in ('effects_add','effects_enqueue_result'):
+            rows=self.models['catalog'].rows if action=='effects_add' else self.options['effectsResults']
+            index=int(p.get('index',-1))
+            if 0<=index<len(rows):self.bridge.enqueueRecord(rows[index])
+            return
+        if action in ('playback_queue_search','playback_queue_add'):p=dict(p,effects=False)
+        if action=='playback_collection':p=dict(p,destination='jukebox')
+        if action=='effects_play_pause':self.bridge.playPause();return
+        if action=='effects_next':self.bridge.nextTrack();return
+        if action=='effects_previous':self.bridge.previousTrack();return
+        if action=='restart_app':
+            from tool_status import read,display
+            if not display(read(self.store.path.parent)).get('can_restart'):raise ValueError('Verifique as ferramentas antes de reiniciar.')
+            if self.active or self.tasks or self.bridge.state.get('busy'):raise ValueError('Aguarde as operações em andamento antes de reiniciar.')
+            from app_restart import schedule
+            self.save_playback_session(strict=True);self.save_window_layout();self.persist(strict=True);self.save_queue()
+            schedule(ROOT)
+            self.restart_requested=False
+            self.shutdown_timer.stop();QGuiApplication.exit(0)
+        elif action=='compare_imported_collection':self.pick('collection_reference')
+        elif action=='effects_queue_retry':
+            index=int(p.get('index',-1));rows=self.options['effectsQueue']
+            if not 0<=index<len(rows):return
+            if any(key in self.tasks for key in ('effects_info','effects_load')):return
+            source=rows[index]['source'];retry_record=dict(rows[index].get('record') or {})
+            def loaded(result):
+                row=next((row for row in self.options['effectsQueue'] if row['source']==source),None)
+                if row is not None:row.update(result);row.pop('error',None);row.pop('remote',None);self.optionsChanged.emit()
+            if rows[index].get('remote'):
+                def fetched(result):
+                    target=result['source']
+                    self.run_task('effects_info',{'source':target,'record':result.get('record') or retry_record},lambda info:loaded(dict(info,source=target)))
+                self.run_task('effects_load',{'record':retry_record},fetched)
+            else:self.run_task('effects_info',{'source':source},loaded)
+        elif action=='preview_images':
             url=p.get('url') or self.options.get('links','')
             self.setOption('imageGalleryPendingSource',url)
             self.run_task('image_gallery_manifest',{'url':url},self.online_gallery_loaded)
@@ -353,7 +411,7 @@ class DesktopWorkspace(QObject):
                 for record in records:self.bridge.enqueueRecord(record)
             else:
                 def loaded(rows):
-                    self.options['effectsQueue'].extend(row for row in rows if not row.get('error'));self.optionsChanged.emit()
+                    self.options['effectsQueue'].extend(rows);self.optionsChanged.emit()
                     failures=[row['error'] for row in rows if row.get('error')]
                     if failures:self.notify(failures[0],error=True)
                 self.run_task('effects_collection',{'tracks':records},loaded)
@@ -401,7 +459,7 @@ class DesktopWorkspace(QObject):
                 self.accept_files('effects',[result['source']]);self.options['effectsOnlineRecord']=result['record'];self.options['effectsResults']=[];self.optionsChanged.emit()
             self.run_task('effects_load',{'record':records[index]},loaded)
         elif action=='lyrics_online':
-            jukebox=p.get('jukebox',self._page=='jukebox')
+            jukebox=p.get('jukebox',True)
             automatic=p.get('automatic',False)
             record=dict(self.bridge.model or {}) if jukebox else dict(self.options['effectsRecord'])
             source=str(record.get('source','')) if jukebox else self.options['effectsSource']
@@ -428,7 +486,7 @@ class DesktopWorkspace(QObject):
                     self.lyrics=result['lines'];self.options['effectLyricsName']='';self.setSetting('synced_lyrics',True);self.optionsChanged.emit()
                 self.notify(tr('Letra carregada.') if result['synced'] else tr('Letra sem sincronização.'))
             if not record.get('duration') and not record.get('duration_ms'):record['duration']=self.options['duration'] if not jukebox else (self.bridge.model or {}).get('duration',0)
-            self.run_task('lyrics_online',{'source':source,'record':record,'automatic':automatic,'alternatives':False},loaded,background=automatic)
+            self.run_task('lyrics_online',{'source':source,'record':record,'automatic':automatic,'alternatives':not automatic},loaded,background=automatic)
         elif action=='configure_spotify':self.settingsCategoryRequested.emit('Contas')
         elif action=='search':
             query=self.options['query'].strip()
@@ -450,6 +508,7 @@ class DesktopWorkspace(QObject):
             for job in self.jobs:
                 if job['id'] in ids:job['state']='Na fila'
             self.start_queue(ids)
+        elif action=='queue_retry_now':self.queue_action('retry',p['id']);self.queue_action('resume',p['id'])
         elif action=='start_queue':self.start_queue()
         elif action=='stop_queue':self.stop_queue()
         elif action=='queue_reorder':
@@ -641,15 +700,33 @@ class DesktopWorkspace(QObject):
         elif action=='shortcut_set':
             from shortcut_options import validate_overrides
             values=json.loads(self.settings.get('shortcut_keys','{}'));sequence=p['sequence'];sequence=sequence if sequence.startswith('<') or not sequence else '<'+sequence.replace('Ctrl+','Control-').replace('Alt+','Alt-').replace('Shift+','Shift-').replace('Enter','Return').replace(',','comma')+'>';values[p['key']]=sequence;self.setSetting('shortcut_keys',json.dumps(validate_overrides(values)))
-        elif action in ('cache_info','cache_clear','prepare_tools','verify_tools','app_update','update_tools'):
+        elif action in ('cache_info','cache_clear','prepare_tools','verify_tools','tools_status','app_update','update_tools'):
             if action=='cache_clear' and (self.active or self.tasks or self.bridge.state['playing']):raise ValueError('Pare as operações antes de limpar o cache.')
-            self.run_task(action,{},(lambda result:self.setSetting('ffmpeg',result)) if action=='prepare_tools' else (lambda result:self.show_result(result,notification=False)))
+            def completed(result):
+                if action=='prepare_tools':self.setSetting('ffmpeg',result)
+                elif action in ('verify_tools','tools_status','update_tools'):
+                    self.setOption('toolStatus',result.get('message',''))
+                    self.setOption('toolReport',result.get('display') or __import__('tool_status').display(result.get('report') or {}))
+                else:self.show_result(result,notification=False)
+            self.run_task(action,{},completed)
         else:raise ValueError('Ação desconhecida: '+action)
     @Slot(str,result=str)
     def taskLabel(self,key):
         labels={'image_gallery_manifest':'Consulta das imagens','image_gallery_thumbnail':'Carregamento da imagem','collection':'Carregamento da playlist','search':'Pesquisa','compare_collection':'Conferência de arquivos locais','check_matches':'Conferência de versões','release_date':'Data de lançamento','convert':'Conversão','probe':'Leitura do áudio','audio_read':'Leitura dos metadados','audio_edit':'Edição dos metadados','normalize_preview':'Prévia normalizada','cover_crop':'Ajuste da capa','image_preview':'Prévia da imagem','image_export':'Exportação da imagem','spotify_connect':'Conexão com Spotify','prepare_tools':'Preparação das ferramentas','verify_tools':'Verificação das ferramentas','app_update':'Verificação de atualização','update_tools':'Atualização das ferramentas','cache_info':'Consulta ao cache','cache_clear':'Limpeza do cache'}
         label=tr(labels.get(key,'Operação em andamento'))
         return label[:1].lower()+label[1:]
+    @Slot(str,str,result=bool)
+    def queueActionEnabled(self,action,identity):
+        from workflow_status import can_act
+        return any(can_act(job['state'],action) for job in self.jobs if (job['id']==identity if identity else job.get('checked')))
+    @Slot(str,result=str)
+    def preparationAdvice(self,message):
+        from download_feedback import failure_advice
+        return tr(failure_advice(message)[0])
+    @Slot(str,result=str)
+    def workflowLabel(self,state):
+        from workflow_status import label
+        return tr(label(state))
     @Slot(str,result=str)
     def pageLabel(self,key):return tr(PAGES.get(key,key))
     @Property('QVariantList',notify=settingsChanged)
@@ -668,12 +745,13 @@ class DesktopWorkspace(QObject):
         self.models['catalog'].replace([self.decorate_record(row,index) for index,row in enumerate(rows)]);self.options['selectedCatalog']=-1;self.optionsChanged.emit()
     def record_name(self,record):return ' - '.join(filter(None,[', '.join(record.get('artists',[])),record.get('title','')]))
     def collection_loaded(self,result):
+        self.setOption('collectionCoverage',result.get('coverage_summary',''));self.setOption('collectionReference','')
         self.options['playlistTitle']=result.get('title','');self.options['loadedPlaylistUrl']=result.get('_collection_url',self.options['playlistUrl']);self.optionsChanged.emit();self.models['playlists'].replace([dict(self.decorate_record(row,index),checked=True) for index,row in enumerate(result.get('tracks',[]))]);self.notify(result.get('note') or str(self.models['playlists'].count)+' '+tr('faixas'))
     def effects_input_loaded(self,result):
         if not result.get('is_collection'):self.setOption('effectsResults',result.get('tracks',[]));return
         self.setOption('effectsResults',[])
         def loaded(rows):
-            self.options['effectsQueue'].extend(row for row in rows if not row.get('error'));self.optionsChanged.emit()
+            self.options['effectsQueue'].extend(rows);self.optionsChanged.emit()
             errors=[row['error'] for row in rows if row.get('error')]
             self.notify(errors[0] if errors else tr('{count} músicas adicionadas à fila.').replace('{count}',str(len(rows))),error=bool(errors))
         self.run_task('effects_collection',{'tracks':result.get('tracks',[])},loaded)
@@ -921,7 +999,8 @@ class DesktopWorkspace(QObject):
             threading.Thread(target=stop_process,args=(process,),daemon=True).start()
     def queue_action(self,action,identity=''):
         selected=[job for job in self.jobs if job['id']==identity] if identity else [job for job in self.jobs if job.get('checked')]
-        if action=='resume':selected=[job for job in selected if job['state'] in ('Na fila','Pausado','Cancelado','Falhou') or job.get('_paused')]
+        from workflow_status import can_act
+        if action in ('retry','resume','pause'):selected=[job for job in selected if can_act(job['state'],action) or action=='resume' and job.get('_paused')]
         if action in ('clear','cancel_all'):selected=list(self.jobs)
         if action in ('cancel','cancel_all'):selected=[job for job in selected if job['id'] in self.active or job['state'] in ('Na fila','Pausado')]
         undo_before=None
@@ -996,7 +1075,12 @@ class DesktopWorkspace(QObject):
                     if callback:callback(event['result'])
                     else:self.show_result(event['result'])
                 except Exception as error:self.notify(error)
-            elif identity=='task_error':self.notify(event['error'],error=True);self.log(event['error'])
+            elif identity=='task_error':
+                if action=='update_tools':
+                    from tool_status import updated,present,display
+                    report=updated(self.store.path.parent,False)
+                    self.setOption('toolStatus',present(report));self.setOption('toolReport',display(report))
+                self.notify(event['error'],error=True);self.log(event['error'])
             elif identity=='task_progress':
                 progress=event['event']
                 if action in ('prepare_tools','update_tools'):
@@ -1090,12 +1174,22 @@ class DesktopWorkspace(QObject):
         if not paths:return
         self.accept_files(kind,paths)
     def accept_files(self,kind,paths):
+        if kind in ('effects','effects_queue'):
+            if kind=='effects' and paths:
+                self.bridge.openFile(QUrl.fromLocalFile(str(paths[0])))
+                if len(paths)>1:self.bridge.enqueueFiles([QUrl.fromLocalFile(str(path)) for path in paths[1:]])
+                self.selectPage('jukebox')
+            else:self.bridge.enqueueFiles([QUrl.fromLocalFile(str(path)) for path in paths])
+            return
+        if kind=='collection_reference':
+            self.run_task('compare_collection_file',{'source':paths[0],'tracks':[dict(row) for row in self.models['playlists'].rows]},lambda result:self.setOption('collectionReference',result['message']));return
         if kind=='effects_queue':
             if not self.options['effectsQueue'] and self.options['effectsSource'] and self.options['duration']>0:
                 self.options['effectsQueue']=[dict(source=self.options['effectsSource'],record=dict(self.options['effectsRecord']),duration=self.options['duration'],cover_url=self.options['effectsCover'])];self.options['effectsQueueIndex']=0
             def loaded(rows):
                 for row in rows:
-                    if row.get('error'):self.notify(row['error'],error=True);continue
+                    if row.get('error'):
+                        row.setdefault('record',{'title':Path(row['source']).stem});row.setdefault('duration',0);self.notify(row['error'],error=True)
                     row['cover_url']='data:image/png;base64,'+row['cover'] if row.get('cover') else row.get('record',{}).get('cover_url','')
                     self.options['effectsQueue'].append(row)
                 self.optionsChanged.emit()
@@ -1159,13 +1253,28 @@ class DesktopWorkspace(QObject):
         self.run_task('audio_edit',config,self.show_result)
     def export_effects(self):
         from PySide6.QtWidgets import QFileDialog
-        source=self.options['effectsSource']
+        from effects_export import export_config
+        unified=self._page=='jukebox' and self.bridge.model is not None
+        source=self.bridge.model['source'] if unified else self.options['effectsSource']
         if not source:raise ValueError('Abra um arquivo de áudio primeiro.')
-        fmt=self.options['effectFormat'].lower();target,_=QFileDialog.getSaveFileName(None,tr('Exportar música'),str(Path(source).with_name(Path(source).stem+' - efeitos.'+fmt)),'Áudio (*.'+fmt+')')
+        if unified:
+            entry=self.bridge.playlist[self.bridge.queue_index] if 0<=self.bridge.queue_index<len(self.bridge.playlist) else {}
+            record=dict(entry.get('record') or {})
+            model=self.bridge.model
+            record.update(media_title=model.get('media_title') or self.bridge.state['title'],media_artist=model.get('media_artist') or self.bridge.state['artist'])
+            if model.get('album'):record['album']=model['album']
+            if model.get('cover_url'):record['cover_url']=model['cover_url']
+            effects=dict(self.bridge._effects)
+            config=export_config(source,record,cover_data=self.bridge.state['cover'],**effects)
+        else:config=export_config(source,self.options['effectsRecord'],cover_data=self.options['effectsCover'],**{key:self.options[key] for key in ('speed','reverb','keep_pitch')})
+        fmt=self.options['effectFormat'].lower()
+        folder=Path(self.settings.get('folder') or Path.home()/'Downloads'/'Onda')
+        target,_=QFileDialog.getSaveFileName(None,tr('Exportar música'),str(folder/(config['export_name']+'.'+fmt)),'Áudio (*.'+fmt+')')
         if not target:return
+        if not Path(target).suffix:target+='.'+fmt
         if Path(source).resolve()==Path(target).resolve():raise ValueError('Escolha outro nome para preservar o original.')
         identity=uuid.uuid4().hex;cancel=threading.Event();self.active[identity]={'cancel':cancel,'process':None,'operation':'effects_export'};self.statusChanged.emit()
-        config={key:self.options[key] for key in ('speed','reverb','keep_pitch')};config.update(source=source,output=target,ffmpeg=self.settings.get('ffmpeg',''),replace=Path(target).exists(),bitrate=320,conversion_threads=self.settings.get('conversion_threads','Automático'))
+        config.update(output=target,ffmpeg=self.settings.get('ffmpeg',''),replace=Path(target).exists(),bitrate=320,conversion_threads=self.settings.get('conversion_threads','Automático'))
         self.launch_thread(lambda:self.process_worker(identity,config,cancel,'effects_worker.py'));self.notify('Exportando a música inteira…')
     def settings_file_action(self,action):
         from PySide6.QtWidgets import QFileDialog
@@ -1411,7 +1520,7 @@ class DesktopWorkspace(QObject):
     @Slot(bool,result='QVariantMap')
     def lyricsFrame(self,jukebox=None):
         from synced_lyrics import karaoke_at
-        if jukebox is None:jukebox=self._page=='jukebox'
+        if jukebox is None:jukebox=True
         source=str((self.bridge.model or {}).get('source','')) if jukebox else self.options['effectsSource']
         position=self.options['position'];duration=self.options['duration']
         if jukebox:
@@ -1508,7 +1617,9 @@ class DesktopWorkspace(QObject):
         rows=self.options['effectsQueue']
         if not 0<=index<len(rows):return
         if self.bridge.state.get('playing') and not self.bridge.state.get('paused'):self.bridge.playPause()
-        row=rows[index];fade=min(self.effects_transition_seconds(),row['duration']/2)
+        row=rows[index]
+        if row.get('error'):self.dispatch('effects_queue_retry',{'index':index});return
+        fade=min(self.effects_transition_seconds(),row['duration']/2)
         from audio_tools import PreviewPlayer
         if self.player.active and self.preview_kind=='effects' and fade:
             outgoing=self.player;position=outgoing.position_snapshot()

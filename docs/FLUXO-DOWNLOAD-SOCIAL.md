@@ -1,5 +1,7 @@
 # Downloads de Instagram, TikTok e Kwai
 
+> **Registro histórico:** descrições de interface e resultados abaixo pertencem às versões indicadas. Para o comportamento atual da 1.2.3, consulte o [inventário](INVENTARIO-FUNCIONALIDADES.md). Os testes registrados não foram reexecutados nesta revisão documental.
+
 O tipo da publicação é consultado antes de aplicar o formato selecionado:
 
 - **Somente fotos:** baixa imagens, mesmo que MP3, MP4 ou MKV esteja selecionado. As opções da aba Imagens continuam sendo aplicadas às fotos.

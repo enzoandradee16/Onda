@@ -52,6 +52,9 @@ ColumnLayout {
         }
     }
     Label { visible: !page.catalog && !page.history; text: workspace.values.playlistTitle || ""; color: bridge.palette.text; font.pixelSize: Math.round(20*bridge.fontScale) }
+    Label {objectName:"collectionCoverage";visible:!page.catalog && !page.history && !!text;Layout.fillWidth:true;wrapMode:Text.Wrap;color:bridge.palette.text;text:bridge.translate(workspace.values.collectionCoverage || "")}
+    ActionButton {visible:!page.catalog && !page.history && workspace.playlistModel.count>0;text:bridge.translate("Conferir lista importada");enabled:workspace.activity.busy.length===0;onClicked:workspace.invoke("compare_imported_collection",{})}
+    Label {visible:!page.catalog && !page.history && !!text;Layout.fillWidth:true;wrapMode:Text.Wrap;color:bridge.palette.muted;text:bridge.translate(workspace.values.collectionReference || "")}
     CardSizeControl { Layout.alignment: Qt.AlignRight; settingKey: page.cardSizeKey }
     ListView { Layout.fillWidth: true; Layout.fillHeight: true; clip: true; spacing: Math.round(10*bridge.spacing); reuseItems: true; model: page.catalog ? workspace.catalogModel : page.history ? workspace.historyModel : workspace.playlistModel
         EmptyState {
@@ -73,7 +76,7 @@ ColumnLayout {
                 OndaMenuItem {visible:page.catalog;text:bridge.translate("Comparar resultados");onTriggered:workspace.invoke("compare_results",{index:rowCard.index})}
                 OndaMenuItem {visible:page.history;text:bridge.translate("Abrir arquivo");onTriggered:workspace.invoke(rowCard.entry.is_image ? "history_preview" : "open_file",{path:rowCard.entry.path,id:rowCard.entry.id})}
                 OndaMenuItem {visible:page.history;text:bridge.translate("Editar metadados");onTriggered:workspace.invoke("history_edit",rowCard.entry.checked ? {} : {index:rowCard.index})}
-                OndaMenuItem {visible:page.history;text:bridge.translate("Efeitos");onTriggered:workspace.invoke("history_effects",{index:rowCard.index})}
+                OndaMenuItem {visible:page.history;text:bridge.translate("Reprodução");onTriggered:workspace.invoke("history_effects",{index:rowCard.index})}
                 OndaMenuItem {visible:page.history;text:bridge.translate("Baixar novamente");enabled:!!rowCard.entry.source;onTriggered:workspace.invoke("history_retry",{index:rowCard.index})}
                 OndaMenuItem {objectName:"removeHistoryContext";visible:page.history;text:bridge.translate("Remover");onTriggered:workspace.invoke("history_remove",{id:rowCard.entry.id})}
             }

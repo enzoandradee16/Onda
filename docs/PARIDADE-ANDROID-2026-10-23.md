@@ -1,5 +1,7 @@
 # Paridade de comportamentos — PC e Android
 
+> **Registro histórico:** descrições de interface e resultados abaixo pertencem às versões indicadas. Para o comportamento atual da 1.2.3, consulte o [inventário](INVENTARIO-FUNCIONALIDADES.md). Os testes registrados não foram reexecutados nesta revisão documental.
+
 ## Estado final da preparação 1.2.0
 
 O PC agora oferece escolha de formato/qualidade por música ao clicar em Baixar agora e compartilha o miniplayer entre Efeitos e Jukebox, com minimização independente. O Android tem player compacto/expandido, letras em tela cheia e seletores arredondados comuns a Downloads, Reprodução e Álbuns. A documentação e as capturas atuais estão no [README](../README.md). Os parágrafos abaixo registram etapas anteriores da revisão e não substituem esse estado final.

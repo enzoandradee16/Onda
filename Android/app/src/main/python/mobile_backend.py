@@ -354,6 +354,9 @@ _jukebox_lock = threading.RLock()
 def jukebox_action(action, config):
     import jukebox,base64
     cancel = _local.state['cancel'].is_set
+    if action=='jukebox_effects':
+        from playback_effects import prepare
+        return {'error_detail':prepare(config['cache'],config.get('effects'),cancel)}
     if action=='jukebox_prepare':
         progress=lambda value:emit('progress',percent=value)
         if config.get('source'):
@@ -388,7 +391,7 @@ def jukebox_action(action, config):
         if action=='jukebox_switch':
             session.switch(config['cache'],config.get('seconds',2));return {}
         if 'seek' in config:session.seek(config['seek'])
-        part=session.chunk(config.get('variation',45),config.get('smooth',35),config.get('volume',80),config.get('normal',False),config.get('equalizer'))
+        part=session.chunk(config.get('variation',45),config.get('smooth',35),config.get('volume',80),config.get('normal',False),config.get('equalizer'),effects=config.get('effects'))
         part['pcm']=base64.b64encode(part['pcm']).decode('ascii')
         return part
 
@@ -406,6 +409,19 @@ def perform(action, config):
             if not record.get(field) and supplied.get(field):record[field]=supplied[field]
         details=perform('probe',config)
         return {'record':record,'cover':cover_preview(source),'duration':float(details.get('format',{}).get('duration') or 0)}
+    if action=='compare_collection_file':
+        from collection_coverage import compare_file
+        return compare_file(config['tracks'],config['source'])
+    if action=='tools_status':
+        from tool_status import read,present,display
+        report=read(_root)
+        return dict(report=report,display=display(report),message=present(report))
+    if action=='tools_check':
+        from tool_status import check,present,display
+        commands={name:[str(_native/('lib'+name+'.so')),'-version'] for name in ('ffmpeg','ffprobe')}
+        commands['QuickJS']=[str(_native/'libqjs.so'),'-e','console.log("Execução confirmada")']
+        report=check(_root,commands)
+        return dict(report=report,display=display(report),message=present(report))
     if action=='image_gallery_manifest':
         from online_image_preview import discover
         return discover(dict(config,_root=str(_root)),_local.state['cancel'].is_set)
@@ -426,7 +442,7 @@ def perform(action, config):
         try:return complete_record(config['record'],value,_local.state['cancel'].is_set)
         finally:value.close()
 
-    if action in ('jukebox_prepare','jukebox_open','jukebox_chunk','jukebox_close','jukebox_switch'):
+    if action in ('jukebox_prepare','jukebox_open','jukebox_chunk','jukebox_close','jukebox_switch','jukebox_effects'):
         return jukebox_action(action,config)
     if action == 'collection_compare':
         from playlist_sync import compare_collection
@@ -569,6 +585,9 @@ def perform(action, config):
         finally:
             value.close()
         return {'tracks': items}
+    if action == 'effects_export_config':
+        from effects_export import export_config
+        return export_config(config['source'],config.get('record'),speed=config.get('speed',100),reverb=config.get('reverb',0),keep_pitch=config.get('keep_pitch',False),enabled=config.get('enabled',True),cover_data=config.get('cover_data',''))
     if action == 'effects':
         from effects_worker import render
         target=Path(config['output'])
@@ -687,7 +706,9 @@ def perform(action, config):
             os.replace(tmp, target)
         finally:
             tmp.unlink(missing_ok=True)
-        return {'version': data['tag_name'], 'message': 'Atualização preparada. Use Forçar parada nas configurações Android e abra o ONDA novamente para aplicar.'}
+        from tool_status import updated,present,display
+        report=updated(_root,True)
+        return {'version': data['tag_name'], 'report':report,'display':display(report),'message':present(report)+'\nAtualização preparada. Use Forçar parada nas configurações Android e abra o ONDA novamente para aplicar.'}
     if action == 'self_test':
         import yt_dlp
         from audio_tools import effects_filter, effect_name
@@ -713,6 +734,9 @@ def run(identity, action, payload, callback):
         result = perform(action, state['config'])
         return json.dumps(result, ensure_ascii=False)
     except Exception as exc:
+        if action=='update':
+            from tool_status import updated
+            updated(_root,False)
         # Errors stay in the UI; credentials, cookie contents and OAuth codes are never dumped.
         return json.dumps({'error': readable_error(exc), 'cancelled': state['cancel'].is_set()}, ensure_ascii=False)
     finally:

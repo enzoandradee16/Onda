@@ -22,6 +22,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import org.json.JSONObject
@@ -40,11 +41,11 @@ import androidx.compose.ui.text.input.ImeAction
     }
 }
 
-@Composable internal fun EffectsTrackInformation(info:JSONObject,source:String,action:@Composable ()->Unit={}) {
+@Composable internal fun EffectsTrackInformation(info:JSONObject,source:String,artworkSize:Dp=96.dp,action:@Composable ()->Unit={}) {
     val record=info.optJSONObject("record") ?: JSONObject()
     ToolCard(Modifier.testTag("effects-track-information")) {
         Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(LayoutSpacing.section)) {
-            EffectsArtwork(info,Modifier.size(96.dp))
+            EffectsArtwork(info,Modifier.size(artworkSize))
             Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.details)) {
                 Text(record.optString("title").ifBlank {importedAudioName(source)},style=MaterialTheme.typography.titleMedium,maxLines=2)
                 Text(record.stringList("artists"),style=MaterialTheme.typography.bodyMedium)
@@ -57,7 +58,7 @@ import androidx.compose.ui.text.input.ImeAction
 }
 
 
-@Composable internal fun PlaybackQueueRow(record:JSONObject,cover:String,duration:Long,current:Boolean,editing:Boolean,play:()->Unit,up:()->Unit,down:()->Unit,remove:()->Unit,canUp:Boolean,canDown:Boolean,preparation:String="",drag:@Composable ()->Unit={}) {
+@Composable internal fun PlaybackQueueRow(record:JSONObject,cover:String,duration:Long,current:Boolean,editing:Boolean,play:()->Unit,up:()->Unit,down:()->Unit,remove:()->Unit,canUp:Boolean,canDown:Boolean,preparation:String="",failed:Boolean=false,drag:@Composable ()->Unit={}) {
     var actions by remember {mutableStateOf(false)}
     Box(Modifier.fillMaxWidth()) {
     Column(Modifier.fillMaxWidth().onSecondaryClick(record.optString("source_url")){actions=true}) {
@@ -67,14 +68,14 @@ import androidx.compose.ui.text.input.ImeAction
                 Text(record.optString("title"),maxLines=1,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis,color=if(current)MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
                 Text(record.stringList("artists"),style=MaterialTheme.typography.bodySmall,maxLines=1,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                 Text(record.cleanString("album"),style=MaterialTheme.typography.labelSmall,maxLines=1)
-                if(preparation.isNotBlank())UiText(preparation,modifier=Modifier.semantics {liveRegion=LiveRegionMode.Polite},style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                if(preparation.isNotBlank())UiText(workflowLabel(preparation,true),modifier=Modifier.semantics {liveRegion=LiveRegionMode.Polite},style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
             }
             if(duration>0)Text(mediaClock(duration),style=MaterialTheme.typography.labelSmall)
-            IconButton(onClick=play){OndaIcon("play",if(current)"Reproduzir novamente" else "Reproduzir",Modifier.size(22.dp))}
+            IconButton(onClick=play){OndaIcon("play",if(failed)"Tentar novamente" else if(current)"Reproduzir novamente" else "Reproduzir",Modifier.size(22.dp))}
             Box {
                 IconButton(onClick={actions=true}){OndaIcon("more-vertical","Mais ações",Modifier.size(20.dp))}
                 DropdownMenu(actions,{actions=false}) {
-                    DropdownMenuItem(text={UiText("Reproduzir")},onClick={actions=false;play()})
+                    DropdownMenuItem(text={UiText(if(failed)"Tentar novamente" else "Reproduzir")},onClick={actions=false;play()})
                     DropdownMenuItem(text={UiText("Mover para cima")},enabled=canUp,onClick={actions=false;up()})
                     DropdownMenuItem(text={UiText("Mover para baixo")},enabled=canDown,onClick={actions=false;down()})
                     DropdownMenuItem(text={UiText("Remover da fila")},onClick={actions=false;remove()})
@@ -95,14 +96,13 @@ import androidx.compose.ui.text.input.ImeAction
     val queue by vm.effectsPlaylist.collectAsStateWithLifecycle()
     val infos by vm.effectsInfo.collectAsStateWithLifecycle()
     val preparations by vm.effectsPreparation.collectAsStateWithLifecycle()
+    val preparationErrors by vm.effectsPreparationErrors.collectAsStateWithLifecycle()
     val preparing by vm.effectsPreparing.collectAsStateWithLifecycle()
     val playing by vm.previewActive.collectAsStateWithLifecycle()
     val listState=rememberLazyListState()
     var editing by remember {mutableStateOf(false)}
     Column(Modifier.fillMaxSize().padding(horizontal=LayoutSpacing.inset).testTag("effects-queue-panel")) {
         Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){UiText("Fila",Modifier.weight(1f),style=MaterialTheme.typography.titleLarge);TextButton(onClick={editing=!editing}){UiText(if(editing)"Pronto" else "Editar")}}
-        val repeat by vm.effectsRepeat.collectAsStateWithLifecycle()
-        PlaybackOrderControls(repeat,{vm.effectsRepeat.value=it})
         if(editing)TextButton(onClick=vm::clearEffectsQueue){UiText("Limpar fila")}
         PlaybackQueueSearch(vm,false)
         val active=queue.indexOf(source)
@@ -114,10 +114,15 @@ import androidx.compose.ui.text.input.ImeAction
                 if(index==active+1)UiText("A seguir",style=MaterialTheme.typography.labelLarge)
                 val info=infos[path] ?: JSONObject()
                 val record=info.optJSONObject("record") ?: JSONObject().put("title",importedAudioName(path))
+                val failure=preparationErrors[path] ?: info.optString("error")
                 DraggableQueueCard(listState,index,queue.size,move={from,to->vm.moveEffectsTrack(from,to-from)}) {
-                PlaybackQueueRow(record,info.optString("cover"),info.optDouble("duration",0.0).toLong(),path==source,editing,{onPlay(index)},{vm.moveEffectsTrack(index,-1)},{vm.moveEffectsTrack(index,1)},{vm.removeEffectsTrack(index)},index>0,index+1<queue.size,preparation=if(path==source&&preparing)"Preparando efeitos…" else if(path==source&&playing)"Reproduzindo" else preparations[path] ?: if(info.has("error"))"Erro na preparação" else "Aguardando preparação",drag={QueueDragHandle(listState,index,queue.size,itemLabel=record.optString("title")){from,to->vm.moveEffectsTrack(from,to-from)}})
+                PlaybackQueueRow(record,info.optString("cover"),info.optDouble("duration",0.0).toLong(),path==source,editing,{if(failure.isNotBlank())vm.retryEffectsPreparation(path) else onPlay(index)},{vm.moveEffectsTrack(index,-1)},{vm.moveEffectsTrack(index,1)},{vm.removeEffectsTrack(index)},index>0,index+1<queue.size,preparation=if(path==source&&preparing)"Preparando efeitos…" else if(path==source&&playing)"Reproduzindo" else preparations[path] ?: if(info.has("error"))"Erro na preparação" else "Aguardando preparação",failed=failure.isNotBlank(),drag={QueueDragHandle(listState,index,queue.size,itemLabel=record.optString("title")){from,to->vm.moveEffectsTrack(from,to-from)}})
                 }
-                if(info.has("error"))TextButton(onClick={vm.loadEffectsInfo(listOf(path),retryErrors=true)}){UiText("Tentar novamente")}
+                if(failure.isNotBlank()) {
+                    UiText(failureAdvice(failure).first,style=MaterialTheme.typography.bodySmall)
+                    UiErrorText(failure,style=MaterialTheme.typography.labelSmall)
+                    TextButton(onClick={vm.retryEffectsPreparation(path)}){UiText("Tentar novamente")}
+                }
             }
         }
     }
@@ -163,12 +168,12 @@ import androidx.compose.ui.text.input.ImeAction
             try {
                 val resolved=vm.jukebox.resolveQueueInput(query,id)
                 val rows=resolved.optJSONArray("tracks")?.objects().orEmpty()
-                if(resolved.optBoolean("is_collection")){vm.addPlaybackCollection(rows,jukeboxTarget);results=emptyList();message="${rows.size} músicas adicionadas à fila."}
+                if(resolved.optBoolean("is_collection")){vm.addPlaybackCollection(rows,jukeboxTarget);results=emptyList();message=resolved.optString("coverage_summary").ifBlank {"${rows.size} músicas adicionadas à fila."}}
                 else {results=rows;if(rows.isEmpty())message="Nenhuma música encontrada."}
             } catch(e:CancellationException){throw e} catch(e:Exception){message=uiExceptionMessage(e,"Falha de pesquisa.")} finally {searching=false;MobileEngine.cancel(id)}
         }
     }
-    OutlinedTextField(query,{query=it},label={UiText(PLAYBACK_INPUT_HINT)},singleLine=true,keyboardOptions=KeyboardOptions(imeAction=ImeAction.Search),keyboardActions=KeyboardActions(onSearch={search()}),modifier=Modifier.fillMaxWidth().testTag("playback-queue-search"))
+    OutlinedTextField(query,{query=it},label={UiText(PLAYBACK_INPUT_HINT)},singleLine=true,keyboardOptions=KeyboardOptions(imeAction=ImeAction.Search),keyboardActions=KeyboardActions(onSearch={search()}),trailingIcon={if(query.isNotEmpty()||results.isNotEmpty()||searching)IconButton(onClick={job?.cancel();MobileEngine.cancel(id);results=emptyList();query="";message="";searching=false},modifier=Modifier.testTag("close-playback-queue-search")){OndaIcon("close","Fechar pesquisa",Modifier.size(22.dp))}},modifier=Modifier.fillMaxWidth().testTag("playback-queue-search"))
     TextButton(onClick=::search,enabled=searching||(!jukeboxTarget&&loading)||query.isNotBlank()){UiText(if(searching||(!jukeboxTarget&&loading))"Cancelar" else "Pesquisar")}
     if(message.isNotBlank())UiText(message,style=MaterialTheme.typography.bodySmall)
     if(results.isNotEmpty())LazyColumn(Modifier.fillMaxWidth().heightIn(max=230.dp)) {

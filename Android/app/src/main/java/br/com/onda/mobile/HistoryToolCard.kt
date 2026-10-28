@@ -72,7 +72,7 @@ internal fun historyDay(time:Long,now:Long=System.currentTimeMillis()):String {
                     DropdownMenuItem(text={UiText("Abrir pasta")},modifier=Modifier.testTag("open-history-folder-${item.id}"),onClick={action {vm.openHistoryFolder(item.uri)}})
                     DropdownMenuItem(text={UiText("Compartilhar")},onClick={action {OndaStore.share(item.uri,item.title)}})
                     if(historyKind(item.mode,item.title)=="Áudio")DropdownMenuItem(text={UiText("Editar metadados")},onClick={action {onEdit(item)}})
-                    if(historySupportsEffects(item))DropdownMenuItem(text={UiText("Usar nos efeitos")},onClick={action {vm.useInEffects(item.uri)}})
+                    if(historySupportsEffects(item))DropdownMenuItem(text={UiText("Reprodução")},onClick={action {vm.useInEffects(item.uri)}})
                     if(historyOrigin(item.source).isNotBlank())DropdownMenuItem(text={UiText("Abrir origem")},onClick={action {runCatching {context.startActivity(Intent(Intent.ACTION_VIEW,Uri.parse(historyOrigin(item.source))).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))}.onFailure {vm.showNotice("Abrir origem","Não foi possível abrir a origem.")}}})
                     HorizontalDivider()
                     DropdownMenuItem(text={UiText("Remover")},modifier=Modifier.testTag("remove-history-${item.id}"),onClick={action {OndaStore.removeHistory(item.id)}})

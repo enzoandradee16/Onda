@@ -1,5 +1,18 @@
 # Histórico de versões
 
+## 1.2.4 — 2026-10-27
+
+- Exportação da reprodução unificada recupera nome **Artista - Música - Efeito**, metadados e capa a partir da faixa selecionada e aplica os parâmetros ativos, sem usar o nome genérico do cache.
+- Repetição controlada pelo botão da reprodução, com ícone **1** para repetir uma música; seletor removido da fila nas duas versões.
+- Reprodução unificada: Efeitos e Jukebox compartilham música, fila e player e podem ser usados juntos, com migração das filas anteriores sem iniciar áudio automaticamente.
+- Transição gradual também na reprodução normal, sem timer e com efeitos; sobreposição limitada ao tempo restante da faixa e saída gradual no fim da fila.
+- Letras continuam sendo escolhidas automaticamente; a busca manual oferece outras gravações e preserva a letra atual ao cancelar.
+- Botão para fechar a pesquisa da fila sem fechar o painel nem remover músicas; no PC, Escape no campo também fecha a pesquisa.
+- Metadados preservados no PC: nomes temporários como “audio” não substituem título, artista e capa já conhecidos; recuperação das filas migradas.
+- Situação das ferramentas em cartões com ícones, detalhes técnicos recolhidos e reinício após verificação bem-sucedida, nas duas versões.
+- Cobertura de playlists parciais, conferência por lista importada e diagnóstico da preparação por música.
+- Inventário de funcionalidades e guias de uso revisados.
+
 ## 1.2.3 — 2026-10-26
 
 - Reorganização visual durante o arraste: os cards vizinhos deslizam para abrir espaço e mostrar o encaixe antes de soltar, no PC e Android.

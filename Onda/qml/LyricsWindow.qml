@@ -7,7 +7,7 @@ Popup {
     parent: Overlay.overlay; anchors.centerIn: parent
     width: Math.min(740,parent.width-48); height: Math.min(520,parent.height-70)
     modal: false; focus: true; padding: 24
-    property var frame: ({text:"",position:0,duration:0,jukebox:false})
+    property var frame: ({text:"",position:0,duration:0,jukebox:true})
     property var lyricLines: []
     background: Card {}
     Timer { interval: 80; running: popup.opened; repeat: true; onTriggered: { var next=workspace.lyricsFrame();if(JSON.stringify(next.lines)!==JSON.stringify(popup.lyricLines))popup.lyricLines=next.lines;popup.frame=next } }

@@ -18,7 +18,7 @@ On Android, updates can download within ONDA, with progress and background conti
 
 On PC, right-click lists or cards to open the actions available in that tab. Shift+F10 and the menu key also open these options; an existing multiple selection is preserved when clicking one of its selected items.
 
-## What is new in 1.2.0
+## Application highlights
 
 - **Windows:** clicking Download now in search opens format and quality selection: MP3, M4A, FLAC or original audio. Saved preferences are preselected. Download immediately or add to the queue; cancelling starts nothing. The selection applies to that track.
 - **Desktop mini players:** Effects and Jukebox share the same design, each with its own artwork, album, transport, volume, lyrics and queue. They remain visible when ONDA is minimized. Appearance settings control whether ONDA minimizes when opening a mini player; drag the header, artwork or track information to move it.
@@ -47,7 +47,7 @@ The Windows executables are not digitally signed. Windows may show a reputation 
 
 ## Language
 
-Version 1.2.0 includes **Português (Brasil)**, **Español** and **English**, in that order, under **Settings → General → Language**. The 1.2.0 packages are prepared locally; publishing them on GitHub is a separate step. Portuguese remains the default language. The name **ONDA** stays the same in every language. Both interfaces use the same translation catalog. The change takes effect immediately on Android; on Windows, restart the app. Your choice is saved even when “Remember settings” is disabled. Song, artist, album and file names remain unchanged.
+The app includes **Português (Brasil)**, **Español** and **English**, in that order, under **Settings → General → Language**. Portuguese remains the default language. The name **ONDA** stays the same in every language. Both interfaces use the same translation catalog. The change takes effect immediately on Android; on Windows, restart the app. Your choice is saved even when “Remember settings” is disabled. Song, artist, album and file names remain unchanged.
 
 On Android, the home-screen and recent-apps icons follow the accent color and light, dark, pure black or system appearance. Some launchers may take time to refresh the icon or require recreating an older shortcut.
 
@@ -63,6 +63,8 @@ On Windows, **Restart** appears below Language only while a language change is p
 
 ## Features
 
+For the current feature catalog, platform differences and code references, see the [complete inventory](docs/INVENTARIO-FUNCIONALIDADES.md) (in Portuguese).
+
 - Searches for music on Deezer, Apple Music and Spotify, retrieving metadata and artwork. Connecting to Spotify is optional and expands search and playlist features.
 - For tracks from streaming catalogs, MP3/M4A use a matching version from YouTube. FLAC uses the Monochrome catalog when a compatible match is available, with audio validation and version selection.
 - Downloads video, audio and image links, including social media posts with multiple media items, when accessible.
@@ -71,7 +73,7 @@ On Windows, **Restart** appears below Language only while a language change is p
 - Converts images and creates Slowed, Sped Up and Reverb versions, with presets, previews, playback seeking and an option to preserve pitch.
 - Offers light, dark, pure black and system themes, 16 accent colors and reorderable tabs.
 
-![Settings and appearance](docs/images/pc/en/aparencia-escuro.png)
+![Settings and appearance](docs/images/onda-configuracoes.png)
 
 ## ONDA on Windows
 

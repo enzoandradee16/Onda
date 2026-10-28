@@ -18,7 +18,7 @@ No Android, novas versões podem ser baixadas dentro do ONDA, com progresso e co
 
 No PC, clique com o botão direito nas listas ou cards para abrir as ações disponíveis naquela aba. Shift+F10 e a tecla de menu também abrem essas opções; uma seleção múltipla é preservada ao clicar em um dos itens selecionados.
 
-## Novidades da versão 1.2.1
+## Destaques do aplicativo
 
 - **Windows:** ao clicar em Baixar agora na pesquisa, escolha MP3, M4A, FLAC ou áudio original e a qualidade disponível. A janela parte das preferências salvas e permite baixar ou adicionar à fila; cancelar não inicia o download. A escolha vale para aquela música.
 - **Miniplayers no PC:** Efeitos e Jukebox compartilham o visual, com capa, álbum, controles, volume, letras e fila próprios. Continuam visíveis ao minimizar o ONDA. A opção de minimizar ao abrir fica em Aparência; capa e informações da faixa também permitem arrastar a janela.
@@ -47,7 +47,7 @@ Os executáveis Windows não têm assinatura digital. O Windows pode mostrar um 
 
 ## Idioma
 
-A versão 1.2.1 inclui **Português (Brasil)**, **Español** e **English**, nessa ordem, em **Configurações → Geral → Idioma**. Português continua como idioma padrão. O nome **ONDA** permanece em todos os idiomas. As duas interfaces usam o mesmo catálogo de tradução. No Android, a alteração é imediata; no Windows, reinicie o aplicativo. A escolha é preservada mesmo com “Lembrar configurações” desativado. Nomes de músicas, artistas, álbuns e arquivos permanecem originais.
+O aplicativo inclui **Português (Brasil)**, **Español** e **English**, nessa ordem, em **Configurações → Geral → Idioma**. Português continua como idioma padrão. O nome **ONDA** permanece em todos os idiomas. As duas interfaces usam o mesmo catálogo de tradução. No Android, a alteração é imediata; no Windows, reinicie o aplicativo. A escolha é preservada mesmo com “Lembrar configurações” desativado. Nomes de músicas, artistas, álbuns e arquivos permanecem originais.
 
 No Android, o ícone da tela inicial e dos aplicativos recentes acompanha a cor de destaque e os modos claro, escuro, preto puro ou sistema. Alguns launchers podem demorar a atualizar o ícone ou exigir recriar um atalho antigo.
 
@@ -62,6 +62,10 @@ Na **Fila** do Windows e em **Downloads** no Android, escolha a exibição compa
 No Windows, **Reiniciar** aparece abaixo de Idioma apenas enquanto houver uma alteração de idioma pendente. Voltar ao idioma atual remove a pendência. A fila é preservada ao reiniciar; operações em andamento precisam terminar primeiro. No Android, o idioma e a aparência mudam imediatamente, sem reinício.
 
 ## O que faz
+
+O [inventário completo de funcionalidades](docs/INVENTARIO-FUNCIONALIDADES.md) reúne os recursos atuais, diferenças entre PC e Android, limitações, configurações e referências ao código para manutenção e planejamento.
+
+Os [guias de uso e desenvolvimento](docs/GUIAS.md) separam as instruções atuais dos relatórios históricos de testes e paridade.
 
 - Pesquisa músicas no Deezer, Apple Music e Spotify; obtém metadados e capas. A conexão com Spotify é opcional e amplia os recursos de pesquisa e playlists.
 - Para músicas de streaming, MP3/M4A usam uma versão equivalente do YouTube. FLAC usa o acervo Monochrome quando houver uma correspondência compatível, com validação do áudio e seleção de versões.

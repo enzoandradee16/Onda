@@ -41,6 +41,15 @@ def spotify_playlist(html, playlist_id, limit=LIMIT):
 
 
 def load_playlist(url, client, limit=LIMIT, account=None, cancelled=lambda: False):
+    result = _load_playlist(url, client, limit, account, cancelled)
+    if 'coverage' not in result:
+        from collection_coverage import annotate
+        annotate(result, result.pop('_total', None), uncertain=result.pop('_uncertain', False),
+                 capped=result.pop('_capped', False), skipped=result.pop('_skipped', 0))
+    return result
+
+
+def _load_playlist(url, client, limit=LIMIT, account=None, cancelled=lambda: False):
     limit = playlist_limit(limit)
     if url.strip().startswith('spotify:album:'):
         url = 'https://open.spotify.com/album/' + url.strip().split(':')[-1]
@@ -77,6 +86,8 @@ def load_playlist(url, client, limit=LIMIT, account=None, cancelled=lambda: Fals
             if not tracks.get("next"):
                 break
         return {"title": data.get("title") or "Playlist Deezer", "tracks": records,
+                "_total": data.get("nb_tracks"), "_capped": bool(tracks.get('next')) and offset >= limit,
+                "_skipped": max(0, offset-len(records)),
                 "cover_url":data.get("picture_xl") or data.get("picture_big"),"subtitle":(data.get("creator") or {}).get("name") or "Deezer","kind":"playlist",
                 "note": f"Até {limit} faixas por importação. Itens indisponíveis são omitidos."}
     if host == "open.spotify.com":
@@ -97,7 +108,7 @@ def load_playlist(url, client, limit=LIMIT, account=None, cancelled=lambda: Fals
         tracks = [{"title": row.get("title") or "Vídeo", "artists": [row.get("uploader") or row.get("channel") or ""],
                    "source_url": "https://www.youtube.com/watch?v=" + row["id"], "duration_ms": (row.get("duration") or 0) * 1000}
                   for row in (result or {}).get("entries", []) if row and re.fullmatch(r"[A-Za-z0-9_-]{11}", row.get("id", ""))]
-        return {"title": result.get("title") or "Playlist YouTube", "tracks": tracks[:limit], "cover_url":next((row.get("url") for row in reversed(result.get("thumbnails") or []) if row.get("url")),None), "subtitle":result.get("uploader") or result.get("channel") or "YouTube", "kind":"playlist", "note": f"YouTube: os próprios vídeos da playlist serão usados; até {limit} itens."}
+        return {"title": result.get("title") or "Playlist YouTube", "tracks": tracks[:limit], "_total":result.get('playlist_count'), "_uncertain":True, "_capped":len(tracks)>limit, "cover_url":next((row.get("url") for row in reversed(result.get("thumbnails") or []) if row.get("url")),None), "subtitle":result.get("uploader") or result.get("channel") or "YouTube", "kind":"playlist", "note": f"YouTube: os próprios vídeos da playlist serão usados; até {limit} itens."}
     raise MetadataError("Use um álbum Spotify, Deezer ou Apple Music, uma playlist Deezer/Spotify/YouTube, ou um TXT/M3U/CSV com links individuais.")
 
 
@@ -115,4 +126,6 @@ def load_text(text, limit=LIMIT):
         records.append({"source_url": line, "title": line, "artists": []})
         if len(records) == limit:
             break
-    return {"title": "Lista de links", "tracks": records, "note": f"Até {limit} links individuais. Os metadados são consultados ao baixar."}
+    from collection_coverage import annotate
+    total=sum(bool(line.strip()) and not line.strip().startswith('#') for line in text.splitlines())
+    return annotate({"title": "Lista de links", "tracks": records, "note": f"Até {limit} links individuais. Os metadados são consultados ao baixar."}, total, capped=total>limit)

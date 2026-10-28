@@ -6,6 +6,7 @@ Popup {
     objectName: "settingsPopup"
     parent: Overlay.overlay; anchors.centerIn: parent; width: Math.min(1050,parent.width-60); height: Math.min(780,parent.height-50)
     padding: 24; modal: true; focus: true
+    onOpened: workspace.invoke("tools_status",{})
     property string category: "Geral"
     readonly property bool searching: search.text.trim().length>0
     readonly property int resultCount: workspace.settingsFields.filter(function(field) {
@@ -68,15 +69,18 @@ Popup {
                         ActionButton { text: bridge.translate(workspace.preferences.youtube_cookies ? "Remover cookies do YouTube" : "Importar cookies do YouTube"); onClicked: { if (workspace.preferences.youtube_cookies) workspace.setSetting("youtube_cookies",""); else workspace.invoke("pick",{kind:"youtube_cookies"}) } }
                         ActionButton { text: bridge.translate(workspace.preferences.social_cookies ? "Remover cookies.txt" : "Importar cookies.txt"); onClicked: { if (workspace.preferences.social_cookies) workspace.setSetting("social_cookies",""); else workspace.invoke("pick",{kind:"social_cookies"}) } }
                     }
-                    Flow { visible: popup.category === "Ferramentas" && !popup.searching; Layout.fillWidth: true; spacing: Math.round(8*bridge.spacing)
+                    ColumnLayout { visible: popup.category === "Ferramentas" && !popup.searching; Layout.fillWidth: true; spacing: Math.round(12*bridge.spacing)
                         ColumnLayout {visible:!!workspace.values.appUpdate && !!workspace.values.appUpdate.available;Layout.fillWidth:true
                             Label {text:workspace.values.appUpdate ? workspace.values.appUpdate.message : "";color:bridge.palette.text;wrapMode:Text.Wrap;Layout.fillWidth:true}
                             Label {text:workspace.values.appUpdate ? workspace.values.appUpdate.notes || "" : "";color:bridge.palette.muted;wrapMode:Text.Wrap;Layout.fillWidth:true;maximumLineCount:8;elide:Text.ElideRight}
-                            Label {visible:workspace.values.appUpdate && workspace.values.appUpdate.size>0;text:workspace.values.appUpdate ? (workspace.values.appUpdate.size/1048576).toFixed(1)+" MB" : "";color:bridge.palette.muted}
+                            Label {visible:!!workspace.values.appUpdate && workspace.values.appUpdate.size>0;text:workspace.values.appUpdate ? (workspace.values.appUpdate.size/1048576).toFixed(1)+" MB" : "";color:bridge.palette.muted}
                             ActionButton {text:bridge.translate("Baixar nova versão");onClicked:workspace.invoke("open_url",{url:workspace.values.appUpdate.url})}
                         }
+                        ToolStatusPanel {Layout.fillWidth:true}
+                        Flow {Layout.fillWidth:true;spacing:Math.round(8*bridge.spacing)
                         Repeater { model: [{name:"Preparar FFmpeg",key:"prepare_tools"},{name:"Verificar ferramentas",key:"verify_tools"},{name:"Atualizar ferramentas",key:"update_tools"},{name:"Verificar atualização do ONDA",key:"app_update"},{name:"Atualizar tamanho do cache",key:"cache_info"},{name:"Limpar cache",key:"cache_clear"}]
                             TaskButton { required property var modelData; objectName: modelData.key; idleText: bridge.translate(modelData.name); operation: modelData.key }
+                        }
                         }
                     }
                     Item { Layout.preferredHeight: 20 }

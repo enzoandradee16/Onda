@@ -6,18 +6,19 @@ from pathlib import Path
 FIELDS = ('effectsQueue','effectsQueueIndex','effectsSource','effectsRecord','effectsCover',
           'position','duration','speed','reverb','keep_pitch','effectsVolume','effectsRepeat','effectsShuffle')
 
-def save(workspace):
+def save(workspace,strict=False):
     bridge=workspace.bridge
-    data={'version':1,'effects':{key:workspace.options[key] for key in FIELDS},
+    data={'version':1,'unified':True,'effectsEnabled':workspace.options.get('effectsEnabled',False),'effects':{key:workspace.options[key] for key in FIELDS},
           'jukebox':{'queue':bridge.playlist,'index':bridge.queue_index,'model':bridge.model,
                      'position':bridge.position,'phase':bridge.phase,'params':bridge._params,'repeat':bridge.queue_repeat,'shuffle':bridge.queue_shuffle}}
     target=workspace.store.path.with_name('playback-session.json')
     try:
         raw=json.dumps(data,ensure_ascii=False,allow_nan=False)
-        if raw==getattr(workspace,'_saved_playback',None):return
+        if not strict and raw==getattr(workspace,'_saved_playback',None):return
         temporary=target.with_suffix('.tmp');temporary.write_text(raw,encoding='utf-8');temporary.replace(target)
         workspace._saved_playback=raw
-    except (OSError,TypeError,ValueError):pass
+    except (OSError,TypeError,ValueError) as error:
+        if strict:raise ValueError('Não foi possível salvar a sessão antes de reiniciar.') from error
 
 def restore(workspace):
     try:
@@ -44,6 +45,11 @@ def restore(workspace):
         old_queue=[row for row in jukebox.get('queue',[]) if isinstance(row,dict)]
         old_index=int(jukebox.get('index',-1));current_id=old_queue[old_index].get('id') if 0<=old_index<len(old_queue) else None
         bridge.playlist=[dict(row,analysis='pending') for row in old_queue if row.get('id') and (row.get('kind')=='catalog' and isinstance(row.get('record'),dict) or row.get('kind')=='file' and isinstance(row.get('source'),str) and Path(row['source']).is_file())]
+        legacy_records={row.get('source'):row.get('record') for row in effects.get('effectsQueue',[]) if isinstance(row,dict) and isinstance(row.get('record'),dict)}
+        if source and effects.get('effectsRecord'):legacy_records[source]=effects['effectsRecord']
+        for entry in bridge.playlist:
+            if entry.get('kind')=='file' and not entry.get('record') and entry.get('source') in legacy_records:
+                entry['record']=dict(legacy_records[entry['source']]);bridge.queue_info(entry,entry['record'])
         bridge.queue_index=next((i for i,row in enumerate(bridge.playlist) if row['id']==current_id),-1)
         if not 0<=bridge.queue_index<len(bridge.playlist):bridge.queue_index=-1
         bridge.setQueueRepeat(jukebox.get('repeat','Desativada'));bridge.setQueueShuffle(bool(jukebox.get('shuffle',False)))
@@ -58,5 +64,29 @@ def restore(workspace):
             bridge.update_state(status=__import__('i18n').tr('Sessão restaurada. Toque em reproduzir.'),playing=False,paused=False)
             bridge.positionChanged.emit()
             if bridge.queue_index>=0:bridge._prepared[bridge.playlist[bridge.queue_index]['id']]=model
+        workspace.options['effectsEnabled']=data.get('effectsEnabled',False) is True
+        if not data.get('unified'):
+            import uuid
+            # Merge once. The original effects snapshot is retained for recovery.
+            candidates=list(effects.get('effectsQueue',[]))
+            if source and not any(row.get('source')==source for row in candidates):candidates.insert(0,dict(source=source,record=effects.get('effectsRecord',{})))
+            for row in candidates:
+                if not isinstance(row,dict):continue
+                path=row.get('source','');record=row.get('record') or {}
+                if Path(path).is_file():
+                    entry=dict(id=uuid.uuid4().hex,kind='file',source=path,record=dict(record),title=record.get('title') or Path(path).stem,analysis='pending')
+                    if path==source:entry['restore_seconds']=max(0,float(effects.get('position',0)))
+                    bridge.queue_info(entry,record);bridge.playlist.append(entry)
+                elif record.get('source_url'):
+                    entry=dict(id=uuid.uuid4().hex,kind='catalog',record=record,title=record.get('title') or path,analysis='pending')
+                    bridge.queue_info(entry,record);bridge.playlist.append(entry)
+            if not bridge.model and Path(source).is_file():
+                # Restoration stays silent; preparation starts only on an explicit play.
+                bridge.queue_index=next((i for i,row in enumerate(bridge.playlist) if row.get('source')==source),-1)
+                bridge.update_state(title=effects.get('effectsRecord',{}).get('title') or Path(source).stem,status='Sessão restaurada. Toque em reproduzir.')
+                bridge._params=bridge._params[:3]+(True,)
+                bridge._params=bridge._params[:2]+(effects.get('effectsVolume',80),True)
+                bridge.setQueueRepeat(effects.get('effectsRepeat','Desativada'));bridge.setQueueShuffle(bool(effects.get('effectsShuffle',False)))
+                workspace.options['effectsEnabled']=True
         workspace.optionsChanged.emit();bridge.queueChanged.emit()
     except (OSError,ValueError,TypeError,KeyError,AttributeError):return

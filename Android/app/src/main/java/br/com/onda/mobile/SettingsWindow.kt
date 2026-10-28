@@ -165,7 +165,6 @@ val categories=linkedMapOf(
                         Select("Tamanho dos cards do histórico",settings.optString("history_card_size","Grande"),listOf("Pequeno","Médio","Grande")){put("history_card_size",it)}
                         SettingsDivider()
                         UiText("Navegação",style=MaterialTheme.typography.titleMedium)
-                        Select("Ordem das abas de reprodução",settings.optString("playback_tab_order","Efeitos primeiro"),listOf("Efeitos primeiro","Jukebox infinito primeiro")){put("playback_tab_order",it)}
                         UiText("Pesquisar, Downloads e Mais ficam na barra inferior. Use + em Downloads para adicionar links. As ferramentas ficam no menu Mais.",style=MaterialTheme.typography.bodySmall)
                         UiText("Ordem da barra inferior",style=MaterialTheme.typography.titleSmall)
                         val bottomOrder=bottomBarOrder(settings)
@@ -289,11 +288,7 @@ val categories=linkedMapOf(
                     "Ferramentas"->{
                         AppUpdateControls(vm)
                         SettingsDivider()
-                        UiText("Ferramentas e atualizações",style=MaterialTheme.typography.titleMedium)
-                        UiText("Python, FFmpeg, FFprobe e QuickJS já estão incluídos no aplicativo. Não é necessário instalar Termux.")
-                        Button(onClick={vm.operation("update",JSONObject(),dialog=true)},enabled=!busy && !tools.running){UiText(if(tools.running)"Em andamento…" else "Atualizar ferramentas")}
-                        SettingsDivider()
-                        OutlinedButton(onClick={vm.operation("self_test",JSONObject(),dialog=true){vm.showNotice("Verificar ferramentas","Ferramentas verificadas: ${it.optString("yt_dlp")}")}}){UiText("Verificar ferramentas")}
+                        ToolStatusControls(vm)
                         CacheControls(vm)
                         SettingsDivider()
                         UiText("ONDA Android ${BuildConfig.VERSION_NAME}" + if(BuildConfig.DEBUG) " · versão de desenvolvimento" else "",style=MaterialTheme.typography.bodySmall)

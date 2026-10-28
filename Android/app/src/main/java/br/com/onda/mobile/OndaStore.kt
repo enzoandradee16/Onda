@@ -287,7 +287,7 @@ object OndaStore {
         items.value=items.value.filterNot {it.id in removable}
         if(items.value.isEmpty())queueTiming.reset()
     }
-    fun retry(ids: Set<String>) { ids.filter { it!=active.value && it !in DownloadRuntime.ids }.forEach { update(it,"Pendente",0f,"") } }
+    fun retry(ids: Set<String>) { ids.filter { id->id!=active.value && id !in DownloadRuntime.ids && items.value.any {it.id==id && canQueueAction(it.state,"retry")} }.forEach { update(it,"Pendente",0f,"") } }
     @Synchronized fun replaceDownloadLink(id:String,url:String):Boolean {
         val value=url.trim()
         val valid=runCatching {java.net.URI(value).let {it.scheme?.lowercase(java.util.Locale.ROOT) in listOf("http","https") && !it.host.isNullOrBlank() && it.userInfo==null}}.getOrDefault(false)

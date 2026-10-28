@@ -170,19 +170,67 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
     private val effectsInfoRequests=mutableSetOf<String>()
     private val effectsCatalogRecords=mutableMapOf<String,JSONObject>()
     fun appendEffectsRecord(source:String,record:JSONObject){
-        effectsCatalogRecords[source]=JSONObject(record.toString())
-        effectsInfo.value[source]?.let {info->
-            val merged=JSONObject(info.toString())
-            val tags=JSONObject(info.optJSONObject("record")?.toString() ?: "{}")
-            for(field in listOf("title","artists","album","cover_url"))if(record.has(field)&&record.optString(field).isNotBlank())tags.put(field,record.get(field))
-            merged.put("record",tags);effectsInfo.value=effectsInfo.value+(source to merged)
-        }
-        appendEffectsFiles(listOf(source))
+        jukebox.enqueue(JSONObject(record.toString()).apply {if(java.io.File(source).isFile)put("_local_source",source)})
     }
     private val effectsInfoSlots=kotlinx.coroutines.sync.Semaphore(2)
     val appUpdate=MutableStateFlow<JSONObject?>(null)
+    private var restartRequested=false
+    internal fun restartReturned() {
+        if(restartRequested){restartRequested=false;busy.value=false;status.value="Não foi possível reiniciar o ONDA."}
+    }
+    fun restartAfterToolCheck() {
+        if(restartRequested || busy.value || DownloadRuntime.running.get() || MobileEngine.toolsState.value.running || effectsPreparing.value || loadingPlaybackCollection.value || jukebox.state.value.busy)return
+        restartRequested=true;busy.value=true
+        viewModelScope.launch {
+            try {
+                val result=withContext(Dispatchers.IO){MobileEngine.call(getApplication(),"restart-tool-check","tools_status",JSONObject(),EventCallback {})}
+                if(!restartRequested)return@launch
+                require(result.optJSONObject("display")?.optBoolean("can_restart")==true){"Verifique as ferramentas antes de reiniciar."}
+                require(!DownloadRuntime.running.get() && !effectsPreparing.value && !loadingPlaybackCollection.value && !jukebox.state.value.busy){"Aguarde as operações em andamento antes de reiniciar."}
+                pauseEffectsPlayback();jukebox.pauseForRestart()
+                savePlaybackSession(synchronous=true);jukebox.savePlaybackSession(synchronous=true)
+                val context=getApplication<Application>()
+                check(context.getSharedPreferences("preferences",0).edit().commit()){"Não foi possível salvar a sessão antes de reiniciar."}
+                status.value="Reiniciando ONDA…"
+                context.startActivity(android.content.Intent(context,RestartActivity::class.java)
+                    .putExtra("parent_pid",android.os.Process.myPid()).putExtra("message",translateUi("Reiniciando ONDA…"))
+                    .putExtra("dark",OndaStore.settings.value.optString("theme")!="Claro").addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+            } catch(e:Exception){showNotice("Reiniciar ONDA",uiExceptionMessage(e,"Não foi possível reiniciar o ONDA."),true);restartRequested=false;busy.value=false}
+        }
+    }
+
     val effectsPreparation=MutableStateFlow<Map<String,String>>(emptyMap())
-    private fun effectPreparation(source:String,value:String){effectsPreparation.value=effectsPreparation.value+(source to value)}
+    val effectsPreparationErrors=MutableStateFlow<Map<String,String>>(emptyMap())
+    private fun effectPreparation(source:String,value:String){effectsPreparation.value=effectsPreparation.value+(source to value);if(value!="Erro na preparação")effectsPreparationErrors.value=effectsPreparationErrors.value-source}
+    private fun effectFailure(source:String,message:String){effectPreparation(source,"Erro na preparação");effectsPreparationErrors.value=effectsPreparationErrors.value+(source to message)}
+    private val retryingEffects=mutableSetOf<String>()
+    fun retryEffectsPreparation(source:String) {
+        if(!retryingEffects.add(source))return
+        viewModelScope.launch {
+            var target=source
+            try {
+                val original=effectsInfo.value[source]
+                if(original?.optBoolean("_remote")==true) {
+                    effectPreparation(source,"Preparando efeitos…")
+                    val id="effects-retry-"+UUID.randomUUID()
+                    val result=try {withContext(Dispatchers.IO){MobileEngine.call(getApplication(),id,"effects_load",OndaStore.config().put("record",original.getJSONObject("record")),EventCallback {})}} finally {MobileEngine.cancel(id)}
+                    require(!result.has("error")){result.optString("error")}
+                    ensureActive();target=result.getString("source")
+                    if(source !in effectsPlaylist.value)return@launch
+                    effectsCatalogRecords[target]=result.optJSONObject("record") ?: original.getJSONObject("record")
+                    effectsPlaylist.value=effectsPlaylist.value.map {if(it==source)target else it}
+                    effectsInfo.value=effectsInfo.value-source
+                }
+                loadEffectsInfo(listOf(target),retryErrors=true)
+                val info=effectsInfo.first {it.containsKey(target)}[target] ?: return@launch
+                if(info.has("error"))return@launch
+                val duration=info.optDouble("duration")
+                if(duration>0){val (speed,reverb,pitch)=effectsControlSnapshot();preloadEffectsTrack(target,speed,reverb,pitch,duration)}
+            } catch(e:CancellationException){throw e}
+            catch(e:Exception){effectFailure(target,uiExceptionMessage(e,"Não foi possível preparar esta música."))}
+            finally {retryingEffects.remove(source)}
+        }
+    }
     fun loadEffectsInfo(sources:List<String>,retryErrors:Boolean=false) {
         for(source in sources) {
             val cached=effectsInfo.value[source]
@@ -208,12 +256,12 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
                     if(lyricsCache.value[source]?.isEmpty()==true)lyricsCache.value=lyricsCache.value-source
                     lookupLyrics(source)
                 } catch(error:CancellationException){throw error}
-                catch(error:Exception){effectPreparation(source,"Erro na preparação");effectsInfo.value=effectsInfo.value+(source to JSONObject().put("error",uiExceptionMessage(error,"Não foi possível ler o áudio.")))}
+                catch(error:Exception){effectFailure(source,uiExceptionMessage(error,"Não foi possível ler o áudio."));effectsInfo.value=effectsInfo.value+(source to JSONObject().put("error",uiExceptionMessage(error,"Não foi possível ler o áudio.")))}
                 finally {effectsInfoRequests.remove(source);MobileEngine.cancel(id)}
             }
         }
     }
-    fun appendEffectsFiles(sources:List<String>){effectsPlaylist.value=(effectsPlaylist.value+sources).distinct();loadEffectsInfo(sources)}
+    fun appendEffectsFiles(sources:List<String>){sources.forEach {path->jukebox.enqueue(JSONObject().put("_local_source",path).put("title",importedAudioName(path)))}}
     fun moveEffectsTrack(index:Int,direction:Int){val rows=effectsPlaylist.value;if(index !in rows.indices||index+direction !in rows.indices)return;effectsCursor=playbackCursorAfterMove(effectsQueueIndex(effectsSource.value),index,index+direction);effectsPlaylist.value=movePlaybackEntry(rows,index,direction)}
     fun removeEffectsTrack(index:Int){if(index !in effectsPlaylist.value.indices)return;effectsCursor=effectsQueueIndex(effectsSource.value);if(index<=effectsCursor)effectsCursor--;effectsPlaylist.value=effectsPlaylist.value.filterIndexed {i,_->i!=index}}
     fun clearEffectsQueue(){effectsPlaylist.value=emptyList();effectsCursor=-1}
@@ -278,22 +326,7 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
         }
         playEffectsQueueTrack(target)
     }
-    fun addPlaybackCollection(records:List<JSONObject>,jukeboxTarget:Boolean) {
-        if(jukeboxTarget){records.forEach {jukebox.enqueue(it)};return}
-        if(loadingPlaybackCollection.value)return
-        loadingPlaybackCollection.value=true
-        playbackCollectionJob=viewModelScope.launch {
-            var failures=0
-            try {for(record in records) {
-                try {
-                    val id="playback-collection-"+UUID.randomUUID();playbackCollectionId=id
-                    val result=try {withContext(Dispatchers.IO){MobileEngine.call(getApplication(),id,"effects_load",OndaStore.config().put("record",record),EventCallback {})}} finally {MobileEngine.cancel(id)}
-                    ensureActive();val source=result.getString("source");appendEffectsRecord(source,result.optJSONObject("record") ?: record)
-                } catch(e:CancellationException){throw e} catch(e:Exception){failures++}
-            }} finally {loadingPlaybackCollection.value=false;playbackCollectionId=""}
-            if(failures>0)showNotice("Fila de reprodução","$failures músicas não puderam ser carregadas. Tente novamente.")
-        }
-    }
+    fun addPlaybackCollection(records:List<JSONObject>,jukeboxTarget:Boolean) {records.forEach {jukebox.enqueue(it)}}
     internal fun mediaPauseEffects(){pauseEffectsPlayback()}
     fun stopTransientPreview(){if(!effectFullTrack)stopPreview(false)}
     fun playEffectsQueueTrack(index:Int) {
@@ -383,9 +416,9 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
                 val path=result.optString("path")
                 if(!isActive||effectPreloadKey!=key){if(path.isNotBlank())java.io.File(path).delete()}
                 else if(path.isNotBlank()){preloadedEffects[key]=path;effectPreparation(source,"Efeitos prontos")}
-                else if(effectPreloadKey==key){effectPreloadKey=null;effectPreparation(source,"Erro na preparação")}
+                else if(effectPreloadKey==key){effectPreloadKey=null;effectFailure(source,result.optString("error").ifBlank {"Não foi possível preparar esta música."})}
             } catch(error:CancellationException){throw error}
-            catch(error:Exception){if(effectPreloadKey==key){effectPreloadKey=null;effectPreparation(source,"Erro na preparação")}}
+            catch(error:Exception){if(effectPreloadKey==key){effectPreloadKey=null;effectFailure(source,uiExceptionMessage(error,"Não foi possível preparar esta música."))}}
             finally {MobileEngine.cancel(id);if(effectPreloadId==id)effectPreloadId=""}
         }
     }
@@ -428,7 +461,7 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
                 val result=if(cached!=null){JSONObject().put("path",cached)} else withContext(Dispatchers.IO) {MobileEngine.call(getApplication(),id,"preview",payload,EventCallback {})}
                 val path=result.optString("path")
                 if(revision!=effectRevision || !effectsPreviewEnabled.value) {if(path.isNotBlank()) java.io.File(path).delete();continue}
-                if(result.has("error")) {clearEffectTail();status.value=translateError(result.getString("error"));effectsPreviewEnabled.value=false;effectsPreparing.value=false;continue}
+                if(result.has("error")) {effectFailure(payload.getString("source"),result.getString("error"));clearEffectTail();status.value=translateError(result.getString("error"));effectsPreviewEnabled.value=false;effectsPreparing.value=false;continue}
                 val previous=effectOutput
                 player.stop()
                 effectOutput=path;effectAnchor=position;effectSpeed=payload.getInt("speed")
@@ -438,7 +471,7 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
                 fadeEffectsIn()
                 effectsPreparing.value=false
                 if(previous.isNotBlank() && previous!=path && previous!=effectTailPath) java.io.File(previous).delete()
-            } catch(error:Exception) {if(revision==effectRevision && effectsPreviewEnabled.value) {clearEffectTail();status.value=uiExceptionMessage(error,"Não foi possível atualizar a prévia");effectsPreviewEnabled.value=false;effectsPreparing.value=false}}
+            } catch(error:Exception) {if(revision==effectRevision && effectsPreviewEnabled.value) {effectFailure(payload.getString("source"),uiExceptionMessage(error,"Não foi possível preparar esta música."));clearEffectTail();status.value=uiExceptionMessage(error,"Não foi possível atualizar a prévia");effectsPreviewEnabled.value=false;effectsPreparing.value=false}}
             finally {if(effectRenderId==id) effectRenderId=""}
         }
     }}
@@ -718,7 +751,7 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
     fun useInEffects(uri: String) {
         importLocal(Uri.parse(uri),"audio") { file ->
             stopPreview(false)
-            effectsSource.value=file.absolutePath;playbackMode.value=0;effectsNavigation.value=true
+            jukebox.prepare(file.absolutePath);playbackMode.value=1;effectsNavigation.value=true
         }
     }
     fun preview(url: String, seconds: Int=25, startSeconds: Int=0, effects:Boolean=false,fullTrack:Boolean=false) {
@@ -799,12 +832,12 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
             finally {addingToQueue.value=false}
         }
     }
-    internal fun savePlaybackSession() {
+    internal fun savePlaybackSession(synchronous:Boolean=false) {
         val data=JSONObject().put("source",effectsSource.value).put("position",effectsPosition.value.takeIf {it.isFinite()} ?: 0.0).put("duration",effectDuration.takeIf {it.isFinite()} ?: 0.0)
             .put("queue",JSONArray(effectsPlaylist.value)).put("repeat",effectsRepeat.value).put("shuffle",effectsShuffle.value)
             .put("speed",effectsSelectedSpeed).put("reverb",effectsSelectedReverb).put("pitch",effectsSelectedPitch).put("mode",playbackMode.value)
             .put("info",JSONObject().apply {effectsInfo.value.forEach {(key,value)->put(key,JSONObject(value.toString()).apply {remove("cover")})}})
-        PlaybackSessions.save(getApplication(),"effects",data)
+        PlaybackSessions.save(getApplication(),"effects",data,synchronous)
     }
     init {
         PlaybackSessions.load(getApplication(),"effects")?.let {data->
@@ -820,6 +853,8 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
             effectsSelectedSpeed=data.optInt("speed",85).coerceIn(50,150);effectsSelectedReverb=data.optInt("reverb",25).coerceIn(0,100);effectsSelectedPitch=data.optBoolean("pitch")
             if(!data.isNull("mode"))playbackMode.value=data.optInt("mode").takeIf {it in 0..1}
         }
+        jukebox.migrateEffectsSession(PlaybackSessions.load(getApplication(),"effects"))
+        playbackMode.value=1
         viewModelScope.launch {while(isActive){delay(5000);savePlaybackSession()}}
     }
     override fun onCleared() { closeOnlineImages();cancelOnlineImagePreview();cancelPlaybackCollection();savePlaybackSession();jukebox.stopOtherAudio={};stopPreview(false);EffectsPlaybackRuntime.clear(this);cancel();effectRequests.close();effectPreload?.cancel();if(effectPreloadId.isNotBlank())MobileEngine.cancel(effectPreloadId);preloadedEffects.values.forEach {java.io.File(it).delete()};player.release(); super.onCleared() }

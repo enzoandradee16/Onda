@@ -23,6 +23,8 @@ def read_audio(source):
         values={tag:list(audio.tags[frame].text) if frame in audio.tags else [] for tag,frame in tags.items()}
     else:values=audio
     record={key: list(values.get(tag,[])) if key=='artists' else next(iter(values.get(tag,[])),'') for key,tag in FIELDS.items()}
+    # WAV exposes ID3 dates as ID3TimeStamp objects; callers persist/serialize records.
+    record={key:[str(item) for item in value] if key=='artists' else str(value) if value is not None else '' for key,value in record.items()}
     record['title']=record['title'] or path.stem
     record['duration']=getattr(audio.info,'length',0)
     return record

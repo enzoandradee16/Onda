@@ -113,6 +113,9 @@ def render(config):
                     errors.seek(0)
                     raise ValueError("FFmpeg: " + errors.read(4000).decode("utf-8", errors="replace"))
         preserve_tags(source, temporary, effect_name(config.get("speed", 100), config.get("reverb", 0)))
+        if config.get('record') or config.get('cover_data') or config.get('cover_url'):
+            from effects_export import apply_export_metadata
+            apply_export_metadata(temporary,config)
         # Never overwrite a new file created while rendering unless authorized.
         if output.exists() and not config.get("replace"):
             raise ValueError("O arquivo de saída já existe. Escolha outro nome.")

@@ -20,8 +20,12 @@ Canvas {
         else if(g==="next"){line(19,5,19,19);path([6,5,16,12,6,19],true)}
         else if(g==="stop")c.strokeRect(6,6,12,12)
         else if(g==="close"){line(6,6,18,18);line(6,18,18,6)}
+        else if(g==="check")path([5,12,10,17,20,6])
+        else if(g==="warning"){path([12,3,22,21,2,21],true);line(12,9,12,14);line(12,17,12,17.3)}
         else if(g==="add"){line(12,4,12,20);line(4,12,20,12)}
         else if(g==="shuffle"){path([3,6,7,6,17,18,21,18]);path([3,18,7,18,17,6,21,6]);path([18,3,21,6,18,9]);path([18,15,21,18,18,21])}
+        else if(g==="repeat"||g==="repeat-one"){path([4,10,4,6,20,6,17,3]);path([20,14,20,18,4,18,7,21]);path([17,9,20,6]);path([7,15,4,18]);if(g==="repeat-one"){path([10,10,12,9,12,15]);line(10,15,14,15)}}
+        else if(g==="equalizer"){line(5,3,5,21);line(12,3,12,21);line(19,3,19,21);circle(5,8,2.5);circle(12,16,2.5);circle(19,10,2.5)}
         else if(g==="up"){path([6,10,12,4,18,10]);line(12,4,12,20)}
         else if(g==="down"){path([6,14,12,20,18,14]);line(12,4,12,20)}
         else if(g==="minimize")line(5,12,19,12)

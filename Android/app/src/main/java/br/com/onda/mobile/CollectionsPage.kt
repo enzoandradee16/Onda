@@ -27,6 +27,11 @@ import org.json.JSONObject
 
 @Composable fun CollectionsPage(vm: OndaViewModel) {
     val collection by vm.collection.collectAsStateWithLifecycle()
+    var referenceResult by remember {mutableStateOf("")}
+    val compareFile=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) {uri->if(uri!=null)vm.importLocal(uri,"collection-reference") {file->
+        vm.operation("compare_collection_file",JSONObject().put("source",file.absolutePath).put("tracks",vm.collection.value.optJSONArray("tracks") ?: JSONArray())) {referenceResult=it.optString("message");file.delete()}
+    }}
+    LaunchedEffect(collection){referenceResult=""}
     val comparison by vm.collectionComparison.collectAsStateWithLifecycle()
     val busy by vm.busy.collectAsStateWithLifecycle()
     var libraryTab by rememberSaveable {mutableIntStateOf(if(collection.optString("title").isNotBlank())1 else 0)}
@@ -146,6 +151,9 @@ import org.json.JSONObject
                     }
                 }
                 OutlinedButton(onClick={libraryScope.launch {val snapshot=JSONObject(collection.toString());val next=(listOf(snapshot)+saved.filter {CollectionsLibrary.identity(it)!=CollectionsLibrary.identity(snapshot)}).take(30);runCatching {CollectionsLibrary.write(next)}.onSuccess {saved=next;vm.status.value="Coleção salva."}.onFailure {vm.showNotice("Salvar coleção","Não foi possível salvar a coleção.")}}},modifier=Modifier.fillMaxWidth()){UiText("Salvar coleção")}
+                if(collection.cleanString("coverage_summary").isNotBlank())UiText(collection.cleanString("coverage_summary"),style=MaterialTheme.typography.bodyMedium)
+                TextButton(enabled=!busy,onClick={compareFile.launch(arrayOf("text/*","application/octet-stream","application/vnd.ms-excel"))}){UiText("Conferir lista importada")}
+                if(referenceResult.isNotBlank())UiText(referenceResult,style=MaterialTheme.typography.bodySmall)
                 if(collection.cleanString("note").isNotBlank()) UiText(collection.cleanString("note"),style=MaterialTheme.typography.bodySmall,modifier=Modifier.padding(bottom=8.dp))
             }
         }

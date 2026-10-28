@@ -1,5 +1,7 @@
 # Comparação PC × Android — 12/10/2026
 
+> **Registro histórico:** descrições de interface e resultados abaixo pertencem às versões indicadas. Para o comportamento atual da 1.2.3, consulte o [inventário](../docs/INVENTARIO-FUNCIONALIDADES.md). Os testes registrados não foram reexecutados nesta revisão documental.
+
 **Atualização 1.1.0:** idiomas PT/ES/EN, cards e controles da fila/Histórico e reinício pendente PC. Consulte a [validação 1.1.0](../docs/VALIDACAO-1.1.0.md). O levantamento abaixo é histórico e mantém o contexto da versão em que foi escrito.
 
 Revisão de código da versão Android 1.0.0-alpha.4 e do PC presente na mesma pasta. Ter o motor Python compartilhado não significa que todos os controles ou fluxos do PC tenham sido portados. Este relatório separa recursos existentes, lacunas de interface e validação pendente.

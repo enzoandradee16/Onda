@@ -191,7 +191,7 @@ import org.json.JSONObject
                         LinearProgressIndicator(progress={item.progress/100},modifier=Modifier.weight(1f).height(4.dp),strokeCap=StrokeCap.Round,drawStopIndicator={})
                         Text("${item.progress.toInt()}%",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
                     } else LinearProgressIndicator(modifier=Modifier.weight(1f).height(4.dp),strokeCap=StrokeCap.Round)
-                } else UiText(item.state,style=MaterialTheme.typography.labelSmall,color=if(item.state=="Erro")MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
+                } else UiText(workflowLabel(item.state),style=MaterialTheme.typography.labelSmall,color=if(item.state=="Erro")MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
                 if(activity.isNotBlank() && item.state in listOf("Baixando","Pausado","Aguardando escolha"))UiText(activity,style=MaterialTheme.typography.bodySmall,maxLines=2,overflow=TextOverflow.Ellipsis)
             }
             if(item.state=="Concluído")OndaIcon("check","Concluído",Modifier.size(22.dp),tint=MaterialTheme.colorScheme.primary)

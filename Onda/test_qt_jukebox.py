@@ -32,7 +32,7 @@ class QtJukeboxTests(unittest.TestCase):
         self.app.processEvents();self.env.stop();self.temp.cleanup()
     def bridge(self):
         from qt_jukebox_ui import JukeboxBridge
-        bridge=JukeboxBridge(self.store);bridge.config_provider=lambda:{'ffmpeg':str(TOOLS),'spotify_client_id':'','spotify_client_secret':''};self.bridges.append(bridge);return bridge
+        bridge=JukeboxBridge(self.store);bridge.setParams(45,35,80,False);bridge.config_provider=lambda:{'ffmpeg':str(TOOLS),'spotify_client_id':'','spotify_client_secret':''};self.bridges.append(bridge);return bridge
     def wait(self,milliseconds):
         loop=QEventLoop();QTimer.singleShot(milliseconds,loop.quit);loop.exec()
     def wait_for(self,predicate,timeout=6000):
@@ -127,6 +127,7 @@ class QtJukeboxTests(unittest.TestCase):
         with patch.object(bridge,'config',return_value={'ffmpeg':str(tools)}):
             bridge.openFile(QUrl.fromLocalFile(str(source)));self.wait_for(lambda:not bridge.state['busy'],10000)
         self.assertTrue(bridge.state['ready'],bridge.state['status']);self.assertEqual(bridge.state['title'],'Teste local')
+        bridge.clearPlaybackQueue()  # Opening a source now also inserts its shared queue entry.
         return bridge.model
     def test_playback_queue_reordering_next_and_autoplay(self):
         bridge=self.bridge();model=self.prepare_model(bridge);source=Path(self.temp.name)/'Teste local.wav'
@@ -172,6 +173,26 @@ class QtJukeboxTests(unittest.TestCase):
             self.wait_for(lambda:bridge.queue_index==1,10000)
             self.assertEqual(len(Output.instances),1);self.assertFalse(cancel.is_set())
             self.assertTrue(bridge.playback['sleepActive']);self.assertEqual(bridge.track_minutes,1)
+            bridge.stop();self.wait_for(lambda:all(not t.is_alive() for t in bridge.workers))
+    def test_normal_crossfade_with_effects_needs_no_timer_or_second_output(self):
+        bridge=self.bridge();model=self.prepare_model(bridge);source=Path(self.temp.name)/'Teste local.wav'
+        from playback_effects import prepare
+        effects=dict(enabled=True,speed=85,reverb=25,keep_pitch=False)
+        self.assertEqual(prepare(model['cache'],effects),'')
+        bridge.setEffects(effects);bridge.setParams(45,35,80,True)
+        class Output:
+            instances=[]
+            def __init__(self,progress):self.progress=progress;self.frames=0;self.buffers=[];self.instances.append(self)
+            def write(self,data,cancelled,paused):
+                self.frames+=len(data)//4;self.progress(self.frames);time.sleep(.01)
+            def close(self):pass
+        with patch.object(bridge,'prepare_local',return_value=model),patch('jukebox_audio.PcmOutput',Output):
+            bridge.enqueueFiles([QUrl.fromLocalFile(str(source)),QUrl.fromLocalFile(str(source))])
+            self.wait_for(lambda:all(row['analysis']=='ready' for row in bridge.playlist))
+            self.assertEqual(bridge.track_minutes,0);self.assertIsNone(bridge.sleep.deadline)
+            bridge.playQueued(0);cancel=bridge.cancelled
+            self.wait_for(lambda:bridge.queue_index==1,10000)
+            self.assertEqual(len(Output.instances),1);self.assertFalse(cancel.is_set())
             bridge.stop();self.wait_for(lambda:all(not t.is_alive() for t in bridge.workers))
 
     def test_close_search_keeps_audio_queue_and_timers(self):
@@ -287,13 +308,13 @@ class QtJukeboxTests(unittest.TestCase):
             from PySide6.QtCore import Qt
             workspace.selectPage('jukebox')
             workspace.setSetting('playback_tab_order','Jukebox infinito primeiro');self.wait(30)
-            tabs=window.findChild(QObject,'playbackTabsLayout');self.assertEqual(tabs.property('layoutDirection'),Qt.RightToLeft)
-            self.assertGreater(window.findChild(QObject,'effectsTab').x(),window.findChild(QObject,'jukeboxTab').x())
+            tabs=window.findChild(QObject,'playbackTabsLayout');self.assertIsNone(tabs)
+            self.assertIsNone(window.findChild(QObject,'effectsTab'))
             self.assertEqual(workspace.currentPage,'jukebox')
             workspace.persist();self.assertEqual(workspace.store.load()['playback_tab_order'],'Jukebox infinito primeiro')
             workspace.setSetting('playback_tab_order','Efeitos primeiro');self.wait(30)
-            self.assertEqual(tabs.property('layoutDirection'),Qt.LeftToRight)
-            self.assertLess(window.findChild(QObject,'effectsTab').x(),window.findChild(QObject,'jukeboxTab').x())
+            self.assertIsNone(window.findChild(QObject,'playbackTabsLayout'))
+            workspace.selectPage('effects')
             self.assertEqual(workspace.currentPage,'jukebox')
             bridge.update_state(playing=True,title='Mini player test',artist='Artist',album='Album')
             workspace.selectPage('catalog');self.wait(40)

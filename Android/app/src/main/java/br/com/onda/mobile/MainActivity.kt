@@ -55,6 +55,7 @@ class MainActivity : ComponentActivity() {
         setContent { OndaApp(model) }
     }
     override fun onStop() {model.savePlaybackSession();model.jukebox.savePlaybackSession();super.onStop()}
+    override fun onResume() {super.onResume();model.restartReturned()}
     override fun onNewIntent(intent: Intent) { super.onNewIntent(intent); setIntent(intent); receive(intent) }
     // Public Activity override; AndroidX's bridge carries an internal annotation.
     @android.annotation.SuppressLint("RestrictedApi")
@@ -212,7 +213,7 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
         }
     }
 }
-fun tabLabel(tab: String)=when(tab) {"Conversor de vídeos"->"Conversor";"Links e fila"->"Links";"Metadados"->"Editar metadados";"Pesquisar"->"Pesquisar músicas";"Efeitos"->"Reprodução e efeitos";"Playlists / Álbuns"->"Álbuns e playlists";else->tab}
+fun tabLabel(tab: String)=when(tab) {"Conversor de vídeos"->"Conversor";"Links e fila"->"Links";"Metadados"->"Editar metadados";"Pesquisar"->"Pesquisar músicas";"Efeitos"->"Reprodução";"Playlists / Álbuns"->"Álbuns e playlists";else->tab}
 
 @Composable fun PageTitle(title: String, description: String) {
     Column(Modifier.fillMaxWidth().padding(vertical=8.dp),horizontalAlignment=Alignment.Start) {

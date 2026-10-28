@@ -51,7 +51,9 @@ def load_csv(text, limit=DEFAULT_PLAYLIST_LIMIT):
     note = f"CSV: {len(rows)} itens importados; {skipped} linhas inválidas/indisponíveis ignoradas."
     if capped:
         note += f" Limite de {limit} atingido; aumente-o em Configurações para importar mais."
-    return {"title": "Playlist importada", "tracks": rows, "note": note}
+    from collection_coverage import annotate
+    return annotate({"title": "Playlist importada", "tracks": rows, "note": note},
+                    None if capped else len(rows)+skipped, capped=capped, skipped=skipped)
 
 
 def export_text(rows, m3u=False):

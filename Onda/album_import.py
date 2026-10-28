@@ -12,7 +12,8 @@ def finish(title, rows, total, limit, note, album_artists=None):
     title = title or 'Álbum'
     artists = album_artists or rows[0].get('album_artists') or rows[0].get('artists') or ['Artista desconhecido']
     artist = ', '.join(name for name in artists if isinstance(name, str) and name.strip()) or 'Artista desconhecido'
-    return {'title':title,'tracks':rows[:limit],'note':note,'kind':'album',
+    return {'title':title,'tracks':rows[:limit],'note':note,'kind':'album','_total':total,
+            '_capped':len(rows)>limit,
             'folder_title':f'{artist} - {title}', 'subtitle':artist,
             'cover_url':next((row.get('cover_url') for row in rows if row.get('cover_url')),None)}
 
@@ -39,7 +40,7 @@ def spotify_public_album(html, identity, limit):
                           cover_url=cover,track_number=number,explicit=row.get('isExplicit'),preview_url=(row.get('audioPreview') or {}).get('url'))
             record['notes'].append('Metadados do álbum público; numeração pela ordem da lista. Alguns campos podem não estar disponíveis.')
             records.append(record)
-        return finish(entity.get('title'),records,len(tracks),limit,'Álbum Spotify público. A página pública pode omitir faixas; conecte Spotify se a lista estiver incompleta.', album_artists=[entity['subtitle']] if entity.get('subtitle') else None)
+        return dict(finish(entity.get('title'),records,None,limit,'Álbum Spotify público. A página pública pode omitir faixas; conecte Spotify se a lista estiver incompleta.', album_artists=[entity['subtitle']] if entity.get('subtitle') else None), _uncertain=True)
     except (ValueError,KeyError,TypeError,AttributeError):
         raise MetadataError('Álbum indisponível na página pública Spotify. Tente Conectar Spotify ou use o link do mesmo álbum no Deezer/Apple.') from None
 

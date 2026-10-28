@@ -1,5 +1,7 @@
 # Android: filas grandes e sessão do YouTube
 
+> **Registro histórico de implementação e testes:** os controles, versões e pendências abaixo pertencem à época do relatório. Para uso atual, consulte o [inventário da 1.2.3](INVENTARIO-FUNCIONALIDADES.md).
+
 Alterações em desenvolvimento, ainda fora dos APKs de distribuição.
 
 - Links e fila e Álbuns/playlists: navegação virtualizada com botões Início/Fim e controle de posição, mostrados em listas extensas. O diálogo Ver lista usa os mesmos controles.

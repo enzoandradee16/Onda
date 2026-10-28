@@ -13,6 +13,7 @@ Drawer {
         if(searching)["playback_input","effects_collection","effects_load"].forEach(function(name){workspace.invoke("cancel_task",{name:name})})
         else if(queueQuery.text.trim())workspace.invoke("playback_queue_search",{effects:drawer.effects,query:queueQuery.text})
     }
+    function closeSearch(){workspace.invoke("playback_queue_close_search",{});queueQuery.clear()}
     objectName: effects ? "effectsQueueDrawer" : "jukeboxQueueDrawer"
     edge: Qt.RightEdge
     width: Math.min(560,parent.width*0.95)
@@ -40,6 +41,10 @@ Drawer {
         if(effects)workspace.invoke("effects_queue_remove",{index:index})
         else bridge.removeQueued(index)
     }
+    function retry(index) {
+        if(effects)workspace.invoke("effects_queue_retry",{index:index})
+        else bridge.retryQueued(index)
+    }
     FileDialog {
         id: queueFiles
         title: bridge.translate("Adicionar músicas à fila")
@@ -49,9 +54,6 @@ Drawer {
     }
     ColumnLayout {
         anchors.fill: parent; anchors.margins: 16; spacing: 14
-        RowLayout {
-            ChoiceBox {model:["Desativada","Todas","Uma"];currentIndex:model.indexOf(drawer.effects ? workspace.values.effectsRepeat : bridge.queueRepeat);onActivated:drawer.effects ? workspace.setOption("effectsRepeat",currentText) : bridge.setQueueRepeat(currentText);Accessible.name:bridge.translate("Repetição")}
-        }
         RowLayout {
             Layout.fillWidth: true
             Label {text: bridge.translate("Fila de reprodução");color: bridge.palette.text;Layout.fillWidth: true}
@@ -69,8 +71,9 @@ Drawer {
             onClicked: drawer.effects ? workspace.invoke("pick",{kind:"effects_queue"}) : queueFiles.open()
         }
         RowLayout {Layout.fillWidth:true
-            OndaTextField {id:queueQuery;objectName:"playbackQueueSearch";Layout.fillWidth:true;placeholderText:bridge.translate("Música, artista ou link de música, álbum ou playlist");onAccepted:drawer.search()}
+            OndaTextField {id:queueQuery;objectName:"playbackQueueSearch";Layout.fillWidth:true;placeholderText:bridge.translate("Música, artista ou link de música, álbum ou playlist");onAccepted:drawer.search();Keys.onEscapePressed:drawer.closeSearch()}
             ActionButton {objectName:"playbackQueueSearchButton";text:bridge.translate(drawer.searching ? "Cancelar" : "Pesquisar");enabled:drawer.searching || !!queueQuery.text.trim();onClicked:drawer.search()}
+            PlaybackButton {objectName:"closePlaybackQueueSearch";glyph:"close";visible:drawer.searching||drawer.results.length>0||queueQuery.text.length>0;Accessible.name:bridge.translate("Fechar pesquisa");ToolTip.visible:hovered;ToolTip.text:Accessible.name;onClicked:drawer.closeSearch()}
         }
         ListView {Layout.fillWidth:true;Layout.preferredHeight:Math.min(240,contentHeight);visible:drawer.results.length>0;clip:true;spacing:8;model:drawer.results
             delegate:RowLayout {required property var modelData;required property int index;width:ListView.view.width;height:modelData.release_date ? 98 : 78
@@ -100,6 +103,7 @@ Drawer {
                 required property int index
                 readonly property var record: drawer.effects ? modelData.record : modelData
                 readonly property bool current: drawer.effects ? index===workspace.values.effectsQueueIndex : !!modelData.current
+                readonly property bool failed: !!modelData.error || modelData.analysis==="error"
                 width: queueList.width; height: Math.max(110,trackInformation.implicitHeight+20)
                 Rectangle {anchors.fill:parent;color:bridge.palette.surface;visible:playbackDrag.dragging}
                 RowLayout {anchors.fill:parent;spacing:8;z:1
@@ -125,16 +129,18 @@ Drawer {
                     Label {text:workspace.clock(modelData.duration || 0);color:bridge.palette.muted}
                     Label {
                         visible:true
-                        text:bridge.translate(drawer.effects ? (current && workspace.values.previewActive ? "Processando em tempo real" : "Pronta para reproduzir") : ({ready:"Pronta para reproduzir",pending:"Aguardando análise",preparing:"Analisando ritmo e trechos…",error:"Erro na análise"})[modelData.analysis] || "Aguardando preparação")
+                        text:queueTrack.failed ? bridge.translate("Falha na preparação") : bridge.translate(drawer.effects ? (current && workspace.values.previewActive ? "Processando em tempo real" : "Pronta para reproduzir") : ({ready:"Pronta para reproduzir",pending:"Aguardando preparação",preparing:"Preparando"})[modelData.analysis] || "Aguardando preparação")
                         Layout.fillWidth:true;elide:Text.ElideRight;color:bridge.palette.muted
                     }
+                    Label {visible:queueTrack.failed;Layout.fillWidth:true;wrapMode:Text.Wrap;text:workspace.preparationAdvice(modelData.error || "");color:bridge.palette.muted}
+                    Label {visible:queueTrack.failed;Layout.fillWidth:true;wrapMode:Text.Wrap;text:bridge.translateError(modelData.error || "Não foi possível preparar esta música.");color:bridge.palette.text}
                 }
                 PlaybackButton {z:1;
                     objectName:"playQueueTrack"
                     implicitWidth:32;glyph:"play"
-                    Accessible.name:bridge.translate(!drawer.effects && modelData.analysis==="error" ? "Tentar novamente" : "Reproduzir")
+                    Accessible.name:bridge.translate(queueTrack.failed ? "Tentar novamente" : "Reproduzir")
                     ToolTip.visible:hovered;ToolTip.text:Accessible.name
-                    onClicked:drawer.play(index)
+                    onClicked:queueTrack.failed ? drawer.retry(index) : drawer.play(index)
                 }
                 PlaybackButton {z:1;implicitWidth:28;glyph:"up";Accessible.name:bridge.translate("Mover para cima");enabled:index>0;onClicked:drawer.move(index,-1)}
                 PlaybackButton {z:1;implicitWidth:28;glyph:"down";Accessible.name:bridge.translate("Mover para baixo");enabled:index+1<drawer.tracks.length;onClicked:drawer.move(index,1)}

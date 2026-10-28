@@ -1,35 +1,61 @@
-# Organização das configurações
+# Configurações do ONDA
 
-## Preferências usadas nas novas janelas — 1.2.0
+Referência de uso revisada para **1.2.4**, em 27/10/2026. O [inventário completo](INVENTARIO-FUNCIONALIDADES.md#sec-22) relaciona campos, fontes e diferenças entre plataformas.
 
-**Downloads → Formato de álbuns e playlists:** esse formato e as qualidades MP3/M4A da mesma categoria fornecem a seleção inicial da janela de download da pesquisa no PC. Escolher outro valor nessa janela afeta somente a faixa confirmada.
+## Onde encontrar cada opção
 
-**Aparência → Minimizar ONDA ao abrir o miniplayer:** ativada minimiza a principal e mantém o miniplayer visível; desativada abre o miniplayer sem minimizar a principal. Alterações são aplicadas na próxima abertura do player. Não controla o botão de minimizar do próprio miniplayer.
-
-O seletor de idioma do instalador é independente da preferência de idioma do aplicativo.
-
-PC e Android usam a ordem de categorias definida em `Onda/settings_schema/layout.json`.
-
-| Categoria | Ordem dos grupos |
+| Categoria | Controles principais |
 | --- | --- |
-| Geral | Idioma, lembrar configurações, avisos, exportar/importar, restauração |
-| Aparência | Tema, separações, destaque, espaçamento, fontes, fila, histórico, ordem das abas |
-| Downloads | Formato/qualidade, destino, organização/nomes, arquivos existentes, playlists, metadados/versão, execução/agendamento |
-| Imagens | Formato, dimensões, proporção |
-| Áudio | Prévias nas pesquisas, prévias dos efeitos, continuar prévia em outras abas |
-| Contas | Spotify, YouTube e cookies |
-| Ferramentas | Cache, atualização do ONDA, ferramentas de download |
+| Geral | Idioma, lembrar configurações, avisos, transferência e restauração de preferências |
+| Aparência | Tema, destaque, bordas do Preto puro, fontes, espaçamento, cards e ordem/visibilidade de abas |
+| Downloads | Destino, formatos, qualidade, correspondência de metadados/versões, organização, duplicados, retomada, concorrência e agendamento |
+| Imagens | Formato, dimensões e proporção |
+| Áudio | Letras, animação da letra, transição entre músicas e duração das prévias de pesquisa |
+| Contas | Spotify, sessão do YouTube e cookies |
+| Ferramentas | Atualização do ONDA, verificação/atualização de ferramentas e cache |
+| Desempenho | Limpeza automática de temporários; no PC, threads, prioridade e reserva de RAM |
 
-As opções comuns seguem a mesma ordem relativa; controles exclusivos de um sistema ficam no grupo correspondente. Os atalhos nas abas principais continuam usando as mesmas preferências. Nenhuma preferência salva é redefinida por esta reorganização.
+A distribuição exata depende da plataforma. O schema Qt está em `Onda/settings_schema/desktop.json`; a interface Android em `Android/app/src/main/java/br/com/onda/mobile/SettingsWindow.kt` e componentes relacionados. `Onda/settings_schema/layout.json` conserva contratos de organização antigos e não deve ser usado sozinho como lista de controles atuais.
 
-A pesquisa e a restauração por categoria seguem essa distribuição. O índice Android de pesquisa fica em `Celular/app/src/main/assets/settings_search.json` e deve acompanhar mudanças nos controles.
+## Pesquisa de configurações
 
-## Paridade dos controles
+Digite uma palavra no campo de pesquisa. Os resultados indicam **Configurações → categoria**, permitindo localizar a opção na aba correspondente. Certos controles só aparecem quando aplicáveis, como bordas/separações no tema Preto puro.
 
-O contrato `common_options` do arquivo compartilhado lista os controles presentes nas duas versões. Testes conferem as categorias e a existência desses controles. Formatos, duração de prévias e tamanhos máximos das imagens usam as mesmas opções.
+O índice Android está em `Android/app/src/main/assets/settings_search.json`. Ao alterar controles, confira o índice e a implementação visível: o índice ainda pode conter textos históricos sem opção correspondente na tela.
 
-No PC, animar avisos usa uma transição de cor; o Android usa a animação de entrada e saída própria da plataforma. Mostrar ações antes das listas também funciona no PC. Confirmar a versão é aplicado no início de cada download, inclusive com execução paralela; a escolha automática continua tendo prioridade.
+## Aparência e idioma
 
-Os controles de Spotify e cookies ficam em Contas nas duas versões. No PC, a proteção de credenciais usa o Windows e os arquivos de cookies importados ficam restritos à sessão. Não são copiados para fila salva ou exportação de configurações.
+Instalações novas usam **Preto puro + Verde-Água**. As preferências existentes não são substituídas por esse padrão. Também existem Claro, Escuro, Seguir o sistema e Alto contraste, 16 cores de destaque, fontes e espaçamento.
 
-Diferenças necessárias: fontes disponíveis no sistema, seletor de pastas, proteção das credenciais e limite de execução simultânea (PC: 1–15; Android: 1–4). A pasta e a preparação manual de FFmpeg são controles específicos do PC.
+A janela rápida de Aparência fica acessível pelo botão próprio; no Android, é um ícone ao lado de Configurações. As configurações completas oferecem também ordem/visibilidade das áreas e tamanhos dos cards.
+
+Português (Brasil), Español e English ficam em Geral. Android aplica a mudança imediatamente; no PC, reinicie pelo controle oferecido quando houver mudança pendente. O idioma do instalador é independente do idioma salvo no aplicativo.
+
+## Downloads e reprodução
+
+- **Downloads simultâneos:** PC de 1 a 15; Android de 1 a 4.
+- **Retomar arquivos interrompidos:** tenta aproveitar dados parciais quando o servidor permite.
+- **Retomar fila ao abrir:** inicia pendentes ao abrir; é diferente de apenas recuperar a fila salva.
+- **Formato de álbuns e playlists:** no PC, fornece a seleção inicial da janela de download por música. Alterar o formato nessa janela vale somente para a solicitação confirmada.
+- **Somente Wi-Fi:** exclusivo do Android, com política de pausar ou concluir downloads ativos ao perder Wi-Fi.
+- **Prévias de pesquisa:** duração configurável; o catálogo pode fornecer um trecho menor.
+- **Efeitos e Jukebox:** reprodução integral, filas e posições próprias. Não há mais ajustes de duração de prévia dos efeitos nem controles para continuar Efeitos/Jukebox em outras abas. Navegar não encerra a reprodução; iniciar o outro player pausa o anterior.
+- **Transição:** tempo de sobreposição configurável, aplicado aos caminhos compatíveis de troca de faixa.
+
+No PC, **Minimizar ONDA ao abrir o miniplayer**, em Aparência, controla a janela principal na próxima abertura do miniplayer. Não altera o botão de minimizar do próprio player. O Android usa barra compacta e player expandido dentro do app.
+
+## Persistência, contas e restauração
+
+Lembrar configurações controla as preferências gerais. Idioma, dados de fila/histórico e sessão de reprodução têm persistência própria; restaurar configurações não apaga os arquivos baixados.
+
+Exportar/importar configurações usa JSON e transfere preferências compatíveis. Não inclui contas, tokens, cookies, caminhos de pastas, fila, histórico ou mídias. A restauração pode ser seletiva por categoria ou geral.
+
+Spotify e cookies ficam em Contas. Credenciais Windows usam proteção DPAPI; Android usa proteção do sistema. Não compartilhe arquivos de dados ou cookies. Disponibilidade de plataformas e permissões da conta continuam valendo.
+
+## Cache e atualização
+
+A limpeza automática remove caches descartáveis antigos, respeitando proteção de arquivos recentes/em uso e parciais interrompidos. A limpeza manual e a consulta de tamanho ficam nos controles de cache; operações em andamento podem impedir a limpeza.
+
+No PC, atualizar o ONDA abre o download oficial. No Android, o APK é baixado dentro do aplicativo; depois, o usuário confirma a instalação pelo sistema. Veja [o guia de recursos avançados](../RECURSOS-AVANCADOS.md#atualizações-e-transferência-de-preferências).
+
+**Situação das ferramentas**, em Ferramentas, mostra a última verificação, versões/disponibilidade e resultado da tentativa de atualização. Use Verificar ferramentas para atualizar o relatório local. Uma falha em um componente não oculta os demais; reinício pendente é informado. Consulte [estados e preparação](CLAREZA-DE-ESTADOS.md).

@@ -251,5 +251,6 @@ class SpotifyAccount:
         if isinstance(total, int) and offset < total:
             note += f" Limite de {limit} atingido (playlist: {total} itens). Aumente em Configurações para carregar mais."
         return {"title": meta.get("name") or "Playlist Spotify", "tracks": records, "note": note,
+                "_total":total,"_skipped":skipped,"_capped":isinstance(total,int) and offset<total,
                 "cover_url":next((image.get("url") for image in meta.get("images",[]) if image.get("url")),None),
                 "subtitle":(meta.get("owner") or {}).get("display_name") or "Spotify","kind":"playlist"}

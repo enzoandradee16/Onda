@@ -27,7 +27,6 @@ ScrollView {
         width: page.availableWidth; spacing: Math.round(16*bridge.spacing)
         RowLayout {
             Layout.fillWidth: true; spacing: Math.round(10*bridge.spacing)
-            ActionButton { primary: true; text: bridge.translate("Abrir arquivo"); enabled: !bridge.state.busy; onClicked: fileDialog.open() }
             OndaTextField {
                 id: query; Layout.fillWidth: true; implicitHeight: 44; placeholderText: bridge.translate("Música, artista ou link de música, álbum ou playlist"); selectByMouse: true
                 color: bridge.palette.text; placeholderTextColor: bridge.palette.muted; font.pixelSize: Math.round(14*bridge.fontScale)
@@ -35,9 +34,7 @@ ScrollView {
                 onAccepted: if (!bridge.state.busy) bridge.search(text)
             }
             ActionButton { primary: true; text: bridge.translate(bridge.state.busy ? "Cancelar" : "Pesquisar"); enabled: bridge.state.busy || query.text.trim().length>0; onClicked: if (bridge.state.busy) bridge.cancelOperation(); else bridge.search(query.text) }
-        }
-        Flow { Layout.fillWidth: true; spacing: 8
-            ActionButton { text: bridge.translate("Próxima"); enabled: bridge.playback.current+1<bridge.queuedTracks.length; onClicked: bridge.nextTrack() }
+            ActionButton { text: bridge.translate("Abrir arquivo"); enabled: !bridge.state.busy; onClicked: fileDialog.open() }
         }
         Card {
             Layout.fillWidth: true
@@ -99,70 +96,37 @@ ScrollView {
                     Text { Layout.fillWidth: true; text: bridge.state.paused ? bridge.translate("Pausado.") : bridge.state.status; elide: Text.ElideRight; color: bridge.state.playing ? bridge.palette.accent : bridge.palette.muted; font.pixelSize: Math.round(14*bridge.fontScale) }
                 }
                 AnimatedLyric { Layout.fillWidth: true; Layout.preferredWidth: 300; lineKey: page.currentLine; text: page.currentLyric; textFormat: Text.RichText; visible: text.length>0 }
-                ActionButton { primary: true; text: bridge.translate("Equalizador"); onClicked: equalizer.open() }
             }
         }
         GridLayout {
-            Layout.fillWidth: true; columns: page.availableWidth>=760 ? 2 : 1; columnSpacing: 16; rowSpacing: 16
+            Layout.fillWidth:true;columns:page.availableWidth>=1100?3:page.availableWidth>=700?2:1;columnSpacing:16;rowSpacing:16
+            UnifiedEffectsCard {Layout.fillWidth:true;Layout.fillHeight:true;Layout.preferredWidth:330}
             Card {
-                Layout.fillWidth: true; Layout.preferredWidth: 430; Layout.preferredHeight: 405
+                Layout.fillWidth:true;Layout.fillHeight:true;Layout.preferredWidth:330;implicitHeight:405
                 ColumnLayout {
-                    anchors.fill: parent; anchors.margins: 12; spacing: Math.round(4*bridge.spacing)
+                    anchors.fill:parent;anchors.margins:20;spacing:12
+                    OndaSwitch {objectName:"unifiedJukeboxEnabled";Layout.fillWidth:true;text:bridge.translate("Jukebox infinito");checked:!bridge.playbackParams.normal;onToggled:bridge.setParams(variation.value,smooth.value,page.volume,!checked)}
                     Item {
-                        id: graphArea; readonly property int beatCount: page.visible ? bridge.graph.count : 64; Layout.fillWidth: true; Layout.fillHeight: true
-                        BeatGraph { id: graph; anchors.fill: parent; graphData: page.visible ? bridge.graph : ({count:64,links:[],flow:[]}); accent: bridge.palette.accent; muted: bridge.palette.muted }
+                        id:sharedGraph;Layout.fillWidth:true;Layout.fillHeight:true;Layout.minimumHeight:100
+                        BeatGraph {anchors.fill:parent;graphData:page.visible?bridge.graph:({count:64,links:[],flow:[]});accent:bridge.palette.accent;muted:bridge.palette.muted}
                         Rectangle {
-                            id: marker
-                            property real orbitRadius: Math.min(graphArea.width,graphArea.height)*0.42
-                            x: graphArea.width/2+bridge.cursor.x*orbitRadius-width/2
-                            y: graphArea.height/2+bridge.cursor.y*orbitRadius-height/2
-                            width: 14; height: 14; radius: 7; color: bridge.palette.accent; border.color: bridge.palette.surface; border.width: 2
-                            scale: bridge.state.playing ? 1+0.25*Math.pow(1-bridge.phase,3) : 1
-                            Behavior on scale { NumberAnimation { duration: bridge.animations ? 55 : 0 } }
+                            readonly property real radiusOrbit:Math.min(sharedGraph.width,sharedGraph.height)*.42
+                            x:sharedGraph.width/2+bridge.cursor.x*radiusOrbit-width/2;y:sharedGraph.height/2+bridge.cursor.y*radiusOrbit-height/2
+                            width:12;height:12;radius:6;color:bridge.palette.accent
                         }
-                        MouseArea {
-                            anchors.fill: parent; enabled: bridge.state.ready && !bridge.state.busy
-                            onClicked: function(mouse) {
-                                const dx=mouse.x-width/2,dy=mouse.y-height/2,r=Math.min(width,height)*0.42
-                                if(Math.abs(Math.sqrt(dx*dx+dy*dy)-r)<22)bridge.seek(Math.round(((Math.atan2(dy,dx)+Math.PI/2+2*Math.PI)%(2*Math.PI))/(2*Math.PI)*bridge.graph.count)%bridge.graph.count)
-                            }
-                        }
+                        MouseArea {anchors.fill:parent;enabled:bridge.state.ready;onClicked:function(mouse){const dx=mouse.x-width/2,dy=mouse.y-height/2,r=Math.min(width,height)*.42;if(Math.abs(Math.sqrt(dx*dx+dy*dy)-r)<22)bridge.seek(Math.round(((Math.atan2(dy,dx)+Math.PI/2+2*Math.PI)%(2*Math.PI))/(2*Math.PI)*bridge.graph.count)%bridge.graph.count)}}
                     }
-                    RowLayout {
-                        Layout.alignment: Qt.AlignHCenter; spacing: Math.round(8*bridge.spacing)
-                        Rectangle { width: 7; height: 7; radius: 4; color: bridge.palette.muted }
-                        Text { text: bridge.translate("Conexões possíveis"); color: bridge.palette.muted; font.pixelSize: Math.round(11*bridge.fontScale) }
-                        Item { width: 8 }
-                        Rectangle { width: 7; height: 7; radius: 4; color: bridge.palette.accent }
-                        Text { text: bridge.translate("Trajeto reproduzido"); color: bridge.palette.muted; font.pixelSize: Math.round(11*bridge.fontScale) }
-                    }
+                    Label {text:bridge.translate("Variação");color:bridge.palette.text}
+                    OndaSlider {id:variation;Layout.fillWidth:true;value:bridge.playbackParams.variation;enabled:!bridge.playbackParams.normal;Accessible.name:bridge.translate("Variação");onMoved:page.updateParams()}
+                    Label {text:bridge.translate("Transição suave");color:bridge.palette.text}
+                    OndaSlider {id:smooth;Layout.fillWidth:true;value:bridge.playbackParams.smooth;enabled:!bridge.playbackParams.normal;Accessible.name:bridge.translate("Transição suave");onMoved:page.updateParams()}
                 }
             }
-            Card {
-                Layout.fillWidth: true; Layout.preferredWidth: 350; Layout.preferredHeight: 405
-                ColumnLayout {
-                    anchors.fill: parent; anchors.margins: 22; spacing: Math.round(8*bridge.spacing)
-                    Text { text: bridge.translate("Ajustes do Jukebox"); color: bridge.palette.text; font.pixelSize: Math.round(19*bridge.fontScale); font.weight: Font.DemiBold }
-                    Item { height: 8 }
-                    Text { text: bridge.translate("Variação"); color: bridge.palette.text; font.pixelSize: Math.round(14*bridge.fontScale); font.weight: Font.Medium }
-                    OndaSlider { id: variation; Layout.fillWidth: true; value: 45; onMoved: page.updateParams() }
-                    RowLayout { Layout.fillWidth: true; Text { text: bridge.translate("Mais fiel"); color: bridge.palette.muted; font.pixelSize: Math.round(12*bridge.fontScale) } Item { Layout.fillWidth: true } Text { text: bridge.translate("Mais saltos"); color: bridge.palette.muted; font.pixelSize: Math.round(12*bridge.fontScale) } }
-                    Item { height: 6 }
-                    Text { text: bridge.translate("Transição suave"); color: bridge.palette.text; font.pixelSize: Math.round(14*bridge.fontScale); font.weight: Font.Medium }
-                    OndaSlider { id: smooth; Layout.fillWidth: true; value: 35; onMoved: page.updateParams() }
-                    RowLayout { Layout.fillWidth: true; Text { text: bridge.translate("Curta"); color: bridge.palette.muted; font.pixelSize: Math.round(12*bridge.fontScale) } Item { Layout.fillWidth: true } Text { text: bridge.translate("Longa"); color: bridge.palette.muted; font.pixelSize: Math.round(12*bridge.fontScale) } }
-                    Rectangle {
-                        Layout.fillWidth: true; implicitHeight: info.implicitHeight+22; color: bridge.palette.input; radius: 8
-                        Text { id: info; anchors.fill: parent; anchors.margins: 11; text: bridge.translate("Saltos entre trechos compatíveis.")+"\n"+bridge.translate("A análise fica salva para os próximos usos."); color: bridge.palette.muted; font.pixelSize: Math.round(12*bridge.fontScale); wrapMode: Text.WordWrap }
-                    }
-                    Item { Layout.fillHeight: true }
-                    OndaSwitch { id: normal; Layout.fillWidth: true; text: bridge.translate("Reprodução normal"); onToggled: page.updateParams() }
-                }
-            }
+            UnifiedQueue {Layout.fillWidth:true;Layout.fillHeight:true;Layout.preferredWidth:330;Layout.columnSpan:page.availableWidth>=700&&page.availableWidth<1100?2:1}
         }
         Item { height: 8 }
     }
     property real volume: 80
-    function updateParams() { bridge.setParams(variation.value,smooth.value,volume,normal.checked) }
+    function updateParams() { bridge.setParams(variation.value,smooth.value,volume,bridge.playbackParams.normal) }
     onVolumeChanged: updateParams()
 }

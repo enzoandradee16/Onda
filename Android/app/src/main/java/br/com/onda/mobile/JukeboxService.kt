@@ -35,7 +35,7 @@ class JukeboxService:Service() {
     override fun onCreate() {
         super.onCreate();controller=JukeboxRuntime.get(this)
         val manager=getSystemService(NotificationManager::class.java)
-        manager.createNotificationChannel(NotificationChannel("jukebox",translateUi("Jukebox infinito"),NotificationManager.IMPORTANCE_LOW))
+        manager.createNotificationChannel(NotificationChannel("jukebox",translateUi("Reprodução"),NotificationManager.IMPORTANCE_LOW))
         wake=getSystemService(PowerManager::class.java).newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,"ONDA:Jukebox").apply {setReferenceCounted(false)}
         session=MediaSession(this,"ONDA Jukebox")
         session.setCallback(object:MediaSession.Callback() {
@@ -84,11 +84,11 @@ class JukeboxService:Service() {
     private fun action(name:String,code:Int)=PendingIntent.getService(this,code,Intent(this,JukeboxService::class.java).setAction(name),PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
     private fun notification():Notification {
         val state=controller.state.value;val model=state.model
-        val title=model?.optString("media_title")?.takeIf {it.isNotBlank()} ?: state.title.takeIf {it.isNotBlank()} ?: translateUi("Jukebox infinito")
+        val title=model?.optString("media_title")?.takeIf {it.isNotBlank()} ?: state.title.takeIf {it.isNotBlank()} ?: translateUi("Reprodução")
         val artist=model?.optString("media_artist").orEmpty()
         val open=PendingIntent.getActivity(this,13,Intent(this,MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         return Notification.Builder(this,"jukebox").setSmallIcon(R.drawable.ic_onda_notification)
-            .setContentTitle(title).setContentText(artist.ifBlank {translateUi("Jukebox infinito")}).setSubText(translateUi("Jukebox infinito"))
+            .setContentTitle(title).setContentText(artist.ifBlank {translateUi("Reprodução")}).setSubText(translateUi("Reprodução"))
             .setContentIntent(open).setLargeIcon(artwork).setOnlyAlertOnce(true).setOngoing(!state.paused)
             .addAction(Notification.Action.Builder(if(state.paused)android.R.drawable.ic_media_play else android.R.drawable.ic_media_pause,translateUi(if(state.paused)"Retomar" else "Pausar"),action(if(state.paused)"play" else "pause",14)).build())
             .addAction(Notification.Action.Builder(android.R.drawable.ic_menu_close_clear_cancel,translateUi("Parar"),action("stop",15)).build())
@@ -98,7 +98,7 @@ class JukeboxService:Service() {
         val state=controller.state.value;val model=state.model
         session.setPlaybackState(PlaybackState.Builder().setActions(PlaybackState.ACTION_PLAY or PlaybackState.ACTION_PAUSE or PlaybackState.ACTION_PLAY_PAUSE or PlaybackState.ACTION_STOP or PlaybackState.ACTION_SKIP_TO_PREVIOUS or PlaybackState.ACTION_SKIP_TO_NEXT)
             .setState(if(state.paused)PlaybackState.STATE_PAUSED else PlaybackState.STATE_PLAYING,PlaybackState.PLAYBACK_POSITION_UNKNOWN,if(state.paused)0f else 1f).build())
-        session.setMetadata(MediaMetadata.Builder().putString(MediaMetadata.METADATA_KEY_TITLE,model?.optString("media_title")?.takeIf {it.isNotBlank()} ?: state.title.ifBlank {translateUi("Jukebox infinito")})
+        session.setMetadata(MediaMetadata.Builder().putString(MediaMetadata.METADATA_KEY_TITLE,model?.optString("media_title")?.takeIf {it.isNotBlank()} ?: state.title.ifBlank {translateUi("Reprodução")})
             .putString(MediaMetadata.METADATA_KEY_ARTIST,model?.optString("media_artist").orEmpty()).putBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART,artwork).build())
         getSystemService(NotificationManager::class.java).notify(13,notification())
     }

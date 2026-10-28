@@ -40,6 +40,14 @@ class Stream:
     def switch(self,cache,seconds=2):
         if self.incoming is not None:raise ValueError('Aguarde a transição atual terminar.')
         target=_Buffered(cache)
+        part=self.current.part
+        if part and part.get('normal'):
+            # Finite playback must not wrap the outgoing song during a long fade.
+            beats=self.current.session.model['beats']
+            remaining=(len(part['pcm'])-self.current.offset)/4/RATE
+            if not part.get('finished'):remaining+=max(0,beats[-1]-beats[part['next']])
+            incoming=target.session.model.get('duration',beats[-1])/1.5
+            seconds=min(float(seconds),remaining,incoming)
         self.fade_frames=round(RATE*max(0.,min(10.,float(seconds))));self.mixed=0
         if not self.fade_frames:
             self.current.close();self.current=target

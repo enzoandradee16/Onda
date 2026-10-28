@@ -1,121 +1,99 @@
-# Funções e validação Android
+# Funcionalidades do ONDA para Android
 
-**Atualização 1.1.0:** idiomas PT/ES/EN, cards e controles da fila/Histórico e reinício pendente PC. Consulte a [validação 1.1.0](../docs/VALIDACAO-1.1.0.md). O levantamento abaixo é histórico e mantém o contexto da versão em que foi escrito.
+Guia revisado para **1.2.3 (código 30)** em 27/10/2026. Consulte o [inventário completo](../docs/INVENTARIO-FUNCIONALIDADES.md) para referências ao código e o [relatório da release](../docs/VALIDACAO-RELEASE-1.2.3.md) para testes e limites.
 
-Versão: 1.0.0-alpha.1. Este documento distingue implementação de comprovação em aparelho real. A versão Windows permanece independente.
+## Navegação e aparência
 
-| Área | Implementação Android | Validação atual |
-|---|---|---|
-| Links | Baixar agora, adicionar à fila, áudio/vídeo, qualidade, resolução, FPS, estimativa de tamanho | Downloads HTTP de foto, MP4 e extração MP3 no emulador |
-| Fila | Persistência SQLite, selecionar/remover/limpar, tentar novamente, progresso, cancelar, serviço com notificação | Persistência, serviço de download e publicação verificadas; falta ensaio longo com tela apagada em aparelho real |
-| Músicas | Pesquisa Deezer/Apple/Spotify, metadados, capa, escolha de catálogo/versão, correspondência automática, edição antes de baixar | Deezer, Apple/iTunes e link Spotify sem API testados online; confirmação/revisão testadas; login de conta ainda pendente |
-| Redes sociais | TikTok, Instagram, Twitter/X e Kwai pelo motor compartilhado; fotos, vídeos e seleção em posts mistos; áudio por vídeo | Foto e extração de áudio de vídeo no mesmo post validadas com fixture; acessos reais sujeitos a cookies e bloqueios da plataforma |
-| Playlists e álbuns | Importação por link, CSV/Exportify, TXT/M3U; busca, seleção, conferir correspondências, baixar agora/fila; opções próprias; exportar TXT/M3U; janela somente lista | Importação/exportação testadas com dados sintéticos; playlists grandes e OAuth ainda precisam teste real |
-| Organização | Artista - Música; pastas de playlist original e Artista - Álbum; organização por artista/álbum; duplicados | Publicação e política de pular duplicados no MediaStore verificadas no emulador |
-| Imagens | Link/arquivo, Original/JPG/PNG/WebP/SVG, dimensões, proporção, prévia | PNG/WebP/SVG e download de JPEG testados no Android; SVG de foto incorpora raster |
-| Histórico | Pesquisa, abrir, compartilhar, usar em efeitos, limpar sem apagar os arquivos | Implementado; abrir/compartilhar depende dos aplicativos instalados |
-| Efeitos | Slowed, Sped Up, Reverb independentes; presets; manter tom; início/duração da prévia; reprodução com busca; exportação e títulos condicionais | Renderização, prévia e preservação de artista/álbum/capa testadas com MP3 sintético |
-| Aparência | Tema claro/escuro/sistema, 16 cores, ordem das abas | Navegação automatizada e inspeção visual em emulador |
-| Configuração | Primeira entrada dispensável; lembrar opções; categorias; restauração geral/seletiva; duração de prévias; continuar ao trocar de aba | Implementado; credenciais cifradas e fila sem Client Secret testadas |
-| Ferramentas | Python e ferramentas nativas internas; verificar ferramentas; atualização de yt-dlp com SHA-256 | FFmpeg, FFprobe e QuickJS executados no emulador |
-| Integração Android | Compartilhar link para ONDA, seletor de arquivos/pasta, MediaStore, notificações, uma Activity reaproveitada | MediaStore e abertura do app testados; demais fluxos requerem aparelho real |
+- **Pesquisar:** catálogos de músicas.
+- **Downloads:** Em andamento/Concluídos; o botão + abre a entrada de links.
+- **Reprodução:** Efeitos e Jukebox infinito na mesma tela, com música, fila e player compartilhados.
+- **Mais:** álbuns e playlists, imagens, conversor, editor e outras ferramentas.
+- **Cabeçalho:** ícones de Aparência e Configurações.
 
-## Diferenças da plataforma
+A ordem das áreas elegíveis é configurável. Instalações novas usam Preto puro + Verde-Água; preferências existentes são preservadas. Há temas Claro, Escuro, Sistema e Alto contraste, 16 destaques, fontes, escala e espaçamento. Português, espanhol e inglês são aplicados imediatamente.
 
-- Não há BAT, EXE, wizard Windows ou pasta portátil: instala-se o APK e o Android gerencia a desinstalação. A exclusão de dados fica nos controles do sistema.
-- Android 10+ exporta para Downloads/ONDA por padrão. Escolher outra pasta usa o seletor do sistema. Android 8/9 precisa de pasta escolhida para manter os arquivos fora dos dados do app.
-- Downloads em segundo plano usam serviço e notificação. Fabricantes, economia de bateria e limites do Android podem interromper trabalhos; a fila é preservada para tentar novamente.
-- O app não transforma uma fonte com perdas em áudio lossless original de streaming. FLAC conserva a qualidade da fonte recebida.
-- Cookies são importados por arquivo; não há extração automática dos cookies de outros apps. A biblioteca de impersonação curl_cffi do PC não está incorporada neste APK.
-- APIs, plataformas e restrições de login continuam valendo. Não há promessa de acesso a qualquer link ou de contornar bloqueios.
+## Pesquisa e links
 
-## Roteiro no celular
+Pesquisa Deezer, Apple/iTunes e Spotify, com opção Todos conforme os provedores disponíveis. Cards mostram capa, título, artista, álbum, plataforma e data quando disponíveis; informações ausentes podem ser completadas em segundo plano.
 
-1. Instalar o APK, abrir, fechar a configuração inicial e abrir novamente: o aviso inicial deve aparecer uma única vez.
-2. Permitir notificações e escolher uma pasta em Configurações → Downloads.
-3. Testar um link autorizado de vídeo em MP4 e o mesmo link em MP3; conferir o arquivo na pasta e no histórico.
-4. Adicionar três itens à fila, remover um, fechar/abrir o app e conferir os pendentes. Testar cancelar e tentar novamente.
-5. Pesquisar música, ouvir a prévia e baixar com capa. Conferir título, artista, álbum e arquivo Artista - Música.
-6. Testar um post público somente com fotos, somente com vídeo e um misto; na escolha do misto, selecionar uma foto e áudio de um vídeo.
-7. Carregar playlist/álbum, filtrar uma música, testar formatos próprios, exportar TXT/M3U e importar CSV. Verificar subpasta da coleção.
-8. Em Efeitos, selecionar MP3 com tags/capa, testar velocidade 90%, 120%, reverb isolado e manter tom. Ouvir, buscar na prévia e exportar; conferir os títulos e a capa.
-9. Trocar tema/cor/ordem das abas, reiniciar e conferir persistência. Testar restauração seletiva.
-10. Testar download com tela apagada e uso prolongado no aparelho real. Relatar modelo, Android e log sem cookies/segredos.
+Enter do teclado físico ou a ação Pesquisar do teclado virtual inicia a consulta, inclusive na reprodução. O formulário de vários links em Downloads aceita quebras de linha para separar URLs.
 
-Antes de publicar como release Android, concluir assinatura definitiva, testes ARM64 reais e revisão dos componentes nativos descrita nos avisos de terceiros.
+As ações dos cards permitem baixar, adicionar à fila, ouvir prévia, abrir origem e copiar link conforme a tela. Áudio MP3/M4A de catálogo procura uma gravação correspondente no YouTube; FLAC consulta Monochrome quando houver correspondência compatível. Metadados de streaming não são exportação do áudio protegido do serviço.
 
-## Auditoria de paridade
+Instagram, TikTok, Kwai e X/Twitter têm caminhos de extração próprios, além dos extratores compartilhados. Fotos, vídeos e carrosséis podem ser selecionados quando acessíveis. Cookies, login, região/IP e disponibilidade ainda podem impedir downloads.
 
-Veja [PARIDADE-PC-ANDROID.md](PARIDADE-PC-ANDROID.md) para as lacunas identificadas. A existência de funções nesta tabela não significa equivalência integral com o PC.
+## Downloads e histórico
 
+- Fila persistente e concorrência de 1 a 4 itens, com opções por solicitação.
+- Busca, filtros, seleção, pausa/retomada, cancelamento, remoção e nova tentativa conforme o estado.
+- Arraste do card inteiro por toque prolongado; marcador compacto sobreposto e deslocamento dos vizinhos antes de soltar.
+- Etapa, progresso, velocidade, tamanho e estimativas quando disponíveis.
+- Recuperação de interrompidos com progresso aproximado; aproveitar dados parciais depende do servidor.
+- Agendamento diário, retomada opcional ao abrir e Somente Wi-Fi, com política ao perder a conexão.
+- Serviço em primeiro plano e controles de notificação, sujeitos à bateria e às restrições do sistema.
+- Histórico com pesquisa, filtros Todos/Áudio/Vídeo/Imagens, abrir, compartilhar, editar ou usar em Efeitos conforme o arquivo.
+- Remoção de registro preserva o arquivo e pode ser desfeita por 8 segundos.
+- Falhas apresentam causa provável e ações úteis; isso não contorna restrições da plataforma.
 
-### Fonte da interface
+Android 10+ usa Downloads/ONDA por padrão; outra pasta pode ser escolhida nas configurações. Android 8/9 precisa de pasta escolhida para preservar arquivos fora dos dados privados do app.
 
-Em Configurações → Aparência → Fonte da interface, escolha Padrão do sistema, Sem serifa, Serifada, Monoespaçada, Condensada, Cursiva ou Arredondada. A prévia e a interface mudam imediatamente. Ative Lembrar configurações para manter a escolha ao reabrir; restaurar Aparência também restaura a fonte. Esta versão usa fontes nativas do Android, sem baixar arquivos de fontes.
+## Álbuns e playlists
 
+Carregue URLs ou importe TXT, M3U e CSV/Exportify. Há pesquisa, seleção, formatos próprios, exportação TXT/M3U, conferência de correspondências/arquivos locais, inclusão de ausentes e biblioteca de coleções salvas.
 
-### Enter nos campos
+Carregar vira Cancelar durante a consulta e Atualizar quando a mesma coleção já está carregada. Ações secundárias ficam em Mais ações. Capas dependem da fonte; a leitura pública do Spotify pode ser parcial.
 
-Em Pesquisar músicas, Enter do teclado físico ou a ação Pesquisar do teclado virtual inicia a busca, sem inserir uma linha. Os demais campos são de uma linha. Somente o campo LINKS em Links e fila aceita Enter para separar os links.
+Para reprodução, cole o link diretamente em Reprodução ou na pesquisa da fila compartilhada. Os botões antigos de enviar a coleção a players separados não são necessários na página de coleções.
 
-## Barra de reprodução em Efeitos
+## Efeitos e Jukebox
 
-A barra fixa abaixo dos ajustes segue o transporte do PC: reproduz a faixa inteira com os efeitos atuais, pausa preservando a posição, retoma desse ponto e volta ao início ao parar. A linha do tempo mostra a posição na música original mesmo quando a velocidade muda; o volume é independente do Jukebox. O preset Original permite ouvir sem efeitos.
+Ambos aceitam arquivos locais, pesquisa e links de música, álbum ou playlist. As filas têm capa, título, artista, duração, busca, reorganização e estado de preparação por faixa. Músicas tocadas permanecem disponíveis para retroceder; adicionar uma faixa não abre automaticamente o painel.
 
-Abrir áudio aceita vários arquivos. Os botões anterior/próximo navegam pelos arquivos carregados, e a reprodução avança ao terminar uma faixa. Sem faixa anterior, Retroceder volta ao início. A barra e o acesso à letra permanecem visíveis durante a rolagem dos ajustes.
+Efeitos oferece velocidade, Reverb, presets, manter tom e exportação. O Android renderiza o áudio pelos parâmetros escolhidos e pode preparar a próxima faixa durante a atual. Parâmetros alterados invalidam resultados incompatíveis.
 
-As filas de Efeitos e Jukebox permitem tocar, mover, remover e limpar entradas, preservando a música atual. A fila de Efeitos mostra capa, artista e duração; resultados de pesquisa têm ações distintas para reproduzir e adicionar à fila. A transição gradual respeita os segundos definidos em Áudio e prepara a próxima faixa antes da troca.
+Jukebox analisa conexões entre trechos, com variação, suavidade, grafo, tempo ouvido e saltos. Desligar Jukebox infinito ativa a reprodução normal; repetição e aleatório da fila controlam a ordem entre faixas. Efeitos pode permanecer ligado junto ao Jukebox. O equalizador de dez bandas atua no áudio compartilhado. Veja [Reprodução unificada](../docs/REPRODUCAO-UNIFICADA.md).
 
-O botão de microfone abre a letra completa, com rolagem acompanhando o verso atual, toque para navegar e controles de transporte. O miniplayer do Jukebox oferece anterior/próximo e acesso a letras, parar, equalizador, timer, fila e volume. Cards e barras acompanham o espaçamento escolhido em Aparência.
+### Player compacto, expandido e sessão
 
-Consulte a [revisão de paridade dos três commits](../docs/PARIDADE-ANDROID-2026-10-23.md) para os comportamentos verificados e os limites da validação.
+A barra compacta acompanha a navegação, com capa, dados da música, letra/microfone, fila, reprodução/pausa e progresso conforme o espaço. A cor vem da capa, com aparência de vidro adaptada ao tema; sem capa válida, usa o tema.
 
-### Abas independentes e notificação de Efeitos
+Toque na capa/título para abrir o player expandido com capa do álbum, linha do tempo, transporte, letra, fila e menu. O volume é controlado principalmente pelo sistema e teclas físicas, sem slider na barra.
 
-Efeitos e Jukebox mantêm músicas e filas separadas. Alternar as abas não copia a música nem inicia uma análise na outra aba. Os ajustes de cada aba são preservados durante a alternância. Ao iniciar a reprodução em uma delas, a outra pausa.
+Navegar entre páginas não encerra o áudio. Efeitos e Jukebox usam a mesma seleção e uma única integração de mídia/notificação. Presets, manter tom e exportação ficam no menu de Efeitos.
 
-A reprodução integral de Efeitos usa uma notificação de mídia própria, com título, artista, capa, posição e controles de reprodução, pausa, anterior, próxima faixa disponível e parada. Tocar na notificação abre Efeitos. A fila e as transições continuam sendo controladas fora da tela, permitindo avançar sem manter a aba aberta.
+Ao reabrir, a sessão recupera música, posição e filas sem iniciar áudio automaticamente. Arquivo apagado ou permissão revogada pode impedir a recuperação.
 
-Na barra de Efeitos, a ordem é Letra, Retroceder, Pausar/Reproduzir e Avançar. No Jukebox, a mesma sequência é seguida por Mais; Parar/Cancelar fica nesse menu.
+### Letras
 
-A barra de Efeitos usa uma única linha: Letra, Retroceder, Pausar/Reproduzir, Avançar, Fila e Mais. Não há botão de miniplayer nem linha auxiliar. O botão Fila abre um painel pela direita, com capa, título, artista e duração, além de tocar, mover, remover e limpar entradas. O transporte do Jukebox também apresenta Fila entre Avançar e Mais.
+Busca LRCLIB com escolha automática por título, artista, edição, álbum e duração, além de alternativas manuais. Letra simples/sincronizada depende da fonte; sincronização por palavra só existe quando os dados a oferecem.
 
-O volume das duas reproduções é controlado pelo sistema Android, inclusive pelas teclas físicas. Os sliders de volume foram removidos e o ganho normal do aplicativo é de 100%. O desenho do microfone acompanha o ícone inclinado do PC. Há 8 dp de espaço entre a linha divisória e os controles nas barras de Efeitos e Jukebox.
+O microfone abre a letra. O card Letra do player expandido abre tela cheia com título/artista, progresso e reprodução/pausa. Há animações, destaque e navegação por versos sincronizados; voltar não interrompe o áudio. As cores acompanham a capa no player.
 
-A duração configurável de prévias aplica-se somente às músicas das pesquisas. Foram retiradas as opções de duração de prévia dos efeitos e de continuidade entre abas/segundo plano; a reprodução integral continua ao navegar. Avisos de preparação redundantes com indicadores de progresso não aparecem no topo.
+Configurações → Áudio controla animação, exibição sincronizada e transição. A duração configurável vale somente para **prévias de músicas nas pesquisas**. Os ajustes antigos de duração de prévia de efeitos e continuidade em outras abas foram removidos.
 
+## Imagens e carrosséis
 
-### Player compacto e reprodução expandida
+Cards elegíveis permitem prévia antes de baixar, sem criar download ou histórico até confirmação explícita. Imagens baixadas também abrem em galeria. Há contador, setas, deslize horizontal e compartilhamento conforme a origem. O botão não é uma prévia universal de áudio/vídeo.
 
-A reprodução de Efeitos e Jukebox aparece em uma barra compacta acima da navegação, com capa, título, artista, Fila, reproduzir/pausar e progresso. Ela acompanha a navegação. O botão Fila substitui o acesso a dispositivos da referência visual e abre a fila correspondente à reprodução atual.
+A ferramenta Imagens aceita arquivo/link compatível, prévia e exportação Original/JPG/PNG/WebP/SVG, com dimensões e proporção. SVG de foto incorpora raster, não vetoriza a imagem.
 
-Tocar na capa ou no título abre a reprodução expandida. A capa do álbum ocupa a área visual, sem Canvas ou vídeo. A janela oferece linha do tempo, anterior/próxima, reprodução/pausa, letra, fila e menu; ao recolher ou voltar, a música continua. O menu mantém Parar, acesso aos ajustes de Efeitos e, no Jukebox, reprodução normal, timer e equalizador. As músicas, filas e efeitos permanecem separados entre as abas. O volume continua sob controle do sistema.
+## Conversor e editor
 
+Conversor individual/em lote com MP4/MKV/MOV ou MP3/M4A/AAC conforme a entrada, qualidade, bitrate, resolução/FPS, manter/remover áudio, recorte opcional de silêncio nas extremidades, progresso e cancelamento. Preserva o original.
 
-### Card de letras e tela cheia
+Editar metadados abre arquivos locais ou do histórico, individualmente/em lote. Permite alterar campos selecionados, capa com recorte, letra TXT/LRC e normalização com comparação de prévias. Salva cópia por padrão; substituir exige escolha explícita e permissão de escrita.
 
-O player expandido mostra um card Letra com o verso atual e os próximos versos. Tocar no card ou no ícone Expandir abre a letra completa em tela cheia, com título e artista, texto grande alinhado à esquerda, progresso e botão central de reprodução/pausa. A letra acompanha a música, mantém as animações e o destaque por palavra de LRC aprimorado, e permite tocar em versos sincronizados para navegar.
+## Configurações, ferramentas e acessibilidade
 
-Recolher ou voltar retorna ao player sem interromper o áudio. Buscar letra online e Escolher letra estão no menu Mais da tela de letras. O botão Compartilhar abre o seletor de compartilhamento do Android. O recurso usa a música e a posição da reprodução correspondente, tanto em Efeitos quanto em Jukebox.
+- Pesquisa de configurações indica a categoria; restauração seletiva/total e transferência JSON de preferências compatíveis.
+- Nomes/estados acessíveis, ações de mover por leitor de tela e alternativas ao arraste no recorte de capa.
+- Spotify opcional com PKCE; importação de cookies e Sessão do YouTube em Mais, sujeitos às regras do serviço.
+- Armazenamento privado e proteção de segredos pelo Android; exportação de preferências não inclui contas, cookies ou caminhos.
+- Python, FFmpeg, FFprobe e QuickJS incluídos; verificar/atualizar ferramentas dentro do app.
+- Limpeza manual de cache e limpeza automática opcional de temporários antigos, com proteção de arquivos recentes e parciais.
 
+## Atualizar o aplicativo
 
-Em Efeitos e Jukebox, Pesquisar e Abrir arquivo ficam na mesma linha, abaixo do campo de busca, nessa ordem.
+Consultar releases oficiais, mostrar notas/tamanho, selecionar APK da arquitetura e baixar dentro do ONDA. A transferência continua em segundo plano; é possível cancelar/descartar. Instalar atualização pede autorização e confirmação do Android após conferir pacote, versão e assinatura.
 
-
-### Cor da capa e liquid glass
-
-A barra compacta extrai a cor predominante da capa, com processamento fora da interface e reaproveitamento do cache de imagens. O fundo combina a capa desfocada, uma lente translúcida em degradê, reflexos, borda e sombra suave. Sem capa válida, usa a cor de destaque do tema.
-
-Nos temas claros, o vidro recebe uma base clara com texto escuro; nos escuros, uma base escura com texto claro. Alto contraste mantém a tonalidade da capa, com lente menos transparente, borda reforçada, ícones e texto de alto contraste. A troca de música ou tema recalcula as cores sem alterar os controles.
-
-
-### Troca de reprodução entre Efeitos e Jukebox
-
-Reprodução normal fica visível na aba Jukebox e compartilha o mesmo estado do menu do player. A opção é preservada ao alternar as abas e aplicada ao motor sem saltos.
-
-Cada aba tem uma ação explícita para reproduzir sua música, mesmo quando a barra compacta controla a outra reprodução. O menu do player expandido também permite iniciar a outra aba quando há uma faixa carregada. Iniciar ou retomar uma reprodução pausa a outra e preserva sua posição; os arquivos e as filas continuam separados.
-
-Somente navegar pelas abas não encerra o áudio. Ao voltar a Efeitos, os efeitos só são renderizados novamente se seus parâmetros mudaram, evitando uma interrupção causada pela recomposição da tela. Retomar Jukebox também cancela pedidos de Efeitos ainda em preparação, para que uma resposta atrasada não tome a reprodução de volta.
-
-
-Os botões auxiliares de troca de reprodução aparecem junto aos metadados da faixa somente quando há uma música carregada nessa aba e a barra compacta está controlando a outra. Eles desaparecem quando a barra passa a controlar a própria aba.
+APKs separados para ARM64 e x86_64. Emulador não comprova todos os comportamentos de aparelho físico; veja os limites no relatório da release.

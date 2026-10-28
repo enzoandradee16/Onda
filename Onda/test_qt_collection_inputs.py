@@ -15,12 +15,9 @@ class CollectionInputTests(unittest.TestCase):
         record={'title':'Selected','artists':['Artist'],'source_url':'https://example.com/selected'}
         self.ws.models['catalog'].replace([record]);self.ws.options['effectsResults']=[dict(record,title='Different search')]
         self.ws.setOption('effectsQueueOpen',False);self.ws.selectPage('catalog')
-        with patch.object(self.ws,'run_task') as task,patch.object(self.ws,'accept_files') as accept,patch.object(self.ws,'play_effects_entry') as play:
+        with patch.object(self.bridge,'enqueueRecord') as enqueue,patch.object(self.bridge,'playPause') as play:
             self.ws.dispatch('effects_add',{'index':0})
-            self.assertEqual(task.call_args.args[1]['record']['title'],'Selected')
-            task.call_args.args[2]({'source':'cached.wav','record':record})
-            accept.assert_called_once_with('effects_queue',['cached.wav']);play.assert_not_called()
-        self.assertEqual(self.ws.effects_catalog_records['cached.wav'],record)
+            enqueue.assert_called_once_with(record);play.assert_not_called()
         self.assertFalse(self.ws.options['effectsQueueOpen']);self.assertEqual(self.ws.currentPage,'catalog')
 
     def test_playlist_card_actions_use_playlist_record(self):
@@ -46,10 +43,12 @@ class CollectionInputTests(unittest.TestCase):
     def test_effects_sidebar_add_keeps_actual_download_metadata_and_stays_closed(self):
         record={'title':'URL','source_url':'https://example.com/a'}
         self.ws.setOption('effectsQueueResults',[record]);self.ws.setOption('effectsQueueOpen',False)
-        with patch.object(self.ws,'run_task') as task,patch.object(self.ws,'accept_files') as accept:
+        with patch.object(self.bridge,'prepare_next_queued'),patch.object(self.bridge,'playPause') as play:
             self.ws.dispatch('playback_queue_add',{'effects':True,'index':0})
-            task.call_args.args[2]({'source':'cached.wav','record':dict(record,title='Actual song')})
-        self.assertEqual(self.ws.effects_catalog_records['cached.wav']['title'],'Actual song');accept.assert_called_once_with('effects_queue',['cached.wav']);self.assertFalse(self.ws.options['effectsQueueOpen'])
+            entry=self.bridge.playlist[0]
+            self.bridge.handle_event(0,'queue_prepared',dict(id=entry['id'],model=dict(title='Actual song',media_title='Actual song',cache='cache',duration=4)))
+            play.assert_not_called()
+        self.assertEqual(entry['title'],'Actual song');self.assertFalse(self.ws.options['effectsQueueOpen'])
 
     def test_metadata_callback_matches_url_after_rows_reorder(self):
         original={'title':'A','artists':[],'source_url':'https://www.deezer.com/track/1','checked':True}

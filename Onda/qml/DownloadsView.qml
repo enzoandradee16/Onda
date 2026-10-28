@@ -15,9 +15,9 @@ ColumnLayout {
         objectName: "queueContextMenu"
         width: Math.round(260*bridge.fontScale)
         background: Card {}
-        OndaMenuItem { text: bridge.translate("Pausar"); enabled: queueContext.targetId !== ""; onTriggered: workspace.invoke("queue_action",{id:queueContext.actionId,name:"pause"}) }
-        OndaMenuItem { text: bridge.translate("Retomar"); enabled: queueContext.targetId !== ""; onTriggered: workspace.invoke("queue_action",{id:queueContext.actionId,name:"resume"}) }
-        OndaMenuItem { text: bridge.translate("Tentar novamente"); enabled: queueContext.targetId !== ""; onTriggered: workspace.invoke("queue_action",{id:queueContext.actionId,name:"retry"}) }
+        OndaMenuItem { text: bridge.translate("Pausar"); enabled: workspace.activity.total>0 && queueContext.targetId!=="" && workspace.queueActionEnabled("pause",queueContext.actionId); onTriggered: workspace.invoke("queue_action",{id:queueContext.actionId,name:"pause"}) }
+        OndaMenuItem { text: bridge.translate("Retomar"); enabled: workspace.activity.total>0 && queueContext.targetId!=="" && workspace.queueActionEnabled("resume",queueContext.actionId); onTriggered: workspace.invoke("queue_action",{id:queueContext.actionId,name:"resume"}) }
+        OndaMenuItem { text: bridge.translate("Tentar novamente"); enabled: workspace.activity.total>0 && queueContext.targetId!=="" && workspace.queueActionEnabled("retry",queueContext.actionId); onTriggered: workspace.invoke("queue_action",{id:queueContext.actionId,name:"retry"}) }
         OndaMenuItem { text: bridge.translate("Editar metadados"); enabled: queueContext.targetId !== ""; onTriggered: workspace.invoke("queue_edit",{id:queueContext.actionId}) }
         MenuSeparator {}
         OndaMenuItem { text: bridge.translate("Mover para cima"); enabled: queueContext.targetId !== ""; onTriggered: workspace.invoke("queue_action",{id:queueContext.actionId,name:"up"}) }
@@ -83,7 +83,7 @@ ColumnLayout {
     }
     RowLayout { objectName: "downloadQueueFilters"; visible: page.queuePage; Layout.fillWidth: true
         OndaTextField { Layout.fillWidth: true; placeholderText: bridge.translate("Buscar na fila"); text: workspace.values.queueQuery; onTextEdited: workspace.setOption("queueQuery",text) }
-        ChoiceBox { model: ["Todos","Na fila","Em andamento","Pausado","Concluído","Falhou","Cancelado"]; onActivated: workspace.setOption("queueState",currentText) }
+        ChoiceBox {model:["Todos","Pendentes","Em andamento","Pausados","Concluídos","Com falha","Cancelados"];onActivated:workspace.setOption("queueState",["Todos","Na fila","Em andamento","Pausado","Concluído","Falhou","Cancelado"][currentIndex])}
         ActionButton { primary: true; text: bridge.translate(workspace.activity.running ? "Cancelar" : "Baixar fila"); onClicked: workspace.invoke(workspace.activity.running ? "stop_queue" : "start_queue",{}) }
     }
     Card { objectName: "downloadQueueTools"; visible: page.queuePage; Layout.fillWidth: true; implicitHeight: queueTools.implicitHeight+24
@@ -92,8 +92,8 @@ ColumnLayout {
             CardSizeControl { settingKey: "queue_card_size" }
             Label { text: bridge.translate("Selecionados")+": "+workspace.activity.selected; color: bridge.palette.muted; padding: 12 }
             ActionButton { text: bridge.translate("Editar metadados"); enabled: workspace.activity.selected>0; onClicked: workspace.invoke("queue_edit",{}) }
-            ActionButton { text: bridge.translate("Pausar"); enabled: workspace.activity.selected>0; onClicked: workspace.invoke("queue_action",{name:"pause"}) }
-            ActionButton { text: bridge.translate("Retomar"); enabled: workspace.activity.selected>0; onClicked: workspace.invoke("queue_action",{name:"resume"}) }
+            ActionButton { text: bridge.translate("Pausar"); enabled: workspace.activity.selected>0 && workspace.queueActionEnabled("pause",""); onClicked: workspace.invoke("queue_action",{name:"pause"}) }
+            ActionButton { text: bridge.translate("Retomar"); enabled: workspace.activity.selected>0 && workspace.queueActionEnabled("resume",""); onClicked: workspace.invoke("queue_action",{name:"resume"}) }
             ActionButton { text: bridge.translate("Remover"); enabled: workspace.activity.selected>0; onClicked: workspace.invoke("queue_action",{name:"remove"}) }
             ActionButton { text: bridge.translate("Desfazer"); enabled: workspace.activity.undoCount>0; onClicked: workspace.invoke("undo_queue",{}) }
             ChoiceBox { implicitWidth: 200; model: ["Ordem original","Título","Menor duração","Maior duração","Menor tamanho estimado"]; onActivated: workspace.invoke("queue_action",{name:"sort:"+currentText}); Accessible.name: bridge.translate("Ordenar fila") }
@@ -102,7 +102,7 @@ ColumnLayout {
                     OndaMenuItem { text: bridge.translate("Subir selecionados"); enabled: workspace.activity.selected>0; onTriggered: workspace.invoke("queue_action",{name:"up"}) }
                     OndaMenuItem { text: bridge.translate("Descer selecionados"); enabled: workspace.activity.selected>0; onTriggered: workspace.invoke("queue_action",{name:"down"}) }
                     OndaMenuItem { text: bridge.translate("Priorizar selecionados"); enabled: workspace.activity.selected>0; onTriggered: workspace.invoke("queue_action",{name:"priority"}) }
-                    OndaMenuItem { text: bridge.translate("Tentar novamente"); enabled: workspace.activity.selected>0; onTriggered: workspace.invoke("queue_action",{name:"retry"}) }
+                    OndaMenuItem { text: bridge.translate("Tentar novamente"); enabled: workspace.activity.selected>0 && workspace.queueActionEnabled("retry",""); onTriggered: workspace.invoke("queue_action",{name:"retry"}) }
                     MenuSeparator {}
                     OndaMenuItem { text: bridge.translate("Cancelar todas"); enabled: workspace.activity.total>0; onTriggered: workspace.invoke("queue_action",{name:"cancel_all"}) }
                     OndaMenuItem { text: bridge.translate("Limpar fila"); enabled: workspace.activity.total>0; onTriggered: workspace.invoke("queue_action",{name:"clear"}) }
@@ -153,14 +153,14 @@ ColumnLayout {
                     TaskButton {objectName:"previewPendingImages";compact:true;visible:!card.entry.has_images && !!card.entry.can_preview_images;idleText:bridge.translate("Prévia de imagens");operation:"preview_images";parameters:({url:card.entry.url});taskNames:workspace.values.imageGalleryPendingSource===card.entry.url ? ["image_gallery_manifest"] : []}
                     ActionButton {objectName:"downloadImagePreview";compact:true;visible:!!card.entry.has_images;text:bridge.translate("Ver imagens");onClicked:workspace.invoke("download_preview",{id:card.entry.id})}
                     PlatformBadge {imageMedia:!!card.entry.is_image;platformKey:card.entry.platform_key || "";label:card.entry.platform || ""}
-                    Label { text: bridge.translate(card.entry.state)+" · "+String(card.entry.mode).toUpperCase(); color: bridge.palette.muted }
+                    Label { text: workspace.workflowLabel(card.entry.state)+" · "+String(card.entry.mode).toUpperCase(); color: bridge.palette.muted }
                     Label {visible:card.entry.state==="Em andamento";text:bridge.translate(card.entry.download_detail || "Consultando");color:bridge.palette.muted;Layout.fillWidth:true;wrapMode:Text.Wrap}
                     Label {visible:card.entry.state==="Falhou";text:bridge.translate(card.entry.failure_cause || "");color:bridge.palette.error;Layout.fillWidth:true;wrapMode:Text.Wrap}
                     ActionButton {visible:card.entry.state==="Falhou";text:bridge.translate(card.entry.failure_action || "Tentar novamente");onClicked:workspace.invoke("failure_action",{id:card.entry.id})}
                     OndaProgressBar { Layout.fillWidth: true; from: 0; to: 100; value: card.entry.percent || 0; indeterminate: !(card.entry.download_detail || "").startsWith("Baixando") || !card.entry.percent; visible: card.entry.state === "Em andamento" }
                     Label { visible: workspace.preferences.queue_view === "Completa"; text: card.entry.last_error ? bridge.translateError(card.entry.last_error) : card.entry.url; color: card.entry.last_error ? bridge.palette.error : bridge.palette.muted; wrapMode: Text.Wrap; Layout.fillWidth: true; maximumLineCount: 2 }
                 }
-                ActionButton {visible:!page.queuePage && card.entry.state!=="Concluído";text:bridge.translate(card.entry.state==="Em andamento" ? "Pausar" : card.entry.state==="Falhou" ? "Tentar novamente" : "Baixar agora");onClicked:workspace.invoke("queue_action",{name:card.entry.state==="Em andamento" ? "pause" : "resume",id:card.entry.id})}
+                ActionButton {visible:!page.queuePage && card.entry.state!=="Concluído";text:bridge.translate(card.entry.state==="Em andamento" ? "Pausar" : ["Falhou","Cancelado"].indexOf(card.entry.state)>=0 ? "Tentar novamente" : card.entry.state==="Pausado" ? "Retomar" : "Baixar agora");onClicked:workspace.invoke(["Falhou","Cancelado"].indexOf(card.entry.state)>=0 ? "queue_retry_now" : "queue_action",{name:card.entry.state==="Em andamento" ? "pause" : "resume",id:card.entry.id})}
                 PlaybackButton { glyph: "close"; Accessible.name: bridge.translate("Remover"); onClicked: workspace.invoke("queue_action",{name:"remove",id:card.entry.id}) }
             }
         }

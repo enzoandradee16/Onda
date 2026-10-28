@@ -19,3 +19,10 @@ import androidx.compose.ui.unit.dp
         OndaIcon("shuffle","Reprodução aleatória",Modifier.size(23.dp))
     }
 }
+
+@Composable internal fun RepeatPlaybackButton(mode:String,onChange:(String)->Unit) {
+    IconToggleButton(checked=mode!="Desativada",onCheckedChange={onChange(when(mode){"Desativada"->"Todas";"Todas"->"Uma";else->"Desativada"})},modifier=Modifier.testTag("playback-repeat"),
+        colors=IconButtonDefaults.iconToggleButtonColors(contentColor=LocalContentColor.current,checkedContentColor=MaterialTheme.colorScheme.primary)) {
+        OndaIcon(if(mode=="Uma")"repeat-one" else "repeat",translateUi("Repetição")+": "+translateUi(mode),Modifier.size(23.dp))
+    }
+}

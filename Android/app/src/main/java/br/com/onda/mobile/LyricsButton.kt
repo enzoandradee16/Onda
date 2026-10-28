@@ -103,7 +103,7 @@ import org.json.JSONObject
                         DropdownMenu(menu,{menu=false}) {
                             DropdownMenuItem(text={UiText(if(searching)"Pesquisando…" else "Buscar letra online")},enabled=!searching&&source.isNotBlank(),onClick={
                                 menu=false;searching=true;val requestedSource=source
-                                vm.lookupLyrics(source,refresh=true){result->if(latestSource==requestedSource){searching=false;if(result.has("error"))vm.showNotice("Buscar letra online",result.optString("error"),error=true);alternatives=result.optJSONArray("candidates")?.let {rows->(0 until rows.length()).map {rows.getJSONObject(it)}}.orEmpty();if(alternatives.isEmpty())applyLyrics(result)}}
+                                vm.lookupLyrics(source,alternatives=true,refresh=true){result->if(latestSource==requestedSource){searching=false;if(result.has("error"))vm.showNotice("Buscar letra online",result.optString("error"),error=true);alternatives=result.optJSONArray("candidates")?.let {rows->(0 until rows.length()).map {rows.getJSONObject(it)}}.orEmpty();if(result.has("candidates")&&alternatives.isEmpty())vm.showNotice("Buscar letra online","Letra não encontrada para esta gravação.")}}
                             })
                             DropdownMenuItem(text={UiText("Escolher letra")},enabled=source.isNotBlank(),onClick={menu=false;picker.launch(arrayOf("*/*"))})
                         }

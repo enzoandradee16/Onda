@@ -4,21 +4,21 @@
 
 A navegação principal usa **Pesquisar**, **Downloads**, **Reprodução** e **Mais**. Em Downloads, Em andamento / Concluídos usa o mesmo seletor arredondado de Salvos / Importar em Álbuns e playlists. Reprodução aplica esse estilo a Efeitos / Jukebox infinito e respeita a ordem configurada.
 
-O player compacto acompanha a navegação; toque nele para abrir capa, controles e letras, que também podem ocupar a tela inteira. Efeitos e Jukebox têm filas próprias. As capturas do celular foram recortadas apenas nas barras do sistema e estão em `docs/images/android novo`, na raiz do projeto; a navegação do ONDA foi preservada.
+O player compacto acompanha a navegação; toque nele para abrir capa, controles e letras, que também podem ocupar a tela inteira. Efeitos e Jukebox compartilham música, fila e player na tela Reprodução e podem funcionar juntos. Veja [Reprodução unificada](../docs/REPRODUCAO-UNIFICADA.md). As capturas em `docs/images/android novo` registram a interface anterior à unificação.
 
-Os dois APKs oficiais usam versão **1.2.1**, código **28**, com a assinatura de produção original. A validação física ARM64 continua pendente. Consulte [o relatório atual](../docs/VALIDACAO-RELEASE-1.2.1.md).
+Os dois APKs oficiais usam versão **1.2.4**, código **30**, com a assinatura de produção original. Não houve execução automatizada do conjunto completo em aparelho ARM64 físico na preparação desta release. Consulte [o relatório atual](../docs/VALIDACAO-RELEASE-1.2.3.md).
 
 Projeto Android separado da distribuição Windows. Kotlin/Compose fornece a interface e os serviços; Python/Chaquopy executa o motor compartilhado do ONDA. O build copia os módulos necessários de `../Onda`, sem editar o programa de PC.
 
-Versão de desenvolvimento **1.2.1**, conforme `app/build.gradle.kts`, para Android 8 ou superior, ARM64 e x86_64. Kotlin/Compose e o motor compartilhado fornecem busca, downloads, histórico, edição de metadados, imagens e efeitos. Consulte [FUNCIONALIDADES.md](FUNCIONALIDADES.md) e a [auditoria de paridade com o PC](PARIDADE-PC-ANDROID.md).
+Versão de desenvolvimento **1.2.4**, conforme `app/build.gradle.kts`, para Android 8 ou superior, ARM64 e x86_64. Kotlin/Compose e o motor compartilhado fornecem busca, downloads, histórico, edição de metadados, imagens e efeitos. Consulte [FUNCIONALIDADES.md](FUNCIONALIDADES.md) e a [auditoria de paridade com o PC](PARIDADE-PC-ANDROID.md).
 
 Resultados e pendências desta compilação: [validation/RESULTADOS.md](validation/RESULTADOS.md).
 
 ## Instalar no celular
 
-Use `APK/ONDA-Android-1.2.1-arm64-v8a.apk`, transfira para o celular e permita a instalação pela origem escolhida. Android 8 ou superior, processador ARM64; o APK padrão contém somente ARM64 para reduzir o tamanho. Para emulador x86_64, use `APK/ONDA-Android-1.2.1-x86_64.apk` ou compile com `-Arquitetura x86_64`; para ambas, use `-Arquitetura universal`. O APK distribuído é assinado com a chave de produção ONDA; o script de desenvolvimento gera um APK debug separado. Não precisa instalar Python, FFmpeg ou Termux.
+Use `APK/ONDA-Android-1.2.4-arm64-v8a.apk`, transfira para o celular e permita a instalação pela origem escolhida. Android 8 ou superior, processador ARM64; o APK padrão contém somente ARM64 para reduzir o tamanho. Para emulador x86_64, use `APK/ONDA-Android-1.2.4-x86_64.apk` ou compile com `-Arquitetura x86_64`; para ambas, use `-Arquitetura universal`. O APK distribuído é assinado com a chave de produção ONDA; o script de desenvolvimento gera um APK debug separado. Não precisa instalar Python, FFmpeg ou Termux.
 
-Abra o ONDA, conclua ou feche a configuração inicial. Em Links e fila, cole o link e escolha Baixar agora ou Adicionar à fila. Downloads usam notificações; conceda a permissão quando solicitada. Se precisar confirmar metadados/versão/mídias, abra o app e responda à janela.
+Abra o ONDA, conclua ou feche a configuração inicial. Em **Downloads**, toque em **+**, cole os links e escolha Baixar agora ou Adicionar à fila. Downloads usam notificações; conceda a permissão quando solicitada. Se precisar confirmar metadados/versão/mídias, abra o app e responda à janela.
 
 No Android 10+, a pasta padrão é Downloads/ONDA. Em Configurações → Downloads é possível escolher outra pasta pelo seletor do sistema. Android 8/9 usa a pasta do aplicativo se nenhuma pasta for escolhida; escolha uma pasta para preservar os downloads ao desinstalar. Histórico permite abrir o arquivo, abrir sua pasta de origem, compartilhar e usar áudio/vídeo nos efeitos. Abrir pasta usa o gerenciador compatível ou o seletor de arquivos do Android; a localização vem do arquivo do histórico, mesmo após mudar a pasta padrão.
 
@@ -26,11 +26,11 @@ Músicas de streaming usam metadados do catálogo: MP3/M4A usam uma versão corr
 
 ## Interface e acesso ao YouTube
 
-Abra o menu ☰ para alternar entre as áreas, acessar Configurações e consultar a fila. Os títulos e controles seguem a nomenclatura do programa de PC; seletores foram compactados para o celular. Em Efeitos, o preset selecionado acompanha os sliders e permanece ao trocar de área. Na busca, Ouvir muda para Parar enquanto a prévia está ativa.
+Use Pesquisar, Downloads, Reprodução e Mais na navegação inferior. Configurações e Aparência ficam nos ícones do cabeçalho; as outras ferramentas ficam em Mais. Os títulos e controles seguem a nomenclatura do programa de PC; seletores foram compactados para o celular. Em Efeitos, o preset selecionado acompanha os sliders e permanece ao trocar de área. Na busca, Ouvir muda para Parar enquanto a prévia está ativa.
 
-Em Configurações → Geral → Idioma, a ordem é Português (Brasil), Español, English, com português como padrão e mudança imediata. Em Links e fila e no Histórico, seletores discretos permitem escolher compacto/completo e o tamanho dos cards, independentemente entre as duas áreas. No Histórico, os controles ficam centralizados junto de Limpar histórico, abaixo da pesquisa.
+Em Configurações → Geral → Idioma, a ordem é Português (Brasil), Español, English, com português como padrão e mudança imediata. Em Downloads e no Histórico, os controles de exibição e tamanho dos cards são próprios de cada área. No Histórico, os controles ficam centralizados junto de Limpar histórico, abaixo da pesquisa.
 
-Se o YouTube exigir verificação, abra Menu → Sessão do YouTube e tente concluir a verificação na janela do próprio app. Toque em Usar esta sessão e tente novamente o download. A sessão é salva apenas no armazenamento privado do ONDA. O login ou a liberação podem ser recusados pelo YouTube em navegador incorporado; nesse caso, importe cookies.txt da sua própria sessão em Configurações → Contas. Nenhum desses caminhos garante remover bloqueios por IP ou exigências adicionais do serviço. Para apagar a sessão, use Remover sessão do YouTube nas configurações.
+Se o YouTube exigir verificação, abra Mais → Sessão do YouTube e tente concluir a verificação na janela do próprio app. Toque em Usar esta sessão e tente novamente o download. A sessão é salva apenas no armazenamento privado do ONDA. O login ou a liberação podem ser recusados pelo YouTube em navegador incorporado; nesse caso, importe cookies.txt da sua própria sessão em Configurações → Contas. Nenhum desses caminhos garante remover bloqueios por IP ou exigências adicionais do serviço. Para apagar a sessão, use Remover sessão do YouTube nas configurações.
 
 O ícone da tela inicial e dos aplicativos recentes acompanha o destaque e a aparência escolhidos, incluindo Seguir o sistema. A atualização visual do launcher depende do cache do aparelho; um atalho de versões antigas pode precisar ser recriado. Consulte [ícones e tema](../docs/ANDROID-ICONE.md).
 
@@ -62,9 +62,9 @@ As preferências, a fila, o histórico, os cookies importados e as credenciais f
 
 ## Distribuição
 
-A versão 1.1.0 usa assinatura de produção. As fontes das ferramentas nativas estão no pacote Fontes-nativos-Android e a reconstrução está descrita em [nativebuild/README.md](nativebuild/README.md). Há testes ARM64 em emulador; compatibilidade e comportamento em segundo plano devem continuar sendo conferidos em aparelhos reais. Veja [THIRD_PARTY_NOTICES_ANDROID.md](THIRD_PARTY_NOTICES_ANDROID.md).
+A versão 1.2.3 usa assinatura de produção. As fontes das ferramentas nativas estão no pacote Fontes-nativos-Android e a reconstrução está descrita em [nativebuild/README.md](nativebuild/README.md). A validação atual inclui testes JVM e instrumentação x86_64; não equivale a testar todos os fluxos em aparelho ARM64 real. Veja [THIRD_PARTY_NOTICES_ANDROID.md](THIRD_PARTY_NOTICES_ANDROID.md).
 
-Na pesquisa, Adicionar à fila e Baixar agora alimentam a Fila da pesquisa, visível na mesma área. Ela mostra estado/progresso e usa o serviço da fila geral sem repetir downloads. Tempos são exibidos em minutos:segundos. Em Configurações → Contas, Abrir Spotify Developers abre o painel oficial no navegador; conectar exige Client ID, com aviso acima da janela se faltar.
+Na pesquisa, Adicionar à fila e Baixar agora usam a fila global de Downloads; destinos de reprodução usam filas próprias de Efeitos/Jukebox. Acompanhe os downloads em Em andamento, sem criar uma segunda execução. Tempos são exibidos em minutos:segundos. Em Configurações → Contas, Abrir Spotify Developers abre o painel oficial no navegador; conectar exige Client ID, com aviso acima da janela se faltar.
 
 
 ### Fonte da interface
@@ -74,7 +74,7 @@ Em Configurações → Aparência → Fonte da interface, escolha Padrão do sis
 
 ### Enter nos campos
 
-Em Pesquisar músicas, Enter do teclado físico ou a ação Pesquisar do teclado virtual inicia a busca, sem inserir uma linha. Os demais campos são de uma linha. Somente o campo LINKS em Links e fila aceita Enter para separar os links.
+Em Pesquisar músicas, Enter do teclado físico ou a ação Pesquisar do teclado virtual inicia a busca, sem inserir uma linha. Os demais campos são de uma linha. O campo de vários links aberto pelo + em Downloads aceita Enter para separar URLs; nas pesquisas de músicas e reprodução, Enter inicia a busca.
 
 O fluxo de fotos, vídeos, posts mistos e foto com música nas redes sociais está descrito em [Downloads sociais](../docs/FLUXO-DOWNLOAD-SOCIAL.md).
 

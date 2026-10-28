@@ -378,6 +378,8 @@ class Session:
         n=len(self.model['neighbors']);self.visits=[0]*n;self.recent=[]
         self.story_frontier=0;self.story_until=0;self.story_returns=0
         self.loop_end=loop_boundary(self.model['neighbors'])
+        from playback_effects import PreparedEffects
+        self.effects=PreparedEffects(self.base);self.effect_key=None;self.original_beats=list(self.model['beats'])
         with _active_lock:_active[str(self.base)]+=1
     def _read(self,start,count):
         start=max(0,min(start,self.sound.getnframes()));self.sound.setpos(start)
@@ -388,8 +390,15 @@ class Session:
         self.index=index;self.since_jump=0;self.fade_in=round(RATE*.008)
         self.story_frontier=index;self.story_until=index;self.story_returns=0
 
-    def chunk(self,variation=45,smooth=35,volume=80,normal=False,equalizer=None):
+    def chunk(self,variation=45,smooth=35,volume=80,normal=False,equalizer=None,effects=None):
         if self.closed:raise ValueError('Reprodução encerrada.')
+        key=self.effects.configure(effects)
+        target=key if key is not None and self.effects.ready==key else self.effect_key if key is not None else None
+        if target!=self.effect_key:
+            replacement=wave.open(str(self.effects.path(target)),'rb')
+            self.sound.close();self.sound=replacement;self.effect_key=target
+            scale=100/target[0] if target else 1
+            self.model['beats']=[value*scale for value in self.original_beats];self.fade_in=round(RATE*.008)
         variation=max(0,min(100,float(variation)));smooth=max(0,min(100,float(smooth)));volume=max(0,min(100,float(volume)))
         i=self.index;beats=self.model['beats'];n=len(beats)-1
         next_index=(i+1)%n
@@ -475,10 +484,12 @@ class Session:
         if processing and os.sys.byteorder!='little':data.byteswap()
         self.equalizer.configure(equalizer)
         pcm=self.equalizer.process(data.tobytes() if processing else data)
-        return {'pcm':pcm,'index':i,'next':next_index,'jumped':jumped,'jumps':self.jumps,'seconds':len(raw)/(RATE*CHANNELS*2),'transition_seconds':fade/RATE}
+        return {'pcm':pcm,'index':i,'next':next_index,'jumped':jumped,'jumps':self.jumps,'seconds':len(raw)/(RATE*CHANNELS*2),'transition_seconds':fade/RATE,
+                'effects_pending':key is not None and key!=self.effect_key and not self.effects.error,'effects_error':self.effects.error,
+                'finished':bool(normal and i==n-1),'normal':bool(normal)}
     def close(self):
         if not self.closed:
-            self.closed=True;self.sound.close()
+            self.closed=True;self.effects.close();self.sound.close()
             with _active_lock:
                 _active[str(self.base)]-=1
                 if not _active[str(self.base)]:_active.pop(str(self.base),None)

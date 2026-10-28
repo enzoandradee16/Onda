@@ -18,7 +18,7 @@ En Android, las actualizaciones pueden descargarse dentro de ONDA, con progreso 
 
 En PC, haz clic derecho en las listas o tarjetas para abrir las acciones disponibles en esa pestaña. Mayús+F10 y la tecla de menú también abren estas opciones; la selección múltiple se conserva al hacer clic en uno de los elementos seleccionados.
 
-## Novedades de la versión 1.2.0
+## Características destacadas
 
 - **Windows:** Descargar ahora en la búsqueda abre la elección de formato y calidad: MP3, M4A, FLAC o audio original. Parte de las preferencias guardadas. Permite descargar o añadir a la cola; cancelar no inicia nada. La elección se aplica a esa canción.
 - **Minirreproductores del PC:** Efectos y Jukebox comparten el diseño, cada uno con portada, álbum, controles, volumen, letras y cola propios. Siguen visibles al minimizar ONDA. Apariencia permite elegir si ONDA se minimiza al abrirlos; el encabezado, la portada y los datos de la canción permiten mover la ventana.
@@ -47,7 +47,7 @@ Los ejecutables de Windows no tienen firma digital. Windows puede mostrar un avi
 
 ## Idioma
 
-La versión 1.2.0 incluye **Português (Brasil)**, **Español** y **English**, en ese orden, en **Configuración → General → Idioma**. Los paquetes 1.2.0 están preparados localmente; publicarlos en GitHub es un paso aparte. Portugués sigue siendo el idioma predeterminado. El nombre **ONDA** se conserva en todos los idiomas. Ambas interfaces usan el mismo catálogo de traducción. En Android, el cambio es inmediato; en Windows, reinicia la aplicación. La elección se conserva aunque “Recordar configuración” esté desactivado. Los nombres de canciones, artistas, álbumes y archivos permanecen originales.
+La aplicación incluye **Português (Brasil)**, **Español** y **English**, en ese orden, en **Configuración → General → Idioma**. Portugués sigue siendo el idioma predeterminado. El nombre **ONDA** se conserva en todos los idiomas. Ambas interfaces usan el mismo catálogo de traducción. En Android, el cambio es inmediato; en Windows, reinicia la aplicación. La elección se conserva aunque “Recordar configuración” esté desactivado. Los nombres de canciones, artistas, álbumes y archivos permanecen originales.
 
 En Android, el icono de la pantalla de inicio y de aplicaciones recientes sigue el color de acento y los modos claro, oscuro, negro puro o del sistema. Algunos launchers pueden tardar en actualizar el icono o requerir volver a crear un acceso directo antiguo.
 
@@ -63,6 +63,8 @@ En Windows, **Reiniciar** aparece debajo de Idioma solo cuando hay un cambio de 
 
 ## Funciones
 
+Para consultar las funciones actuales, diferencias entre plataformas y referencias al código, lee el [inventario completo](docs/INVENTARIO-FUNCIONALIDADES.md) (en portugués).
+
 - Busca música en Deezer, Apple Music y Spotify, obteniendo metadatos y portadas. La conexión con Spotify es opcional y amplía las funciones de búsqueda y listas de reproducción.
 - Para canciones de catálogos de streaming, MP3/M4A usan una versión equivalente de YouTube. FLAC usa el catálogo Monochrome cuando hay una coincidencia compatible, con validación del audio y selección de versiones.
 - Descarga enlaces de vídeo, audio e imágenes, incluidas publicaciones de redes sociales con varios elementos multimedia, cuando son accesibles.
@@ -71,7 +73,7 @@ En Windows, **Reiniciar** aparece debajo de Idioma solo cuando hay un cambio de 
 - Convierte imágenes y crea versiones Slowed, Sped Up y Reverb, con ajustes preestablecidos, vista previa, navegación durante la reproducción y opción de mantener el tono.
 - Ofrece temas claro, oscuro, negro puro y del sistema, 16 colores de acento y pestañas reordenables.
 
-![Configuración y apariencia](docs/images/pc/es/aparencia-escuro.png)
+![Configuración y apariencia](docs/images/onda-configuracoes.png)
 
 ## ONDA en Windows
 

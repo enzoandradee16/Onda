@@ -1,6 +1,8 @@
 # Interface Qt do ONDA para Windows
 
-## Atualizações da interface 1.2.0
+## Interface atual — 1.2.3
+
+Guia revisado em 27/10/2026. Para os recursos completos, consulte o [inventário](INVENTARIO-FUNCIONALIDADES.md).
 
 A pesquisa abre a escolha de formato ao solicitar Baixar agora: MP3, M4A, FLAC ou original, com qualidade compatível, padrão salvo e confirmação para iniciar ou enfileirar. Cancelar não cria uma tarefa. O componente `DownloadFormatPopup.qml` usa a fila de decisões do controlador e impede a exibição simultânea do diálogo genérico.
 

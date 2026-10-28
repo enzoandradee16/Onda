@@ -40,13 +40,7 @@ import coil.compose.AsyncImage
         if(juke.playing&&!juke.paused)lastJukebox=true
         else if(fxMedia?.playing==true||fxPreparing)lastJukebox=false
     }
-    val useJukebox=if(expanded)expandedJukebox else when {
-        juke.playing&&!juke.paused->true
-        fxMedia?.playing==true||fxPreparing->false
-        lastJukebox&&juke.model!=null->true
-        fxSource.isNotBlank()->false
-        else->juke.model!=null
-    }
+    val useJukebox=true
     val model=juke.model
     val source=if(useJukebox)model?.optString("source").orEmpty() else fxSource
     SideEffect {vm.compactPlaybackMode.value=if(source.isBlank())null else if(useJukebox)1 else 0}
@@ -119,15 +113,14 @@ import coil.compose.AsyncImage
                 Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),verticalArrangement=Arrangement.spacedBy(16.dp)) {
                     Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
                         IconButton(onClick={expanded=false}){OndaIcon("down","Recolher reprodução",Modifier.size(26.dp))}
-                        Column(Modifier.weight(1f),horizontalAlignment=Alignment.CenterHorizontally){UiText("Reproduzindo",style=MaterialTheme.typography.labelSmall);UiText(if(useJukebox)"Jukebox infinito" else "Efeitos",style=MaterialTheme.typography.titleSmall)}
+                        Column(Modifier.weight(1f),horizontalAlignment=Alignment.CenterHorizontally){UiText("Reproduzindo",style=MaterialTheme.typography.labelSmall);UiText("Reprodução",style=MaterialTheme.typography.titleSmall)}
                         ShufflePlaybackButton(if(useJukebox)jukeShuffle else fxShuffle,{if(useJukebox)vm.jukebox.queueShuffle.value=it else vm.effectsShuffle.value=it})
+                        RepeatPlaybackButton(jukeRepeat,{vm.jukebox.queueRepeat.value=it})
                         Box {
                             IconButton(onClick={menu=true}){OndaIcon("more-vertical","Mais",Modifier.size(24.dp))}
                             DropdownMenu(menu,{menu=false}) {
                                 DropdownMenuItem(text={UiText("Parar")},onClick={menu=false;if(useJukebox)vm.jukebox.stop() else vm.stopEffectsPlayback()})
-                                if(useJukebox&&fxSource.isNotBlank())DropdownMenuItem(text={UiText("Reproduzir em Efeitos")},enabled=(info?.optDouble("duration",0.0) ?: 0.0)>0,onClick={menu=false;if(!vm.effectsPreviewEnabled.value)vm.mediaToggleEffects();vm.playbackMode.value=0;expandedJukebox=false})
-                                if(!useJukebox&&juke.model!=null)DropdownMenuItem(text={UiText("Reproduzir no Jukebox")},enabled=!juke.busy,onClick={menu=false;val current=vm.jukebox.state.value;if(!current.playing||current.paused)vm.jukebox.playPause();vm.playbackMode.value=1;if(vm.jukebox.state.value.model!=null)expandedJukebox=true})
-                                DropdownMenuItem(text={UiText(if(useJukebox)"Trocar música" else "Ajustes de Efeitos")},onClick={menu=false;expanded=false;vm.playbackMode.value=if(useJukebox)1 else 0;vm.effectsNavigation.value=true})
+                                DropdownMenuItem(text={UiText("Ajustes de reprodução")},onClick={menu=false;expanded=false;vm.playbackMode.value=if(useJukebox)1 else 0;vm.effectsNavigation.value=true})
                                 if(useJukebox){
                                     DropdownMenuItem(text={UiText("Reprodução normal")},leadingIcon={Checkbox(vm.jukebox.normal,null)},onClick={vm.jukebox.normal=!vm.jukebox.normal;menu=false})
                                     DropdownMenuItem(text={UiText("Timer")},onClick={menu=false;timer=true})
