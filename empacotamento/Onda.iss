@@ -284,7 +284,8 @@ begin
   Names := ['settings.json', 'library.sqlite3', 'library.sqlite3-wal',
     'library.sqlite3-shm', 'library.sqlite3-journal', 'spotify.dpapi',
     'spotify-account.dpapi', 'welcome-seen.json', 'startup-error.log',
-    'remember.json', 'language.json', 'display.json', 'window.json'];
+    'remember.json', 'language.json', 'display.json', 'window.json',
+    'playback-session.json', 'playback-session.tmp'];
   Failures := '';
   for I := 0 to GetArrayLength(Names) - 1 do
   begin

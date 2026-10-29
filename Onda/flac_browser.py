@@ -1,4 +1,5 @@
 """Browser-assisted FLAC import: no challenge tokens or private service API."""
+
 from pathlib import Path
 import os
 import shutil
@@ -6,10 +7,12 @@ import subprocess
 import tempfile
 from urllib.parse import urlencode
 
-INSTRUCTIONS = ("Abra o serviço, escolha a música e baixe em FLAC. "
-                "Se houver verificação de segurança, conclua no navegador. "
-                "Depois volte ao ONDA e selecione o arquivo baixado. "
-                "Confira artista, título e versão antes de importar.")
+INSTRUCTIONS = (
+    "Abra o serviço, escolha a música e baixe em FLAC. "
+    "Se houver verificação de segurança, conclua no navegador. "
+    "Depois volte ao ONDA e selecione o arquivo baixado. "
+    "Confira artista, título e versão antes de importar."
+)
 
 
 def search_url(record):
@@ -19,9 +22,12 @@ def search_url(record):
 
 def validate_flac(path, record=None):
     from mutagen.flac import FLAC
+
     path = Path(path)
     if not path.is_file() or path.suffix.lower() != ".flac":
-        raise ValueError("Selecione um arquivo FLAC concluído, não MP3 ou um download parcial.")
+        raise ValueError(
+            "Selecione um arquivo FLAC concluído, não MP3 ou um download parcial."
+        )
     with path.open("rb") as stream:
         if stream.read(4) != b"fLaC":
             raise ValueError("O arquivo selecionado não contém áudio FLAC.")
@@ -33,12 +39,26 @@ def validate_flac(path, record=None):
     except Exception as exc:
         raise ValueError("Arquivo FLAC inválido ou incompleto.") from exc
     expected = (record or {}).get("duration_ms") or 0
-    if expected and abs(info.length - expected / 1000) > max(20, expected / 1000 * .15):
-        raise ValueError("A duração do FLAC difere da música escolhida. Confira a versão e tente novamente.")
+    if expected and abs(info.length - expected / 1000) > max(
+        20, expected / 1000 * 0.15
+    ):
+        raise ValueError(
+            "A duração do FLAC difere da música escolhida. Confira a versão e tente novamente."
+        )
     return info
 
 
-def import_flac(config, record, ask_file, emit, ask_duplicate, *, source=None, match=None, consume=False):
+def import_flac(
+    config,
+    record,
+    ask_file,
+    emit,
+    ask_duplicate,
+    *,
+    source=None,
+    match=None,
+    consume=False,
+):
     from audio_tools import executable, process_options
     from file_output import component, destination, publish
     from tagging import apply_tags, fetch_cover
@@ -51,17 +71,38 @@ def import_flac(config, record, ask_file, emit, ask_duplicate, *, source=None, m
     work.mkdir(parents=True, exist_ok=True)
     # Never modify or remove the browser's original download.
     with tempfile.TemporaryDirectory(prefix="flac-", dir=work) as temporary:
-        target = Path(temporary) / (component(" - ".join([record["artists"][0], record["title"]])) + ".flac")
+        target = Path(temporary) / (
+            component(" - ".join([record["artists"][0], record["title"]])) + ".flac"
+        )
         emit("stage", message="Validando o arquivo FLAC selecionado…")
         validate_flac(source, record)
         os.replace(source, target) if consume else shutil.copyfile(source, target)
-        result = subprocess.run([executable("ffmpeg", config.get("ffmpeg", "")), "-nostdin", "-v", "error", "-xerror",
-                                 "-i", str(target), "-map", "0:a:0", "-f", "null", "-"],
-                                stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, **process_options())
+        result = subprocess.run(
+            [
+                executable("ffmpeg", config.get("ffmpeg", "")),
+                "-nostdin",
+                "-v",
+                "error",
+                "-xerror",
+                "-i",
+                str(target),
+                "-map",
+                "0:a:0",
+                "-f",
+                "null",
+                "-",
+            ],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            **process_options(),
+        )
         if result.returncode:
-            raise ValueError("Não foi possível decodificar o FLAC completo. Baixe novamente o arquivo.")
+            raise ValueError(
+                "Não foi possível decodificar o FLAC completo. Baixe novamente o arquivo."
+            )
         if config.get("normalize_volume"):
             from audio_library import normalize_audio
+
             normalize_audio(str(target), config, emit)
         cover = None
         if record.get("cover_path"):
@@ -70,15 +111,36 @@ def import_flac(config, record, ask_file, emit, ask_duplicate, *, source=None, m
             try:
                 cover = fetch_cover(record["cover_url"])
             except ValueError as exc:
-                emit("log", message=str(exc) + " A capa existente no FLAC será preservada.")
+                emit(
+                    "log",
+                    message=str(exc) + " A capa existente no FLAC será preservada.",
+                )
         emit("stage", message="Gravando metadados e capa no arquivo…")
-        match = match or {"source_url": url, "title": source.name, "selection": "user", "provider": "FLAC Downloader",
-                 "note": "FLAC selecionado pelo usuário após download no serviço externo. O codec não comprova a origem ou a masterização sem perdas."}
+        match = match or {
+            "source_url": url,
+            "title": source.name,
+            "selection": "user",
+            "provider": "FLAC Downloader",
+            "note": "FLAC selecionado pelo usuário após download no serviço externo. O codec não comprova a origem ou a masterização sem perdas.",
+        }
         sidecar = apply_tags(str(target), record, match, cover)
-        final, skipped = publish(target, folder, config.get("duplicate_policy", "keep"), ask_duplicate, config=config, record=record)
+        final, skipped = publish(
+            target,
+            folder,
+            config.get("duplicate_policy", "keep"),
+            ask_duplicate,
+            config=config,
+            record=record,
+        )
         if not skipped:
             os.replace(sidecar, final + ".metadata.json")
-        emit("file", path=final, size=Path(final).stat().st_size, skipped=skipped, mode="FLAC")
+        emit(
+            "file",
+            path=final,
+            size=Path(final).stat().st_size,
+            skipped=skipped,
+            mode="FLAC",
+        )
         emit("done", files=[final])
     try:
         work.rmdir()

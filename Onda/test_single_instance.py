@@ -16,24 +16,36 @@ class SingleInstanceTests(unittest.TestCase):
 
     def child(self, code):
         prefix = f"import sys; sys.path.insert(0, {str(Path(__file__).parent)!r}); from single_instance import SingleInstance; "
-        return subprocess.run([sys.executable, "-s", "-c", prefix + code], capture_output=True, text=True, timeout=10)
+        return subprocess.run(
+            [sys.executable, "-s", "-c", prefix + code],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
 
     def test_second_process_is_rejected_and_reopening_is_allowed_after_close(self):
         with SingleInstance(self.name) as primary:
             self.assertTrue(primary.primary)
-            child = self.child(f"g=SingleInstance({self.name!r}); print(g.primary); g.notify(); g.close()")
+            child = self.child(
+                f"g=SingleInstance({self.name!r}); print(g.primary); g.notify(); g.close()"
+            )
             self.assertEqual(child.returncode, 0, child.stderr)
             self.assertEqual(child.stdout.strip(), "False")
             self.assertTrue(primary.activation_requested())
             self.assertFalse(primary.activation_requested())
-        child = self.child(f"g=SingleInstance({self.name!r}); print(g.primary); g.close()")
+        child = self.child(
+            f"g=SingleInstance({self.name!r}); print(g.primary); g.close()"
+        )
         self.assertEqual(child.stdout.strip(), "True")
 
     def test_duplicate_warns_without_creating_a_tk_app(self):
         with SingleInstance(self.name) as primary:
             second = SingleInstance(self.name)
             factory = Mock(side_effect=AssertionError("Duplicate app created"))
-            with patch("single_instance.SingleInstance", return_value=second), patch("single_instance.already_open_message") as warning:
+            with (
+                patch("single_instance.SingleInstance", return_value=second),
+                patch("single_instance.already_open_message") as warning,
+            ):
                 self.assertEqual(run_single_instance(factory), 0)
             warning.assert_called_once_with()
             factory.assert_not_called()
@@ -41,7 +53,13 @@ class SingleInstanceTests(unittest.TestCase):
 
     def test_crashed_process_does_not_leave_a_stale_lock(self):
         code = f"import sys; sys.path.insert(0, {str(Path(__file__).parent)!r}); from single_instance import SingleInstance; g=SingleInstance({self.name!r}); print(g.primary, flush=True); input()"
-        process = subprocess.Popen([sys.executable, "-s", "-c", code], stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        process = subprocess.Popen(
+            [sys.executable, "-s", "-c", code],
+            stdout=subprocess.PIPE,
+            stdin=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
         try:
             self.assertEqual(process.stdout.readline().strip(), "True")
             with SingleInstance(self.name) as second:
@@ -79,13 +97,17 @@ class SingleInstanceTests(unittest.TestCase):
     @unittest.skipUnless(os.environ.get("ONDA_UI_TESTS"), "Tk integration")
     def test_notification_restores_existing_window(self):
         import tkinter as tk
+
         root = tk.Tk()
         root.geometry("400x240")
         try:
             root.update()
             root.iconify()
             root.update()
-            with SingleInstance(self.name) as primary, SingleInstance(self.name) as second:
+            with (
+                SingleInstance(self.name) as primary,
+                SingleInstance(self.name) as second,
+            ):
                 primary.watch(root)
                 second.notify()
                 root.after(300, root.quit)

@@ -1,83 +1,147 @@
 """Continuous, bounded PCM crossfades shared by Windows and Android."""
+
 from array import array
 import sys
 from jukebox import Session, RATE, CHANNELS
 
 
-def mix_pcm(outgoing,incoming,start,total):
+def mix_pcm(outgoing, incoming, start, total):
     """Complementary stereo ramps: no silent gap and no correlated-signal clipping."""
-    a=array('h');a.frombytes(outgoing);b=array('h');b.frombytes(incoming)
-    if sys.byteorder!='little':a.byteswap();b.byteswap()
-    frames=len(a)//CHANNELS
+    a = array('h')
+    a.frombytes(outgoing)
+    b = array('h')
+    b.frombytes(incoming)
+    if sys.byteorder != 'little':
+        a.byteswap()
+        b.byteswap()
+    frames = len(a) // CHANNELS
     for frame in range(frames):
-        gain=min(1.,(start+frame+1)/max(1,total))
+        gain = min(1.0, (start + frame + 1) / max(1, total))
         for channel in range(CHANNELS):
-            k=frame*CHANNELS+channel;a[k]=round(a[k]*(1-gain)+b[k]*gain)
-    if sys.byteorder!='little':a.byteswap()
+            k = frame * CHANNELS + channel
+            a[k] = round(a[k] * (1 - gain) + b[k] * gain)
+    if sys.byteorder != 'little':
+        a.byteswap()
     return a.tobytes()
 
 
 class _Buffered:
-    def __init__(self,cache):
-        self.session=Session(cache);self.cache=str(cache);self.part=None;self.offset=0;self.start_phase=0.
-    def fill(self,args,kwargs):
-        if self.part is None or self.offset>=len(self.part['pcm']):
-            self.part=self.session.chunk(*args,**kwargs);self.offset=0
+    def __init__(self, cache):
+        self.session = Session(cache)
+        self.cache = str(cache)
+        self.part = None
+        self.offset = 0
+        self.start_phase = 0.0
+
+    def fill(self, args, kwargs):
+        if self.part is None or self.offset >= len(self.part['pcm']):
+            self.part = self.session.chunk(*args, **kwargs)
+            self.offset = 0
             if self.start_phase:
-                frames=len(self.part['pcm'])//4
-                self.offset=min(max(0,frames-1),round(frames*self.start_phase))*4;self.start_phase=0.
-        return (len(self.part['pcm'])-self.offset)//4
-    def take(self,frames):
-        part=dict(self.part);total=len(part['pcm'])//4;start=self.offset//4
-        part['pcm']=part['pcm'][self.offset:self.offset+frames*4];self.offset+=frames*4
-        part.update(seconds=frames/RATE,phase_start=start/max(1,total),phase_end=(start+frames)/max(1,total),edge_completed=start+frames==total,beat_seconds=total/RATE)
+                frames = len(self.part['pcm']) // 4
+                self.offset = (
+                    min(max(0, frames - 1), round(frames * self.start_phase)) * 4
+                )
+                self.start_phase = 0.0
+        return (len(self.part['pcm']) - self.offset) // 4
+
+    def take(self, frames):
+        part = dict(self.part)
+        total = len(part['pcm']) // 4
+        start = self.offset // 4
+        part['pcm'] = part['pcm'][self.offset : self.offset + frames * 4]
+        self.offset += frames * 4
+        part.update(
+            seconds=frames / RATE,
+            phase_start=start / max(1, total),
+            phase_end=(start + frames) / max(1, total),
+            edge_completed=start + frames == total,
+            beat_seconds=total / RATE,
+        )
         return part
-    def close(self):self.session.close()
+
+    def close(self):
+        self.session.close()
 
 
 class Stream:
-    def __init__(self,cache):
-        self.current=_Buffered(cache);self.incoming=None;self.fade_frames=0;self.mixed=0;self.announce=False
+    def __init__(self, cache):
+        self.current = _Buffered(cache)
+        self.incoming = None
+        self.fade_frames = 0
+        self.mixed = 0
+        self.announce = False
+
     @property
-    def transitioning(self):return self.incoming is not None
-    def switch(self,cache,seconds=2):
-        if self.incoming is not None:raise ValueError('Aguarde a transição atual terminar.')
-        target=_Buffered(cache)
-        part=self.current.part
+    def transitioning(self):
+        return self.incoming is not None
+
+    def switch(self, cache, seconds=2):
+        if self.incoming is not None:
+            raise ValueError('Aguarde a transição atual terminar.')
+        target = _Buffered(cache)
+        part = self.current.part
         if part and part.get('normal'):
             # Finite playback must not wrap the outgoing song during a long fade.
-            beats=self.current.session.model['beats']
-            remaining=(len(part['pcm'])-self.current.offset)/4/RATE
-            if not part.get('finished'):remaining+=max(0,beats[-1]-beats[part['next']])
-            incoming=target.session.model.get('duration',beats[-1])/1.5
-            seconds=min(float(seconds),remaining,incoming)
-        self.fade_frames=round(RATE*max(0.,min(10.,float(seconds))));self.mixed=0
+            beats = self.current.session.model['beats']
+            remaining = (len(part['pcm']) - self.current.offset) / 4 / RATE
+            if not part.get('finished'):
+                remaining += max(0, beats[-1] - beats[part['next']])
+            incoming = target.session.model.get('duration', beats[-1]) / 1.5
+            seconds = min(float(seconds), remaining, incoming)
+        self.fade_frames = round(RATE * max(0.0, min(10.0, float(seconds))))
+        self.mixed = 0
         if not self.fade_frames:
-            self.current.close();self.current=target
-        else:self.incoming=target
-        self.announce=True
-    def seek(self,index,expected_cache=None,phase=0.):
+            self.current.close()
+            self.current = target
+        else:
+            self.incoming = target
+        self.announce = True
+
+    def seek(self, index, expected_cache=None, phase=0.0):
         # A seek targets the track currently becoming audible.
-        if expected_cache is not None and str(expected_cache)!=(self.incoming or self.current).cache:return False
+        if (
+            expected_cache is not None
+            and str(expected_cache) != (self.incoming or self.current).cache
+        ):
+            return False
         if self.incoming is not None:
-            self.current.close();self.current=self.incoming;self.incoming=None
-        self.current.session.seek(index);self.current.part=None;self.current.offset=0
-        self.current.start_phase=max(0.,min(.999999,float(phase)))
+            self.current.close()
+            self.current = self.incoming
+            self.incoming = None
+        self.current.session.seek(index)
+        self.current.part = None
+        self.current.offset = 0
+        self.current.start_phase = max(0.0, min(0.999999, float(phase)))
         return True
-    def chunk(self,*args,**kwargs):
-        count=self.current.fill(args,kwargs)
+
+    def chunk(self, *args, **kwargs):
+        count = self.current.fill(args, kwargs)
         if self.incoming is not None:
-            count=min(count,self.incoming.fill(args,kwargs),self.fade_frames-self.mixed,RATE//10)
-            old=self.current.take(count);part=self.incoming.take(count)
-            part['pcm']=mix_pcm(old['pcm'],part['pcm'],self.mixed,self.fade_frames)
-            self.mixed+=count
-            if self.mixed>=self.fade_frames:
-                self.current.close();self.current=self.incoming;self.incoming=None
-        else:part=self.current.take(count)
+            count = min(
+                count,
+                self.incoming.fill(args, kwargs),
+                self.fade_frames - self.mixed,
+                RATE // 10,
+            )
+            old = self.current.take(count)
+            part = self.incoming.take(count)
+            part['pcm'] = mix_pcm(old['pcm'], part['pcm'], self.mixed, self.fade_frames)
+            self.mixed += count
+            if self.mixed >= self.fade_frames:
+                self.current.close()
+                self.current = self.incoming
+                self.incoming = None
+        else:
+            part = self.current.take(count)
         if self.announce:
-            part['track_changed']=(self.incoming or self.current).cache;self.announce=False
-        part['crossfade_active']=self.incoming is not None
+            part['track_changed'] = (self.incoming or self.current).cache
+            self.announce = False
+        part['crossfade_active'] = self.incoming is not None
         return part
+
     def close(self):
         self.current.close()
-        if self.incoming is not None:self.incoming.close();self.incoming=None
+        if self.incoming is not None:
+            self.incoming.close()
+            self.incoming = None

@@ -1,4 +1,5 @@
 """Notebook containers which create their content only when needed."""
+
 from importlib import import_module
 from tkinter import ttk
 
@@ -11,13 +12,16 @@ class LazyPane(ttk.Frame):
         super().__init__(parent)
         from settings_scroll import SettingsCategory
         from ui import BG
-        self._scroller=SettingsCategory(self,BG,fill_viewport=True,padding=0)
-        self._scroller.pack(fill="both",expand=True)
+
+        self._scroller = SettingsCategory(self, BG, fill_viewport=True, padding=0)
+        self._scroller.pack(fill="both", expand=True)
 
     def ensure_ready(self):
         if self._content is None:
             module, name = self._factory
-            content = getattr(import_module(module), name)(self._scroller.content, self._app)
+            content = getattr(import_module(module), name)(
+                self._scroller.content, self._app
+            )
             self._content = content
             content.pack(fill="both", expand=True)
             manager = getattr(self._app, "theme_manager", None)
@@ -44,16 +48,47 @@ class LazyPane(ttk.Frame):
 
     # Widget geometry belongs to the notebook container; pane data and actions
     # belong to the content, even when a name (e.g. size) is also a ttk method.
-    _container_names = frozenset({
-        "tk", "master", "children", "widgetName", "ensure_ready", "busy",
-        "stop_preview", "shutdown", "refresh", "destroy", "configure", "config",
-        "cget", "keys", "bind", "bind_all", "bindtags", "unbind", "unbind_all",
-        "pack", "pack_forget", "grid", "grid_forget", "place", "place_forget",
-        "after", "after_idle", "after_cancel", "register", "nametowidget",
-    })
+    _container_names = frozenset(
+        {
+            "tk",
+            "master",
+            "children",
+            "widgetName",
+            "ensure_ready",
+            "busy",
+            "stop_preview",
+            "shutdown",
+            "refresh",
+            "destroy",
+            "configure",
+            "config",
+            "cget",
+            "keys",
+            "bind",
+            "bind_all",
+            "bindtags",
+            "unbind",
+            "unbind_all",
+            "pack",
+            "pack_forget",
+            "grid",
+            "grid_forget",
+            "place",
+            "place_forget",
+            "after",
+            "after_idle",
+            "after_cancel",
+            "register",
+            "nametowidget",
+        }
+    )
 
     def __getattribute__(self, name):
-        if name.startswith("_") or name.startswith("winfo_") or name in LazyPane._container_names:
+        if (
+            name.startswith("_")
+            or name.startswith("winfo_")
+            or name in LazyPane._container_names
+        ):
             return super().__getattribute__(name)
         return getattr(self.ensure_ready(), name)
 

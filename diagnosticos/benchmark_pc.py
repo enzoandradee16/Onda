@@ -3,6 +3,7 @@
 Only the copy's instance name, welcome flag and profiling hook differ from
 production. No third-party monitoring dependency is required.
 """
+
 import argparse
 import ctypes as C
 from ctypes import wintypes as W
@@ -17,54 +18,107 @@ import sys
 import tempfile
 import time
 
-REPO=Path(os.environ.get('ONDA_BENCH_REPO',str(Path(__file__).resolve().parents[1])))
-OUT=Path(os.environ.get('ONDA_BENCH_OUT',str(Path(__file__).parent/'resultados')))
+REPO = Path(os.environ.get('ONDA_BENCH_REPO', str(Path(__file__).resolve().parents[1])))
+OUT = Path(os.environ.get('ONDA_BENCH_OUT', str(Path(__file__).parent / 'resultados')))
 OUT.mkdir(exist_ok=True)
 
+
 class PROCESSENTRY32W(C.Structure):
-    _fields_=[('dwSize',W.DWORD),('cntUsage',W.DWORD),('th32ProcessID',W.DWORD),('th32DefaultHeapID',C.c_size_t),('th32ModuleID',W.DWORD),('cntThreads',W.DWORD),('th32ParentProcessID',W.DWORD),('pcPriClassBase',W.LONG),('dwFlags',W.DWORD),('szExeFile',W.WCHAR*260)]
+    _fields_ = [
+        ('dwSize', W.DWORD),
+        ('cntUsage', W.DWORD),
+        ('th32ProcessID', W.DWORD),
+        ('th32DefaultHeapID', C.c_size_t),
+        ('th32ModuleID', W.DWORD),
+        ('cntThreads', W.DWORD),
+        ('th32ParentProcessID', W.DWORD),
+        ('pcPriClassBase', W.LONG),
+        ('dwFlags', W.DWORD),
+        ('szExeFile', W.WCHAR * 260),
+    ]
+
+
 class MEMORY(C.Structure):
-    _fields_=[('cb',W.DWORD),('PageFaultCount',W.DWORD),('PeakWorkingSetSize',C.c_size_t),('WorkingSetSize',C.c_size_t),('QuotaPeakPagedPoolUsage',C.c_size_t),('QuotaPagedPoolUsage',C.c_size_t),('QuotaPeakNonPagedPoolUsage',C.c_size_t),('QuotaNonPagedPoolUsage',C.c_size_t),('PagefileUsage',C.c_size_t),('PeakPagefileUsage',C.c_size_t),('PrivateUsage',C.c_size_t)]
-k=C.WinDLL('kernel32',use_last_error=True);ps=C.WinDLL('psapi',use_last_error=True)
-k.CreateToolhelp32Snapshot.argtypes=[W.DWORD,W.DWORD];k.CreateToolhelp32Snapshot.restype=W.HANDLE
-k.Process32FirstW.argtypes=[W.HANDLE,C.POINTER(PROCESSENTRY32W)];k.Process32NextW.argtypes=k.Process32FirstW.argtypes
-k.OpenProcess.argtypes=[W.DWORD,W.BOOL,W.DWORD];k.OpenProcess.restype=W.HANDLE
-k.CloseHandle.argtypes=[W.HANDLE]
-k.GetProcessTimes.argtypes=[W.HANDLE,*([C.POINTER(W.FILETIME)]*4)]
-ps.GetProcessMemoryInfo.argtypes=[W.HANDLE,C.POINTER(MEMORY),W.DWORD]
+    _fields_ = [
+        ('cb', W.DWORD),
+        ('PageFaultCount', W.DWORD),
+        ('PeakWorkingSetSize', C.c_size_t),
+        ('WorkingSetSize', C.c_size_t),
+        ('QuotaPeakPagedPoolUsage', C.c_size_t),
+        ('QuotaPagedPoolUsage', C.c_size_t),
+        ('QuotaPeakNonPagedPoolUsage', C.c_size_t),
+        ('QuotaNonPagedPoolUsage', C.c_size_t),
+        ('PagefileUsage', C.c_size_t),
+        ('PeakPagefileUsage', C.c_size_t),
+        ('PrivateUsage', C.c_size_t),
+    ]
+
+
+k = C.WinDLL('kernel32', use_last_error=True)
+ps = C.WinDLL('psapi', use_last_error=True)
+k.CreateToolhelp32Snapshot.argtypes = [W.DWORD, W.DWORD]
+k.CreateToolhelp32Snapshot.restype = W.HANDLE
+k.Process32FirstW.argtypes = [W.HANDLE, C.POINTER(PROCESSENTRY32W)]
+k.Process32NextW.argtypes = k.Process32FirstW.argtypes
+k.OpenProcess.argtypes = [W.DWORD, W.BOOL, W.DWORD]
+k.OpenProcess.restype = W.HANDLE
+k.CloseHandle.argtypes = [W.HANDLE]
+k.GetProcessTimes.argtypes = [W.HANDLE, *([C.POINTER(W.FILETIME)] * 4)]
+ps.GetProcessMemoryInfo.argtypes = [W.HANDLE, C.POINTER(MEMORY), W.DWORD]
+
 
 class Sampler:
-    def __init__(self,pid):self.pid=pid;self.cpu={};self.samples=[]
+    def __init__(self, pid):
+        self.pid = pid
+        self.cpu = {}
+        self.samples = []
+
     def sample(self):
-        snap=k.CreateToolhelp32Snapshot(2,0);entry=PROCESSENTRY32W();entry.dwSize=C.sizeof(entry);parents={}
+        snap = k.CreateToolhelp32Snapshot(2, 0)
+        entry = PROCESSENTRY32W()
+        entry.dwSize = C.sizeof(entry)
+        parents = {}
         try:
-            success=k.Process32FirstW(snap,C.byref(entry))
+            success = k.Process32FirstW(snap, C.byref(entry))
             while success:
-                parents[entry.th32ProcessID]=entry.th32ParentProcessID
-                success=k.Process32NextW(snap,C.byref(entry))
-        finally:k.CloseHandle(snap)
-        group={self.pid}
+                parents[entry.th32ProcessID] = entry.th32ParentProcessID
+                success = k.Process32NextW(snap, C.byref(entry))
+        finally:
+            k.CloseHandle(snap)
+        group = {self.pid}
         for _ in range(10):
-            children={pid for pid,parent in parents.items() if parent in group}
-            if children<=group:break
-            group|=children
-        rss=private=0
+            children = {pid for pid, parent in parents.items() if parent in group}
+            if children <= group:
+                break
+            group |= children
+        rss = private = 0
         for pid in group:
-            handle=k.OpenProcess(0x410,False,pid)
-            if not handle:continue
+            handle = k.OpenProcess(0x410, False, pid)
+            if not handle:
+                continue
             try:
-                ft=[W.FILETIME() for _ in range(4)]
-                if k.GetProcessTimes(handle,*map(C.byref,ft)):
-                    value=lambda t:(t.dwHighDateTime<<32)+t.dwLowDateTime
-                    self.cpu[pid,value(ft[0])]=(value(ft[2])+value(ft[3]))/1e7
-                mem=MEMORY();mem.cb=C.sizeof(mem)
-                if ps.GetProcessMemoryInfo(handle,C.byref(mem),mem.cb):rss+=mem.WorkingSetSize;private+=mem.PrivateUsage
-            finally:k.CloseHandle(handle)
-        record={'t':time.perf_counter(),'rss_mb':rss/1048576,'private_mb':private/1048576,'cpu_s':sum(self.cpu.values())}
+                ft = [W.FILETIME() for _ in range(4)]
+                if k.GetProcessTimes(handle, *map(C.byref, ft)):
+                    value = lambda t: (t.dwHighDateTime << 32) + t.dwLowDateTime
+                    self.cpu[pid, value(ft[0])] = (value(ft[2]) + value(ft[3])) / 1e7
+                mem = MEMORY()
+                mem.cb = C.sizeof(mem)
+                if ps.GetProcessMemoryInfo(handle, C.byref(mem), mem.cb):
+                    rss += mem.WorkingSetSize
+                    private += mem.PrivateUsage
+            finally:
+                k.CloseHandle(handle)
+        record = {
+            't': time.perf_counter(),
+            'rss_mb': rss / 1048576,
+            'private_mb': private / 1048576,
+            'cpu_s': sum(self.cpu.values()),
+        }
         self.samples.append(record)
         return record
 
-PROBE=r'''
+
+PROBE = r'''
 import functools,http.server,threading,time,random,shutil,subprocess,json,os
 from pathlib import Path
 
@@ -132,74 +186,190 @@ def attach(app):
             app.after(800,begin)
 '''
 
-def metrics(samples,start,end):
-    selected=[s for s in samples if start<=s['t']<=end]
-    before=next((s for s in reversed(samples) if s['t']<=start),samples[0])
-    after=next((s for s in samples if s['t']>=end),samples[-1])
-    cpu=max(0,after['cpu_s']-before['cpu_s']);duration=end-start
-    return {'wall_s':duration,'cpu_s':cpu,'cpu_one_core_pct':100*cpu/duration,'cpu_machine_pct':100*cpu/duration/os.cpu_count(),
-            'peak_rss_mb':max((s['rss_mb'] for s in selected),default=0),'peak_private_mb':max((s['private_mb'] for s in selected),default=0),
-            'median_rss_mb':statistics.median([s['rss_mb'] for s in selected]) if selected else 0}
+
+def metrics(samples, start, end):
+    selected = [s for s in samples if start <= s['t'] <= end]
+    before = next((s for s in reversed(samples) if s['t'] <= start), samples[0])
+    after = next((s for s in samples if s['t'] >= end), samples[-1])
+    cpu = max(0, after['cpu_s'] - before['cpu_s'])
+    duration = end - start
+    return {
+        'wall_s': duration,
+        'cpu_s': cpu,
+        'cpu_one_core_pct': 100 * cpu / duration,
+        'cpu_machine_pct': 100 * cpu / duration / os.cpu_count(),
+        'peak_rss_mb': max((s['rss_mb'] for s in selected), default=0),
+        'peak_private_mb': max((s['private_mb'] for s in selected), default=0),
+        'median_rss_mb': (
+            statistics.median([s['rss_mb'] for s in selected]) if selected else 0
+        ),
+    }
+
 
 def main():
-    parser=argparse.ArgumentParser();parser.add_argument('--startup-only',action='store_true');args=parser.parse_args()
-    python=REPO/'Portatil/_runtime/python/python.exe'
-    env=dict(os.environ,PYTHONPATH=str(REPO/'Onda'))
-    ffmpeg=subprocess.check_output([str(python),'-c','from ffmpeg_runtime import existing_folder; print(existing_folder() or "")'],env=env,text=True).strip()
-    assert ffmpeg,'FFmpeg not prepared'
-    root=Path(tempfile.mkdtemp(prefix='onda-performance-',dir=OUT))
-    stage=root/'portable';stage.mkdir();(stage/'Onda').mkdir()
-    for source in (REPO/'Portatil/Onda').glob('*'):
-        if source.is_file():shutil.copyfile(source,stage/'Onda'/source.name)
-    shutil.copyfile(REPO/'Portatil/Onda.exe',stage/'Onda.exe');shutil.copyfile(REPO/'Portatil/onda.ico',stage/'onda.ico')
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--startup-only', action='store_true')
+    args = parser.parse_args()
+    python = REPO / 'Portatil/_runtime/python/python.exe'
+    env = dict(os.environ, PYTHONPATH=str(REPO / 'Onda'))
+    ffmpeg = subprocess.check_output(
+        [
+            str(python),
+            '-c',
+            'from ffmpeg_runtime import existing_folder; print(existing_folder() or "")',
+        ],
+        env=env,
+        text=True,
+    ).strip()
+    assert ffmpeg, 'FFmpeg not prepared'
+    root = Path(tempfile.mkdtemp(prefix='onda-performance-', dir=OUT))
+    stage = root / 'portable'
+    stage.mkdir()
+    (stage / 'Onda').mkdir()
+    for source in (REPO / 'Portatil/Onda').glob('*'):
+        if source.is_file():
+            shutil.copyfile(source, stage / 'Onda' / source.name)
+    shutil.copyfile(REPO / 'Portatil/Onda.exe', stage / 'Onda.exe')
+    shutil.copyfile(REPO / 'Portatil/onda.ico', stage / 'onda.ico')
     # A junction avoids copying a complete interpreter or modifying its files.
-    subprocess.run(['powershell','-NoProfile','-Command',"New-Item -ItemType Junction -Path '"+str(stage/'_runtime').replace("'","''")+"' -Target '"+str(REPO/'Portatil/_runtime').replace("'","''")+"' | Out-Null"],check=True)
-    instance=stage/'Onda/single_instance.py';instance.write_text(instance.read_text(encoding='utf-8').replace('C522DFD9-6BF4-4FE0-9CE4-5D3C5C88E470','Benchmark-'+root.name),encoding='utf-8')
-    (stage/'Onda/benchmark_probe.py').write_text(PROBE,encoding='utf-8')
-    entry=stage/'Onda/desktop_entry.py';text=entry.read_text(encoding='utf-8').replace('App(show_welcome=show_welcome)','App(show_welcome=False)')
-    text=text.replace('    return app\n','    from benchmark_probe import attach\n    attach(app)\n    return app\n',1)
-    entry.write_text(text,encoding='utf-8')
-    results={'platform':'Windows','cpu_logical':os.cpu_count(),'fixture':{'tracks':4,'seconds_each':60,'source':'mono WAV 48kHz PCM16','destination':'MP3 320 kbps','bandwidth_mib_s_per_connection':2},'startup':[],'trials':[]}
-    if args.startup_only and (OUT/'pc-results.json').exists():
-        results=json.loads((OUT/'pc-results.json').read_text(encoding='utf-8'));results['startup']=[]
-    all_samples=[]
+    subprocess.run(
+        [
+            'powershell',
+            '-NoProfile',
+            '-Command',
+            "New-Item -ItemType Junction -Path '"
+            + str(stage / '_runtime').replace("'", "''")
+            + "' -Target '"
+            + str(REPO / 'Portatil/_runtime').replace("'", "''")
+            + "' | Out-Null",
+        ],
+        check=True,
+    )
+    instance = stage / 'Onda/single_instance.py'
+    instance.write_text(
+        instance.read_text(encoding='utf-8').replace(
+            'C522DFD9-6BF4-4FE0-9CE4-5D3C5C88E470', 'Benchmark-' + root.name
+        ),
+        encoding='utf-8',
+    )
+    (stage / 'Onda/benchmark_probe.py').write_text(PROBE, encoding='utf-8')
+    entry = stage / 'Onda/desktop_entry.py'
+    text = entry.read_text(encoding='utf-8').replace(
+        'App(show_welcome=show_welcome)', 'App(show_welcome=False)'
+    )
+    text = text.replace(
+        '    return app\n',
+        '    from benchmark_probe import attach\n    attach(app)\n    return app\n',
+        1,
+    )
+    entry.write_text(text, encoding='utf-8')
+    results = {
+        'platform': 'Windows',
+        'cpu_logical': os.cpu_count(),
+        'fixture': {
+            'tracks': 4,
+            'seconds_each': 60,
+            'source': 'mono WAV 48kHz PCM16',
+            'destination': 'MP3 320 kbps',
+            'bandwidth_mib_s_per_connection': 2,
+        },
+        'startup': [],
+        'trials': [],
+    }
+    if args.startup_only and (OUT / 'pc-results.json').exists():
+        results = json.loads((OUT / 'pc-results.json').read_text(encoding='utf-8'))
+        results['startup'] = []
+    all_samples = []
     try:
-        for i,kind in enumerate(['startup']*5+([] if args.startup_only else ['workloads'])):
-            events=root/f'events-{i}.jsonl'
-            env=dict(os.environ,LOCALAPPDATA=str(root/'settings'),ONDA_BENCH_LOG=str(events),ONDA_BENCH_KIND=kind,ONDA_BENCH_WORK=str(root/'work'),ONDA_BENCH_FFMPEG=ffmpeg)
-            env['PATH']=ffmpeg+os.pathsep+env.get('PATH','')
-            start=time.perf_counter();process=subprocess.Popen([str(stage/'Onda.exe')],env=env,cwd=stage)
-            sampler=Sampler(process.pid);last_line=0;deadline=start+(900 if kind=='workloads' else 45)
+        for i, kind in enumerate(
+            ['startup'] * 5 + ([] if args.startup_only else ['workloads'])
+        ):
+            events = root / f'events-{i}.jsonl'
+            env = dict(
+                os.environ,
+                LOCALAPPDATA=str(root / 'settings'),
+                ONDA_BENCH_LOG=str(events),
+                ONDA_BENCH_KIND=kind,
+                ONDA_BENCH_WORK=str(root / 'work'),
+                ONDA_BENCH_FFMPEG=ffmpeg,
+            )
+            env['PATH'] = ffmpeg + os.pathsep + env.get('PATH', '')
+            start = time.perf_counter()
+            process = subprocess.Popen([str(stage / 'Onda.exe')], env=env, cwd=stage)
+            sampler = Sampler(process.pid)
+            last_line = 0
+            deadline = start + (900 if kind == 'workloads' else 45)
             while process.poll() is None:
                 sampler.sample()
-                if time.perf_counter()>deadline:
-                    subprocess.run(['taskkill','/PID',str(process.pid),'/T','/F'],capture_output=True);raise TimeoutError(kind)
+                if time.perf_counter() > deadline:
+                    subprocess.run(
+                        ['taskkill', '/PID', str(process.pid), '/T', '/F'],
+                        capture_output=True,
+                    )
+                    raise TimeoutError(kind)
                 if events.exists():
-                    lines=events.read_text(encoding='utf-8').splitlines()
+                    lines = events.read_text(encoding='utf-8').splitlines()
                     for line in lines[last_line:]:
-                        event=json.loads(line)
-                        if event['type'] in ('trial_start','trial_end'):print(json.dumps({k:v for k,v in event.items() if k!='lags_ms'}),flush=True)
-                    last_line=len(lines)
-                time.sleep(.1)
-            sampler.sample();assert process.returncode==0,process.returncode
-            data=[json.loads(line) for line in events.read_text(encoding='utf-8').splitlines()]
-            ready=next(e for e in data if e['type']=='ready')
-            results['startup'].append({'kind':kind,**metrics(sampler.samples,start,ready['t'])})
-            if kind=='workloads':
-                idle=[e for e in data if e['type'] in ('idle_start','idle_end')]
-                results['idle']=metrics(sampler.samples,idle[0]['t'],idle[1]['t'])
-                for begin,end in zip([e for e in data if e['type']=='trial_start'],[e for e in data if e['type']=='trial_end']):
-                    assert end['states']==['Concluído']*4,end
-                    lag=sorted(end['lags_ms'])
-                    results['trials'].append({k:begin[k] for k in ('workers','normalize','repeat','trial')}|metrics(sampler.samples,begin['t'],end['t'])|{'ui_lag_p95_ms':lag[int((len(lag)-1)*.95)] if lag else 0,'ui_lag_max_ms':max(lag,default=0),'output_bytes':end['output_bytes']})
+                        event = json.loads(line)
+                        if event['type'] in ('trial_start', 'trial_end'):
+                            print(
+                                json.dumps(
+                                    {k: v for k, v in event.items() if k != 'lags_ms'}
+                                ),
+                                flush=True,
+                            )
+                    last_line = len(lines)
+                time.sleep(0.1)
+            sampler.sample()
+            assert process.returncode == 0, process.returncode
+            data = [
+                json.loads(line)
+                for line in events.read_text(encoding='utf-8').splitlines()
+            ]
+            ready = next(e for e in data if e['type'] == 'ready')
+            results['startup'].append(
+                {'kind': kind, **metrics(sampler.samples, start, ready['t'])}
+            )
+            if kind == 'workloads':
+                idle = [e for e in data if e['type'] in ('idle_start', 'idle_end')]
+                results['idle'] = metrics(sampler.samples, idle[0]['t'], idle[1]['t'])
+                for begin, end in zip(
+                    [e for e in data if e['type'] == 'trial_start'],
+                    [e for e in data if e['type'] == 'trial_end'],
+                ):
+                    assert end['states'] == ['Concluído'] * 4, end
+                    lag = sorted(end['lags_ms'])
+                    results['trials'].append(
+                        {
+                            k: begin[k]
+                            for k in ('workers', 'normalize', 'repeat', 'trial')
+                        }
+                        | metrics(sampler.samples, begin['t'], end['t'])
+                        | {
+                            'ui_lag_p95_ms': (
+                                lag[int((len(lag) - 1) * 0.95)] if lag else 0
+                            ),
+                            'ui_lag_max_ms': max(lag, default=0),
+                            'output_bytes': end['output_bytes'],
+                        }
+                    )
             all_samples.append(sampler.samples)
-            (OUT/'pc-results.json').write_text(json.dumps(results,indent=2),encoding='utf-8')
-            print(f'Finished {kind} {i+1}; startup {ready["t"]-start:.3f}s',flush=True)
-        (OUT/('pc-startup-samples.json' if args.startup_only else 'pc-samples.json')).write_text(json.dumps(all_samples),encoding='utf-8')
+            (OUT / 'pc-results.json').write_text(
+                json.dumps(results, indent=2), encoding='utf-8'
+            )
+            print(f'Finished {kind} {i+1}; startup {ready["t"]-start:.3f}s', flush=True)
+        (
+            OUT
+            / ('pc-startup-samples.json' if args.startup_only else 'pc-samples.json')
+        ).write_text(json.dumps(all_samples), encoding='utf-8')
     finally:
         # Remove the checked junction itself, never recurse through the runtime.
-        junction=stage/'_runtime'
-        if junction.exists():os.rmdir(junction)
-        if root.resolve().is_relative_to(OUT.resolve()):shutil.rmtree(root)
+        junction = stage / '_runtime'
+        if junction.exists():
+            os.rmdir(junction)
+        if root.resolve().is_relative_to(OUT.resolve()):
+            shutil.rmtree(root)
 
-if __name__=='__main__':main()
+
+if __name__ == '__main__':
+    main()

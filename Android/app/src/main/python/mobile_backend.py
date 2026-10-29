@@ -1,4 +1,5 @@
 """Android adapter for ONDA's shared engine. No desktop/UI imports required."""
+
 import hashlib
 import json
 import os
@@ -23,24 +24,31 @@ class Cancelled(ValueError):
 
 
 def session_options(params, config):
-    params=dict(params or {})
-    cookies=config.get('cookies_file')
+    params = dict(params or {})
+    cookies = config.get('cookies_file')
     from social_media import is_social
-    if not is_social(config.get('url','')):
-        cookies=config.get('youtube_cookies_file') or cookies
+
+    if not is_social(config.get('url', '')):
+        cookies = config.get('youtube_cookies_file') or cookies
         if config.get('youtube_cookies_file') and config.get('youtube_user_agent'):
-            params['http_headers']=dict(params.get('http_headers') or {}, **{'User-Agent':config['youtube_user_agent']})
+            params['http_headers'] = dict(
+                params.get('http_headers') or {},
+                **{'User-Agent': config['youtube_user_agent']},
+            )
     if cookies:
-        params['cookiefile']=cookies
+        params['cookiefile'] = cookies
     else:
-        params.pop('cookiefile',None)
+        params.pop('cookiefile', None)
     return params
 
 
 def readable_error(message):
-    message=str(message)
-    if 'sign in to confirm' in message.lower() or "confirm you’re not a bot" in message.lower():
-        config=(getattr(_local,'state',None) or {}).get('config',{})
+    message = str(message)
+    if (
+        'sign in to confirm' in message.lower()
+        or "confirm you’re not a bot" in message.lower()
+    ):
+        config = (getattr(_local, 'state', None) or {}).get('config', {})
         if config.get('youtube_cookies_file') or config.get('cookies_file'):
             return 'O YouTube não aceitou a sessão atual nesta conexão. A sessão pode ter expirado ou a verificação pode continuar pendente. Atualize a sessão ou use Importar cookies do YouTube em Configurações. A liberação depende do YouTube.'
         return 'O YouTube exigiu uma verificação nesta conexão. Abra Menu → Sessão do YouTube, conclua a verificação e toque em Usar esta sessão. Também é possível importar cookies.txt em Configurações → Contas e redes. A liberação depende do YouTube.'
@@ -52,11 +60,17 @@ def emit(kind, **values):
     if state:
         if state['cancel'].is_set():
             raise Cancelled('Operação cancelada.')
-        if kind=='error' and 'message' in values:
-            values['message']=readable_error(values['message'])
-        if kind in ('file','done') and values.get('path') and state.get('duplicate_choice'):
+        if kind == 'error' and 'message' in values:
+            values['message'] = readable_error(values['message'])
+        if (
+            kind in ('file', 'done')
+            and values.get('path')
+            and state.get('duplicate_choice')
+        ):
             values['duplicate_choice'] = state.pop('duplicate_choice')
-        state['callback'].onEvent(json.dumps({'type': kind, **values}, ensure_ascii=False))
+        state['callback'].onEvent(
+            json.dumps({'type': kind, **values}, ensure_ascii=False)
+        )
 
 
 def ask(kind, **values):
@@ -64,7 +78,7 @@ def ask(kind, **values):
     emit(kind, **values)
     while not state['cancel'].is_set():
         try:
-            result = state['replies'].get(timeout=.2)
+            result = state['replies'].get(timeout=0.2)
             if result.get('cancel'):
                 raise Cancelled('Seleção cancelada.')
             return result
@@ -77,18 +91,27 @@ def ask_version(record, candidates, **_):
     reply = ask('choose_version', record=record, candidates=candidates)
     selected = reply.get('selected_id')
     from search_choices import ChoiceStore
-    store=ChoiceStore()
-    if reply.get('clear_choices'):store.clear(record)
-    for rejected in reply.get('rejected_ids',[]):
-        if any(item['id']==rejected for item in candidates):store.set(record,rejected,False)
+
+    store = ChoiceStore()
+    if reply.get('clear_choices'):
+        store.clear(record)
+    for rejected in reply.get('rejected_ids', []):
+        if any(item['id'] == rejected for item in candidates):
+            store.set(record, rejected, False)
     for item in candidates:
         if item['id'] == selected:
-            return dict(item, selection='user',remember_choice=reply.get('remember_choice') is True)
+            return dict(
+                item,
+                selection='user',
+                remember_choice=reply.get('remember_choice') is True,
+            )
     raise ValueError('Escolha uma versão válida.')
 
 
 def ask_catalog(anchor, candidates, **_):
-    selected = ask('choose_catalog', record=anchor, candidates=candidates).get('selected_id')
+    selected = ask('choose_catalog', record=anchor, candidates=candidates).get(
+        'selected_id'
+    )
     for item in candidates:
         if item['source_url'] == selected:
             return item
@@ -97,7 +120,11 @@ def ask_catalog(anchor, candidates, **_):
 
 def ask_review(record, audio_source=None, **_):
     from review import apply_review
-    return apply_review(record, ask('review_metadata', record=record, audio_source=audio_source)['changes'])
+
+    return apply_review(
+        record,
+        ask('review_metadata', record=record, audio_source=audio_source)['changes'],
+    )
 
 
 def ask_duplicate(path, **_):
@@ -110,15 +137,19 @@ def ask_duplicate(path, **_):
 
 def ask_flac_browser(record, url, **_):
     from flac_browser import INSTRUCTIONS
+
     path = ask('choose_flac', record=record, url=url, message=INSTRUCTIONS)['path']
     imported = Path(path).resolve()
-    if imported.parent == (_root / 'imports').resolve() and imported.name.startswith('flac-browser-'):
+    if imported.parent == (_root / 'imports').resolve() and imported.name.startswith(
+        'flac-browser-'
+    ):
         _local.state.setdefault('flac_imports', []).append(imported)
     return path
 
 
 def ask_media(candidates, **_):
     from media_selection import validate_selection
+
     value = ask('choose_media', candidates=candidates)
     selected, modes = validate_selection(value, candidates)
     return {'selected_ids': selected, 'media_modes': modes} if modes else selected
@@ -126,6 +157,7 @@ def ask_media(candidates, **_):
 
 class ManagedProcess(_original_popen):
     """Track native processes so cancellation also stops FFmpeg conversion."""
+
     def __init__(self, *args, **kwargs):
         state = getattr(_local, 'state', None)
         if state and state['cancel'].is_set():
@@ -152,30 +184,50 @@ def use_cached_extractor(path, bundled_version=None):
     """A downloaded update must not downgrade the extractor shipped in a new APK."""
     import re
     from importlib.metadata import version
+
     try:
-        baseline=bundled_version or version('yt-dlp')
+        baseline = bundled_version or version('yt-dlp')
         with zipfile.ZipFile(path) as archive:
-            info=archive.getinfo('yt_dlp/version.py')
-            if info.file_size>32768:return False
-            source=archive.read(info).decode('utf-8')
-        match=re.search(r"(?m)^__version__\s*=\s*['\"]([0-9.]+)['\"]",source)
-        if not match:return False
-        def parts(value):return tuple(int(n) for n in re.findall(r'\d+',value))
-        return parts(match[1])>parts(baseline)
-    except (OSError,ValueError,KeyError,zipfile.BadZipFile,LookupError,ImportError):return False
+            info = archive.getinfo('yt_dlp/version.py')
+            if info.file_size > 32768:
+                return False
+            source = archive.read(info).decode('utf-8')
+        match = re.search(r"(?m)^__version__\s*=\s*['\"]([0-9.]+)['\"]", source)
+        if not match:
+            return False
+
+        def parts(value):
+            return tuple(int(n) for n in re.findall(r'\d+', value))
+
+        return parts(match[1]) > parts(baseline)
+    except (
+        OSError,
+        ValueError,
+        KeyError,
+        zipfile.BadZipFile,
+        LookupError,
+        ImportError,
+    ):
+        return False
 
 
 def select_cached_extractor(path, bundled_version=None):
     """Keep only a newer downloaded extractor; discard redundant/invalid cache."""
-    if not path.is_file():return False
+    if not path.is_file():
+        return False
     if bundled_version is None:
         try:
             from importlib.metadata import version
-            bundled_version=version('yt-dlp')
-        except ImportError:return False
-    if use_cached_extractor(path,bundled_version):return True
-    try:path.unlink()
-    except OSError:pass  # The packaged extractor still works if cleanup is denied.
+
+            bundled_version = version('yt-dlp')
+        except ImportError:
+            return False
+    if use_cached_extractor(path, bundled_version):
+        return True
+    try:
+        path.unlink()
+    except OSError:
+        pass  # The packaged extractor still works if cleanup is denied.
     return False
 
 
@@ -185,9 +237,11 @@ def configure(root, native, libs):
         return
     _root, _native = Path(root), Path(native)
     _root.mkdir(parents=True, exist_ok=True)
-    os.environ["ONDA_ALIAS_CACHE_ROOT"]=str(_root)
+    os.environ["ONDA_ALIAS_CACHE_ROOT"] = str(_root)
     # Extracted shared libraries are data; executable entry points remain in nativeLibraryDir.
-    os.environ['LD_LIBRARY_PATH'] = str(libs) + ':' + str(_native) + ':' + os.environ.get('LD_LIBRARY_PATH', '')
+    os.environ['LD_LIBRARY_PATH'] = (
+        str(libs) + ':' + str(_native) + ':' + os.environ.get('LD_LIBRARY_PATH', '')
+    )
     update = _root / 'tools/yt-dlp.zip'
     if select_cached_extractor(update):
         sys.path.insert(0, str(update))
@@ -197,19 +251,32 @@ def configure(root, native, libs):
     import video_converter
     import yt_dlp
     from yt_dlp.postprocessor.ffmpeg import FFmpegPostProcessor
+
     engine.emit = effects_worker.emit = emit
     engine.ask_version, engine.ask_catalog = ask_version, ask_catalog
-    engine.ask_review, engine.ask_duplicate, engine.ask_media = ask_review, ask_duplicate, ask_media
+    engine.ask_review, engine.ask_duplicate, engine.ask_media = (
+        ask_review,
+        ask_duplicate,
+        ask_media,
+    )
     engine.ask_flac_browser = ask_flac_browser
-    paths = {name: str(_native / ('lib' + name + '.so')) for name in ('ffmpeg', 'ffprobe')}
+    paths = {
+        name: str(_native / ('lib' + name + '.so')) for name in ('ffmpeg', 'ffprobe')
+    }
     engine.binaries = lambda folder='': all(Path(v).is_file() for v in paths.values())
+
     def executable(name, folder=''):
         if name not in paths:
             raise ValueError('Ferramenta não disponível: ' + name)
         return paths[name]
-    audio_tools.executable = effects_worker.executable = video_converter.executable = executable
+
+    audio_tools.executable = effects_worker.executable = video_converter.executable = (
+        executable
+    )
+
     class AndroidOS:
         """Android SELinux disallows hard links; preserve exclusive publication."""
+
         def __getattr__(self, name):
             return getattr(os, name)
 
@@ -219,7 +286,7 @@ def configure(root, native, libs):
             output = Path(target).open('xb')
             try:
                 with output, Path(source).open('rb') as original:
-                    while chunk := original.read(1024*1024):
+                    while chunk := original.read(1024 * 1024):
                         state = getattr(_local, 'state', None)
                         if state and state['cancel'].is_set():
                             raise Cancelled('Operação cancelada.')
@@ -229,57 +296,102 @@ def configure(root, native, libs):
             except BaseException:
                 Path(target).unlink(missing_ok=True)
                 raise
+
     effects_worker.os = AndroidOS()
     video_converter.os = AndroidOS()
     FFmpegPostProcessor._determine_executables = lambda self: dict(paths)
     original = yt_dlp.YoutubeDL.__init__
+
     def initialize(self, params=None, *args, **kwargs):
         params = dict(params or {})
-        state=getattr(_local,'state',None)
-        config=(state or {}).get('config',{})
-        params=session_options(params,config)
+        state = getattr(_local, 'state', None)
+        config = (state or {}).get('config', {})
+        params = session_options(params, config)
         params['js_runtimes'] = {'quickjs': {'path': str(_native / 'libqjs.so')}}
         params['cachedir'] = str(_root / 'extractor-cache')
         original(self, params, *args, **kwargs)
+
     yt_dlp.YoutubeDL.__init__ = initialize
     subprocess.Popen = ManagedProcess
     # Chaquopy's Pillow wheel lacks libwebp; use the included Android FFmpeg codec.
     from PIL import Image
     import io
+
     Image.init()
-    original_open=Image.open
+    original_open = Image.open
+
     def open_image(fp, mode='r', formats=None):
-        stream=fp if hasattr(fp,'read') else None
-        close=False
+        stream = fp if hasattr(fp, 'read') else None
+        close = False
         if stream is None:
-            stream=open(fp,'rb')
-            close=True
+            stream = open(fp, 'rb')
+            close = True
         try:
             stream.seek(0)
-            header=stream.read(12)
+            header = stream.read(12)
             stream.seek(0)
-            if header[:4]==b'RIFF' and header[8:12]==b'WEBP':
-                data=stream.read(48*1024*1024+1)
-                if len(data)>48*1024*1024:
+            if header[:4] == b'RIFF' and header[8:12] == b'WEBP':
+                data = stream.read(48 * 1024 * 1024 + 1)
+                if len(data) > 48 * 1024 * 1024:
                     raise ValueError('Imagem WebP acima do limite.')
-                decoded=subprocess.run([paths['ffmpeg'],'-v','error','-i','pipe:0','-frames:v','1','-f','image2pipe','-c:v','png','pipe:1'],input=data,capture_output=True,timeout=40)
+                decoded = subprocess.run(
+                    [
+                        paths['ffmpeg'],
+                        '-v',
+                        'error',
+                        '-i',
+                        'pipe:0',
+                        '-frames:v',
+                        '1',
+                        '-f',
+                        'image2pipe',
+                        '-c:v',
+                        'png',
+                        'pipe:1',
+                    ],
+                    input=data,
+                    capture_output=True,
+                    timeout=40,
+                )
                 if decoded.returncode:
                     raise ValueError('Não foi possível ler a imagem WebP.')
                 return original_open(io.BytesIO(decoded.stdout))
         finally:
             if close:
                 stream.close()
-        return original_open(fp,mode,formats)
+        return original_open(fp, mode, formats)
+
     def save_webp(image, fp, filename):
-        image_bytes=io.BytesIO()
-        image.save(image_bytes,format='PNG')
-        encoded=subprocess.run([paths['ffmpeg'],'-v','error','-i','pipe:0','-frames:v','1','-c:v','libwebp','-quality',str(image.encoderinfo.get('quality',90)),'-f','webp','pipe:1'],input=image_bytes.getvalue(),capture_output=True,timeout=40)
+        image_bytes = io.BytesIO()
+        image.save(image_bytes, format='PNG')
+        encoded = subprocess.run(
+            [
+                paths['ffmpeg'],
+                '-v',
+                'error',
+                '-i',
+                'pipe:0',
+                '-frames:v',
+                '1',
+                '-c:v',
+                'libwebp',
+                '-quality',
+                str(image.encoderinfo.get('quality', 90)),
+                '-f',
+                'webp',
+                'pipe:1',
+            ],
+            input=image_bytes.getvalue(),
+            capture_output=True,
+            timeout=40,
+        )
         if encoded.returncode:
             raise ValueError('Não foi possível converter a imagem para WebP.')
         fp.write(encoded.stdout)
-    Image.open=open_image
-    Image.register_save('WEBP',save_webp)
-    Image.register_extension('WEBP','.webp')
+
+    Image.open = open_image
+    Image.register_save('WEBP', save_webp)
+    Image.register_extension('WEBP', '.webp')
     _configured = True
 
 
@@ -305,43 +417,84 @@ def cancel(identity):
 
 def client(config):
     from metadata import MetadataClient
-    value=MetadataClient(config.get('spotify_client_id', ''), config.get('spotify_client_secret', ''))
-    state=getattr(_local,'state',None)
-    if state:value.cancelled=state['cancel'].is_set
+
+    value = MetadataClient(
+        config.get('spotify_client_id', ''), config.get('spotify_client_secret', '')
+    )
+    state = getattr(_local, 'state', None)
+    if state:
+        value.cancelled = state['cancel'].is_set
     if _root is not None:
-        connected=account()
-        if connected.connected:value.spotify_get=connected.get
+        connected = account()
+        if connected.connected:
+            value.spotify_get = connected.get
     return value
 
 
-_spotify_account=None
-_spotify_account_root=None
+_spotify_account = None
+_spotify_account_root = None
+
 
 def account():
-    global _spotify_account,_spotify_account_root
+    global _spotify_account, _spotify_account_root
     from spotify_account import SpotifyAccount
+
     with _lock:
-        if _spotify_account is None or _spotify_account_root!=_root:
-            _spotify_account=SpotifyAccount(str(_root / 'spotify-account'));_spotify_account_root=_root
+        if _spotify_account is None or _spotify_account_root != _root:
+            _spotify_account = SpotifyAccount(str(_root / 'spotify-account'))
+            _spotify_account_root = _root
         return _spotify_account
 
 
 def render_preview(config):
     from audio_tools import effects_filter, process_options
+
     preview_id = str(config.get('preview_id', 'default'))
-    if not all(c in '0123456789abcdef-' for c in preview_id) and preview_id != 'default':
+    if (
+        not all(c in '0123456789abcdef-' for c in preview_id)
+        and preview_id != 'default'
+    ):
         raise ValueError('Identificador de prévia inválido')
     output = _root / ('preview-' + preview_id + '.mp3')
     start = max(0, float(config.get('start', 0)))
-    seconds = max(.1, float(config.get('duration', 25))) if config.get('full_track') else min(180, max(10, float(config.get('duration', 25))))
-    command = [str(_native / 'libffmpeg.so'), '-y', '-v', 'error', '-ss', str(start),
-               '-i', config['source'], '-t', str(seconds), '-vn', '-af',
-               effects_filter(config.get('speed', 100), config.get('reverb', 0), config.get('keep_pitch', False)),
-               '-c:a', 'libmp3lame', '-b:a', '192k', str(output)]
+    seconds = (
+        max(0.1, float(config.get('duration', 25)))
+        if config.get('full_track')
+        else min(180, max(10, float(config.get('duration', 25))))
+    )
+    command = [
+        str(_native / 'libffmpeg.so'),
+        '-y',
+        '-v',
+        'error',
+        '-ss',
+        str(start),
+        '-i',
+        config['source'],
+        '-t',
+        str(seconds),
+        '-vn',
+        '-af',
+        effects_filter(
+            config.get('speed', 100),
+            config.get('reverb', 0),
+            config.get('keep_pitch', False),
+        ),
+        '-c:a',
+        'libmp3lame',
+        '-b:a',
+        '192k',
+        str(output),
+    ]
     try:
-        result = subprocess.run(command, capture_output=True, timeout=120, **process_options())
+        result = subprocess.run(
+            command, capture_output=True, timeout=120, **process_options()
+        )
         if result.returncode:
-            raise ValueError('Não foi possível preparar a prévia: ' + result.stderr.decode(errors='replace')[-1200:])
+            raise ValueError(
+                'Não foi possível preparar a prévia: '
+                + result.stderr.decode(errors='replace')[-1200:]
+            )
         return {'path': str(output), 'source_start': start}
     except BaseException:
         output.unlink(missing_ok=True)
@@ -351,185 +504,368 @@ def render_preview(config):
 _jukebox_sessions = {}
 _jukebox_lock = threading.RLock()
 
+
 def jukebox_action(action, config):
-    import jukebox,base64
+    import jukebox, base64
+
     cancel = _local.state['cancel'].is_set
-    if action=='jukebox_effects':
+    if action == 'jukebox_effects':
         from playback_effects import prepare
-        return {'error_detail':prepare(config['cache'],config.get('effects'),cancel)}
-    if action=='jukebox_prepare':
-        progress=lambda value:emit('progress',percent=value)
+
+        return {'error_detail': prepare(config['cache'], config.get('effects'), cancel)}
+    if action == 'jukebox_prepare':
+        progress = lambda value: emit('progress', percent=value)
         if config.get('source'):
-            model=jukebox.prepare(config['source'],config.get('ffmpeg',''),cancel,progress)
-            from audio_library import read_audio,cover_preview
+            model = jukebox.prepare(
+                config['source'], config.get('ffmpeg', ''), cancel, progress
+            )
+            from audio_library import read_audio, cover_preview
             import re
-            stem=Path(config['source']).stem
-            clean=re.sub(r'^audio-[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}-','',stem,flags=re.IGNORECASE)
-            model['media_title']=clean;model['title']=clean
+
+            stem = Path(config['source']).stem
+            clean = re.sub(
+                r'^audio-[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}-',
+                '',
+                stem,
+                flags=re.IGNORECASE,
+            )
+            model['media_title'] = clean
+            model['title'] = clean
             try:
-                tags=read_audio(config['source']);model['media_title']=tags.get('title') if tags.get('title') and tags.get('title')!=stem else clean;model['media_artist']=', '.join(tags.get('artists',[]));model['album']=tags.get('album') or ''
-                model['title']=model['media_title']
-                model['media_cover']=cover_preview(config['source'])
-            except (ValueError,OSError):pass
+                tags = read_audio(config['source'])
+                model['media_title'] = (
+                    tags.get('title')
+                    if tags.get('title') and tags.get('title') != stem
+                    else clean
+                )
+                model['media_artist'] = ', '.join(tags.get('artists', []))
+                model['album'] = tags.get('album') or ''
+                model['title'] = model['media_title']
+                model['media_cover'] = cover_preview(config['source'])
+            except (ValueError, OSError):
+                pass
             return model
-        return jukebox.fetch_audio(config,config.get('record'),cancel,progress)
-    identity=config['session']
+        return jukebox.fetch_audio(config, config.get('record'), cancel, progress)
+    identity = config['session']
     with _jukebox_lock:
-        if action=='jukebox_close':
-            session=_jukebox_sessions.pop(identity,None)
-            if session:session.close()
+        if action == 'jukebox_close':
+            session = _jukebox_sessions.pop(identity, None)
+            if session:
+                session.close()
             return {}
-        if action=='jukebox_open':
-            previous=_jukebox_sessions.pop(identity,None)
-            if previous:previous.close()
-            if len(_jukebox_sessions)>=2:raise ValueError('Encerre a reprodução anterior antes de continuar.')
+        if action == 'jukebox_open':
+            previous = _jukebox_sessions.pop(identity, None)
+            if previous:
+                previous.close()
+            if len(_jukebox_sessions) >= 2:
+                raise ValueError('Encerre a reprodução anterior antes de continuar.')
             from jukebox_stream import Stream
-            _jukebox_sessions[identity]=Stream(config['cache'])
+
+            _jukebox_sessions[identity] = Stream(config['cache'])
             return {}
-        session=_jukebox_sessions.get(identity)
-        if session is None:raise ValueError('Reprodução encerrada.')
-        if action=='jukebox_switch':
-            session.switch(config['cache'],config.get('seconds',2));return {}
-        if 'seek' in config:session.seek(config['seek'],phase=config.get('seek_phase',0.))
-        part=session.chunk(config.get('variation',45),config.get('smooth',35),config.get('volume',80),config.get('normal',False),config.get('equalizer'),effects=config.get('effects'))
-        part['pcm']=base64.b64encode(part['pcm']).decode('ascii')
+        session = _jukebox_sessions.get(identity)
+        if session is None:
+            raise ValueError('Reprodução encerrada.')
+        if action == 'jukebox_switch':
+            session.switch(config['cache'], config.get('seconds', 2))
+            return {}
+        if 'seek' in config:
+            session.seek(config['seek'], phase=config.get('seek_phase', 0.0))
+        part = session.chunk(
+            config.get('variation', 45),
+            config.get('smooth', 35),
+            config.get('volume', 80),
+            config.get('normal', False),
+            config.get('equalizer'),
+            effects=config.get('effects'),
+        )
+        part['pcm'] = base64.b64encode(part['pcm']).decode('ascii')
         return part
 
-def perform(action, config):
-    if action=='effects_info':
-        from audio_library import read_audio,cover_preview
-        import re
-        source=config['source']
-        try:record=read_audio(source)
-        except (OSError,ValueError):record=dict(config.get('record') or {})
-        fallback=re.sub(r'^(?:audio|conversion-batch)-[0-9a-f-]{36}-','',Path(source).stem)
-        supplied=config.get('record') or {}
-        if not record.get('title') or record['title']==Path(source).stem:record['title']=supplied.get('title') or fallback
-        for field in ('artists','album','cover_url'):
-            if not record.get(field) and supplied.get(field):record[field]=supplied[field]
-        details=perform('probe',config)
-        return {'record':record,'cover':cover_preview(source),'duration':float(details.get('format',{}).get('duration') or 0)}
-    if action=='compare_collection_file':
-        from collection_coverage import compare_file
-        return compare_file(config['tracks'],config['source'])
-    if action=='tools_status':
-        from tool_status import read,present,display
-        report=read(_root)
-        return dict(report=report,display=display(report),message=present(report))
-    if action=='tools_check':
-        from tool_status import check,present,display
-        commands={name:[str(_native/('lib'+name+'.so')),'-version'] for name in ('ffmpeg','ffprobe')}
-        commands['QuickJS']=[str(_native/'libqjs.so'),'-e','console.log("Execução confirmada")']
-        report=check(_root,commands)
-        return dict(report=report,display=display(report),message=present(report))
-    if action=='image_gallery_manifest':
-        from online_image_preview import discover
-        return discover(dict(config,_root=str(_root)),_local.state['cancel'].is_set)
-    if action=='image_gallery_thumbnail':
-        from online_image_preview import thumbnail
-        return thumbnail(config['token'],int(config['index']),_local.state['cancel'].is_set)
-    if action=='effects_load':
-        import jukebox
-        return jukebox.fetch_audio(config,config.get('record'),_local.state['cancel'].is_set,lambda value:emit('progress',percent=value),analyze=False)
-    if action in ('effects_search','playback_input'):
-        from playback_input import resolve_input
-        value=client(config)
-        try:return resolve_input(config['query'],value,config,account(),_local.state['cancel'].is_set)
-        finally:value.close()
-    if action=='record_details':
-        from catalog_details import complete_record
-        value=client(config)
-        try:return complete_record(config['record'],value,_local.state['cancel'].is_set)
-        finally:value.close()
 
-    if action in ('jukebox_prepare','jukebox_open','jukebox_chunk','jukebox_close','jukebox_switch','jukebox_effects'):
-        return jukebox_action(action,config)
+def perform(action, config):
+    if action == 'effects_info':
+        from audio_library import read_audio, cover_preview
+        import re
+
+        source = config['source']
+        try:
+            record = read_audio(source)
+        except (OSError, ValueError):
+            record = dict(config.get('record') or {})
+        fallback = re.sub(
+            r'^(?:audio|conversion-batch)-[0-9a-f-]{36}-', '', Path(source).stem
+        )
+        supplied = config.get('record') or {}
+        if not record.get('title') or record['title'] == Path(source).stem:
+            record['title'] = supplied.get('title') or fallback
+        for field in ('artists', 'album', 'cover_url'):
+            if not record.get(field) and supplied.get(field):
+                record[field] = supplied[field]
+        details = perform('probe', config)
+        return {
+            'record': record,
+            'cover': cover_preview(source),
+            'duration': float(details.get('format', {}).get('duration') or 0),
+        }
+    if action == 'compare_collection_file':
+        from collection_coverage import compare_file
+
+        return compare_file(config['tracks'], config['source'])
+    if action == 'tools_status':
+        from tool_status import read, present, display
+
+        report = read(_root)
+        return dict(report=report, display=display(report), message=present(report))
+    if action == 'tools_check':
+        from tool_status import check, present, display
+
+        commands = {
+            name: [str(_native / ('lib' + name + '.so')), '-version']
+            for name in ('ffmpeg', 'ffprobe')
+        }
+        commands['QuickJS'] = [
+            str(_native / 'libqjs.so'),
+            '-e',
+            'console.log("Execução confirmada")',
+        ]
+        report = check(_root, commands)
+        return dict(report=report, display=display(report), message=present(report))
+    if action == 'image_gallery_manifest':
+        from online_image_preview import discover
+
+        return discover(dict(config, _root=str(_root)), _local.state['cancel'].is_set)
+    if action == 'image_gallery_thumbnail':
+        from online_image_preview import thumbnail
+
+        return thumbnail(
+            config['token'], int(config['index']), _local.state['cancel'].is_set
+        )
+    if action == 'effects_load':
+        import jukebox
+
+        return jukebox.fetch_audio(
+            config,
+            config.get('record'),
+            _local.state['cancel'].is_set,
+            lambda value: emit('progress', percent=value),
+            analyze=False,
+        )
+    if action in ('effects_search', 'playback_input'):
+        from playback_input import resolve_input
+
+        value = client(config)
+        try:
+            return resolve_input(
+                config['query'], value, config, account(), _local.state['cancel'].is_set
+            )
+        finally:
+            value.close()
+    if action == 'record_details':
+        from catalog_details import complete_record
+
+        value = client(config)
+        try:
+            return complete_record(
+                config['record'], value, _local.state['cancel'].is_set
+            )
+        finally:
+            value.close()
+
+    if action in (
+        'jukebox_prepare',
+        'jukebox_open',
+        'jukebox_chunk',
+        'jukebox_close',
+        'jukebox_switch',
+        'jukebox_effects',
+    ):
+        return jukebox_action(action, config)
     if action == 'collection_compare':
         from playlist_sync import compare_collection
-        return compare_collection(config['tracks'],config['inventory'],config.get('queued',[]),config.get('source',''),config['database'])
+
+        return compare_collection(
+            config['tracks'],
+            config['inventory'],
+            config.get('queued', []),
+            config.get('source', ''),
+            config['database'],
+        )
 
     if action == "clipboard_link":
         from clipboard_links import recognize_link
+
         return recognize_link(config.get("text")) or {}
 
-    if action=='cache_auto':
+    if action == 'cache_auto':
         from cache_cleanup import automatic_cleanup
+
         return automatic_cleanup(_root)
-    if action in ('cache_info','cache_clear'):
-        from cache_cleanup import cache_info,clear_cache
-        return (clear_cache if action=='cache_clear' else cache_info)(_root)
+    if action in ('cache_info', 'cache_clear'):
+        from cache_cleanup import cache_info, clear_cache
+
+        return (clear_cache if action == 'cache_clear' else cache_info)(_root)
 
     if action == 'lyrics_online':
         from lyrics_service import fetch_lyrics
-        return fetch_lyrics(config['source'],config.get('record'),_local.state['cancel'],alternatives=config.get('alternatives',False))
+
+        return fetch_lyrics(
+            config['source'],
+            config.get('record'),
+            _local.state['cancel'],
+            alternatives=config.get('alternatives', False),
+        )
 
     if action == 'lyrics_read':
         from synced_lyrics import read_lrc
-        return {'lines':read_lrc(config['source'])}
+
+        return {'lines': read_lrc(config['source'])}
     if action == 'convert_batch':
         from video_converter import convert_batch
-        return convert_batch(config,emit,_local.state['cancel'].is_set)
-    if action in ('video_probe','video_convert'):
-        from video_converter import probe_video,convert_video
-        if action=='video_probe':return probe_video(config['source'],config.get('ffmpeg',''),audio_only=bool(config.get('audio_only')))
-        result=convert_video(config,emit,_local.state['cancel'].is_set)
-        emit('file',path=result['path'],mode=config['video_format'],size=Path(result['path']).stat().st_size)
-        return {'message':'Vídeo convertido e salvo.'}
+
+        return convert_batch(config, emit, _local.state['cancel'].is_set)
+    if action in ('video_probe', 'video_convert'):
+        from video_converter import probe_video, convert_video
+
+        if action == 'video_probe':
+            return probe_video(
+                config['source'],
+                config.get('ffmpeg', ''),
+                audio_only=bool(config.get('audio_only')),
+            )
+        result = convert_video(config, emit, _local.state['cancel'].is_set)
+        emit(
+            'file',
+            path=result['path'],
+            mode=config['video_format'],
+            size=Path(result['path']).stat().st_size,
+        )
+        return {'message': 'Vídeo convertido e salvo.'}
     if action == 'audio_batch_edit':
         from batch_metadata import edit_batch
-        return edit_batch(dict(config, _android_batch=True), emit, cancelled=_local.state['cancel'].is_set)
-    if action in ('audio_read','audio_edit','normalize_preview'):
-        from audio_library import read_audio,edit_copy,normalize_audio
-        if action=='audio_read':
+
+        return edit_batch(
+            dict(config, _android_batch=True),
+            emit,
+            cancelled=_local.state['cancel'].is_set,
+        )
+    if action in ('audio_read', 'audio_edit', 'normalize_preview'):
+        from audio_library import read_audio, edit_copy, normalize_audio
+
+        if action == 'audio_read':
             from audio_library import cover_preview
-            return {'record':read_audio(config['source']), 'cover_preview':cover_preview(config['source'])}
-        if action=='normalize_preview':return {'path':str(normalize_audio(config['source'],config,emit,preview=True))}
+
+            return {
+                'record': read_audio(config['source']),
+                'cover_preview': cover_preview(config['source']),
+            }
+        if action == 'normalize_preview':
+            return {
+                'path': str(
+                    normalize_audio(config['source'], config, emit, preview=True)
+                )
+            }
         # Android edits an imported staging file; the original is its content URI.
-        result=edit_copy(dict(config,overwrite_original=False),emit,cancelled=_local.state['cancel'].is_set)
+        result = edit_copy(
+            dict(config, overwrite_original=False),
+            emit,
+            cancelled=_local.state['cancel'].is_set,
+        )
         if config.get('overwrite_original'):
-            return dict(result,message='Arquivo original atualizado.')
-        emit('file',**result)
-        sidecar=Path(result['path']).with_suffix('.lrc')
-        if sidecar.is_file():emit('file',path=str(sidecar),mode='LRC',size=sidecar.stat().st_size)
-        return {'message':'Cópia editada salva na pasta de destino.'}
-    if action=='settings_export':
+            return dict(result, message='Arquivo original atualizado.')
+        emit('file', **result)
+        sidecar = Path(result['path']).with_suffix('.lrc')
+        if sidecar.is_file():
+            emit('file', path=str(sidecar), mode='LRC', size=sidecar.stat().st_size)
+        return {'message': 'Cópia editada salva na pasta de destino.'}
+    if action == 'settings_export':
         from advanced_options import export_settings
-        return {'payload':export_settings(config['settings'],'android')}
-    if action=='settings_import':
+
+        return {'payload': export_settings(config['settings'], 'android')}
+    if action == 'settings_import':
         from advanced_options import import_settings
-        path=Path(config['path'])
-        if path.stat().st_size>131072:raise ValueError('Arquivo muito grande.')
-        return {'settings':import_settings(json.loads(path.read_text(encoding='utf-8')),'android')}
-    if action=='app_update':
+
+        path = Path(config['path'])
+        if path.stat().st_size > 131072:
+            raise ValueError('Arquivo muito grande.')
+        return {
+            'settings': import_settings(
+                json.loads(path.read_text(encoding='utf-8')), 'android'
+            )
+        }
+    if action == 'app_update':
         from advanced_options import release_update
-        return release_update('android',config.get('version','1.1.0'),abi=config.get('abi'))
+
+        return release_update(
+            'android', config.get('version', '1.1.0'), abi=config.get('abi')
+        )
     if action == 'describe':
         from metadata import is_streaming_link
+
         if is_streaming_link(config['url']):
-            value=client(config)
+            value = client(config)
             try:
                 from queue_titles import describe_streaming, record_name
-                record=describe_streaming(value, config['url'])
+
+                record = describe_streaming(value, config['url'])
                 from queue_details import queue_info
-                return {'title':record_name(record) or config['url'], 'queue_info':queue_info(record)}
+
+                return {
+                    'title': record_name(record) or config['url'],
+                    'queue_info': queue_info(record),
+                }
             finally:
                 value.close()
         import yt_dlp
         from engine import validate_url
-        with yt_dlp.YoutubeDL({'quiet':True,'no_warnings':True,'extract_flat':True,'skip_download':True,'noplaylist':True,'socket_timeout':15,'retries':1}) as downloader:
-            info=downloader.extract_info(validate_url(config['url']),download=False)
-        return {'title':' - '.join(filter(None,[info.get('artist') or info.get('uploader'),info.get('track') or info.get('title')])), 'queue_info':{'artists':[info.get('artist') or info.get('uploader')] if info.get('artist') or info.get('uploader') else [],'album':info.get('album') or '', 'cover_url':info.get('thumbnail') or '', 'duration_ms':int((info.get('duration') or 0)*1000)}}
+
+        with yt_dlp.YoutubeDL(
+            {
+                'quiet': True,
+                'no_warnings': True,
+                'extract_flat': True,
+                'skip_download': True,
+                'noplaylist': True,
+                'socket_timeout': 15,
+                'retries': 1,
+            }
+        ) as downloader:
+            info = downloader.extract_info(validate_url(config['url']), download=False)
+        return {
+            'title': ' - '.join(
+                filter(
+                    None,
+                    [
+                        info.get('artist') or info.get('uploader'),
+                        info.get('track') or info.get('title'),
+                    ],
+                )
+            ),
+            'queue_info': {
+                'artists': (
+                    [info.get('artist') or info.get('uploader')]
+                    if info.get('artist') or info.get('uploader')
+                    else []
+                ),
+                'album': info.get('album') or '',
+                'cover_url': info.get('thumbnail') or '',
+                'duration_ms': int((info.get('duration') or 0) * 1000),
+            },
+        }
     if action == 'download':
         import engine
         from social_media import is_social
+
         # Keep format defaults, extraction and error reporting identical to PC.
         if is_social(config['url']):
-            return {'code':engine.run_worker(config)}
+            return {'code': engine.run_worker(config)}
         from spotify_metadata import prepare_spotify_config
-        config=prepare_spotify_config(config,account())
+
+        config = prepare_spotify_config(config, account())
         return {'code': engine.run_worker(config)}
     if action == 'release_date':
         from metadata import deezer_release_date
+
         value = client(config)
         try:
             return {'release_date': deezer_release_date(config['record'], value)}
@@ -537,123 +873,223 @@ def perform(action, config):
             value.close()
     if action == 'search':
         from metadata import is_streaming_link
+
         value = client(config)
         try:
             from music_search import search_music
-            state=getattr(_local,'state',None)
-            return search_music(value,config['query'],config.get('provider','Deezer'),account=account() if _root is not None else None,
-                choose=ask_catalog,automatic=bool(config.get('auto_metadata')),refresh=bool(config.get('refresh_search')),
-                cancelled=state['cancel'].is_set if state else lambda:False)
+
+            state = getattr(_local, 'state', None)
+            return search_music(
+                value,
+                config['query'],
+                config.get('provider', 'Deezer'),
+                account=account() if _root is not None else None,
+                choose=ask_catalog,
+                automatic=bool(config.get('auto_metadata')),
+                refresh=bool(config.get('refresh_search')),
+                cancelled=state['cancel'].is_set if state else lambda: False,
+            )
         finally:
             value.close()
     if action == 'collection':
         from playlist_import import load_interactive_playlist as load_playlist
+
         value = client(config)
         try:
             from catalog_details import collection_artwork
-            return collection_artwork(load_playlist(config['url'], value, limit=int(config.get('playlist_limit', 2000)), account=account(), cancelled=_local.state['cancel'].is_set))
+
+            return collection_artwork(
+                load_playlist(
+                    config['url'],
+                    value,
+                    limit=int(config.get('playlist_limit', 2000)),
+                    account=account(),
+                    cancelled=_local.state['cancel'].is_set,
+                )
+            )
         finally:
             value.close()
     if action == 'import':
         from playlist_import import load_text
         from playlist_files import load_csv
+
         text = Path(config['path']).read_text(encoding='utf-8-sig')
         if config.get('extension', '').lower() == 'csv':
             return load_csv(text, int(config.get('playlist_limit', 2000)))
         return load_text(text, int(config.get('playlist_limit', 2000)))
     if action == 'export_list':
         from playlist_files import export_text
-        return {'text': export_text(config['tracks'], m3u=config.get('format') == 'm3u')}
+
+        return {
+            'text': export_text(config['tracks'], m3u=config.get('format') == 'm3u')
+        }
     if action == 'matches':
         from matching import resolve_youtube
         from metadata import is_streaming_link
         import engine
+
         items = []
-        value=client(config)
+        value = client(config)
         try:
             for record in config['tracks']:
                 if is_streaming_link(record['source_url']):
-                    complete=value.resolve(record['source_url'],choose=ask_catalog, **({'automatic':True} if config.get('auto_metadata') else {}))
+                    complete = value.resolve(
+                        record['source_url'],
+                        choose=ask_catalog,
+                        **({'automatic': True} if config.get('auto_metadata') else {}),
+                    )
                     if config.get('mode') == 'flac':
                         from lossless_source import search_matches, choose_match
-                        match=choose_match(complete,search_matches(complete),ask_version,config)
+
+                        match = choose_match(
+                            complete, search_matches(complete), ask_version, config
+                        )
                     else:
-                        match=resolve_youtube(complete,engine.Logger(),ask_version,automatic=bool(config.get('auto_match')),confirm=bool(config.get('confirm_version')))
+                        match = resolve_youtube(
+                            complete,
+                            engine.Logger(),
+                            ask_version,
+                            automatic=bool(config.get('auto_match')),
+                            confirm=bool(config.get('confirm_version')),
+                        )
                 else:
-                    match={'title':'Vídeo original','source_url':record['source_url']}
-                items.append(dict(record,youtube_match=match))
+                    match = {
+                        'title': 'Vídeo original',
+                        'source_url': record['source_url'],
+                    }
+                items.append(dict(record, youtube_match=match))
         finally:
             value.close()
         return {'tracks': items}
     if action == 'effects_export_config':
         from effects_export import export_config
-        return export_config(config['source'],config.get('record'),speed=config.get('speed',100),reverb=config.get('reverb',0),keep_pitch=config.get('keep_pitch',False),enabled=config.get('enabled',True),cover_data=config.get('cover_data',''))
+
+        return export_config(
+            config['source'],
+            config.get('record'),
+            speed=config.get('speed', 100),
+            reverb=config.get('reverb', 0),
+            keep_pitch=config.get('keep_pitch', False),
+            enabled=config.get('enabled', True),
+            cover_data=config.get('cover_data', ''),
+        )
     if action == 'effects':
         from effects_worker import render
-        target=Path(config['output'])
+
+        target = Path(config['output'])
         if target.exists():
-            policy=config.get('duplicate_policy','ask')
-            if policy=='ask':
-                policy=ask_duplicate(target)
-            if policy=='skip':
-                emit('file',path=str(target),mode=target.suffix.lstrip('.'),skipped=True)
-                return {'code':0}
-            if policy=='replace':
-                config=dict(config,replace=True)
+            policy = config.get('duplicate_policy', 'ask')
+            if policy == 'ask':
+                policy = ask_duplicate(target)
+            if policy == 'skip':
+                emit(
+                    'file',
+                    path=str(target),
+                    mode=target.suffix.lstrip('.'),
+                    skipped=True,
+                )
+                return {'code': 0}
+            if policy == 'replace':
+                config = dict(config, replace=True)
             else:
-                index=2
-                candidate=target.with_name(f'{target.stem} ({index}){target.suffix}')
+                index = 2
+                candidate = target.with_name(f'{target.stem} ({index}){target.suffix}')
                 while candidate.exists():
-                    index+=1
-                    candidate=target.with_name(f'{target.stem} ({index}){target.suffix}')
-                config=dict(config,output=str(candidate))
+                    index += 1
+                    candidate = target.with_name(
+                        f'{target.stem} ({index}){target.suffix}'
+                    )
+                config = dict(config, output=str(candidate))
         return {'code': render(config)}
     if action == 'preview':
         return render_preview(config)
-    if action in ('image_preview','image_convert'):
+    if action in ('image_preview', 'image_convert'):
         import shutil
         import tempfile
         from image_output import transform_image, open_preview
         from media_links import prepare_link
         from file_output import publish
+
         folder = _root / 'image-preview'
         folder.mkdir(exist_ok=True)
         with tempfile.TemporaryDirectory(dir=folder) as temporary:
-            files=[]
+            files = []
+
             def capture(kind, **values):
-                if kind=='file':
+                if kind == 'file':
                     files.append(values['path'])
                 elif kind not in ('done', 'progress'):
                     emit(kind, **values)
+
             if config.get('source'):
-                source=Path(temporary)/config.get('name',Path(config['source']).name)
+                source = Path(temporary) / config.get(
+                    'name', Path(config['source']).name
+                )
                 # Android may deny copying filesystem attributes; only image bytes are needed.
-                shutil.copyfile(config['source'],source)
+                shutil.copyfile(config['source'], source)
             else:
-                work=dict(config,folder=temporary,mode='photos',duplicate_policy='keep')
-                done,_=prepare_link(work,capture,None)
+                work = dict(
+                    config, folder=temporary, mode='photos', duplicate_policy='keep'
+                )
+                done, _ = prepare_link(work, capture, None)
                 if not done or not files:
-                    raise ValueError('A prévia requer um link direto de imagem ou uma página com imagem principal.')
-                source=Path(files[0])
-            image=transform_image(source,config['image_options'])
-            if action=='image_preview':
+                    raise ValueError(
+                        'A prévia requer um link direto de imagem ou uma página com imagem principal.'
+                    )
+                source = Path(files[0])
+            image = transform_image(source, config['image_options'])
+            if action == 'image_preview':
                 with open_preview(image) as picture:
-                    dimensions=picture.size
-                    picture.thumbnail((1600,1600))
+                    dimensions = picture.size
+                    picture.thumbnail((1600, 1600))
                     import uuid
-                    result=folder/f'preview-{uuid.uuid4().hex}.png'
-                    picture.convert('RGBA').save(result,format='PNG')
-                return {'path':str(result),'width':dimensions[0],'height':dimensions[1],'format':image.suffix.lstrip('.').upper()}
-            final,skipped=publish(image,Path(config['folder']),config.get('duplicate_policy','keep'),ask_duplicate)
-            emit('file',path=final,mode=Path(final).suffix.lstrip('.'),skipped=skipped)
-            return {'path':final}
+
+                    result = folder / f'preview-{uuid.uuid4().hex}.png'
+                    picture.convert('RGBA').save(result, format='PNG')
+                return {
+                    'path': str(result),
+                    'width': dimensions[0],
+                    'height': dimensions[1],
+                    'format': image.suffix.lstrip('.').upper(),
+                }
+            final, skipped = publish(
+                image,
+                Path(config['folder']),
+                config.get('duplicate_policy', 'keep'),
+                ask_duplicate,
+            )
+            emit(
+                'file', path=final, mode=Path(final).suffix.lstrip('.'), skipped=skipped
+            )
+            return {'path': final}
     if action == 'resolve_preview':
         import yt_dlp
-        with yt_dlp.YoutubeDL({'quiet':True,'no_warnings':True,'noplaylist':True,'format':'bestaudio/best','socket_timeout':20}) as downloader:
+
+        with yt_dlp.YoutubeDL(
+            {
+                'quiet': True,
+                'no_warnings': True,
+                'noplaylist': True,
+                'format': 'bestaudio/best',
+                'socket_timeout': 20,
+            }
+        ) as downloader:
             info = downloader.extract_info(config['url'], download=False)
-        return {'url':info['url'],'headers':info.get('http_headers') or {}}
+        return {'url': info['url'], 'headers': info.get('http_headers') or {}}
     if action == 'probe':
-        result = subprocess.run([str(_native / 'libffprobe.so'), '-v', 'error', '-show_format', '-of', 'json', config['source']], capture_output=True, timeout=20)
+        result = subprocess.run(
+            [
+                str(_native / 'libffprobe.so'),
+                '-v',
+                'error',
+                '-show_format',
+                '-of',
+                'json',
+                config['source'],
+            ],
+            capture_output=True,
+            timeout=20,
+        )
         if result.returncode:
             raise ValueError('Não foi possível ler o áudio.')
         return json.loads(result.stdout)
@@ -661,11 +1097,20 @@ def perform(action, config):
         return {'connected': account().connected}
     if action == 'spotify_connect':
         from spotify_account import authorize
+
         def opener(url):
             emit('open_browser', url=url)
             return True
+
         # Loopback + PKCE: authorization code is never logged or shared with another host.
-        client_id, tokens = authorize(config['spotify_client_id'], _local.state['cancel'], opener=opener, return_url='onda://spotify-return', translate=lambda text: config.get('ui_messages', {}).get(text, text), language=config.get('language', 'pt-BR'))
+        client_id, tokens = authorize(
+            config['spotify_client_id'],
+            _local.state['cancel'],
+            opener=opener,
+            return_url='onda://spotify-return',
+            translate=lambda text: config.get('ui_messages', {}).get(text, text),
+            language=config.get('language', 'pt-BR'),
+        )
         account().accept(client_id, tokens, remember=True)
         return {'connected': True}
     if action == 'spotify_disconnect':
@@ -673,31 +1118,52 @@ def perform(action, config):
         return {'connected': False}
     if action == 'update':
         import requests
-        emit('stage',message='Consultando atualização das ferramentas…',done=0,total=0)
-        response = requests.get('https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest', timeout=30)
+
+        emit(
+            'stage', message='Consultando atualização das ferramentas…', done=0, total=0
+        )
+        response = requests.get(
+            'https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest', timeout=30
+        )
         response.raise_for_status()
         data = response.json()
         assets = {a['name']: a['browser_download_url'] for a in data.get('assets', [])}
         sums = requests.get(assets['SHA2-256SUMS'], timeout=30)
         sums.raise_for_status()
-        expected = next(line.split()[0] for line in sums.text.splitlines() if line.split()[-1].lstrip('*') == 'yt-dlp')
+        expected = next(
+            line.split()[0]
+            for line in sums.text.splitlines()
+            if line.split()[-1].lstrip('*') == 'yt-dlp'
+        )
         target = _root / 'tools/yt-dlp.zip'
         target.parent.mkdir(exist_ok=True)
         tmp = target.with_suffix('.tmp')
         digest = hashlib.sha256()
         try:
-            with requests.get(assets['yt-dlp'], stream=True, timeout=(10, 30)) as download:
+            with requests.get(
+                assets['yt-dlp'], stream=True, timeout=(10, 30)
+            ) as download:
                 download.raise_for_status()
                 with tmp.open('wb') as stream:
                     size = 0
                     for chunk in download.iter_content(65536):
                         size += len(chunk)
-                        if size > 40*1024*1024:
+                        if size > 40 * 1024 * 1024:
                             raise ValueError('Atualização acima do limite.')
                         digest.update(chunk)
                         stream.write(chunk)
-                        emit('stage', message='Baixando atualização do yt-dlp…',done=size,total=int(download.headers.get('Content-Length',0)))
-            emit('stage',message='Verificando atualização das ferramentas…',done=size,total=size)
+                        emit(
+                            'stage',
+                            message='Baixando atualização do yt-dlp…',
+                            done=size,
+                            total=int(download.headers.get('Content-Length', 0)),
+                        )
+            emit(
+                'stage',
+                message='Verificando atualização das ferramentas…',
+                done=size,
+                total=size,
+            )
             if digest.hexdigest() != expected:
                 raise ValueError('A verificação da atualização falhou.')
             with zipfile.ZipFile(tmp) as archive:
@@ -706,40 +1172,75 @@ def perform(action, config):
             os.replace(tmp, target)
         finally:
             tmp.unlink(missing_ok=True)
-        from tool_status import updated,present,display
-        report=updated(_root,True)
-        return {'version': data['tag_name'], 'report':report,'display':display(report),'message':present(report)+'\nAtualização preparada. Use Forçar parada nas configurações Android e abra o ONDA novamente para aplicar.'}
+        from tool_status import updated, present, display
+
+        report = updated(_root, True)
+        return {
+            'version': data['tag_name'],
+            'report': report,
+            'display': display(report),
+            'message': present(report)
+            + '\nAtualização preparada. Use Forçar parada nas configurações Android e abra o ONDA novamente para aplicar.',
+        }
     if action == 'self_test':
         import yt_dlp
         from audio_tools import effects_filter, effect_name
+
         native = {}
         for name in ('ffmpeg', 'ffprobe', 'qjs'):
-            command = [str(_native / ('lib'+name+'.so')), *(['-e','console.log(2+2)'] if name=='qjs' else ['-version'])]
+            command = [
+                str(_native / ('lib' + name + '.so')),
+                *(['-e', 'console.log(2+2)'] if name == 'qjs' else ['-version']),
+            ]
             result = subprocess.run(command, capture_output=True, timeout=20)
-            native[name] = {'code': result.returncode, 'output': (result.stdout+result.stderr).decode(errors='replace')[:400]}
+            native[name] = {
+                'code': result.returncode,
+                'output': (result.stdout + result.stderr).decode(errors='replace')[
+                    :400
+                ],
+            }
             if result.returncode:
-                raise ValueError('Falha na ferramenta ' + name + ': ' + native[name]['output'])
+                raise ValueError(
+                    'Falha na ferramenta ' + name + ': ' + native[name]['output']
+                )
         from importlib import import_module
-        for module in ('PIL','gallery_dl','mutagen'):import_module(module)
-        return {'yt_dlp': yt_dlp.version.__version__, 'native': native, 'filter': effects_filter(90,25,True), 'effect': effect_name(90,25), 'spotify_connected': account().connected}
+
+        for module in ('PIL', 'gallery_dl', 'mutagen'):
+            import_module(module)
+        return {
+            'yt_dlp': yt_dlp.version.__version__,
+            'native': native,
+            'filter': effects_filter(90, 25, True),
+            'effect': effect_name(90, 25),
+            'spotify_connected': account().connected,
+        }
     raise ValueError('Operação desconhecida: ' + action)
 
 
 def run(identity, action, payload, callback):
-    state = {'cancel': threading.Event(), 'replies': queue.Queue(), 'processes': [], 'callback': callback}
+    state = {
+        'cancel': threading.Event(),
+        'replies': queue.Queue(),
+        'processes': [],
+        'callback': callback,
+    }
     with _lock:
         _jobs[identity] = state
     _local.state = state
     try:
-        state['config']=json.loads(payload)
+        state['config'] = json.loads(payload)
         result = perform(action, state['config'])
         return json.dumps(result, ensure_ascii=False)
     except Exception as exc:
-        if action=='update':
+        if action == 'update':
             from tool_status import updated
-            updated(_root,False)
+
+            updated(_root, False)
         # Errors stay in the UI; credentials, cookie contents and OAuth codes are never dumped.
-        return json.dumps({'error': readable_error(exc), 'cancelled': state['cancel'].is_set()}, ensure_ascii=False)
+        return json.dumps(
+            {'error': readable_error(exc), 'cancelled': state['cancel'].is_set()},
+            ensure_ascii=False,
+        )
     finally:
         for imported in state.get('flac_imports', []):
             imported.unlink(missing_ok=True)

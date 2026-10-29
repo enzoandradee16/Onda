@@ -1,14 +1,31 @@
 """Small function icons rendered from shapes; no external assets are required."""
+
 import math
 
 
 def icon_kind(title):
     title = title.casefold()
-    for phrase, kind in (("equalizador", "settings"), ("equalizer", "settings"), ("ecualizador", "settings"), ("ajustar capa", "crop"), ("preparar áudio e vídeo", "download"), ("flac pelo navegador", "download"), ("editar áudio", "metadata"), ("lista da playlist", "metadata"), ("conectar spotify", "metadata"), ("boas-vindas", "help"), ("configurações", "settings"), ("detalhes dos downloads", "log"),
-                         ("sobre o onda", "help"), ("metadados", "metadata"),
-                         ("revisar antes", "metadata"), ("escolha a versão", "version"),
-                         ("escolha o formato", "download"), ("fotos e vídeos", "media"),
-                         ("arquivo já existe", "duplicate")):
+    for phrase, kind in (
+        ("equalizador", "settings"),
+        ("equalizer", "settings"),
+        ("ecualizador", "settings"),
+        ("ajustar capa", "crop"),
+        ("preparar áudio e vídeo", "download"),
+        ("flac pelo navegador", "download"),
+        ("editar áudio", "metadata"),
+        ("lista da playlist", "metadata"),
+        ("conectar spotify", "metadata"),
+        ("boas-vindas", "help"),
+        ("configurações", "settings"),
+        ("detalhes dos downloads", "log"),
+        ("sobre o onda", "help"),
+        ("metadados", "metadata"),
+        ("revisar antes", "metadata"),
+        ("escolha a versão", "version"),
+        ("escolha o formato", "download"),
+        ("fotos e vídeos", "media"),
+        ("arquivo já existe", "duplicate"),
+    ):
         if phrase in title:
             return kind
     return None
@@ -16,19 +33,31 @@ def icon_kind(title):
 
 def draw_icon(kind, size, colors=None):
     from PIL import Image, ImageDraw
+
     image = Image.new("RGBA", (96, 96))
     draw = ImageDraw.Draw(image)
-    colors=colors or {}
-    ink, pale, dark = colors.get("accent","#65dfbd"), colors.get("text","#eef3fa"), colors.get("bg","#10151e")
+    colors = colors or {}
+    ink, pale, dark = (
+        colors.get("accent", "#65dfbd"),
+        colors.get("text", "#eef3fa"),
+        colors.get("bg", "#10151e"),
+    )
     draw.rounded_rectangle((2, 2, 94, 94), radius=22, fill=dark)
     if kind == "onda":
         from brand_mark import icon
-        return icon(size,ink,dark)
+
+        return icon(size, ink, dark)
     elif kind == "settings":
         for index in range(8):
             angle = index * math.pi / 4
-            draw.line([(48 + math.cos(angle) * 24, 48 + math.sin(angle) * 24),
-                       (48 + math.cos(angle) * 35, 48 + math.sin(angle) * 35)], fill=ink, width=12)
+            draw.line(
+                [
+                    (48 + math.cos(angle) * 24, 48 + math.sin(angle) * 24),
+                    (48 + math.cos(angle) * 35, 48 + math.sin(angle) * 35),
+                ],
+                fill=ink,
+                width=12,
+            )
         draw.ellipse((22, 22, 74, 74), fill=ink)
         draw.ellipse((36, 36, 60, 60), fill=dark)
     elif kind == "help":
@@ -68,17 +97,23 @@ def draw_icon(kind, size, colors=None):
 def apply_window_icon(window, colors=None, *, force=False):
     kind = icon_kind(window.title()) or "onda"
     if colors is None:
-        manager=getattr(window._root(),"theme_manager",None)
-        colors=getattr(manager,"colors",None) or {}
-    root=window is window._root()
-    key=(kind,colors.get("accent"),colors.get("text"),colors.get("bg"))
-    if getattr(window,"_function_icon_key",None)==key:
+        manager = getattr(window._root(), "theme_manager", None)
+        colors = getattr(manager, "colors", None) or {}
+    root = window is window._root()
+    key = (kind, colors.get("accent"), colors.get("text"), colors.get("bg"))
+    if getattr(window, "_function_icon_key", None) == key:
         if force:
             window.iconphoto(root, *window._function_icons)
         return
     from PIL import ImageTk
-    icons = [ImageTk.PhotoImage(draw_icon(kind, size, colors), master=window) for size in (16, 32, 48)]
+
+    icons = [
+        ImageTk.PhotoImage(draw_icon(kind, size, colors), master=window)
+        for size in (16, 32, 48)
+    ]
     window.iconphoto(root, *icons)
-    window._function_icons = icons  # Tk only stores the image names; keep Python references.
+    window._function_icons = (
+        icons  # Tk only stores the image names; keep Python references.
+    )
     window._function_icon_kind = kind
     window._function_icon_key = key

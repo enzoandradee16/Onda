@@ -1,4 +1,5 @@
 """One-time, per-user welcome state independent of saved preferences."""
+
 from pathlib import Path
 
 

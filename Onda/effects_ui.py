@@ -1,4 +1,5 @@
 """Slowed + Reverb workspace: local audio, independent controls, preview/export."""
+
 from i18n import tr
 from i18n_tk import TranslatedCombobox, display_var
 import json
@@ -12,9 +13,16 @@ import threading
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
-from audio_tools import PreviewPlayer, effects_filter, effect_name, process_options, executable, MIN_SPEED, MAX_SPEED
+from audio_tools import (
+    PreviewPlayer,
+    effects_filter,
+    effect_name,
+    process_options,
+    executable,
+    MIN_SPEED,
+    MAX_SPEED,
+)
 from engine import stop_process
-
 
 PRESETS = {
     "Original": (100, 0),
@@ -40,7 +48,9 @@ class EffectsPane(ttk.Frame):
         self.preset = tk.StringVar(value="Clássico")
         self.start_time = tk.StringVar(value="0")
         self.mode = tk.StringVar(value="MP3")
-        self.status = tk.StringVar(value="Abra uma música do computador ou use um arquivo do histórico.")
+        self.status = tk.StringVar(
+            value="Abra uma música do computador ou use um arquivo do histórico."
+        )
         self.player = PreviewPlayer()
         self.events = queue.Queue()
         self.process = None
@@ -62,102 +72,232 @@ class EffectsPane(ttk.Frame):
         self.output_folder = None
         self.columnconfigure(0, weight=1)
         if heading:
-            ttk.Label(self, text=tr("Slowed · Sped Up · Reverb"), font=("Segoe UI", 23, "bold"), anchor="center").grid(row=0, column=0, sticky="ew")
-            ttk.Label(self, text=tr("Desacelere ou acelere sua música. Adicione reverb se quiser."), style="Muted.TLabel", anchor="center").grid(row=1, column=0, sticky="ew", pady=(5, 12))
+            ttk.Label(
+                self,
+                text=tr("Slowed · Sped Up · Reverb"),
+                font=("Segoe UI", 23, "bold"),
+                anchor="center",
+            ).grid(row=0, column=0, sticky="ew")
+            ttk.Label(
+                self,
+                text=tr("Desacelere ou acelere sua música. Adicione reverb se quiser."),
+                style="Muted.TLabel",
+                anchor="center",
+            ).grid(row=1, column=0, sticky="ew", pady=(5, 12))
         file_row = ttk.Frame(self)
         file_row.grid(row=2, column=0, sticky="ew")
-        ttk.Entry(file_row, textvariable=self.source).pack(side="left", fill="x", expand=True)
-        ttk.Button(file_row, text=tr("Abrir áudio"), command=self.choose).pack(side="left", padx=(8, 0))
+        ttk.Entry(file_row, textvariable=self.source).pack(
+            side="left", fill="x", expand=True
+        )
+        ttk.Button(file_row, text=tr("Abrir áudio"), command=self.choose).pack(
+            side="left", padx=(8, 0)
+        )
         card = ttk.Frame(self, style="Card.TFrame", padding=14)
         card.grid(row=3, column=0, sticky="ew", pady=10)
         card.columnconfigure(0, weight=1)
         self.speed_label = tk.StringVar()
         self.reverb_label = tk.StringVar()
-        ttk.Label(card, textvariable=display_var(self.speed_label), style="Card.TLabel", font=("Segoe UI", 12, "bold")).grid(row=0, column=0, sticky="w")
+        ttk.Label(
+            card,
+            textvariable=display_var(self.speed_label),
+            style="Card.TLabel",
+            font=("Segoe UI", 12, "bold"),
+        ).grid(row=0, column=0, sticky="w")
         presets = ttk.Frame(card, style="Card.TFrame")
         presets.grid(row=0, column=1, sticky="e")
-        ttk.Label(presets, text=tr("Preset"), style="CardMuted.TLabel").pack(side="left", padx=(8, 8))
-        self.preset_box = TranslatedCombobox(presets, textvariable=self.preset, values=(*PRESETS, "Personalizado"), state="readonly", width=17)
+        ttk.Label(presets, text=tr("Preset"), style="CardMuted.TLabel").pack(
+            side="left", padx=(8, 8)
+        )
+        self.preset_box = TranslatedCombobox(
+            presets,
+            textvariable=self.preset,
+            values=(*PRESETS, "Personalizado"),
+            state="readonly",
+            width=17,
+        )
         self.preset_box.pack(side="left")
         self.preset_box.bind("<<ComboboxSelected>>", self.apply_preset)
-        self.speed_slider = ttk.Scale(card, from_=MIN_SPEED, to=MAX_SPEED, variable=self.speed, command=self.changed)
+        self.speed_slider = ttk.Scale(
+            card,
+            from_=MIN_SPEED,
+            to=MAX_SPEED,
+            variable=self.speed,
+            command=self.changed,
+        )
         self.speed_slider.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(8, 4))
         speed_guide = ttk.Frame(card, style="Card.TFrame")
         speed_guide.grid(row=2, column=0, columnspan=2, sticky="ew")
         for column in range(3):
             speed_guide.columnconfigure(column, weight=1, uniform="speed")
-        for column, text, anchor in ((0, "50% · Slowed", "w"), (1, "100% · original", "center"), (2, "150% · Sped Up", "e")):
-            ttk.Label(speed_guide, text=tr(text), style="CardMuted.TLabel", anchor=anchor).grid(row=0, column=column, sticky="ew")
-        ttk.Label(card, textvariable=display_var(self.reverb_label), style="Card.TLabel", font=("Segoe UI", 12, "bold")).grid(row=3, column=0, sticky="w", pady=(16, 0))
-        self.reverb_slider = ttk.Scale(card, from_=0, to=100, variable=self.reverb, command=self.changed)
+        for column, text, anchor in (
+            (0, "50% · Slowed", "w"),
+            (1, "100% · original", "center"),
+            (2, "150% · Sped Up", "e"),
+        ):
+            ttk.Label(
+                speed_guide, text=tr(text), style="CardMuted.TLabel", anchor=anchor
+            ).grid(row=0, column=column, sticky="ew")
+        ttk.Label(
+            card,
+            textvariable=display_var(self.reverb_label),
+            style="Card.TLabel",
+            font=("Segoe UI", 12, "bold"),
+        ).grid(row=3, column=0, sticky="w", pady=(16, 0))
+        self.reverb_slider = ttk.Scale(
+            card, from_=0, to=100, variable=self.reverb, command=self.changed
+        )
         self.reverb_slider.grid(row=4, column=0, columnspan=2, sticky="ew", pady=8)
-        ttk.Label(card, text=tr("0% · sem reverb                                                   100% · mais ambiente"), style="CardMuted.TLabel").grid(row=5, column=0, sticky="w")
-        self.keep_pitch_checkbox = ttk.Checkbutton(card, text=tr('Manter tom (pitch) ao alterar a velocidade'), variable=self.keep_pitch)
-        self.keep_pitch_checkbox.grid(row=6, column=0, columnspan=2, sticky='w', pady=(10, 0))
+        ttk.Label(
+            card,
+            text=tr(
+                "0% · sem reverb                                                   100% · mais ambiente"
+            ),
+            style="CardMuted.TLabel",
+        ).grid(row=5, column=0, sticky="w")
+        self.keep_pitch_checkbox = ttk.Checkbutton(
+            card,
+            text=tr('Manter tom (pitch) ao alterar a velocidade'),
+            variable=self.keep_pitch,
+        )
+        self.keep_pitch_checkbox.grid(
+            row=6, column=0, columnspan=2, sticky='w', pady=(10, 0)
+        )
         timeline = ttk.Frame(self)
         timeline.grid(row=4, column=0, sticky="ew", pady=(0, 12))
         timeline.columnconfigure(0, weight=1)
-        ttk.Label(timeline, text=tr("Posição na música"), style="Muted.TLabel").grid(row=0, column=0, sticky="w")
-        ttk.Label(timeline, textvariable=display_var(self.time_label), style="Muted.TLabel").grid(row=0, column=1, sticky="e")
-        self.timeline = ttk.Scale(timeline, from_=0, to=1, variable=self.position, state="disabled")
+        ttk.Label(timeline, text=tr("Posição na música"), style="Muted.TLabel").grid(
+            row=0, column=0, sticky="w"
+        )
+        ttk.Label(
+            timeline, textvariable=display_var(self.time_label), style="Muted.TLabel"
+        ).grid(row=0, column=1, sticky="e")
+        self.timeline = ttk.Scale(
+            timeline, from_=0, to=1, variable=self.position, state="disabled"
+        )
         self.timeline.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(6, 0))
         self.timeline.bind("<ButtonPress-1>", self.seek_begin)
         self.timeline.bind("<B1-Motion>", self.seek_move)
         self.timeline.bind("<ButtonRelease-1>", self.seek_end)
         for key, seconds in (("Left", -5), ("Right", 5)):
-            self.timeline.bind("<" + key + ">", lambda event, step=seconds: self.seek_key(step))
+            self.timeline.bind(
+                "<" + key + ">", lambda event, step=seconds: self.seek_key(step)
+            )
         preview = ttk.Frame(self)
         preview.grid(row=5, column=0, sticky="ew")
-        ttk.Button(preview, text=tr("Ouvir original"), command=lambda: self.preview(False)).pack(side="left", padx=4)
-        ttk.Button(preview, text=tr("Ouvir com efeitos"), style="Accent.TButton", command=self.preview).pack(side="left", padx=4)
-        ttk.Button(preview, text=tr("Parar"), command=self.stop_preview).pack(side="left", padx=4)
-        ttk.Label(self, text=tr("Arraste a barra para escolher o trecho. A duração da prévia pode ser alterada em Configurações. Ajuste os efeitos enquanto ouve."), style="Muted.TLabel", wraplength=760).grid(row=6, column=0, sticky="w", pady=8)
+        ttk.Button(
+            preview, text=tr("Ouvir original"), command=lambda: self.preview(False)
+        ).pack(side="left", padx=4)
+        ttk.Button(
+            preview,
+            text=tr("Ouvir com efeitos"),
+            style="Accent.TButton",
+            command=self.preview,
+        ).pack(side="left", padx=4)
+        ttk.Button(preview, text=tr("Parar"), command=self.stop_preview).pack(
+            side="left", padx=4
+        )
+        ttk.Label(
+            self,
+            text=tr(
+                "Arraste a barra para escolher o trecho. A duração da prévia pode ser alterada em Configurações. Ajuste os efeitos enquanto ouve."
+            ),
+            style="Muted.TLabel",
+            wraplength=760,
+        ).grid(row=6, column=0, sticky="w", pady=8)
         export = ttk.Frame(self)
         export.grid(row=7, column=0, sticky="ew", pady=8)
         ttk.Label(export, text=tr("Salvar como")).pack(side="left")
-        TranslatedCombobox(export, textvariable=self.mode, values=("MP3", "M4A", "FLAC", "WAV"), state="readonly", width=9).pack(side="left", padx=10)
-        self.export_button = ttk.Button(export, text=tr("Exportar música"), style="Accent.TButton", command=self.export)
+        TranslatedCombobox(
+            export,
+            textvariable=self.mode,
+            values=("MP3", "M4A", "FLAC", "WAV"),
+            state="readonly",
+            width=9,
+        ).pack(side="left", padx=10)
+        self.export_button = ttk.Button(
+            export,
+            text=tr("Exportar música"),
+            style="Accent.TButton",
+            command=self.export,
+        )
         self.export_button.pack(side="left")
-        self.cancel_button = ttk.Button(export, text=tr("Cancelar exportação"), command=self.cancel, state="disabled")
+        self.cancel_button = ttk.Button(
+            export,
+            text=tr("Cancelar exportação"),
+            command=self.cancel,
+            state="disabled",
+        )
         self.cancel_button.pack(side="right")
         self.bar = ttk.Progressbar(self, maximum=100)
         self.bar.grid(row=8, column=0, sticky="ew", pady=8)
-        self.status_label = ttk.Label(self, textvariable=display_var(self.status), style="Muted.TLabel", wraplength=800)
+        self.status_label = ttk.Label(
+            self,
+            textvariable=display_var(self.status),
+            style="Muted.TLabel",
+            wraplength=800,
+        )
         self.status_label.grid(row=9, column=0, sticky="w")
-        self.lyric_rows=[]
-        self.lyric_text=tk.StringVar()
-        self.lyric_label=ttk.Label(self,textvariable=self.lyric_text,wraplength=760,anchor="center",font=('Segoe UI',12,'bold'))
-        self.lyric_label.grid(row=10,column=0,sticky="ew",pady=8)
-        ttk.Button(self,text=tr("Importar letra LRC"),command=self.choose_lyrics).grid(row=11,column=0,sticky="w")
-        self.keep_pitch_trace = self.keep_pitch.trace_add("write", lambda *_: self.changed())
+        self.lyric_rows = []
+        self.lyric_text = tk.StringVar()
+        self.lyric_label = ttk.Label(
+            self,
+            textvariable=self.lyric_text,
+            wraplength=760,
+            anchor="center",
+            font=('Segoe UI', 12, 'bold'),
+        )
+        self.lyric_label.grid(row=10, column=0, sticky="ew", pady=8)
+        ttk.Button(
+            self, text=tr("Importar letra LRC"), command=self.choose_lyrics
+        ).grid(row=11, column=0, sticky="w")
+        self.keep_pitch_trace = self.keep_pitch.trace_add(
+            "write", lambda *_: self.changed()
+        )
         self.source.trace_add("write", self.source_changed)
         self.changed()
         self.poll_id = self.after(100, self.poll)
 
     def choose_lyrics(self):
-        path=filedialog.askopenfilename(parent=self.app,title=tr("Importar letra LRC"),filetypes=[('LRC','*.lrc')])
+        path = filedialog.askopenfilename(
+            parent=self.app,
+            title=tr("Importar letra LRC"),
+            filetypes=[('LRC', '*.lrc')],
+        )
         if path:
             try:
                 from synced_lyrics import read_lrc
-                self.lyric_rows=read_lrc(path)
-                if not self.lyric_rows:raise ValueError(tr("Nenhum tempo válido na letra LRC."))
+
+                self.lyric_rows = read_lrc(path)
+                if not self.lyric_rows:
+                    raise ValueError(tr("Nenhum tempo válido na letra LRC."))
                 self.app.synced_lyrics.set(True)
-            except (OSError,ValueError) as error:self.status.set(str(error))
+            except (OSError, ValueError) as error:
+                self.status.set(str(error))
 
     def choose(self):
-        path = filedialog.askopenfilename(parent=self.app, title=tr("Áudio para Slowed, Sped Up e Reverb"), filetypes=[(tr("Áudio"), "*.mp3 *.m4a *.flac *.wav *.ogg *.opus *.webm *.aac"), (tr("Todos os arquivos"), "*.*")])
+        path = filedialog.askopenfilename(
+            parent=self.app,
+            title=tr("Áudio para Slowed, Sped Up e Reverb"),
+            filetypes=[
+                (tr("Áudio"), "*.mp3 *.m4a *.flac *.wav *.ogg *.opus *.webm *.aac"),
+                (tr("Todos os arquivos"), "*.*"),
+            ],
+        )
         if path:
             self.use_file(path)
 
     def use_file(self, path):
         self.stop_preview()
-        self.lyric_rows=[];self.lyric_text.set("")
-        sidecar=Path(path).with_suffix('.lrc')
+        self.lyric_rows = []
+        self.lyric_text.set("")
+        sidecar = Path(path).with_suffix('.lrc')
         if self.app.synced_lyrics.get() and sidecar.is_file():
             try:
                 from synced_lyrics import read_lrc
-                self.lyric_rows=read_lrc(sidecar)
-            except (OSError,ValueError):pass
+
+                self.lyric_rows = read_lrc(sidecar)
+            except (OSError, ValueError):
+                pass
         self.source.set(str(path))
         self.status.set("Áudio selecionado. Ouça um trecho antes de exportar.")
 
@@ -166,16 +306,31 @@ class EffectsPane(ttk.Frame):
         seconds = max(0, int(seconds))
         hours, rest = divmod(seconds, 3600)
         minutes, seconds = divmod(rest, 60)
-        return f"{hours}:{minutes:02}:{seconds:02}" if hours else f"{minutes}:{seconds:02}"
+        return (
+            f"{hours}:{minutes:02}:{seconds:02}" if hours else f"{minutes}:{seconds:02}"
+        )
 
     def set_position(self, seconds):
-        seconds = max(0, min(float(seconds), self.duration)) if self.duration else max(0, float(seconds))
+        seconds = (
+            max(0, min(float(seconds), self.duration))
+            if self.duration
+            else max(0, float(seconds))
+        )
         self.position.set(seconds)
-        if hasattr(self,'lyric_rows'):
+        if hasattr(self, 'lyric_rows'):
             from synced_lyrics import line_at
-            self.lyric_text.set(line_at(self.lyric_rows,seconds) if self.app.synced_lyrics.get() else "")
+
+            self.lyric_text.set(
+                line_at(self.lyric_rows, seconds)
+                if self.app.synced_lyrics.get()
+                else ""
+            )
         self.start_time.set(str(seconds))
-        self.time_label.set(self.clock(seconds) + " / " + (self.clock(self.duration) if self.duration else "—"))
+        self.time_label.set(
+            self.clock(seconds)
+            + " / "
+            + (self.clock(self.duration) if self.duration else "—")
+        )
 
     def source_changed(self, *_):
         self.stop_preview()
@@ -189,18 +344,45 @@ class EffectsPane(ttk.Frame):
 
     def probe_duration(self):
         self.probe_after = None
-        generation, source, folder = self.probe_generation, self.source.get(), self.app.ffmpeg.get()
+        generation, source, folder = (
+            self.probe_generation,
+            self.source.get(),
+            self.app.ffmpeg.get(),
+        )
+
         def worker():
             try:
                 if not Path(source).is_file():
                     return
-                result = subprocess.run([executable("ffprobe", folder), "-v", "error", "-show_entries", "format=duration", "-of", "json", source],
-                    capture_output=True, text=True, encoding="utf-8", timeout=20, **process_options())
+                result = subprocess.run(
+                    [
+                        executable("ffprobe", folder),
+                        "-v",
+                        "error",
+                        "-show_entries",
+                        "format=duration",
+                        "-of",
+                        "json",
+                        source,
+                    ],
+                    capture_output=True,
+                    text=True,
+                    encoding="utf-8",
+                    timeout=20,
+                    **process_options(),
+                )
                 duration = float(json.loads(result.stdout)["format"]["duration"])
                 if math.isfinite(duration) and duration > 0:
-                    self.events.put({"type": "duration", "generation": generation, "duration": duration})
+                    self.events.put(
+                        {
+                            "type": "duration",
+                            "generation": generation,
+                            "duration": duration,
+                        }
+                    )
             except (OSError, ValueError, KeyError, subprocess.SubprocessError):
                 self.events.put({"type": "duration_error", "generation": generation})
+
         threading.Thread(target=worker, daemon=True).start()
 
     def sync_position(self):
@@ -244,10 +426,21 @@ class EffectsPane(ttk.Frame):
 
     def changed(self, _=None):
         values = (round(self.speed.get()), round(self.reverb.get()))
-        self.preset.set(next((name for name, pair in PRESETS.items() if pair == values), "Personalizado"))
+        self.preset.set(
+            next(
+                (name for name, pair in PRESETS.items() if pair == values),
+                "Personalizado",
+            )
+        )
         speed = round(self.speed.get())
-        self.speed_label.set(f"Velocidade · {speed}% · " + ("Slowed" if speed < 100 else "Sped Up" if speed > 100 else "original"))
-        self.reverb_label.set(f"Reverb · {self.reverb.get():.0f}%" + (" · desligado" if round(self.reverb.get()) == 0 else ""))
+        self.speed_label.set(
+            f"Velocidade · {speed}% · "
+            + ("Slowed" if speed < 100 else "Sped Up" if speed > 100 else "original")
+        )
+        self.reverb_label.set(
+            f"Reverb · {self.reverb.get():.0f}%"
+            + (" · desligado" if round(self.reverb.get()) == 0 else "")
+        )
         if self.debounce:
             self.after_cancel(self.debounce)
             self.debounce = None
@@ -274,13 +467,26 @@ class EffectsPane(ttk.Frame):
             if self.duration and start >= self.duration:
                 start = 0
             self.set_position(start)
-            speed, reverb = (round(self.speed.get()), round(self.reverb.get())) if processed else (100, 0)
+            speed, reverb = (
+                (round(self.speed.get()), round(self.reverb.get()))
+                if processed
+                else (100, 0)
+            )
             keep_pitch = self.keep_pitch.get() if processed else False
             effects_filter(speed, reverb, keep_pitch)
             self.app.catalog_page.stop_preview()
             from preview_options import preview_seconds
+
             duration = preview_seconds(self.app.effects_preview_duration.get())
-            self.player.play(str(source), self.app.ffmpeg.get(), speed, reverb, start, duration=duration, keep_pitch=keep_pitch)
+            self.player.play(
+                str(source),
+                self.app.ffmpeg.get(),
+                speed,
+                reverb,
+                start,
+                duration=duration,
+                keep_pitch=keep_pitch,
+            )
             self.preview_active = processed
             self.playback_mode = processed
             self.status.set("Preparando prévia…")
@@ -306,16 +512,30 @@ class EffectsPane(ttk.Frame):
         speed, reverb = round(self.speed.get()), round(self.reverb.get())
         effect = effect_name(speed, reverb)
         suffix = "." + self.mode.get().lower()
-        output = filedialog.asksaveasfilename(parent=self.app, title=tr("Salvar versão com efeitos"), initialdir=str(source.parent),
-                   initialfile=source.stem + (" - " + effect if effect else "") + suffix, defaultextension=suffix,
-                   filetypes=[(self.mode.get(), "*" + suffix)], confirmoverwrite=False)
+        output = filedialog.asksaveasfilename(
+            parent=self.app,
+            title=tr("Salvar versão com efeitos"),
+            initialdir=str(source.parent),
+            initialfile=source.stem + (" - " + effect if effect else "") + suffix,
+            defaultextension=suffix,
+            filetypes=[(self.mode.get(), "*" + suffix)],
+            confirmoverwrite=False,
+        )
         if not output:
             return
         if source.resolve() == Path(output).resolve():
-            messagebox.showerror(tr("Exportar"), tr("Escolha outro nome para preservar o original."), parent=self.app)
+            messagebox.showerror(
+                tr("Exportar"),
+                tr("Escolha outro nome para preservar o original."),
+                parent=self.app,
+            )
             return
         replace = Path(output).exists()
-        if replace and not messagebox.askyesno(tr("Exportar"), tr("O arquivo já existe. Substituir esta cópia?"), parent=self.app):
+        if replace and not messagebox.askyesno(
+            tr("Exportar"),
+            tr("O arquivo já existe. Substituir esta cópia?"),
+            parent=self.app,
+        ):
             return
         self.stop_preview()
         self.busy = True
@@ -330,10 +550,23 @@ class EffectsPane(ttk.Frame):
         self.cancel_button.configure(state="normal")
         self.status.set("Exportando a música inteira…")
         self.bar.configure(value=0)
-        quality = self.app.mp3_quality.get() if suffix == ".mp3" else self.app.m4a_quality.get()
-        config = {"source": str(source.resolve()), "output": output, "speed": speed, "reverb": reverb, "keep_pitch": self.keep_pitch.get(),
-                  "ffmpeg": self.app.ffmpeg.get(), "replace": replace, "bitrate": int(quality.split()[0])}
+        quality = (
+            self.app.mp3_quality.get()
+            if suffix == ".mp3"
+            else self.app.m4a_quality.get()
+        )
+        config = {
+            "source": str(source.resolve()),
+            "output": output,
+            "speed": speed,
+            "reverb": reverb,
+            "keep_pitch": self.keep_pitch.get(),
+            "ffmpeg": self.app.ffmpeg.get(),
+            "replace": replace,
+            "bitrate": int(quality.split()[0]),
+        }
         from performance import snapshot
+
         config.update(snapshot(self.app))
         threading.Thread(target=self.render, args=(config,), daemon=True).start()
 
@@ -347,12 +580,26 @@ class EffectsPane(ttk.Frame):
             if python.name.lower() == "pythonw.exe":
                 python = python.with_name("python.exe")
             from performance import priority_flags
-            child_options=process_options()
-            if os.name=="nt":child_options["creationflags"]=child_options.get("creationflags",0)|priority_flags(config)
+
+            child_options = process_options()
+            if os.name == "nt":
+                child_options["creationflags"] = child_options.get(
+                    "creationflags", 0
+                ) | priority_flags(config)
             with self.process_lock:
-                process = subprocess.Popen([str(python), "-u", str(Path(__file__).with_name("effects_worker.py"))],
-                    stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                    text=True, encoding="utf-8", **child_options)
+                process = subprocess.Popen(
+                    [
+                        str(python),
+                        "-u",
+                        str(Path(__file__).with_name("effects_worker.py")),
+                    ],
+                    stdin=subprocess.PIPE,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    encoding="utf-8",
+                    **child_options,
+                )
                 self.process = process
             if self.cancelled.is_set():
                 stop_process(process)
@@ -368,7 +615,9 @@ class EffectsPane(ttk.Frame):
                         success = True
                     if event.get("type") == "temporary":
                         path = Path(event["path"]).resolve()
-                        if path.parent == Path(config["output"]).resolve().parent and path.name.startswith(".onda-render-"):
+                        if path.parent == Path(
+                            config["output"]
+                        ).resolve().parent and path.name.startswith(".onda-render-"):
                             temporary = path
                     self.events.put(event)
             code = process.wait()
@@ -386,13 +635,20 @@ class EffectsPane(ttk.Frame):
                 self.process = None
             if self.cancelled.is_set() and temporary:
                 import time
+
                 for attempt in range(10):
                     try:
                         temporary.unlink(missing_ok=True)
                         break
                     except OSError:
-                        time.sleep(.1)
-            self.events.put({"type": "exit", "success": success and code == 0, "cancelled": self.cancelled.is_set()})
+                        time.sleep(0.1)
+            self.events.put(
+                {
+                    "type": "exit",
+                    "success": success and code == 0,
+                    "cancelled": self.cancelled.is_set(),
+                }
+            )
 
     def poll(self):
         if self.closed:
@@ -415,12 +671,16 @@ class EffectsPane(ttk.Frame):
                     self.set_position(self.position.get())
             elif event["type"] == "duration_error":
                 if event["generation"] == self.probe_generation:
-                    self.status.set("Não foi possível ler a duração. Confira o arquivo e a pasta do FFmpeg.")
+                    self.status.set(
+                        "Não foi possível ler a duração. Confira o arquivo e a pasta do FFmpeg."
+                    )
             elif event["type"] == "progress":
                 self.bar.configure(value=event["percent"])
             elif event["type"] == "temporary":
                 path = Path(event["path"]).resolve()
-                if path.parent == self.output_folder and path.name.startswith(".onda-render-"):
+                if path.parent == self.output_folder and path.name.startswith(
+                    ".onda-render-"
+                ):
                     self.render_temp = path
             elif event["type"] == "error":
                 self.status.set(event["message"])
@@ -447,14 +707,19 @@ class EffectsPane(ttk.Frame):
                 if self.app.closing and not self.app.active:
                     self.app.destroy()
                     return
-        self.poll_id = self.after(100 if self.winfo_ismapped() or self.busy or self.preview_active else 500, self.poll)
+        self.poll_id = self.after(
+            100 if self.winfo_ismapped() or self.busy or self.preview_active else 500,
+            self.poll,
+        )
 
     def cancel(self):
         self.cancelled.set()
+
         def stop():
             with self.process_lock:
                 if self.process:
                     stop_process(self.process)
+
         threading.Thread(target=stop, daemon=True).start()
 
     def shutdown(self):

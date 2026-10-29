@@ -9,9 +9,16 @@ from window_icons import draw_icon, icon_kind
 
 class WindowIconTests(unittest.TestCase):
     def test_function_icons_are_distinct_and_support_window_sizes(self):
-        titles = ("Onda • Configurações", "Onda • Detalhes dos downloads", "Sobre o Onda",
-                  "Onda • Metadados de músicas", "Onda • Escolha a versão", "Onda • Escolha o formato",
-                  "Escolher fotos e vídeos", "Onda • Arquivo já existe")
+        titles = (
+            "Onda • Configurações",
+            "Onda • Detalhes dos downloads",
+            "Sobre o Onda",
+            "Onda • Metadados de músicas",
+            "Onda • Escolha a versão",
+            "Onda • Escolha o formato",
+            "Escolher fotos e vídeos",
+            "Onda • Arquivo já existe",
+        )
         images = []
         for title in titles:
             kind = icon_kind(title)
@@ -30,24 +37,41 @@ class SettingsScrollUiTests(unittest.TestCase):
     def test_root_brand_and_spinbox_theme_colors(self):
         from app import App
         from tkinter import ttk
-        with tempfile.TemporaryDirectory() as folder, patch.dict(os.environ, {"LOCALAPPDATA":folder}):
-            app=App(show_welcome=False)
+
+        with (
+            tempfile.TemporaryDirectory() as folder,
+            patch.dict(os.environ, {"LOCALAPPDATA": folder}),
+        ):
+            app = App(show_welcome=False)
             app.clipboard_watch.shutdown()
             try:
-                self.assertEqual(app._function_icon_key[0],"onda")
-                for mode in ("Escuro","Preto puro","Claro"):
+                self.assertEqual(app._function_icon_key[0], "onda")
+                for mode in ("Escuro", "Preto puro", "Claro"):
                     app.theme_mode.set(mode)
                     app.update()
-                    colors=app.theme_manager.colors
-                    self.assertEqual(app._function_icon_key,("onda",colors["accent"],colors["text"],colors["bg"]))
-                    self.assertEqual(ttk.Style(app).lookup("TSpinbox","foreground"),colors["text"])
-                    self.assertEqual(ttk.Style(app).lookup("TSpinbox","fieldbackground"),colors["input"])
-            finally:app.destroy()
+                    colors = app.theme_manager.colors
+                    self.assertEqual(
+                        app._function_icon_key,
+                        ("onda", colors["accent"], colors["text"], colors["bg"]),
+                    )
+                    self.assertEqual(
+                        ttk.Style(app).lookup("TSpinbox", "foreground"), colors["text"]
+                    )
+                    self.assertEqual(
+                        ttk.Style(app).lookup("TSpinbox", "fieldbackground"),
+                        colors["input"],
+                    )
+            finally:
+                app.destroy()
 
     def test_categories_scroll_to_last_control_and_footer_stays_visible(self):
-        with tempfile.TemporaryDirectory() as folder, patch.dict(os.environ, {"LOCALAPPDATA": folder}):
+        with (
+            tempfile.TemporaryDirectory() as folder,
+            patch.dict(os.environ, {"LOCALAPPDATA": folder}),
+        ):
             from app import App
             from tkinter import ttk
+
             app = App()
             app.withdraw()
             try:
@@ -64,8 +88,10 @@ class SettingsScrollUiTests(unittest.TestCase):
                     last = page.content.winfo_children()[-1]
                     page.canvas.yview_moveto(1)
                     app.update()
-                    self.assertLessEqual(last.winfo_rooty() + last.winfo_height(),
-                                         page.canvas.winfo_rooty() + page.canvas.winfo_height() + 1)
+                    self.assertLessEqual(
+                        last.winfo_rooty() + last.winfo_height(),
+                        page.canvas.winfo_rooty() + page.canvas.winfo_height() + 1,
+                    )
                 # Force overflow to verify mouse-wheel behavior independent of display DPI.
                 page = app.settings_categories[app.settings_pages.select()]
                 spacer = ttk.Frame(page.content, height=1000)
@@ -74,10 +100,17 @@ class SettingsScrollUiTests(unittest.TestCase):
                 page.canvas.yview_moveto(0)
                 page.wheel(SimpleNamespace(widget=page.canvas, delta=-120))
                 self.assertGreater(page.canvas.yview()[0], 0)
-                buttons = [w for w in app.settings_window.winfo_children()[0].winfo_children() if isinstance(w, ttk.Frame)]
+                buttons = [
+                    w
+                    for w in app.settings_window.winfo_children()[0].winfo_children()
+                    if isinstance(w, ttk.Frame)
+                ]
                 footer = buttons[0]
                 self.assertTrue(footer.winfo_ismapped())
-                self.assertLessEqual(footer.winfo_y() + footer.winfo_height(), footer.master.winfo_height())
+                self.assertLessEqual(
+                    footer.winfo_y() + footer.winfo_height(),
+                    footer.master.winfo_height(),
+                )
                 app.show_log()
                 app.update()
                 self.assertEqual(app.log_window._function_icon_kind, "log")

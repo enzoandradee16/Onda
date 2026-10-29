@@ -18,12 +18,27 @@ class PlaylistSearchUiTests(unittest.TestCase):
         self.environment = patch.dict(os.environ, {"LOCALAPPDATA": self.temp.name})
         self.environment.start()
         from app import App
+
         self.app = App(show_welcome=False)
         self.app.withdraw()
         self.page = self.app.playlist_page
-        self.rows = [{"title": "Música de Verão", "artists": ["João"], "source_url": "https://www.deezer.com/track/1"},
-                     {"title": "Outra música", "artists": ["Maria"], "source_url": "https://www.deezer.com/track/2"},
-                     {"title": "Canção da noite", "artists": ["João"], "source_url": "https://www.deezer.com/track/3"}]
+        self.rows = [
+            {
+                "title": "Música de Verão",
+                "artists": ["João"],
+                "source_url": "https://www.deezer.com/track/1",
+            },
+            {
+                "title": "Outra música",
+                "artists": ["Maria"],
+                "source_url": "https://www.deezer.com/track/2",
+            },
+            {
+                "title": "Canção da noite",
+                "artists": ["João"],
+                "source_url": "https://www.deezer.com/track/3",
+            },
+        ]
         self.page.display({"title": "Favoritas", "tracks": self.rows, "note": ""})
 
     def tearDown(self):
@@ -57,8 +72,12 @@ class PlaylistSearchUiTests(unittest.TestCase):
         page.table.selection_set(("0", "1", "2"))  # Defensive check for detached rows.
         with patch.object(self.app, "add", return_value=["job"]) as add:
             page.add()
-            self.assertEqual(add.call_args.kwargs["lines"], [self.rows[1]["source_url"]])
-            self.assertEqual(add.call_args.kwargs["overrides"]["playlist_title"], "Favoritas")
+            self.assertEqual(
+                add.call_args.kwargs["lines"], [self.rows[1]["source_url"]]
+            )
+            self.assertEqual(
+                add.call_args.kwargs["overrides"]["playlist_title"], "Favoritas"
+            )
 
     def test_playlist_audio_and_streaming_fallback_do_not_use_links_quality(self):
         app, page = self.app, self.page
@@ -75,6 +94,7 @@ class PlaylistSearchUiTests(unittest.TestCase):
     def test_playlist_video_options_and_preferences_are_independent(self):
         from engine import MODES
         from preferences import PreferenceStore
+
         app, page = self.app, self.page
         app.height.set("720p")
         app.fps.set("Original")
@@ -83,24 +103,45 @@ class PlaylistSearchUiTests(unittest.TestCase):
         app.playlist_fps.set("60 fps")
         page.format_changed()
         self.assertTrue(page.fps_combo.winfo_manager())
-        self.assertEqual(page.quality_combo.cget("textvariable"), str(app.playlist_height))
-        page.display({"title": "Vídeos", "note": "", "tracks": [{"title": "Teste", "source_url": "https://www.youtube.com/watch?v=bj-AE5cEaVo"}]})
+        self.assertEqual(
+            page.quality_combo.cget("textvariable"), str(app.playlist_height)
+        )
+        page.display(
+            {
+                "title": "Vídeos",
+                "note": "",
+                "tracks": [
+                    {
+                        "title": "Teste",
+                        "source_url": "https://www.youtube.com/watch?v=bj-AE5cEaVo",
+                    }
+                ],
+            }
+        )
         page.add()
         job = next(iter(app.jobs.values()))
         self.assertEqual((job["mode"], job["height"], job["fps"]), ("mp4", 1440, 60))
-        app.playlist_mode.set(next(key for key, value in MODES.items() if value == "mp3"))
+        app.playlist_mode.set(
+            next(key for key, value in MODES.items() if value == "mp3")
+        )
         page.format_changed()
         self.assertFalse(page.fps_combo.winfo_manager())
         self.assertEqual(app.height.get(), "720p")
-        store = PreferenceStore(path=__import__("pathlib").Path(self.temp.name) / "roundtrip.json")
-        store.save({name: variable.get() for name, variable in app.preference_fields.items()})
+        store = PreferenceStore(
+            path=__import__("pathlib").Path(self.temp.name) / "roundtrip.json"
+        )
+        store.save(
+            {name: variable.get() for name, variable in app.preference_fields.items()}
+        )
         values = store.load()
         self.assertEqual(values["playlist_height"], "1440p")
         self.assertEqual(values["height"], "720p")
 
     def test_loading_another_playlist_discards_detached_rows_and_resets_filter(self):
         self.page.filter_text.set("maria")
-        self.page.display({"title": "Nova playlist", "tracks": [self.rows[0]], "note": ""})
+        self.page.display(
+            {"title": "Nova playlist", "tracks": [self.rows[0]], "note": ""}
+        )
         self.assertEqual(self.page.filter_text.get(), "")
         self.assertEqual(self.page.table.get_children(), ("0",))
         self.assertFalse(self.page.table.exists("2"))

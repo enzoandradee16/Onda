@@ -1,4 +1,5 @@
 """Reopen only after the old process releases its single-instance lock."""
+
 from pathlib import Path
 import json
 import os
@@ -24,10 +25,27 @@ subprocess.Popen(command,cwd=cwd,creationflags=0x08000000)
 
 
 def schedule(root, *, parent_pid=None, command=None):
-    root=Path(root).resolve()
+    root = Path(root).resolve()
     if command is None:
-        launcher=root.parent/'Onda.exe'
-        command=[str(launcher)] if launcher.is_file() else [sys.executable,str(root/'qt_desktop_ui.py')]
-    return subprocess.Popen([sys.executable,'-c',WAIT_AND_START,str(parent_pid or os.getpid()),json.dumps(command),str(root.parent)],
-                            cwd=root.parent,stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,
-                            close_fds=True,creationflags=0x00000008|0x00000200|0x08000000)
+        launcher = root.parent / 'Onda.exe'
+        command = (
+            [str(launcher)]
+            if launcher.is_file()
+            else [sys.executable, str(root / 'qt_desktop_ui.py')]
+        )
+    return subprocess.Popen(
+        [
+            sys.executable,
+            '-c',
+            WAIT_AND_START,
+            str(parent_pid or os.getpid()),
+            json.dumps(command),
+            str(root.parent),
+        ],
+        cwd=root.parent,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        close_fds=True,
+        creationflags=0x00000008 | 0x00000200 | 0x08000000,
+    )

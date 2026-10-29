@@ -28,7 +28,9 @@ class AuditRegressions(unittest.TestCase):
                 return replace(origin, destination)
 
             with patch('file_output.os.replace', side_effect=cross_volume):
-                self.assertEqual(publish(source, folder, 'replace'), (str(target), False))
+                self.assertEqual(
+                    publish(source, folder, 'replace'), (str(target), False)
+                )
             self.assertEqual(target.read_bytes(), b'new')
             self.assertFalse(source.exists())
             self.assertEqual(list(folder.iterdir()), [target])
@@ -42,8 +44,13 @@ class AuditRegressions(unittest.TestCase):
             folder.mkdir()
             target = folder / source.name
             target.write_bytes(b'old')
-            with patch('file_output.os.replace', side_effect=OSError(errno.EXDEV, 'Different volumes')):
-                with patch('file_output.shutil.copyfileobj', side_effect=OSError('Disk full')):
+            with patch(
+                'file_output.os.replace',
+                side_effect=OSError(errno.EXDEV, 'Different volumes'),
+            ):
+                with patch(
+                    'file_output.shutil.copyfileobj', side_effect=OSError('Disk full')
+                ):
                     with self.assertRaises(OSError):
                         publish(source, folder, 'replace')
             self.assertEqual(source.read_bytes(), b'new')
@@ -55,13 +62,21 @@ class AuditRegressions(unittest.TestCase):
             store = LibraryStore(Path(directory) / 'library.db')
             store.add_history(Path(directory) / 'ÁGUA - CANÇÃO.mp3', 'mp3')
             with store.connect() as db:
-                db.executemany('INSERT INTO history(name) VALUES (?)', [('Other',)] * 1001)
+                db.executemany(
+                    'INSERT INTO history(name) VALUES (?)', [('Other',)] * 1001
+                )
             self.assertEqual(len(store.history('água - canção')), 1)
 
     def test_nonfinite_preferences_do_not_discard_valid_settings(self):
         for value in (float('inf'), float('-inf'), float('nan')):
             with self.subTest(value=value):
-                result = PreferenceStore.clean(dict(sidebar_width=value, jukebox_transition_seconds=value, language='en'))
+                result = PreferenceStore.clean(
+                    dict(
+                        sidebar_width=value,
+                        jukebox_transition_seconds=value,
+                        language='en',
+                    )
+                )
                 self.assertEqual(result['language'], 'en')
                 self.assertNotIn('sidebar_width', result)
                 self.assertNotIn('jukebox_transition_seconds', result)

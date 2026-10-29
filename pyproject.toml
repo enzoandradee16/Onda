@@ -1,0 +1,7 @@
+[tool.black]
+line-length = 88
+target-version = ["py311"]
+skip-string-normalization = true
+force-exclude = '''
+/(\.git|\.venv|venv|__pycache__|build|dist|Portatil|Portatil-Qt|Release|Instalador|node_modules|resultados|shared)/
+'''

@@ -1,4 +1,5 @@
 """Integration checks for an AUDIT build only, never the production AppId."""
+
 import argparse
 import hashlib
 import json
@@ -14,13 +15,13 @@ def digest(path):
 
 def verify(audit, bundle, output):
     audit, bundle, output = map(lambda p: Path(p).resolve(), (audit, bundle, output))
-    recipe = (audit/'backend/InstallerAudit.iss').read_text(encoding='utf8')
+    recipe = (audit / 'backend/InstallerAudit.iss').read_text(encoding='utf8')
     assert '190D43B2-9B31-47EE-A14D-94DB3A2EC850' in recipe
     assert 'C522DFD9-6BF4-4FE0-9CE4-5D3C5C88E470' not in recipe
     assert '{userdesktop}' not in recipe and '{group}' not in recipe
     output.mkdir(parents=True, exist_ok=False)
-    setup = audit/'Onda-1.2.0-Setup-Windows-x64.exe'
-    backend = audit/'backend/Onda-1.2.0-Setup-Windows-x64.exe'
+    setup = audit / 'Onda-1.2.0-Setup-Windows-x64.exe'
+    backend = audit / 'backend/Onda-1.2.0-Setup-Windows-x64.exe'
     checks = []
 
     def run(args, expected=0, timeout=180, env=None):
@@ -29,22 +30,43 @@ def verify(audit, bundle, output):
         return result.returncode
 
     def install(exe, target, name, desktop=False, language='brazilianportuguese'):
-        run([exe, '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-', '/DIR='+str(target),
-             '/LANG='+language,
-             '/TASKS='+('desktopicon' if desktop else ''), '/ONDAPROGRESS='+str(output/(name+'-progress.txt')),
-             '/LOG='+str(output/(name+'.log'))])
-        files = [p for p in (bundle/'Onda').rglob('*') if p.is_file() and '__pycache__' not in p.parts and p.suffix != '.pyc']
+        run(
+            [
+                exe,
+                '/VERYSILENT',
+                '/SUPPRESSMSGBOXES',
+                '/NORESTART',
+                '/SP-',
+                '/DIR=' + str(target),
+                '/LANG=' + language,
+                '/TASKS=' + ('desktopicon' if desktop else ''),
+                '/ONDAPROGRESS=' + str(output / (name + '-progress.txt')),
+                '/LOG=' + str(output / (name + '.log')),
+            ]
+        )
+        files = [
+            p
+            for p in (bundle / 'Onda').rglob('*')
+            if p.is_file() and '__pycache__' not in p.parts and p.suffix != '.pyc'
+        ]
         for source in files:
-            assert digest(source) == digest(target/source.relative_to(bundle)), source
-        assert (output/(name+'-progress.txt')).is_file()
-        assert (target/'unins000.exe').is_file()
-        checks.append({'check': name, 'ok': True, 'sources_checked': len(files), 'language': language})
+            assert digest(source) == digest(target / source.relative_to(bundle)), source
+        assert (output / (name + '-progress.txt')).is_file()
+        assert (target / 'unins000.exe').is_file()
+        checks.append(
+            {
+                'check': name,
+                'ok': True,
+                'sources_checked': len(files),
+                'language': language,
+            }
+        )
 
     def markers(target):
-        settings = target/'audit-profile/settings.json'
+        settings = target / 'audit-profile/settings.json'
         settings.parent.mkdir(exist_ok=True)
         settings.write_text('{"preserve":true}', encoding='utf8')
-        media = target/'audit-profile/downloads/arquivo-do-usuário.mp3'
+        media = target / 'audit-profile/downloads/arquivo-do-usuário.mp3'
         media.parent.mkdir(exist_ok=True)
         media.write_bytes(b'synthetic user media')
         return {p: p.read_bytes() for p in (settings, media)}
@@ -53,49 +75,99 @@ def verify(audit, bundle, output):
         assert all(p.is_file() and p.read_bytes() == data for p, data in values.items())
 
     def uninstall(target, name, values):
-        run([target/'unins000.exe', '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/LOG='+str(output/(name+'.log'))])
+        run(
+            [
+                target / 'unins000.exe',
+                '/VERYSILENT',
+                '/SUPPRESSMSGBOXES',
+                '/NORESTART',
+                '/LOG=' + str(output / (name + '.log')),
+            ]
+        )
         # Inno's bootstrap may return before its detached copy completes.
-        deadline = time.monotonic()+30
-        while (target/'Onda.exe').exists() and time.monotonic() < deadline:
-            time.sleep(.1)
-        assert not (target/'Onda.exe').exists()
+        deadline = time.monotonic() + 30
+        while (target / 'Onda.exe').exists() and time.monotonic() < deadline:
+            time.sleep(0.1)
+        assert not (target / 'Onda.exe').exists()
         preserved(values)
         checks.append({'check': name, 'ok': True, 'personal_files_preserved': True})
 
-    run([setup, '--self-test', output/'frontend-self-test.json'])
-    frontend = json.loads((output/'frontend-self-test.json').read_text())
+    run([setup, '--self-test', output / 'frontend-self-test.json'])
+    frontend = json.loads((output / 'frontend-self-test.json').read_text())
     assert frontend['ok'] and frontend['languages'] == ['pt-BR', 'es', 'en']
-    assert frontend['language_switch_preserves_options'] and frontend['translation_keys'] >= 40
-    checks.append({'check': 'frontend-self-test', 'ok': True, 'languages': frontend['languages'], 'translation_keys': frontend['translation_keys']})
-    fresh = output/'instalação nova com espaços'
+    assert (
+        frontend['language_switch_preserves_options']
+        and frontend['translation_keys'] >= 40
+    )
+    checks.append(
+        {
+            'check': 'frontend-self-test',
+            'ok': True,
+            'languages': frontend['languages'],
+            'translation_keys': frontend['translation_keys'],
+        }
+    )
+    fresh = output / 'instalação nova com espaços'
     install(setup, fresh, 'fresh-custom-install', language='english')
-    assert not (audit/'shortcuts/desktop/Onda Installer Audit.lnk').exists()
-    assert (audit/'shortcuts/menu/Uninstall Onda.lnk').is_file()
+    assert not (audit / 'shortcuts/desktop/Onda Installer Audit.lnk').exists()
+    assert (audit / 'shortcuts/menu/Uninstall Onda.lnk').is_file()
     values = markers(fresh)
-    env = dict(os.environ, LOCALAPPDATA=str(output/'launcher-profile'), QT_QPA_PLATFORM='offscreen', QSG_RHI_BACKEND='software')
-    run([fresh/'Onda.exe', '--qt-self-test', output/'installed-launcher.json'], env=env)
-    assert json.loads((output/'installed-launcher.json').read_text(encoding='utf8'))['ok']
+    env = dict(
+        os.environ,
+        LOCALAPPDATA=str(output / 'launcher-profile'),
+        QT_QPA_PLATFORM='offscreen',
+        QSG_RHI_BACKEND='software',
+    )
+    run(
+        [fresh / 'Onda.exe', '--qt-self-test', output / 'installed-launcher.json'],
+        env=env,
+    )
+    assert json.loads((output / 'installed-launcher.json').read_text(encoding='utf8'))[
+        'ok'
+    ]
     checks.append({'check': 'installed-qt-launcher', 'ok': True})
     uninstall(fresh, 'fresh-custom-uninstall', values)
 
-    existing = output/'instalação anterior'
+    existing = output / 'instalação anterior'
     install(backend, existing, 'classic-install')
     values = markers(existing)
     install(setup, existing, 'custom-upgrade', desktop=True, language='spanish')
     preserved(values)
-    for name in ('menu/Onda Installer Audit.lnk', 'menu/Desinstalar Onda.lnk', 'desktop/Onda Installer Audit.lnk'):
-        assert (audit/'shortcuts'/name).is_file(), name
+    for name in (
+        'menu/Onda Installer Audit.lnk',
+        'menu/Desinstalar Onda.lnk',
+        'desktop/Onda Installer Audit.lnk',
+    ):
+        assert (audit / 'shortcuts' / name).is_file(), name
     checks.append({'check': 'shortcuts-and-upgrade-preservation', 'ok': True})
     uninstall(existing, 'custom-upgrade-uninstall', values)
-    assert not (audit/'shortcuts/desktop/Onda Installer Audit.lnk').exists()
-    blocked = output/'not-a-directory'
+    assert not (audit / 'shortcuts/desktop/Onda Installer Audit.lnk').exists()
+    blocked = output / 'not-a-directory'
     blocked.write_text('preserve', encoding='utf8')
-    failed = subprocess.run([str(setup), '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-',
-        '/DIR='+str(blocked), '/LOG='+str(output/'failure.log')], timeout=120)
+    failed = subprocess.run(
+        [
+            str(setup),
+            '/VERYSILENT',
+            '/SUPPRESSMSGBOXES',
+            '/NORESTART',
+            '/SP-',
+            '/DIR=' + str(blocked),
+            '/LOG=' + str(output / 'failure.log'),
+        ],
+        timeout=120,
+    )
     assert failed.returncode != 0
     assert blocked.read_text() == 'preserve'
-    checks.append({'check': 'backend-failure-propagated', 'ok': True, 'exit_code': failed.returncode})
-    (output/'results.json').write_text(json.dumps({'ok': True, 'checks': checks}, indent=2), encoding='utf8')
+    checks.append(
+        {
+            'check': 'backend-failure-propagated',
+            'ok': True,
+            'exit_code': failed.returncode,
+        }
+    )
+    (output / 'results.json').write_text(
+        json.dumps({'ok': True, 'checks': checks}, indent=2), encoding='utf8'
+    )
     print(json.dumps(checks, indent=2), flush=True)
 
 

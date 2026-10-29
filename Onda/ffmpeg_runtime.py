@@ -1,4 +1,5 @@
 """Download media tools directly from their publisher; never bundle them in ONDA."""
+
 from i18n import tr
 from i18n_tk import display_var
 import hashlib
@@ -29,7 +30,9 @@ def data_root():
 
 
 def cache_folder(root=None):
-    return (Path(root) if root is not None else data_root()) / 'tools' / 'ffmpeg' / VERSION
+    return (
+        (Path(root) if root is not None else data_root()) / 'tools' / 'ffmpeg' / VERSION
+    )
 
 
 def complete_folder(folder):
@@ -41,7 +44,9 @@ def cached_folder(root=None):
     try:
         marker = json.loads((folder / 'verified.json').read_text(encoding='utf-8'))
         if marker['archive_sha256'] == SHA256 and all(
-                (folder / name).stat().st_size == marker['files'][name] for name in EXECUTABLES):
+            (folder / name).stat().st_size == marker['files'][name]
+            for name in EXECUTABLES
+        ):
             return folder
     except (OSError, ValueError, KeyError, TypeError):
         pass
@@ -69,12 +74,15 @@ def existing_folder(root=None):
     return None
 
 
-def download_tools(*, root=None, progress=lambda *args: None, cancel=None, session=None):
+def download_tools(
+    *, root=None, progress=lambda *args: None, cancel=None, session=None
+):
     """Bounded download, pinned SHA-256, allowlisted extraction and final marker."""
     existing = cached_folder(root)
     if existing:
         return existing
     import requests
+
     cancel = cancel or threading.Event()
     folder = cache_folder(root)
     folder.parent.mkdir(parents=True, exist_ok=True)
@@ -84,7 +92,9 @@ def download_tools(*, root=None, progress=lambda *args: None, cancel=None, sessi
             raise DownloadCancelled()
 
     client = session or requests
-    with tempfile.TemporaryDirectory(prefix='.onda-download-', dir=folder.parent) as staging:
+    with tempfile.TemporaryDirectory(
+        prefix='.onda-download-', dir=folder.parent
+    ) as staging:
         staging = Path(staging)
         archive_path = staging / 'ffmpeg.zip'
         check_cancelled()
@@ -107,20 +117,34 @@ def download_tools(*, root=None, progress=lambda *args: None, cancel=None, sessi
         check_cancelled()
         progress(downloaded, total, 'Conferindo a integridade do download…')
         if digest.hexdigest() != SHA256:
-            raise ValueError('A verificação do FFmpeg falhou. O arquivo foi descartado; tente novamente.')
+            raise ValueError(
+                'A verificação do FFmpeg falhou. O arquivo foi descartado; tente novamente.'
+            )
         names = {f'{ARCHIVE_ROOT}/bin/{name}': name for name in EXECUTABLES}
-        names.update({f'{ARCHIVE_ROOT}/LICENSE': 'LICENSE.txt', f'{ARCHIVE_ROOT}/README.txt': 'README.txt'})
+        names.update(
+            {
+                f'{ARCHIVE_ROOT}/LICENSE': 'LICENSE.txt',
+                f'{ARCHIVE_ROOT}/README.txt': 'README.txt',
+            }
+        )
         with zipfile.ZipFile(archive_path) as archive:
             matches = [info for info in archive.infolist() if info.filename in names]
-            if len(matches) != len(names) or len({info.filename for info in matches}) != len(names):
+            if len(matches) != len(names) or len(
+                {info.filename for info in matches}
+            ) != len(names):
                 raise ValueError('O pacote do FFmpeg está incompleto ou é inválido.')
             if sum(info.file_size for info in matches) > MAX_EXTRACTED:
                 raise ValueError('O pacote extraído excede o tamanho permitido.')
             for info in matches:
                 check_cancelled()
-                progress(downloaded, total, 'Preparando as ferramentas de áudio e vídeo…')
+                progress(
+                    downloaded, total, 'Preparando as ferramentas de áudio e vídeo…'
+                )
                 # Never extract arbitrary ZIP paths, symlinks or directories.
-                with archive.open(info) as source, (staging / names[info.filename]).open('wb') as output:
+                with (
+                    archive.open(info) as source,
+                    (staging / names[info.filename]).open('wb') as output,
+                ):
                     while True:
                         check_cancelled()
                         block = source.read(1024 * 1024)
@@ -131,8 +155,12 @@ def download_tools(*, root=None, progress=lambda *args: None, cancel=None, sessi
         folder.mkdir(parents=True, exist_ok=True)
         for name in names.values():
             os.replace(staging / name, folder / name)
-        marker = {'version': VERSION, 'origin': URL, 'archive_sha256': SHA256,
-                  'files': {name: (folder / name).stat().st_size for name in EXECUTABLES}}
+        marker = {
+            'version': VERSION,
+            'origin': URL,
+            'archive_sha256': SHA256,
+            'files': {name: (folder / name).stat().st_size for name in EXECUTABLES},
+        }
         temporary_marker = staging / 'verified.json'
         temporary_marker.write_text(json.dumps(marker, indent=2), encoding='utf-8')
         os.replace(temporary_marker, folder / 'verified.json')
@@ -144,6 +172,7 @@ def download_with_window(parent=None):
     import tkinter as tk
     from tkinter import ttk
     from window_position import center_window
+
     window = tk.Toplevel(parent) if parent is not None else tk.Tk()
     window.title(tr('ONDA · Preparar áudio e vídeo'))
     window.geometry('560x255')
@@ -154,9 +183,17 @@ def download_with_window(parent=None):
         pass
     body = ttk.Frame(window, padding=24)
     body.pack(fill='both', expand=True)
-    ttk.Label(body, text=tr('Preparando o ONDA'), font=('Segoe UI', 17, 'bold')).pack(anchor='w')
-    ttk.Label(body, text=tr('O FFmpeg é baixado uma vez para converter e reproduzir mídias.\n'
-              'Origem: gyan.dev · aproximadamente 109 MB'), wraplength=505).pack(anchor='w', pady=(8, 12))
+    ttk.Label(body, text=tr('Preparando o ONDA'), font=('Segoe UI', 17, 'bold')).pack(
+        anchor='w'
+    )
+    ttk.Label(
+        body,
+        text=tr(
+            'O FFmpeg é baixado uma vez para converter e reproduzir mídias.\n'
+            'Origem: gyan.dev · aproximadamente 109 MB'
+        ),
+        wraplength=505,
+    ).pack(anchor='w', pady=(8, 12))
     status = tk.StringVar(value='Conectando…')
     ttk.Label(body, textvariable=display_var(status), wraplength=505).pack(anchor='w')
     bar = ttk.Progressbar(body, maximum=100)
@@ -165,34 +202,41 @@ def download_with_window(parent=None):
     actions.pack(fill='x')
     events, stopped, result = queue.Queue(), threading.Event(), [None]
     after_id = [None]
+
     def close():
         stopped.set()
         if after_id[0] is not None:
             window.after_cancel(after_id[0])
         window.destroy()
+
     def worker():
         try:
             # Coalesce progress: large downloads must not flood the UI event queue.
             last = [-1]
+
             def progress(done, total, message):
                 percent = min(100, int(done * 100 / total)) if total else 0
                 key = (percent, message)
                 if key != last[0]:
                     last[0] = key
                     events.put(('progress', percent, message))
+
             path = download_tools(progress=progress, cancel=stopped)
             events.put(('done', path))
         except DownloadCancelled:
             pass
         except Exception as exc:
             events.put(('error', str(exc)))
+
     def start():
         retry.pack_forget()
         status.set('Conectando…')
         bar['value'] = 0
         threading.Thread(target=worker, daemon=True).start()
+
     retry = ttk.Button(actions, text=tr('Tentar novamente'), command=start)
     ttk.Button(actions, text=tr('Agora não'), command=close).pack(side='right')
+
     def poll():
         after_id[0] = None
         while not events.empty():
@@ -201,13 +245,16 @@ def download_with_window(parent=None):
                 bar['value'] = event[1]
                 status.set(event[2] + (f' {event[1]}%' if event[1] else ''))
             elif event[0] == 'error':
-                status.set('Não foi possível preparar o FFmpeg. Confira a conexão e tente novamente.')
+                status.set(
+                    'Não foi possível preparar o FFmpeg. Confira a conexão e tente novamente.'
+                )
                 retry.pack(side='left')
             elif event[0] == 'done':
                 result[0] = event[1]
                 close()
                 return
         after_id[0] = window.after(80, poll)
+
     window.protocol('WM_DELETE_WINDOW', close)
     window.update_idletasks()
     center_window(window)

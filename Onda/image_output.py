@@ -1,4 +1,5 @@
 """Image export options shared by preview and downloads."""
+
 import base64
 import io
 import os
@@ -9,7 +10,14 @@ from PIL import Image, ImageOps, ImageSequence
 FORMATS = {'Original': None, 'JPG': 'JPEG', 'PNG': 'PNG', 'WebP': 'WEBP', 'SVG': 'SVG'}
 
 
-IMAGE_SIZES = {'Original': (0, 0), 'Até 1920 × 1080': (1920, 1080), 'Até 1280 × 720': (1280, 720), 'Até 1080 × 1080': (1080, 1080), 'Personalizado': None}
+IMAGE_SIZES = {
+    'Original': (0, 0),
+    'Até 1920 × 1080': (1920, 1080),
+    'Até 1280 × 720': (1280, 720),
+    'Até 1080 × 1080': (1080, 1080),
+    'Personalizado': None,
+}
+
 
 def validate_options(options):
     if not isinstance(options, dict) or options.get('format') not in FORMATS:
@@ -42,12 +50,15 @@ def transform_image(source, options, emit=lambda *a, **kw: None):
     source = Path(source)
     # Encode in an isolated directory; neither partial files nor format changes
     # may overwrite an unrelated neighbor of the source.
-    with tempfile.TemporaryDirectory(prefix='.onda-image-',dir=source.parent) as directory:
+    with tempfile.TemporaryDirectory(
+        prefix='.onda-image-', dir=source.parent
+    ) as directory:
         output = _render_image(source, options, Path(directory), emit)
         if output.suffix.lower() == source.suffix.lower():
             os.replace(output, source)
             return source
         from file_output import publish
+
         final, _ = publish(output, source.parent, 'keep')
         source.unlink()
         return Path(final)
@@ -58,7 +69,9 @@ def _render_image(source, options, directory, emit):
         with Image.open(source) as image:
             animated = getattr(image, 'n_frames', 1) > 1
             frame = ImageOps.exif_transpose(image).convert('RGBA')
-            frame = frame.resize(output_size(frame.size, options), Image.Resampling.LANCZOS)
+            frame = frame.resize(
+                output_size(frame.size, options), Image.Resampling.LANCZOS
+            )
             payload = io.BytesIO()
             frame.save(payload, format='PNG')
         encoded = base64.b64encode(payload.getvalue()).decode('ascii')
@@ -67,22 +80,39 @@ def _render_image(source, options, directory, emit):
         target.write_text(
             f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">'
             '<desc>Imagem raster incorporada; sem vetorização automática.</desc>'
-            f'<image width="{width}" height="{height}" href="data:image/png;base64,{encoded}"/></svg>', encoding='utf-8')
-        emit('log', message=f'Imagem exportada: {width} × {height} · SVG com imagem incorporada, sem vetorização.')
+            f'<image width="{width}" height="{height}" href="data:image/png;base64,{encoded}"/></svg>',
+            encoding='utf-8',
+        )
+        emit(
+            'log',
+            message=f'Imagem exportada: {width} × {height} · SVG com imagem incorporada, sem vetorização.',
+        )
         if animated:
-            emit('log', message='SVG salva somente o primeiro quadro da imagem animada.')
+            emit(
+                'log', message='SVG salva somente o primeiro quadro da imagem animada.'
+            )
         return target
     with Image.open(source) as image:
         fmt = FORMATS[options['format']] or image.format
         if fmt not in ('JPEG', 'PNG', 'WEBP', 'GIF', 'AVIF'):
-            raise ValueError('Para redimensionar esta imagem, escolha JPG, PNG ou WebP.')
-        ext = {'JPEG': '.jpg', 'PNG': '.png', 'WEBP': '.webp', 'GIF': '.gif', 'AVIF': '.avif'}[fmt]
+            raise ValueError(
+                'Para redimensionar esta imagem, escolha JPG, PNG ou WebP.'
+            )
+        ext = {
+            'JPEG': '.jpg',
+            'PNG': '.png',
+            'WEBP': '.webp',
+            'GIF': '.gif',
+            'AVIF': '.avif',
+        }[fmt]
         target = directory / (source.stem + ext)
         frames, durations = [], []
         animated = getattr(image, 'n_frames', 1) > 1
         for frame in ImageSequence.Iterator(image):
             value = ImageOps.exif_transpose(frame).convert('RGBA')
-            value = value.resize(output_size(value.size, options), Image.Resampling.LANCZOS)
+            value = value.resize(
+                output_size(value.size, options), Image.Resampling.LANCZOS
+            )
             if fmt == 'JPEG':
                 background = Image.new('RGB', value.size, 'white')
                 background.paste(value, mask=value.getchannel('A'))
@@ -97,11 +127,22 @@ def _render_image(source, options, directory, emit):
         if image.info.get('icc_profile') and fmt != 'GIF':
             args['icc_profile'] = image.info['icc_profile']
         if len(frames) > 1:
-            args.update(save_all=True, append_images=frames[1:], duration=durations, loop=image.info.get('loop', 0))
+            args.update(
+                save_all=True,
+                append_images=frames[1:],
+                duration=durations,
+                loop=image.info.get('loop', 0),
+            )
         if animated and len(frames) == 1:
-            emit('log', message='Este formato salva somente o primeiro quadro da imagem animada.')
+            emit(
+                'log',
+                message='Este formato salva somente o primeiro quadro da imagem animada.',
+            )
         frames[0].save(target, **args)
-    emit('log', message=f'Imagem exportada: {frames[0].width} × {frames[0].height} · {fmt}.')
+    emit(
+        'log',
+        message=f'Imagem exportada: {frames[0].width} × {frames[0].height} · {fmt}.',
+    )
     return target
 
 
@@ -111,9 +152,10 @@ def open_preview(path):
     if path.suffix.lower() != '.svg':
         return Image.open(path)
     import xml.etree.ElementTree as ET
+
     image = ET.fromstring(path.read_bytes()).find('{http://www.w3.org/2000/svg}image')
     value = image.get('href', '') if image is not None else ''
     prefix = 'data:image/png;base64,'
     if not value.startswith(prefix):
         raise ValueError('Esta prévia SVG não contém uma imagem PNG incorporada.')
-    return Image.open(io.BytesIO(base64.b64decode(value[len(prefix):], validate=True)))
+    return Image.open(io.BytesIO(base64.b64decode(value[len(prefix) :], validate=True)))

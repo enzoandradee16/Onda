@@ -23,20 +23,32 @@ class FirstRunStoreTests(unittest.TestCase):
 @unittest.skipUnless(os.environ.get("ONDA_UI_TESTS"), "Tk integration")
 class WelcomeUiTests(unittest.TestCase):
     def test_first_launch_close_without_changes_and_no_repeat(self):
-        with tempfile.TemporaryDirectory() as folder, patch.dict(os.environ, {"LOCALAPPDATA": folder}):
+        with (
+            tempfile.TemporaryDirectory() as folder,
+            patch.dict(os.environ, {"LOCALAPPDATA": folder}),
+        ):
             from app import App
+
             app = App()
             try:
                 app.update()
                 welcome = app.welcome_window
                 self.assertIsNotNone(welcome)
                 self.assertEqual(welcome._function_icon_kind, "help")
-                before = {name: value.get() for name, value in app.preference_fields.items()}
+                before = {
+                    name: value.get() for name, value in app.preference_fields.items()
+                }
                 welcome.folder.set(str(Path(folder) / "Not applied"))
                 welcome.limit.set("5000")
                 welcome.tk.eval(welcome.protocol("WM_DELETE_WINDOW"))
                 self.assertFalse(welcome.winfo_exists())
-                self.assertEqual({name: value.get() for name, value in app.preference_fields.items()}, before)
+                self.assertEqual(
+                    {
+                        name: value.get()
+                        for name, value in app.preference_fields.items()
+                    },
+                    before,
+                )
                 self.assertTrue(app.remember_settings.get())
                 self.assertFalse(app.preference_store.path.exists())
                 app.withdraw()
@@ -53,8 +65,12 @@ class WelcomeUiTests(unittest.TestCase):
                 app.destroy()
 
     def test_apply_saves_settings_and_invalid_folder_keeps_welcome_open(self):
-        with tempfile.TemporaryDirectory() as folder, patch.dict(os.environ, {"LOCALAPPDATA": folder}):
+        with (
+            tempfile.TemporaryDirectory() as folder,
+            patch.dict(os.environ, {"LOCALAPPDATA": folder}),
+        ):
             from app import App
+
             app = App()
             try:
                 app.update()
@@ -71,7 +87,9 @@ class WelcomeUiTests(unittest.TestCase):
                 welcome.apply()
                 self.assertFalse(welcome.winfo_exists())
                 saved = app.preference_store.load()
-                self.assertEqual(Path(saved["folder"]).resolve(), Path(destination).resolve())
+                self.assertEqual(
+                    Path(saved["folder"]).resolve(), Path(destination).resolve()
+                )
                 self.assertEqual(saved["playlist_limit"], "2000")
                 self.assertEqual(saved["catalog_provider"], "Apple / iTunes")
                 self.assertEqual(saved["mode"], "Áudio · MP3 (320 kbps)")
@@ -79,8 +97,12 @@ class WelcomeUiTests(unittest.TestCase):
                 app.destroy()
 
     def test_apply_without_remember_is_session_only(self):
-        with tempfile.TemporaryDirectory() as folder, patch.dict(os.environ, {"LOCALAPPDATA": folder}):
+        with (
+            tempfile.TemporaryDirectory() as folder,
+            patch.dict(os.environ, {"LOCALAPPDATA": folder}),
+        ):
             from app import App
+
             app = App()
             try:
                 app.update()

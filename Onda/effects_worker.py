@@ -1,4 +1,5 @@
 """Isolated FFmpeg effect render with progress and atomic output publication."""
+
 import json
 import copy
 import os
@@ -18,6 +19,7 @@ def preserve_tags(source, output, effect):
     from mutagen.mp3 import MP3
     from mutagen.mp4 import MP4
     from mutagen.wave import WAVE
+
     original, rendered = File(source), File(output)
     if rendered is None:
         raise ValueError("Não foi possível gravar os metadados da exportação.")
@@ -29,8 +31,15 @@ def preserve_tags(source, output, effect):
         else:
             title_key = "\u00a9nam" if isinstance(original, MP4) else "title"
             original_title = (original.tags.get(title_key) or [source.stem])[0]
-    native_tags = original is not None and original.tags is not None and (
-        type(original) is type(rendered) or isinstance(original.tags, ID3) and isinstance(rendered, (MP3, WAVE)))
+    native_tags = (
+        original is not None
+        and original.tags is not None
+        and (
+            type(original) is type(rendered)
+            or isinstance(original.tags, ID3)
+            and isinstance(rendered, (MP3, WAVE))
+        )
+    )
     if native_tags:
         if isinstance(original.tags, ID3):
             if rendered.tags is None:
@@ -64,58 +73,138 @@ def preserve_tags(source, output, effect):
 def render(config):
     temporary = None
     try:
-        source, output = Path(config["source"]).resolve(), Path(config["output"]).resolve()
+        source, output = (
+            Path(config["source"]).resolve(),
+            Path(config["output"]).resolve(),
+        )
         if not source.is_file() or source == output:
-            raise ValueError("Escolha um áudio existente e um arquivo de saída diferente do original.")
+            raise ValueError(
+                "Escolha um áudio existente e um arquivo de saída diferente do original."
+            )
         mode = output.suffix.lower()
         if mode not in (".mp3", ".m4a", ".flac", ".wav"):
             raise ValueError("Exporte em MP3, M4A, FLAC ou WAV.")
-        filters = effects_filter(config.get("speed", 100), config.get("reverb", 0), config.get("keep_pitch", False))
-        ffmpeg, ffprobe = (executable(name, config.get("ffmpeg", "")) for name in ("ffmpeg", "ffprobe"))
-        probe = subprocess.run([ffprobe, "-v", "error", "-show_entries", "format=duration", "-of", "json", str(source)],
-                               capture_output=True, text=True, timeout=20, **process_options())
+        filters = effects_filter(
+            config.get("speed", 100),
+            config.get("reverb", 0),
+            config.get("keep_pitch", False),
+        )
+        ffmpeg, ffprobe = (
+            executable(name, config.get("ffmpeg", "")) for name in ("ffmpeg", "ffprobe")
+        )
+        probe = subprocess.run(
+            [
+                ffprobe,
+                "-v",
+                "error",
+                "-show_entries",
+                "format=duration",
+                "-of",
+                "json",
+                str(source),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=20,
+            **process_options(),
+        )
         if probe.returncode:
             raise ValueError("Não foi possível ler este áudio.")
-        duration = float(json.loads(probe.stdout)["format"]["duration"]) / (float(config.get("speed", 100)) / 100)
+        duration = float(json.loads(probe.stdout)["format"]["duration"]) / (
+            float(config.get("speed", 100)) / 100
+        )
         duration += 2 if config.get("reverb") else 0
         output.parent.mkdir(parents=True, exist_ok=True)
-        fd, name = tempfile.mkstemp(prefix=".onda-render-", suffix=mode, dir=output.parent)
+        fd, name = tempfile.mkstemp(
+            prefix=".onda-render-", suffix=mode, dir=output.parent
+        )
         os.close(fd)
         temporary = Path(name)
         emit("temporary", path=str(temporary))
-        command = [ffmpeg, "-y", "-hide_banner", "-loglevel", "error", "-i", str(source), "-map", "0:a:0",
-                   "-map_metadata", "0", "-af", filters]
+        command = [
+            ffmpeg,
+            "-y",
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-i",
+            str(source),
+            "-map",
+            "0:a:0",
+            "-map_metadata",
+            "0",
+            "-af",
+            filters,
+        ]
         if mode != ".wav":
-            command += ["-map", "0:v?", "-c:v", "copy", "-disposition:v", "attached_pic"]
-        command += ["-c:a", {".mp3": "libmp3lame", ".m4a": "aac", ".flac": "flac", ".wav": "pcm_s16le"}[mode]]
+            command += [
+                "-map",
+                "0:v?",
+                "-c:v",
+                "copy",
+                "-disposition:v",
+                "attached_pic",
+            ]
+        command += [
+            "-c:a",
+            {".mp3": "libmp3lame", ".m4a": "aac", ".flac": "flac", ".wav": "pcm_s16le"}[
+                mode
+            ],
+        ]
         if mode in (".mp3", ".m4a"):
             bitrate = int(config.get("bitrate", 320 if mode == ".mp3" else 256))
             if bitrate not in (96, 128, 192, 256, 320):
                 raise ValueError("Bitrate inválido.")
             command += ["-b:a", str(bitrate) + "k"]
-        from performance import thread_args,priority_flags
-        command[1:1]=thread_args(config)
-        command+=thread_args(config)
+        from performance import thread_args, priority_flags
+
+        command[1:1] = thread_args(config)
+        command += thread_args(config)
         command += ["-progress", "pipe:1", "-nostats", str(temporary)]
         # Error output in a temporary file avoids stderr/stdout pipe deadlock.
         with tempfile.TemporaryFile() as errors:
             child_options = process_options()
-            if os.name=="nt":child_options["creationflags"]=child_options.get("creationflags",0)|priority_flags(config)
+            if os.name == "nt":
+                child_options["creationflags"] = child_options.get(
+                    "creationflags", 0
+                ) | priority_flags(config)
             child_options.pop("start_new_session", None)
-            with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=errors, text=True, **child_options) as process:
+            with subprocess.Popen(
+                command,
+                stdout=subprocess.PIPE,
+                stderr=errors,
+                text=True,
+                **child_options,
+            ) as process:
                 for line in process.stdout:
                     if line.startswith("out_time_us="):
                         try:
-                            emit("progress", percent=min(99, float(line.partition("=")[2]) / 1e6 / max(duration, .01) * 100))
+                            emit(
+                                "progress",
+                                percent=min(
+                                    99,
+                                    float(line.partition("=")[2])
+                                    / 1e6
+                                    / max(duration, 0.01)
+                                    * 100,
+                                ),
+                            )
                         except ValueError:
                             pass
                 if process.wait():
                     errors.seek(0)
-                    raise ValueError("FFmpeg: " + errors.read(4000).decode("utf-8", errors="replace"))
-        preserve_tags(source, temporary, effect_name(config.get("speed", 100), config.get("reverb", 0)))
+                    raise ValueError(
+                        "FFmpeg: " + errors.read(4000).decode("utf-8", errors="replace")
+                    )
+        preserve_tags(
+            source,
+            temporary,
+            effect_name(config.get("speed", 100), config.get("reverb", 0)),
+        )
         if config.get('record') or config.get('cover_data') or config.get('cover_url'):
             from effects_export import apply_export_metadata
-            apply_export_metadata(temporary,config)
+
+            apply_export_metadata(temporary, config)
         # Never overwrite a new file created while rendering unless authorized.
         if output.exists() and not config.get("replace"):
             raise ValueError("O arquivo de saída já existe. Escolha outro nome.")

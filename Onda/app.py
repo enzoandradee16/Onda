@@ -1,4 +1,5 @@
 """Onda — desktop media downloader. Run with Python 3.10+."""
+
 from __future__ import annotations
 from i18n import tr
 
@@ -36,27 +37,33 @@ def readable_bytes(value):
 
 from download_defaults import effective_download
 
+
 class App(UiMixin, tk.Tk):
     def __init__(self, *, show_welcome=True):
         super().__init__()
         from window_position import install_window_centering
+
         install_window_centering(self)
         self.title(tr("Onda • Vídeo, áudio & fotos"))
         from window_icons import apply_window_icon
+
         apply_window_icon(self)
         self.geometry("980x780")
         self.minsize(840, 720)
         self.configure(bg=BG)
         self.events = queue.Queue()
         from queue_titles import TitleLookup
+
         self.title_lookup = TitleLookup(self.events)
         self.jobs = {}
         from parallel_queue import ParallelQueue
+
         self.parallel = ParallelQueue(self)
         self.active = None
         self.immediate_item = None
         self.running = False
         from queue_timing import QueueTiming
+
         self.queue_timing = QueueTiming()
         self._queue_clock_refresh = 0.0
         self.closing = False
@@ -64,11 +71,14 @@ class App(UiMixin, tk.Tk):
         self.process_lock = threading.Lock()
         self.cancelled = threading.Event()
         from performance import DEFAULTS as PERFORMANCE_DEFAULTS
-        for key,value in PERFORMANCE_DEFAULTS.items():setattr(self,key,tk.StringVar(value=value))
+
+        for key, value in PERFORMANCE_DEFAULTS.items():
+            setattr(self, key, tk.StringVar(value=value))
         self.shortcut_keys = tk.StringVar(value='{}')
         self.theme_mode = tk.StringVar(value='Preto puro')
         self.theme_accent = tk.StringVar(value='Verde-Água')
         from interface_fonts import DEFAULT_FONT
+
         self.interface_font = tk.StringVar(value=DEFAULT_FONT)
         self.interface_font_size = tk.StringVar(value="100%")
         self.interface_spacing = tk.StringVar(value="Padrão")
@@ -77,7 +87,9 @@ class App(UiMixin, tk.Tk):
         self.height = tk.StringVar(value="1080p")
         self.fps = tk.StringVar(value="Original")
         self.catalog_provider = tk.StringVar(value="Deezer")
-        self.folder = tk.StringVar(value=os.environ.get("ONDA_DOWNLOADS", str(BASE / "downloads")))
+        self.folder = tk.StringVar(
+            value=os.environ.get("ONDA_DOWNLOADS", str(BASE / "downloads"))
+        )
         self.ffmpeg = tk.StringVar()
         self.social_cookies = tk.StringVar()
         self.youtube_cookies = tk.StringVar()
@@ -91,6 +103,7 @@ class App(UiMixin, tk.Tk):
         self.playlist_mp3_quality = tk.StringVar(value="320 kbps")
         self.playlist_m4a_quality = tk.StringVar(value="256 kbps")
         from tab_order import DEFAULT_ORDER
+
         self.tab_order = tk.Variable(value=DEFAULT_ORDER)
         self.hidden_tabs = tk.Variable(value=())
         self.image_format = tk.StringVar(value='Original')
@@ -112,13 +125,18 @@ class App(UiMixin, tk.Tk):
         self.organization = tk.StringVar(value="Catálogo")
         self.filename_template = tk.StringVar(value="Original")
         self.duplicates = tk.StringVar(value="Perguntar")
-        self.update_status = tk.StringVar(value="Atualize quando as plataformas mudarem ou apresentarem falhas.")
+        self.update_status = tk.StringVar(
+            value="Atualize quando as plataformas mudarem ou apresentarem falhas."
+        )
         self.updating = False
         self.choice_window = None
         self.preference_store = PreferenceStore()
         from spotify_account import SpotifyAccount
-        self.spotify_account=SpotifyAccount(self.preference_store.path.with_name("spotify-account.dpapi"))
-        self.title_lookup.spotify_account=self.spotify_account
+
+        self.spotify_account = SpotifyAccount(
+            self.preference_store.path.with_name("spotify-account.dpapi")
+        )
+        self.title_lookup.spotify_account = self.spotify_account
         self._preference_after = None
         preference_warning = ""
         preferences = None
@@ -127,23 +145,96 @@ class App(UiMixin, tk.Tk):
         except (ValueError, OSError) as exc:
             preference_warning = str(exc)
         self.language = tk.StringVar(value=self.preference_store.load_language())
-        self.remember_settings = tk.BooleanVar(value=self.preference_store.remember_enabled())
-        self.preference_status = tk.StringVar(value="Salvamento automático ativado." if self.remember_settings.get() else "Desmarcado: opções só para esta sessão.")
+        self.remember_settings = tk.BooleanVar(
+            value=self.preference_store.remember_enabled()
+        )
+        self.preference_status = tk.StringVar(
+            value=(
+                "Salvamento automático ativado."
+                if self.remember_settings.get()
+                else "Desmarcado: opções só para esta sessão."
+            )
+        )
         from advanced_options import PC_DEFAULTS as DEFAULTS
-        for key,value in DEFAULTS.items():
-            setattr(self,key,tk.BooleanVar(value=value) if type(value) is bool else tk.StringVar(value=value))
-        self.jukebox_equalizer=tk.StringVar(value="{}")
-        self.qt_animations=tk.BooleanVar(value=True)
-        self.preference_fields = {name: getattr(self, name) for name in ("shortcut_keys", "language", "queue_card_size", "queue_view", "history_card_size", "pure_black_separators", "history_view", "theme_mode", "theme_accent", "interface_font", "interface_font_size", "interface_spacing", "notice_duration", "effects_keep_pitch", "image_format", "image_size", "image_width", "image_height", "image_keep_ratio", "tab_order", "hidden_tabs", "playlist_mode", "playlist_height", "playlist_fps", "playlist_mp3_quality", "playlist_m4a_quality", "mode", "height", "fps", "catalog_provider", "folder", "ffmpeg", "playlist", "playlist_limit", "mp3_quality", "m4a_quality", "review_metadata", "auto_match", "background_preview", "effects_preview_duration", "search_preview_duration", "organization", "filename_template", "duplicates")}
-        self.preference_fields.update({key:getattr(self,key) for key in (*DEFAULTS,*PERFORMANCE_DEFAULTS)})
-        self.preference_fields["jukebox_equalizer"]=self.jukebox_equalizer
-        self.preference_fields["qt_animations"]=self.qt_animations
-        self.preference_defaults = {name: variable.get() for name, variable in self.preference_fields.items()}
+
+        for key, value in DEFAULTS.items():
+            setattr(
+                self,
+                key,
+                (
+                    tk.BooleanVar(value=value)
+                    if type(value) is bool
+                    else tk.StringVar(value=value)
+                ),
+            )
+        self.jukebox_equalizer = tk.StringVar(value="{}")
+        self.qt_animations = tk.BooleanVar(value=True)
+        self.preference_fields = {
+            name: getattr(self, name)
+            for name in (
+                "shortcut_keys",
+                "language",
+                "queue_card_size",
+                "queue_view",
+                "history_card_size",
+                "pure_black_separators",
+                "history_view",
+                "theme_mode",
+                "theme_accent",
+                "interface_font",
+                "interface_font_size",
+                "interface_spacing",
+                "notice_duration",
+                "effects_keep_pitch",
+                "image_format",
+                "image_size",
+                "image_width",
+                "image_height",
+                "image_keep_ratio",
+                "tab_order",
+                "hidden_tabs",
+                "playlist_mode",
+                "playlist_height",
+                "playlist_fps",
+                "playlist_mp3_quality",
+                "playlist_m4a_quality",
+                "mode",
+                "height",
+                "fps",
+                "catalog_provider",
+                "folder",
+                "ffmpeg",
+                "playlist",
+                "playlist_limit",
+                "mp3_quality",
+                "m4a_quality",
+                "review_metadata",
+                "auto_match",
+                "background_preview",
+                "effects_preview_duration",
+                "search_preview_duration",
+                "organization",
+                "filename_template",
+                "duplicates",
+            )
+        }
+        self.preference_fields.update(
+            {key: getattr(self, key) for key in (*DEFAULTS, *PERFORMANCE_DEFAULTS)}
+        )
+        self.preference_fields["jukebox_equalizer"] = self.jukebox_equalizer
+        self.preference_fields["qt_animations"] = self.qt_animations
+        self.preference_defaults = {
+            name: variable.get() for name, variable in self.preference_fields.items()
+        }
         self.preference_defaults["language"] = "pt-BR"
-        for name, value in {**(preferences or {}), **self.preference_store.load_display()}.items():
+        for name, value in {
+            **(preferences or {}),
+            **self.preference_store.load_display(),
+        }.items():
             if name != "language" and name in self.preference_fields:
                 self.preference_fields[name].set(value)
         from i18n import set_language
+
         set_language(self.language.get())
         self.title(tr("Onda • Vídeo, áudio & fotos"))
         self._last_language_choice = self.language.get()
@@ -156,8 +247,16 @@ class App(UiMixin, tk.Tk):
             saved = self.credential_store.load()
         except CredentialError as exc:
             credential_warning = str(exc)
-        self.credential_status = tk.StringVar(value="Credenciais salvas neste computador." if saved else "Ainda não salvas neste computador.")
-        env_id, env_secret = os.environ.get("SPOTIFY_CLIENT_ID", ""), os.environ.get("SPOTIFY_CLIENT_SECRET", "")
+        self.credential_status = tk.StringVar(
+            value=(
+                "Credenciais salvas neste computador."
+                if saved
+                else "Ainda não salvas neste computador."
+            )
+        )
+        env_id, env_secret = os.environ.get("SPOTIFY_CLIENT_ID", ""), os.environ.get(
+            "SPOTIFY_CLIENT_SECRET", ""
+        )
         if env_id or env_secret:
             initial_id, initial_secret = env_id, env_secret
             self.credential_status.set("Usando credenciais das variáveis de ambiente.")
@@ -172,47 +271,64 @@ class App(UiMixin, tk.Tk):
         self.notice_display = tk.StringVar(value=self.status.get())
         self.detail = tk.StringVar(value="Cole um link e adicione à fila.")
         from library import LibraryStore
-        self.library = LibraryStore(self.preference_store.path.parent / "library.sqlite3")
+
+        self.library = LibraryStore(
+            self.preference_store.path.parent / "library.sqlite3"
+        )
         self._style()
         self._layout()
         from status_notice import StatusNotice
-        self.status_notice=StatusNotice(self)
+
+        self.status_notice = StatusNotice(self)
         from appearance import ThemeManager
+
         self.theme_manager = ThemeManager(self)
-        self.drop_target=None
-        if os.name=='nt':
+        self.drop_target = None
+        if os.name == 'nt':
             try:
                 from windows_drop import WindowsDrop
                 from drop_input import receive
+
                 self.update_idletasks()
-                self.drop_target=WindowsDrop(self,lambda payload:receive(self,payload))
-            except OSError as error:self.write_log('Arrastar: '+str(error))
+                self.drop_target = WindowsDrop(
+                    self, lambda payload: receive(self, payload)
+                )
+            except OSError as error:
+                self.write_log('Arrastar: ' + str(error))
         self.restore_queue()
-        from advanced_ui import tick,check_update
-        self._schedule_after=self.after(2500,lambda:tick(self))
-        if self.resume_queue.get() and not self.schedule_enabled.get():self._resume_after=self.after(2000,self.start)
-        if self.check_updates.get():self._update_check_after=self.after(3000,lambda:check_update(self))
+        from advanced_ui import tick, check_update
+
+        self._schedule_after = self.after(2500, lambda: tick(self))
+        if self.resume_queue.get() and not self.schedule_enabled.get():
+            self._resume_after = self.after(2000, self.start)
+        if self.check_updates.get():
+            self._update_check_after = self.after(3000, lambda: check_update(self))
         self.bind("<Alt-a>", self.select_all_items)
         self.bind("<Alt-A>", self.select_all_items)
         from keyboard_shortcuts import KeyboardShortcuts
-        self.shortcuts=KeyboardShortcuts(self)
+
+        self.shortcuts = KeyboardShortcuts(self)
         for variable in self.preference_fields.values():
             variable.trace_add("write", self.schedule_preferences)
         self.concurrent_downloads.trace_add("write", self.downloads_limit_changed)
         if preference_warning:
             self.write_log(preference_warning)
-            self.preference_status.set("Não foi possível restaurar. Marque para salvar novamente.")
+            self.preference_status.set(
+                "Não foi possível restaurar. Marque para salvar novamente."
+            )
         if credential_warning:
             self.write_log(credential_warning)
             self.credential_status.set("Falha ao carregar. Informe e salve novamente.")
         self.protocol("WM_DELETE_WINDOW", self.close)
         from clipboard_watch import ClipboardWatch
+
         self.clipboard_watch = ClipboardWatch(self)
         self._poll_after = self.after(100, self.poll_events)
         self._welcome_after = None
         self.welcome_window = None
         from daily_desktop import DailyDesktop
-        self.daily=DailyDesktop(self)
+
+        self.daily = DailyDesktop(self)
         if show_welcome:
             self.bind("<Map>", self._first_map, add="+")
 
@@ -224,12 +340,18 @@ class App(UiMixin, tk.Tk):
     def show_first_run(self):
         self._welcome_after = None
         from first_run import FirstRunStore
+
         try:
-            if not FirstRunStore(self.preference_store.path.with_name("welcome-seen.json")).claim():
+            if not FirstRunStore(
+                self.preference_store.path.with_name("welcome-seen.json")
+            ).claim():
                 return
         except OSError:
-            self.write_log("Não foi possível registrar a primeira abertura. Confira as permissões das configurações.")
+            self.write_log(
+                "Não foi possível registrar a primeira abertura. Confira as permissões das configurações."
+            )
         from welcome_ui import WelcomeWindow
+
         self.welcome_window = WelcomeWindow(self)
 
     def language_changed(self, *_):
@@ -244,16 +366,31 @@ class App(UiMixin, tk.Tk):
         self.refresh_restart_button()
 
     def refresh_restart_button(self):
-        if not hasattr(self,"restart_button"):return
-        if self.language.get()!=self._applied_language:self.restart_button.pack(anchor="w",pady=(4,8))
-        else:self.restart_button.pack_forget()
+        if not hasattr(self, "restart_button"):
+            return
+        if self.language.get() != self._applied_language:
+            self.restart_button.pack(anchor="w", pady=(4, 8))
+        else:
+            self.restart_button.pack_forget()
 
     def restart_app(self):
-        if self.language.get()==self._applied_language:return
-        if self.running or self.updating or self.effects_page.busy or self.playlist_page.busy or self.metadata_page.busy or self.converter_page.busy:
-            messagebox.showinfo(tr("Reiniciar"),tr("Termine as operações em andamento antes de reiniciar o ONDA."),parent=self)
+        if self.language.get() == self._applied_language:
             return
-        self.restart_requested=True
+        if (
+            self.running
+            or self.updating
+            or self.effects_page.busy
+            or self.playlist_page.busy
+            or self.metadata_page.busy
+            or self.converter_page.busy
+        ):
+            messagebox.showinfo(
+                tr("Reiniciar"),
+                tr("Termine as operações em andamento antes de reiniciar o ONDA."),
+                parent=self,
+            )
+            return
+        self.restart_requested = True
         self.close(force_exit=True)
 
     def mode_changed(self, _=None):
@@ -261,12 +398,13 @@ class App(UiMixin, tk.Tk):
 
     def downloads_limit_changed(self, *_):
         if self.running:
-            callback=getattr(self,"_queue_fill_after",None)
-            if callback is not None:self.after_cancel(callback)
-            self._queue_fill_after=self.after_idle(self.refresh_parallel_queue)
+            callback = getattr(self, "_queue_fill_after", None)
+            if callback is not None:
+                self.after_cancel(callback)
+            self._queue_fill_after = self.after_idle(self.refresh_parallel_queue)
 
     def refresh_parallel_queue(self):
-        self._queue_fill_after=None
+        self._queue_fill_after = None
         self.parallel.fill()
 
     def schedule_preferences(self, *_):
@@ -279,16 +417,32 @@ class App(UiMixin, tk.Tk):
             self.after_cancel(self._preference_after)
             self._preference_after = None
         try:
-            self.preference_store.save_display({**self.preference_store.load_display(), **{name: self.preference_fields[name].get() for name in self.preference_store.DISPLAY_FIELDS if name in self.preference_fields}})
+            self.preference_store.save_display(
+                {
+                    **self.preference_store.load_display(),
+                    **{
+                        name: self.preference_fields[name].get()
+                        for name in self.preference_store.DISPLAY_FIELDS
+                        if name in self.preference_fields
+                    },
+                }
+            )
         except OSError:
             self.write_log("Não foi possível salvar as configurações deste computador.")
         if not self.remember_settings.get():
             return
         try:
-            self.preference_store.save({name: variable.get() for name, variable in self.preference_fields.items()})
+            self.preference_store.save(
+                {
+                    name: variable.get()
+                    for name, variable in self.preference_fields.items()
+                }
+            )
             self.preference_status.set("Configurações salvas automaticamente.")
         except OSError:
-            self.preference_status.set("Falha ao salvar. Confira as permissões da pasta do Onda.")
+            self.preference_status.set(
+                "Falha ao salvar. Confira as permissões da pasta do Onda."
+            )
             self.write_log("Não foi possível salvar as configurações deste computador.")
 
     def toggle_remember_settings(self):
@@ -300,10 +454,14 @@ class App(UiMixin, tk.Tk):
         else:
             try:
                 self.preference_store.forget()
-                self.preference_status.set("Preferências removidas. Na próxima abertura serão usados os padrões.")
+                self.preference_status.set(
+                    "Preferências removidas. Na próxima abertura serão usados os padrões."
+                )
             except OSError:
                 self.remember_settings.set(True)
-                self.preference_status.set("Não foi possível remover as configurações salvas.")
+                self.preference_status.set(
+                    "Não foi possível remover as configurações salvas."
+                )
 
     def choose_folder(self):
         folder = filedialog.askdirectory(title=tr("Pasta de destino"))
@@ -317,24 +475,44 @@ class App(UiMixin, tk.Tk):
 
     def prepare_ffmpeg(self):
         from ffmpeg_runtime import cached_folder, download_with_window
+
         folder = cached_folder() or download_with_window(self.settings_window)
         if folder:
             self.ffmpeg.set(str(folder))
             self.write_log("FFmpeg pronto para uso neste computador.")
 
-    def download_cookies(self,url):
+    def download_cookies(self, url):
         from download_defaults import download_cookies
-        return download_cookies(url,self.social_cookies.get().strip(),self.youtube_cookies.get().strip())
+
+        return download_cookies(
+            url, self.social_cookies.get().strip(), self.youtube_cookies.get().strip()
+        )
 
     def choose_social_cookies(self):
-        path = filedialog.askopenfilename(title=tr("Cookies no formato Netscape"), filetypes=[("Cookies", "*.txt"), (tr("Todos os arquivos"), "*.*")])
+        path = filedialog.askopenfilename(
+            title=tr("Cookies no formato Netscape"),
+            filetypes=[("Cookies", "*.txt"), (tr("Todos os arquivos"), "*.*")],
+        )
         if path:
             self.social_cookies.set(path)
 
-    def add(self, lines=None, overrides=None, reuse_existing=False, *, restored_jobs=None):
+    def add(
+        self, lines=None, overrides=None, reuse_existing=False, *, restored_jobs=None
+    ):
         from_input = lines is None and restored_jobs is None
-        lines = ([job["url"] for job in restored_jobs] if restored_jobs is not None else
-                 lines if lines is not None else [line.strip() for line in self.urls.get("1.0", "end").splitlines() if line.strip()])
+        lines = (
+            [job["url"] for job in restored_jobs]
+            if restored_jobs is not None
+            else (
+                lines
+                if lines is not None
+                else [
+                    line.strip()
+                    for line in self.urls.get("1.0", "end").splitlines()
+                    if line.strip()
+                ]
+            )
+        )
         overrides = overrides or {}
         added = []
         if not lines:
@@ -346,29 +524,62 @@ class App(UiMixin, tk.Tk):
         try:
             from metadata import is_streaming_link
         except ImportError:
-            messagebox.showerror(tr("Dependência ausente"), tr("Execute instalar.bat para atualizar as dependências."))
+            messagebox.showerror(
+                tr("Dependência ausente"),
+                tr("Execute instalar.bat para atualizar as dependências."),
+            )
             return
-        existing = {(job["url"], job["mode"], job["folder"], job["height"], job["playlist"], job.get("audio_quality"), job.get("fps"), job.get("selected_catalog_url"), job.get("playlist_title"), job.get("playlist_limit", 1000) if job["playlist"] else None, json.dumps(job.get("image_options"), sort_keys=True)): item
-                    for item, job in self.jobs.items() if job["state"] in ("Na fila", "Em andamento")}
-        defaults = {"mode": MODES[self.mode.get()], "height": HEIGHTS[self.height.get()],
-                    "folder": str(Path(self.folder.get()).expanduser().resolve()),
-                    "playlist": self.playlist.get(), "playlist_limit": int(self.playlist_limit.get()),
-                    "state": "Na fila", "review_metadata": self.review_metadata.get(),
-                    "simple_download_mode":MODES[self.mode.get()], "auto_select_media":self.auto_select_media.get(), "simple_download_ui":self.simple_download_ui.get(), "social_best_quality":self.social_best_quality.get(),
-                    "normalize_volume": self.normalize_volume.get(), "resume_downloads": self.resume_downloads.get(),
-                    "filename_template": self.filename_template.get(), "detect_duplicates": self.detect_duplicates.get(),
-                    "organization": self.organization.get(), "duplicate_policy": DUPLICATES[self.duplicates.get()]}
+        existing = {
+            (
+                job["url"],
+                job["mode"],
+                job["folder"],
+                job["height"],
+                job["playlist"],
+                job.get("audio_quality"),
+                job.get("fps"),
+                job.get("selected_catalog_url"),
+                job.get("playlist_title"),
+                job.get("playlist_limit", 1000) if job["playlist"] else None,
+                json.dumps(job.get("image_options"), sort_keys=True),
+            ): item
+            for item, job in self.jobs.items()
+            if job["state"] in ("Na fila", "Em andamento")
+        }
+        defaults = {
+            "mode": MODES[self.mode.get()],
+            "height": HEIGHTS[self.height.get()],
+            "folder": str(Path(self.folder.get()).expanduser().resolve()),
+            "playlist": self.playlist.get(),
+            "playlist_limit": int(self.playlist_limit.get()),
+            "state": "Na fila",
+            "review_metadata": self.review_metadata.get(),
+            "simple_download_mode": MODES[self.mode.get()],
+            "auto_select_media": self.auto_select_media.get(),
+            "simple_download_ui": self.simple_download_ui.get(),
+            "social_best_quality": self.social_best_quality.get(),
+            "normalize_volume": self.normalize_volume.get(),
+            "resume_downloads": self.resume_downloads.get(),
+            "filename_template": self.filename_template.get(),
+            "detect_duplicates": self.detect_duplicates.get(),
+            "organization": self.organization.get(),
+            "duplicate_policy": DUPLICATES[self.duplicates.get()],
+        }
         from duplicate_links import queue_duplicate_key
-        detecting=restored_jobs is None and self.detect_duplicates.get()
-        duplicate_index={}
+
+        detecting = restored_jobs is None and self.detect_duplicates.get()
+        duplicate_index = {}
         if detecting:
-            for item,previous in self.jobs.items():
-                if previous.get('state') in ('Na fila','Em andamento','Concluído'):
-                    identity=queue_duplicate_key(previous)
-                    if identity is not None:duplicate_index.setdefault(identity,[]).append(item)
+            for item, previous in self.jobs.items():
+                if previous.get('state') in ('Na fila', 'Em andamento', 'Concluído'):
+                    identity = queue_duplicate_key(previous)
+                    if identity is not None:
+                        duplicate_index.setdefault(identity, []).append(item)
         duplicate_decision = None
         for index, line in enumerate(lines):
-            item_overrides = restored_jobs[index] if restored_jobs is not None else overrides
+            item_overrides = (
+                restored_jobs[index] if restored_jobs is not None else overrides
+            )
             streaming = is_streaming_link(line)
             try:
                 url = line if streaming else validate_url(line)
@@ -377,10 +588,12 @@ class App(UiMixin, tk.Tk):
                 self.write_log(str(exc))
                 continue
             import uuid
-            job = {**defaults, "url": url, "work_id":str(uuid.uuid4())}
+
+            job = {**defaults, "url": url, "work_id": str(uuid.uuid4())}
             job.update(item_overrides)
             if restored_jobs is not None:
-                for flag in ('simple_download_ui','social_best_quality'):job[flag]=item_overrides.get(flag,False)
+                for flag in ('simple_download_ui', 'social_best_quality'):
+                    job[flag] = item_overrides.get(flag, False)
             job = effective_download(job)
             if job["mode"] in ("photos", "social") and streaming:
                 invalid.append(line)
@@ -394,21 +607,77 @@ class App(UiMixin, tk.Tk):
                 job["playlist"] = False
                 if job["mode"] in ("video", "mp4", "original"):
                     job["mode"] = "mp3" if job["mode"] in ("video", "mp4") else "m4a"
-                    self.write_log("Link de streaming: formato automático " + job["mode"].upper() + " para áudio com tags e capa.")
-            job["audio_quality"] = item_overrides.get("audio_quality") or (item_overrides.get("mp3_quality", self.mp3_quality.get()) if job["mode"] == "mp3" else (item_overrides.get("m4a_quality", self.m4a_quality.get()) if job["mode"] == "m4a" else None))
-            job["fps"] = item_overrides.get("fps", FPS_OPTIONS[self.fps.get()]) if job["mode"] in ("video", "mp4") else None
+                    self.write_log(
+                        "Link de streaming: formato automático "
+                        + job["mode"].upper()
+                        + " para áudio com tags e capa."
+                    )
+            job["audio_quality"] = item_overrides.get("audio_quality") or (
+                item_overrides.get("mp3_quality", self.mp3_quality.get())
+                if job["mode"] == "mp3"
+                else (
+                    item_overrides.get("m4a_quality", self.m4a_quality.get())
+                    if job["mode"] == "m4a"
+                    else None
+                )
+            )
+            job["fps"] = (
+                item_overrides.get("fps", FPS_OPTIONS[self.fps.get()])
+                if job["mode"] in ("video", "mp4")
+                else None
+            )
             job = effective_download(job)
-            key = (url, job["mode"], job["folder"], job["height"], job["playlist"], job["audio_quality"], job["fps"], job.get("selected_catalog_url"), job.get("playlist_title"), job.get("playlist_limit", 1000) if job["playlist"] else None, json.dumps(job.get("image_options"), sort_keys=True))
-            identity=queue_duplicate_key(job) if detecting else None
+            key = (
+                url,
+                job["mode"],
+                job["folder"],
+                job["height"],
+                job["playlist"],
+                job["audio_quality"],
+                job["fps"],
+                job.get("selected_catalog_url"),
+                job.get("playlist_title"),
+                job.get("playlist_limit", 1000) if job["playlist"] else None,
+                json.dumps(job.get("image_options"), sort_keys=True),
+            )
+            identity = queue_duplicate_key(job) if detecting else None
             if detecting:
-                repeated=next((item for item in duplicate_index.get(identity,()) if self.jobs.get(item,{}).get('state') in ('Na fila','Em andamento','Concluído')),None) if identity is not None else None
-                history_match = self.library.find_duplicate(job.get("selected_catalog_url") or url, job["mode"]) if not job.get("playlist") and not job.get("playlist_title") else None
+                repeated = (
+                    next(
+                        (
+                            item
+                            for item in duplicate_index.get(identity, ())
+                            if self.jobs.get(item, {}).get('state')
+                            in ('Na fila', 'Em andamento', 'Concluído')
+                        ),
+                        None,
+                    )
+                    if identity is not None
+                    else None
+                )
+                history_match = (
+                    self.library.find_duplicate(
+                        job.get("selected_catalog_url") or url, job["mode"]
+                    )
+                    if not job.get("playlist") and not job.get("playlist_title")
+                    else None
+                )
                 if repeated is not None or history_match:
-                    if reuse_existing and repeated is not None and self.jobs[repeated]["state"] in ("Na fila", "Em andamento"):
+                    if (
+                        reuse_existing
+                        and repeated is not None
+                        and self.jobs[repeated]["state"] in ("Na fila", "Em andamento")
+                    ):
                         added.append(repeated)
                         continue
                     if duplicate_decision is None:
-                        duplicate_decision = messagebox.askyesno(tr("Duplicatas detectadas"), tr("Há itens que já estão na fila ou no histórico neste formato. Adicionar novamente os itens repetidos desta seleção?"), parent=self)
+                        duplicate_decision = messagebox.askyesno(
+                            tr("Duplicatas detectadas"),
+                            tr(
+                                "Há itens que já estão na fila ou no histórico neste formato. Adicionar novamente os itens repetidos desta seleção?"
+                            ),
+                            parent=self,
+                        )
                     if not duplicate_decision:
                         continue
             if key in existing and reuse_existing:
@@ -417,32 +686,74 @@ class App(UiMixin, tk.Tk):
                 continue
             if job["state"] in ("Na fila", "Em andamento"):
                 existing[key] = None
-            format_name = {"photos": "FOTOS", "social": "POST"}.get(job["mode"], job["mode"].upper()) + (" " + job["audio_quality"].split()[0] if job["audio_quality"] else "")
-            item = self.tree.insert("", "end", values=(job.get("display_name") or url, format_name, tr("A consultar"), tr(job["state"])), tags=(job["state"],))
-            self._queue_original=max(getattr(self,'_queue_original',0),job.get('queue_original',0))+1
-            job.setdefault('queue_original',self._queue_original)
+            format_name = {"photos": "FOTOS", "social": "POST"}.get(
+                job["mode"], job["mode"].upper()
+            ) + (" " + job["audio_quality"].split()[0] if job["audio_quality"] else "")
+            item = self.tree.insert(
+                "",
+                "end",
+                values=(
+                    job.get("display_name") or url,
+                    format_name,
+                    tr("A consultar"),
+                    tr(job["state"]),
+                ),
+                tags=(job["state"],),
+            )
+            self._queue_original = (
+                max(getattr(self, '_queue_original', 0), job.get('queue_original', 0))
+                + 1
+            )
+            job.setdefault('queue_original', self._queue_original)
             self.jobs[item] = job
-            if identity is not None and job.get('state') in ('Na fila','Em andamento','Concluído'):
-                duplicate_index.setdefault(identity,[]).append(item)
+            if identity is not None and job.get('state') in (
+                'Na fila',
+                'Em andamento',
+                'Concluído',
+            ):
+                duplicate_index.setdefault(identity, []).append(item)
             from metadata_badges import apply_tree_badge
-            apply_tree_badge(self.tree,item,job.get("catalog_record") or job.get("queue_info") or {})
+
+            apply_tree_badge(
+                self.tree,
+                item,
+                job.get("catalog_record") or job.get("queue_info") or {},
+            )
             added.append(item)
         if from_input:
             self.urls.delete("1.0", "end")
             self.urls.insert("1.0", "\n".join(invalid))
         if from_input:
             from queue_titles import supports_lookup
+
             for item in added:
                 job = self.jobs[item]
-                if not job.get('display_name') and job['mode'] not in ('photos', 'social') and supports_lookup(job['url']):
-                    job['_queue_lookup_requested']=True
-                    self.title_lookup.submit(item, job['url'], (self.spotify_client_id.get(), self.spotify_client_secret.get()), self.social_cookies.get().strip())
+                if (
+                    not job.get('display_name')
+                    and job['mode'] not in ('photos', 'social')
+                    and supports_lookup(job['url'])
+                ):
+                    job['_queue_lookup_requested'] = True
+                    self.title_lookup.submit(
+                        item,
+                        job['url'],
+                        (
+                            self.spotify_client_id.get(),
+                            self.spotify_client_secret.get(),
+                        ),
+                        self.social_cookies.get().strip(),
+                    )
         self.refresh_queue()
         if restored_jobs is None:
             self.persist_queue()
         self.refresh_placeholder()
         if invalid:
-            messagebox.showwarning(tr("Links não adicionados"), tr("Alguns links não são aceitos. Use Ver detalhes para consultar o motivo."))
+            messagebox.showwarning(
+                tr("Links não adicionados"),
+                tr(
+                    "Alguns links não são aceitos. Use Ver detalhes para consultar o motivo."
+                ),
+            )
         return added
 
     def show_shortcuts(self):
@@ -457,18 +768,36 @@ class App(UiMixin, tk.Tk):
             self.playlist_page.url.set(candidate['url'])
             self.playlist_page.load(start_download=True)
         else:
-            added=self.add(lines=[candidate['url']],overrides={'playlist':False},reuse_existing=True)
-            if added:self.start(only_item=added[0]);self.show_queue()
+            added = self.add(
+                lines=[candidate['url']],
+                overrides={'playlist': False},
+                reuse_existing=True,
+            )
+            if added:
+                self.start(only_item=added[0])
+                self.show_queue()
 
     def download_now(self):
         if self.updating:
             self.status.set("Aguarde a atualização das ferramentas terminar.")
             return
-        lines = [line.strip() for line in self.urls.get("1.0", "end").splitlines() if line.strip()]
+        lines = [
+            line.strip()
+            for line in self.urls.get("1.0", "end").splitlines()
+            if line.strip()
+        ]
         if len(lines) != 1:
-            messagebox.showwarning(tr("Baixar agora"), tr("Cole apenas um link para baixar agora. Para vários links, use Adicionar à fila."), parent=self)
+            messagebox.showwarning(
+                tr("Baixar agora"),
+                tr(
+                    "Cole apenas um link para baixar agora. Para vários links, use Adicionar à fila."
+                ),
+                parent=self,
+            )
             return
-        added = self.add(lines=lines, overrides={"playlist": False}, reuse_existing=True)
+        added = self.add(
+            lines=lines, overrides={"playlist": False}, reuse_existing=True
+        )
         if added:
             self.urls.delete("1.0", "end")
             self.refresh_placeholder()
@@ -478,20 +807,37 @@ class App(UiMixin, tk.Tk):
     def queue_catalog(self, record, mode, quality=None, start=False):
         from queue_titles import record_name
         from queue_details import queue_info
-        overrides = {"mode": mode, "audio_quality": quality, "display_name": record_name(record), "queue_info": queue_info(record)}
+
+        overrides = {
+            "mode": mode,
+            "audio_quality": quality,
+            "display_name": record_name(record),
+            "queue_info": queue_info(record),
+        }
         if record.get('platform') == 'Spotify':
             from spotify_search import cached_record
+
             overrides['catalog_record'] = cached_record(record, record['source_url'])
 
-        if record.get("requested_source_url") and record.get("platform")!="Spotify":
+        if record.get("requested_source_url") and record.get("platform") != "Spotify":
             overrides["selected_catalog_url"] = record["source_url"]
-        added = self.add(lines=[record.get("requested_source_url") or record["source_url"]], overrides=overrides)
+        added = self.add(
+            lines=[record.get("requested_source_url") or record["source_url"]],
+            overrides=overrides,
+        )
         if not added:
             return False
         from size_estimate import estimate_size
+
         for item in added:
-            self.tree.set(item, "name", self.jobs[item].get("display_name") or self.jobs[item]["url"])
-            size, _ = estimate_size({"duration": (record.get("duration_ms") or 0) / 1000}, self.jobs[item])
+            self.tree.set(
+                item,
+                "name",
+                self.jobs[item].get("display_name") or self.jobs[item]["url"],
+            )
+            size, _ = estimate_size(
+                {"duration": (record.get("duration_ms") or 0) / 1000}, self.jobs[item]
+            )
             if size is not None:
                 self.tree.set(item, "size", "≈ " + readable_bytes(size))
         if start:
@@ -503,24 +849,39 @@ class App(UiMixin, tk.Tk):
         try:
             from metadata_ui import MetadataWindow
         except ImportError:
-            messagebox.showerror(tr("Dependência ausente"), tr("Execute instalar.bat para instalar as dependências de metadados."))
+            messagebox.showerror(
+                tr("Dependência ausente"),
+                tr("Execute instalar.bat para instalar as dependências de metadados."),
+            )
             return
         return MetadataWindow(self, links)
 
     def save_spotify_credentials(self):
         try:
-            pair = (self.spotify_client_id.get().strip(), self.spotify_client_secret.get().strip())
+            pair = (
+                self.spotify_client_id.get().strip(),
+                self.spotify_client_secret.get().strip(),
+            )
             self.credential_store.save(*pair)
         except CredentialError as exc:
-            messagebox.showerror(tr("Salvar credenciais Spotify"), tr(str(exc)), parent=self)
+            messagebox.showerror(
+                tr("Salvar credenciais Spotify"), tr(str(exc)), parent=self
+            )
             return
         self._saved_credentials = pair
-        self.credential_status.set("Salvas com proteção do Windows. Serão carregadas ao abrir o Onda.")
+        self.credential_status.set(
+            "Salvas com proteção do Windows. Serão carregadas ao abrir o Onda."
+        )
 
     def spotify_credentials_edited(self, *_):
-        pair = (self.spotify_client_id.get().strip(), self.spotify_client_secret.get().strip())
+        pair = (
+            self.spotify_client_id.get().strip(),
+            self.spotify_client_secret.get().strip(),
+        )
         if pair != self._saved_credentials:
-            self.credential_status.set("Alterações apenas nesta sessão. Clique em Salvar para lembrar depois.")
+            self.credential_status.set(
+                "Alterações apenas nesta sessão. Clique em Salvar para lembrar depois."
+            )
         else:
             self.credential_status.set("Credenciais salvas neste computador.")
 
@@ -528,19 +889,24 @@ class App(UiMixin, tk.Tk):
         try:
             self.credential_store.forget()
         except CredentialError as exc:
-            messagebox.showerror(tr("Remover credenciais Spotify"), tr(str(exc)), parent=self)
+            messagebox.showerror(
+                tr("Remover credenciais Spotify"), tr(str(exc)), parent=self
+            )
             return
         self._saved_credentials = None
         self.spotify_client_id.set("")
         self.spotify_client_secret.set("")
-        self.credential_status.set("Credenciais removidas deste computador e dos campos da sessão.")
+        self.credential_status.set(
+            "Credenciais removidas deste computador e dos campos da sessão."
+        )
 
     def set_state(self, item, state):
         self.queue_timing.set_running(self.running or bool(self.parallel.workers))
         if self.jobs[item].get("state") != "Concluído" and state == "Concluído":
             self.queue_timing.record_completion()
         self.jobs[item]["state"] = state
-        if state!='Em andamento':self.jobs[item].pop('_queue_activity',None)
+        if state != 'Em andamento':
+            self.jobs[item].pop('_queue_activity', None)
         self.tree.set(item, "status", tr(state))
         self.tree.item(item, tags=(state,))
         self.refresh_queue()
@@ -551,33 +917,74 @@ class App(UiMixin, tk.Tk):
             self.status.set("Aguarde a atualização do yt-dlp terminar.")
             return
         if not importlib.util.find_spec("yt_dlp"):
-            messagebox.showerror(tr("Dependência ausente"), tr("Execute instalar.bat para instalar yt-dlp."))
+            messagebox.showerror(
+                tr("Dependência ausente"),
+                tr("Execute instalar.bat para instalar yt-dlp."),
+            )
             return
-        scope = tuple(dict.fromkeys(only_items)) if only_items is not None else ((only_item,) if only_item is not None else None)
+        scope = (
+            tuple(dict.fromkeys(only_items))
+            if only_items is not None
+            else ((only_item,) if only_item is not None else None)
+        )
         if scope == ():
             return
-        if any(job["state"] == "Na fila" and job["mode"] not in ("photos", "social")
-               for item, job in self.jobs.items() if scope is None or item in scope) and not binaries(self.ffmpeg.get().strip()):
-            messagebox.showerror(tr("FFmpeg necessário"), tr("Selecione a pasta de FFmpeg e ffprobe em Configurações. Consulte Ajuda se necessário."))
+        if any(
+            job["state"] == "Na fila" and job["mode"] not in ("photos", "social")
+            for item, job in self.jobs.items()
+            if scope is None or item in scope
+        ) and not binaries(self.ffmpeg.get().strip()):
+            messagebox.showerror(
+                tr("FFmpeg necessário"),
+                tr(
+                    "Selecione a pasta de FFmpeg e ffprobe em Configurações. Consulte Ajuda se necessário."
+                ),
+            )
             return
-        if hasattr(self,'queue_control') and not self.queue_control.confirm(scope,scheduled=scheduled):return
-        self._schedule_paused=False
+        if hasattr(self, 'queue_control') and not self.queue_control.confirm(
+            scope, scheduled=scheduled
+        ):
+            return
+        self._schedule_paused = False
         if self.parallel.workers or self.parallel.memory_wait is not None:
-            if self.running:self.parallel.extend(scope)
-            else:self.status.set("Aguarde os downloads cancelados pararem antes de iniciar novamente.")
+            if self.running:
+                self.parallel.extend(scope)
+            else:
+                self.status.set(
+                    "Aguarde os downloads cancelados pararem antes de iniciar novamente."
+                )
             return
         # One scheduler also handles a limit of one, so new requests can join it.
         self.parallel.start(scope)
 
     def next_job(self):
         if self.parallel.workers:
-            self.parallel.fill();return
+            self.parallel.fill()
+            return
         immediate = self.immediate_item is not None
         if immediate:
-            scope = (self.immediate_item,) if isinstance(self.immediate_item, str) else self.immediate_item
-            pending = next((item for item in scope if self.jobs.get(item, {}).get('state') == 'Na fila'), None)
+            scope = (
+                (self.immediate_item,)
+                if isinstance(self.immediate_item, str)
+                else self.immediate_item
+            )
+            pending = next(
+                (
+                    item
+                    for item in scope
+                    if self.jobs.get(item, {}).get('state') == 'Na fila'
+                ),
+                None,
+            )
         else:
-            pending = next((item for item in self.tree.get_children() if self.jobs[item]["state"] == "Na fila"), None)
+            pending = next(
+                (
+                    item
+                    for item in self.tree.get_children()
+                    if self.jobs[item]["state"] == "Na fila"
+                ),
+                None,
+            )
         if not self.running or not pending:
             self.running = False
             self.immediate_item = None
@@ -597,36 +1004,62 @@ class App(UiMixin, tk.Tk):
         self.status.set("Obtendo informações…")
         self.detail.set("Aguardando o servidor. O cancelamento continua disponível.")
         self.set_progress(None)
-        config = {**self.jobs[pending], "_cleanup_work": True, "auto_metadata": self.auto_metadata.get(), "auto_match": self.auto_match.get(), "confirm_version": self.confirm_version.get(), "ffmpeg": self.ffmpeg.get().strip(),
-                  "resume_downloads": self.resume_downloads.get(),
-                  "cookies_file": self.download_cookies(self.jobs[pending].get("url","")),
-                  "spotify_client_id": self.spotify_client_id.get(),
-                  "spotify_client_secret": self.spotify_client_secret.get()}
+        config = {
+            **self.jobs[pending],
+            "_cleanup_work": True,
+            "auto_metadata": self.auto_metadata.get(),
+            "auto_match": self.auto_match.get(),
+            "confirm_version": self.confirm_version.get(),
+            "ffmpeg": self.ffmpeg.get().strip(),
+            "resume_downloads": self.resume_downloads.get(),
+            "cookies_file": self.download_cookies(self.jobs[pending].get("url", "")),
+            "spotify_client_id": self.spotify_client_id.get(),
+            "spotify_client_secret": self.spotify_client_secret.get(),
+        }
         from performance import snapshot
+
         config.update(snapshot(self))
-        threading.Thread(target=self.supervise, args=(pending, config), daemon=True).start()
+        threading.Thread(
+            target=self.supervise, args=(pending, config), daemon=True
+        ).start()
 
     def supervise(self, item, config):
         success = False
         process = None
         try:
             from spotify_metadata import prepare_spotify_config
-            config=prepare_spotify_config(config,getattr(self,"spotify_account",None))
+
+            config = prepare_spotify_config(
+                config, getattr(self, "spotify_account", None)
+            )
             executable = Path(sys.executable)
             if executable.name.lower() == "pythonw.exe":
                 executable = executable.with_name("python.exe")
-            args = dict(stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                        text=True, encoding="utf-8", errors="replace", bufsize=1,
-                        env={**os.environ, "PYTHONIOENCODING": "utf-8"})
+            args = dict(
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                bufsize=1,
+                env={**os.environ, "PYTHONIOENCODING": "utf-8"},
+            )
             if os.name == "nt":
                 from performance import priority_flags
-                args["creationflags"] = subprocess.CREATE_NO_WINDOW | priority_flags(config)
+
+                args["creationflags"] = subprocess.CREATE_NO_WINDOW | priority_flags(
+                    config
+                )
             else:
                 args["start_new_session"] = True
             with self.process_lock:
-                process = subprocess.Popen([str(executable), "-u", str(BASE / "engine.py")], **args)
+                process = subprocess.Popen(
+                    [str(executable), "-u", str(BASE / "engine.py")], **args
+                )
                 self.process = process
-                if item in self.parallel.workers:self.parallel.processes[item]=process
+                if item in self.parallel.workers:
+                    self.parallel.processes[item] = process
             if self.cancelled.is_set():
                 stop_process(process)
             else:
@@ -657,7 +1090,16 @@ class App(UiMixin, tk.Tk):
                     process.stdin.close()
             with self.process_lock:
                 self.process = None
-            self.events.put((item, {"type": "exited", "success": success, "cancelled": self.cancelled.is_set()}))
+            self.events.put(
+                (
+                    item,
+                    {
+                        "type": "exited",
+                        "success": success,
+                        "cancelled": self.cancelled.is_set(),
+                    },
+                )
+            )
 
     def set_progress(self, value):
         if value is None:
@@ -671,7 +1113,8 @@ class App(UiMixin, tk.Tk):
             self.bar.configure(mode="determinate", value=value)
 
     def poll_events(self):
-        if hasattr(self,"queue_cards") and self.queue_page.winfo_ismapped():self.queue_cards.refresh()
+        if hasattr(self, "queue_cards") and self.queue_page.winfo_ismapped():
+            self.queue_cards.refresh()
         titles_changed = False
         for _ in range(150):
             try:
@@ -680,10 +1123,20 @@ class App(UiMixin, tk.Tk):
                 break
             kind = event["type"]
             if kind == 'app_update':
-                result=event['result']
+                result = event['result']
                 if result.get('available'):
-                    if messagebox.askyesno(tr('Atualização do ONDA'),tr(result['message'])+'\n'+tr('Abrir o download oficial?'),parent=self):webbrowser.open(result['url'])
-                elif event.get('manual'):messagebox.showinfo(tr('Verificar atualização do ONDA'),tr(result['message']),parent=self)
+                    if messagebox.askyesno(
+                        tr('Atualização do ONDA'),
+                        tr(result['message']) + '\n' + tr('Abrir o download oficial?'),
+                        parent=self,
+                    ):
+                        webbrowser.open(result['url'])
+                elif event.get('manual'):
+                    messagebox.showinfo(
+                        tr('Verificar atualização do ONDA'),
+                        tr(result['message']),
+                        parent=self,
+                    )
                 continue
             if kind.startswith("update_"):
                 if kind == "update_log":
@@ -691,32 +1144,58 @@ class App(UiMixin, tk.Tk):
                 else:
                     self.updating = False
                     self.update_button.configure(state="normal")
-                    self.update_status.set("Ferramentas de vídeo e fotos atualizadas. Os próximos downloads usarão estas versões." if event.get("success") else "Falha na atualização. Confira Ver detalhes.")
+                    self.update_status.set(
+                        "Ferramentas de vídeo e fotos atualizadas. Os próximos downloads usarão estas versões."
+                        if event.get("success")
+                        else "Falha na atualização. Confira Ver detalhes."
+                    )
                 continue
             if kind == 'queue_title':
                 job = self.jobs.get(item)
-                if job and job['url']==event.get('url') and event.get('queue_info'):
-                    job['queue_info']={**event['queue_info'],**{k:v for k,v in (job.get('queue_info') or {}).items() if v not in (None,'',[],{})}}
+                if job and job['url'] == event.get('url') and event.get('queue_info'):
+                    job['queue_info'] = {
+                        **event['queue_info'],
+                        **{
+                            k: v
+                            for k, v in (job.get('queue_info') or {}).items()
+                            if v not in (None, '', [], {})
+                        },
+                    }
                     from metadata_badges import apply_tree_badge
-                    apply_tree_badge(self.tree,item,job.get('catalog_record') or job['queue_info'])
-                    titles_changed=True
-                if job and job['url'] == event.get('url') and not job.get('display_name') and job['state'] in ('Na fila', 'Falhou'):
+
+                    apply_tree_badge(
+                        self.tree, item, job.get('catalog_record') or job['queue_info']
+                    )
+                    titles_changed = True
+                if (
+                    job
+                    and job['url'] == event.get('url')
+                    and not job.get('display_name')
+                    and job['state'] in ('Na fila', 'Falhou')
+                ):
                     job['display_name'] = event['title']
                     self.tree.set(item, 'name', event['title'])
                     titles_changed = True
                 continue
             if item in self.jobs:
                 from queue_control import observe
-                observe(self,item,event)
-            if kind=='error' and item in self.jobs:
-                self.jobs[item]['last_error']=event.get('message','')
+
+                observe(self, item, event)
+            if kind == 'error' and item in self.jobs:
+                self.jobs[item]['last_error'] = event.get('message', '')
             if item in self.parallel.workers:
-                if kind=='exited':
-                    closing=self.closing and len(self.parallel.workers)==1 and not self.effects_page.busy
-                    self.parallel.finish(item,event)
-                    if closing:return
+                if kind == 'exited':
+                    closing = (
+                        self.closing
+                        and len(self.parallel.workers) == 1
+                        and not self.effects_page.busy
+                    )
+                    self.parallel.finish(item, event)
+                    if closing:
+                        return
                     continue
-                if not self.parallel.admit(item,event):continue
+                if not self.parallel.admit(item, event):
+                    continue
             if item != self.active:
                 continue
             if kind in ("error", "log"):
@@ -729,38 +1208,93 @@ class App(UiMixin, tk.Tk):
                 if self.cancelled.is_set():
                     continue
                 from flac_browser_ui import FlacBrowserDialog
+
                 self.dismiss_version_picker()
                 if item in self.parallel.workers:
                     self.parallel.choice_item = item
                 self.status.set("Aguardando FLAC do navegador")
-                self.detail.set("Baixe no serviço e selecione o FLAC na janela do ONDA.")
-                self.choice_window = FlacBrowserDialog(self, event, lambda reply, job=item: self.send_reply(job, reply), self.cancel)
+                self.detail.set(
+                    "Baixe no serviço e selecione o FLAC na janela do ONDA."
+                )
+                self.choice_window = FlacBrowserDialog(
+                    self,
+                    event,
+                    lambda reply, job=item: self.send_reply(job, reply),
+                    self.cancel,
+                )
             elif kind == "choose_media":
                 if self.cancelled.is_set():
                     continue
                 from media_picker import MediaPicker
+
                 self.dismiss_version_picker()
-                if item in self.parallel.workers:self.parallel.choice_item=item
+                if item in self.parallel.workers:
+                    self.parallel.choice_item = item
                 self.status.set("Escolha quais fotos e vídeos deseja baixar")
-                self.detail.set("Marque os itens na janela e clique em Baixar selecionados.")
-                self.choice_window = MediaPicker(self, event, lambda selected, job=item: self.send_reply(job, selected if isinstance(selected, dict) else {"selected_ids": selected}), self.cancel)
+                self.detail.set(
+                    "Marque os itens na janela e clique em Baixar selecionados."
+                )
+                self.choice_window = MediaPicker(
+                    self,
+                    event,
+                    lambda selected, job=item: self.send_reply(
+                        job,
+                        (
+                            selected
+                            if isinstance(selected, dict)
+                            else {"selected_ids": selected}
+                        ),
+                    ),
+                    self.cancel,
+                )
             elif kind == "media_detected":
-                self.write_log(f"Publicação: {event['photos']} fotos e {event['videos']} vídeos; {event['selected']} selecionados.")
+                self.write_log(
+                    f"Publicação: {event['photos']} fotos e {event['videos']} vídeos; {event['selected']} selecionados."
+                )
                 video_mode = event.get("mode") or self.jobs[item]["mode"]
-                video_label = {"video": "MKV", "mp4": "MP4", "social": "VÍDEOS", "photos": "VÍDEOS"}.get(video_mode, video_mode.upper())
-                self.tree.set(item, "format", "FOTOS + VÍDEOS" if event["photos"] and event["videos"] else "FOTOS" if event["photos"] else video_label)
+                video_label = {
+                    "video": "MKV",
+                    "mp4": "MP4",
+                    "social": "VÍDEOS",
+                    "photos": "VÍDEOS",
+                }.get(video_mode, video_mode.upper())
+                self.tree.set(
+                    item,
+                    "format",
+                    (
+                        "FOTOS + VÍDEOS"
+                        if event["photos"] and event["videos"]
+                        else "FOTOS" if event["photos"] else video_label
+                    ),
+                )
             elif kind in ("review_metadata", "choose_duplicate"):
                 if self.cancelled.is_set():
                     continue
                 from review_ui import MetadataReview, DuplicateDialog
+
                 self.dismiss_version_picker()
-                if item in self.parallel.workers:self.parallel.choice_item=item
+                if item in self.parallel.workers:
+                    self.parallel.choice_item = item
                 if kind == "review_metadata":
                     self.status.set("Revise os metadados e a capa")
-                    self.choice_window = MetadataReview(self, event, lambda changes, job=item: self.send_reply(job, {"changes": changes}), self.cancel)
+                    self.choice_window = MetadataReview(
+                        self,
+                        event,
+                        lambda changes, job=item: self.send_reply(
+                            job, {"changes": changes}
+                        ),
+                        self.cancel,
+                    )
                 else:
                     self.status.set("Escolha como tratar o arquivo existente")
-                    self.choice_window = DuplicateDialog(self, event, lambda choice, job=item: self.send_reply(job, {"choice": choice}), self.cancel)
+                    self.choice_window = DuplicateDialog(
+                        self,
+                        event,
+                        lambda choice, job=item: self.send_reply(
+                            job, {"choice": choice}
+                        ),
+                        self.cancel,
+                    )
                 self.detail.set("A fila aguarda sua confirmação.")
             elif kind in ("choose_version", "choose_catalog"):
                 if self.cancelled.is_set():
@@ -769,25 +1303,47 @@ class App(UiMixin, tk.Tk):
                 self.detail.set("A fila aguarda sua escolha na janela de versões.")
                 if kind == "choose_catalog":
                     from catalog_picker import CatalogPicker as Picker
+
                     self.status.set("Confirme qual música corresponde ao link Spotify")
-                    self.detail.set("A fila aguarda sua escolha dos metadados do catálogo.")
+                    self.detail.set(
+                        "A fila aguarda sua escolha dos metadados do catálogo."
+                    )
                 else:
                     from version_picker import VersionPicker as Picker
-                self.choice_window = Picker(self, event, lambda selected, job=item: self.send_version(job, selected), self.cancel)
+                self.choice_window = Picker(
+                    self,
+                    event,
+                    lambda selected, job=item: self.send_version(job, selected),
+                    self.cancel,
+                )
             elif kind == "file":
                 self.write_log("Salvo: " + event["path"])
                 self.jobs[item]["last_file"] = event["path"]
                 if not event.get("skipped"):
-                    self.record_history(event["path"], event.get("mode") or self.jobs[item]["mode"].upper(), self.jobs[item]["url"])
+                    self.record_history(
+                        event["path"],
+                        event.get("mode") or self.jobs[item]["mode"].upper(),
+                        self.jobs[item]["url"],
+                    )
                 if isinstance(event.get("size"), int):
                     self.jobs[item]["saved_sizes"][event["path"]] = event["size"]
-                    self.tree.set(item, "size", readable_bytes(sum(self.jobs[item]["saved_sizes"].values())))
+                    self.tree.set(
+                        item,
+                        "size",
+                        readable_bytes(sum(self.jobs[item]["saved_sizes"].values())),
+                    )
             elif kind == "estimate":
-                label = "≈ " + readable_bytes(event["size"]) if event.get("size") is not None else "Indisponível"
+                label = (
+                    "≈ " + readable_bytes(event["size"])
+                    if event.get("size") is not None
+                    else "Indisponível"
+                )
                 if event.get("playlist") and event.get("size") is not None:
                     label += " / item"
                 self.tree.set(item, "size", label)
-                self.write_log("Tamanho estimado: " + label + ". " + event.get("reason", ""))
+                self.write_log(
+                    "Tamanho estimado: " + label + ". " + event.get("reason", "")
+                )
                 if event.get("title"):
                     self.jobs[item].setdefault("display_name", event["title"])
                     self.tree.set(item, "name", self.jobs[item]["display_name"])
@@ -795,7 +1351,9 @@ class App(UiMixin, tk.Tk):
                 title = event.get("title") or self.jobs[item]["url"]
                 if not self.jobs[item].get("display_name") and event.get("title"):
                     self.jobs[item]["display_name"] = title
-                self.tree.set(item, "name", self.jobs[item].get("display_name") or title)
+                self.tree.set(
+                    item, "name", self.jobs[item].get("display_name") or title
+                )
                 self.status.set(title[:100])
                 total, downloaded = event.get("total"), event.get("downloaded", 0)
                 if event["status"] == "finished":
@@ -807,16 +1365,25 @@ class App(UiMixin, tk.Tk):
                     eta = event.get("eta")
                     suffix = f"  •  item {event['index']}" if event.get("index") else ""
                     prefix = f"{percent:.1f}%  •  " if percent is not None else ""
-                    self.detail.set(f"{prefix}{readable_bytes(downloaded)} / {readable_bytes(total)}  •  "
-                                    f"{readable_bytes(event.get('speed'))}/s  •  "
-                                    f"restante: {int(eta) if eta is not None else '—'} s{suffix}")
+                    self.detail.set(
+                        f"{prefix}{readable_bytes(downloaded)} / {readable_bytes(total)}  •  "
+                        f"{readable_bytes(event.get('speed'))}/s  •  "
+                        f"restante: {int(eta) if eta is not None else '—'} s{suffix}"
+                    )
             elif kind == "processing":
                 self.set_progress(None)
-                self.detail.set("Processando áudio/vídeo… O arquivo será marcado como concluído ao terminar.")
+                self.detail.set(
+                    "Processando áudio/vídeo… O arquivo será marcado como concluído ao terminar."
+                )
             elif kind == "exited":
                 self.dismiss_version_picker()
-                state = "Cancelado" if event["cancelled"] else ("Concluído" if event["success"] else "Falhou")
-                if event["cancelled"] and getattr(self,"_schedule_paused",False):state="Na fila"
+                state = (
+                    "Cancelado"
+                    if event["cancelled"]
+                    else ("Concluído" if event["success"] else "Falhou")
+                )
+                if event["cancelled"] and getattr(self, "_schedule_paused", False):
+                    state = "Na fila"
                 removing = self.jobs[item].get("remove_after_stop", False)
                 if removing:
                     resume = self.jobs[item].get("resume_after_remove", False)
@@ -828,8 +1395,11 @@ class App(UiMixin, tk.Tk):
                     self.set_state(item, state)
                 self.set_progress(100 if state == "Concluído" else 0)
                 self.status.set(state)
-                self.detail.set("Arquivos disponíveis na pasta de destino." if state == "Concluído" else
-                                "Use Ver detalhes para conferir o motivo, ou tente novamente.")
+                self.detail.set(
+                    "Arquivos disponíveis na pasta de destino."
+                    if state == "Concluído"
+                    else "Use Ver detalhes para conferir o motivo, ou tente novamente."
+                )
                 self.active = None
                 self.refresh_queue()
                 if self.closing and not self.effects_page.busy:
@@ -838,7 +1408,8 @@ class App(UiMixin, tk.Tk):
                 self.next_job()
         if titles_changed:
             self.persist_queue()
-        if hasattr(self,'queue_control'):self.queue_control.refresh()
+        if hasattr(self, 'queue_control'):
+            self.queue_control.refresh()
         self.refresh_queue_timing()
         self._poll_after = self.after(100, self.poll_events)
 
@@ -854,16 +1425,19 @@ class App(UiMixin, tk.Tk):
 
     def cancel(self):
         if self.parallel.workers or self.parallel.memory_wait is not None:
-            self.parallel.stop();return
+            self.parallel.stop()
+            return
         self.dismiss_version_picker()
         self.running = False
         self.cancelled.set()
         self.cancel_button.configure(state="disabled")
         self.status.set("Cancelando…")
+
         def stop():
             with self.process_lock:
                 if self.process:
                     stop_process(self.process)
+
         threading.Thread(target=stop, daemon=True).start()
 
     def dismiss_version_picker(self):
@@ -874,14 +1448,25 @@ class App(UiMixin, tk.Tk):
         self.parallel.choice_closed()
 
     def send_version(self, item, selected_id):
-        self.send_reply(item, selected_id if isinstance(selected_id,dict) else {"selected_id": selected_id})
+        self.send_reply(
+            item,
+            (
+                selected_id
+                if isinstance(selected_id, dict)
+                else {"selected_id": selected_id}
+            ),
+        )
 
     def send_reply(self, item, reply):
         if item in self.parallel.workers:
             try:
-                if not self.parallel.reply(item,reply):raise OSError()
-            except (OSError,ValueError):self.cancel();return
-            self.dismiss_version_picker();return
+                if not self.parallel.reply(item, reply):
+                    raise OSError()
+            except (OSError, ValueError):
+                self.cancel()
+                return
+            self.dismiss_version_picker()
+            return
         if item != self.active or self.cancelled.is_set():
             self.dismiss_version_picker()
             return
@@ -898,9 +1483,10 @@ class App(UiMixin, tk.Tk):
         self.dismiss_version_picker()
         self.status.set("Escolha recebida. Continuando…")
 
-    def show_failures(self,ids=None):
+    def show_failures(self, ids=None):
         from failure_ui import show_failures
-        show_failures(self,ids)
+
+        show_failures(self, ids)
 
     def retry(self):
         for item in self.tree.selection():
@@ -941,14 +1527,30 @@ class App(UiMixin, tk.Tk):
         if self.parallel.workers:
             for item in selected:
                 if item in self.parallel.workers:
-                    self.jobs[item]['remove_after_stop']=True
-                    process=self.parallel.processes.get(item)
-                    if process:threading.Thread(target=stop_process,args=(process,),daemon=True).start()
-                else:del self.jobs[item];self.tree.delete(item)
-            if not resume:self.cancel()
-            self.persist_queue();self.refresh_queue();return True
-        if self.active in selected and not self.jobs[self.active].get("remove_after_stop"):
-            if not messagebox.askyesno(tr("Remover da fila"), tr("Interromper o download em andamento e removê-lo da fila?\nOs arquivos já concluídos serão preservados."), parent=self):
+                    self.jobs[item]['remove_after_stop'] = True
+                    process = self.parallel.processes.get(item)
+                    if process:
+                        threading.Thread(
+                            target=stop_process, args=(process,), daemon=True
+                        ).start()
+                else:
+                    del self.jobs[item]
+                    self.tree.delete(item)
+            if not resume:
+                self.cancel()
+            self.persist_queue()
+            self.refresh_queue()
+            return True
+        if self.active in selected and not self.jobs[self.active].get(
+            "remove_after_stop"
+        ):
+            if not messagebox.askyesno(
+                tr("Remover da fila"),
+                tr(
+                    "Interromper o download em andamento e removê-lo da fila?\nOs arquivos já concluídos serão preservados."
+                ),
+                parent=self,
+            ):
                 return
             self.jobs[self.active]["remove_after_stop"] = True
             self.jobs[self.active]["resume_after_remove"] = self.running and resume
@@ -972,7 +1574,9 @@ class App(UiMixin, tk.Tk):
             if os.name == "nt":
                 os.startfile(str(path))
             else:
-                subprocess.Popen(["open" if sys.platform == "darwin" else "xdg-open", str(path)])
+                subprocess.Popen(
+                    ["open" if sys.platform == "darwin" else "xdg-open", str(path)]
+                )
         except OSError as exc:
             messagebox.showerror(tr("Pasta"), tr(str(exc)))
 
@@ -981,31 +1585,45 @@ class App(UiMixin, tk.Tk):
         window.title(tr("Sobre o Onda"))
         window.configure(bg=BG)
         window.geometry("670x490")
-        text = ("Onda • downloads de vídeo, áudio e fotos\n\n"
-                "1. O portátil e o instalador já incluem as ferramentas necessárias.\n"
-                "2. Em Links, use Vídeo, Fotos / carrossel ou Post completo.\n"
-                "3. Cole links, escolha o formato e adicione à fila.\n"
-                "4. Clique em Baixar fila. A barra acompanha cada transferência.\n\n"
-                "Redes sociais: cole o link da publicação. Instagram e Twitter/X reconhecem fotos e vídeos automaticamente. Mais de duas mídias abrem uma seleção. O tipo é automático quando o post só tem fotos ou só vídeos; Fotos / carrossel filtra imagens em posts mistos. "
-                "Post completo também salva os vídeos originais. Se houver exigência de login, "
-                "selecione cookies.txt em Configurações. O acesso depende da plataforma.\n\n"
-                "Spotify / Deezer / Apple: a fila busca áudio correspondente no YouTube e aplica tags/capa. "
-                "Sem API Spotify, os metadados vêm de uma faixa equivalente no Deezer ou Apple. "
-                "Este programa não exporta músicas protegidas por DRM.\n\n"
-                "FLAC usa compressão sem perdas, mas converter MP3/AAC/Opus para FLAC "
-                "não restaura o áudio original. Original evita recodificação.\n\n"
-                "Configurações de formato, pasta e playlist são capturadas ao adicionar. "
-                "Cancelar para a fila; tentar novamente pode retomar arquivos .part. "
-                "A fila pendente é salva e restaurada pausada ao abrir. Use conteúdo seu ou autorizado.")
-        ttk.Label(window, text=tr(text), wraplength=620, justify="left", padding=20).pack(fill="both", expand=True)
-        ttk.Button(window, text=tr("Guia completo (README)"), command=lambda: self.open_readme()).pack(pady=8)
+        text = (
+            "Onda • downloads de vídeo, áudio e fotos\n\n"
+            "1. O portátil e o instalador já incluem as ferramentas necessárias.\n"
+            "2. Em Links, use Vídeo, Fotos / carrossel ou Post completo.\n"
+            "3. Cole links, escolha o formato e adicione à fila.\n"
+            "4. Clique em Baixar fila. A barra acompanha cada transferência.\n\n"
+            "Redes sociais: cole o link da publicação. Instagram e Twitter/X reconhecem fotos e vídeos automaticamente. Mais de duas mídias abrem uma seleção. O tipo é automático quando o post só tem fotos ou só vídeos; Fotos / carrossel filtra imagens em posts mistos. "
+            "Post completo também salva os vídeos originais. Se houver exigência de login, "
+            "selecione cookies.txt em Configurações. O acesso depende da plataforma.\n\n"
+            "Spotify / Deezer / Apple: a fila busca áudio correspondente no YouTube e aplica tags/capa. "
+            "Sem API Spotify, os metadados vêm de uma faixa equivalente no Deezer ou Apple. "
+            "Este programa não exporta músicas protegidas por DRM.\n\n"
+            "FLAC usa compressão sem perdas, mas converter MP3/AAC/Opus para FLAC "
+            "não restaura o áudio original. Original evita recodificação.\n\n"
+            "Configurações de formato, pasta e playlist são capturadas ao adicionar. "
+            "Cancelar para a fila; tentar novamente pode retomar arquivos .part. "
+            "A fila pendente é salva e restaurada pausada ao abrir. Use conteúdo seu ou autorizado."
+        )
+        ttk.Label(
+            window, text=tr(text), wraplength=620, justify="left", padding=20
+        ).pack(fill="both", expand=True)
+        ttk.Button(
+            window,
+            text=tr("Guia completo (README)"),
+            command=lambda: self.open_readme(),
+        ).pack(pady=8)
         buttons = ttk.Frame(window)
         buttons.pack(pady=(0, 15))
-        for label, url in (("FFmpeg", "https://ffmpeg.org/download.html"),
-                           ("Deno", "https://docs.deno.com/runtime/getting_started/installation/"),
-                           ("Spotify", "https://support.spotify.com/br-pt/article/listen-offline/"),
-                           ("Apple Lossless", "https://support.apple.com/118295")):
-            ttk.Button(buttons, text=tr(label), command=lambda address=url: webbrowser.open(address)).pack(side="left", padx=4)
+        for label, url in (
+            ("FFmpeg", "https://ffmpeg.org/download.html"),
+            ("Deno", "https://docs.deno.com/runtime/getting_started/installation/"),
+            ("Spotify", "https://support.spotify.com/br-pt/article/listen-offline/"),
+            ("Apple Lossless", "https://support.apple.com/118295"),
+        ):
+            ttk.Button(
+                buttons,
+                text=tr(label),
+                command=lambda address=url: webbrowser.open(address),
+            ).pack(side="left", padx=4)
 
     def open_readme(self):
         if os.name == "nt":
@@ -1014,12 +1632,17 @@ class App(UiMixin, tk.Tk):
             webbrowser.open((BASE / "README.md").as_uri())
 
     def destroy(self):
-        if hasattr(self,"parallel") and self.parallel.memory_wait is not None:
-            self.after_cancel(self.parallel.memory_wait);self.parallel.memory_wait=None
-        if hasattr(self,'daily'):self.daily.close()
-        if getattr(self,'drop_target',None):self.drop_target.shutdown()
-        if hasattr(self,"clipboard_watch"):self.clipboard_watch.shutdown()
-        if hasattr(self,"status_notice"):self.status_notice.shutdown()
+        if hasattr(self, "parallel") and self.parallel.memory_wait is not None:
+            self.after_cancel(self.parallel.memory_wait)
+            self.parallel.memory_wait = None
+        if hasattr(self, 'daily'):
+            self.daily.close()
+        if getattr(self, 'drop_target', None):
+            self.drop_target.shutdown()
+        if hasattr(self, "clipboard_watch"):
+            self.clipboard_watch.shutdown()
+        if hasattr(self, "status_notice"):
+            self.status_notice.shutdown()
         if hasattr(self, "history_page"):
             self.history_page.shutdown()
         if hasattr(self, "theme_manager"):
@@ -1028,10 +1651,24 @@ class App(UiMixin, tk.Tk):
             self.title_lookup.shutdown()
         if hasattr(self, "catalog_page"):
             self.catalog_page.shutdown()
-        for name in ("effects_page", "playlist_page", "images_page", "metadata_page", "converter_page"):
+        for name in (
+            "effects_page",
+            "playlist_page",
+            "images_page",
+            "metadata_page",
+            "converter_page",
+        ):
             if hasattr(self, name):
                 getattr(self, name).shutdown()
-        for name in ("_queue_fill_after", "_poll_after", "_preference_after", "_welcome_after", "_schedule_after", "_update_check_after", "_resume_after"):
+        for name in (
+            "_queue_fill_after",
+            "_poll_after",
+            "_preference_after",
+            "_welcome_after",
+            "_schedule_after",
+            "_update_check_after",
+            "_resume_after",
+        ):
             callback = getattr(self, name, None)
             if callback is not None:
                 try:
@@ -1039,22 +1676,45 @@ class App(UiMixin, tk.Tk):
                 except tk.TclError:
                     pass
                 setattr(self, name, None)
-        if hasattr(self,"queue_cards"):self.queue_cards.shutdown()
+        if hasattr(self, "queue_cards"):
+            self.queue_cards.shutdown()
         super().destroy()
 
-    def close(self,force_exit=False):
-        if not force_exit and self.close_behavior.get()=='Minimizar para a bandeja':
-            self.persist_preferences();self.persist_queue()
-            if not self.daily.hide():messagebox.showerror(tr('Bandeja do sistema'),tr('Não foi possível minimizar para a bandeja. Altere Ao fechar o ONDA para Encerrar.'),parent=self)
+    def close(self, force_exit=False):
+        if not force_exit and self.close_behavior.get() == 'Minimizar para a bandeja':
+            self.persist_preferences()
+            self.persist_queue()
+            if not self.daily.hide():
+                messagebox.showerror(
+                    tr('Bandeja do sistema'),
+                    tr(
+                        'Não foi possível minimizar para a bandeja. Altere Ao fechar o ONDA para Encerrar.'
+                    ),
+                    parent=self,
+                )
             return
         if self.converter_page.busy:
-            messagebox.showinfo(tr("Conversor"),tr("Cancele ou aguarde a conversão antes de fechar o ONDA."),parent=self)
+            messagebox.showinfo(
+                tr("Conversor"),
+                tr("Cancele ou aguarde a conversão antes de fechar o ONDA."),
+                parent=self,
+            )
             return
         if self.metadata_page.busy:
-            messagebox.showinfo(tr("Editar metadados"),tr("Aguarde o processamento do arquivo terminar antes de fechar o ONDA."),parent=self)
+            messagebox.showinfo(
+                tr("Editar metadados"),
+                tr(
+                    "Aguarde o processamento do arquivo terminar antes de fechar o ONDA."
+                ),
+                parent=self,
+            )
             return
         if self.updating:
-            messagebox.showinfo(tr("Atualização em andamento"), tr("Aguarde a atualização terminar antes de fechar o Onda."), parent=self)
+            messagebox.showinfo(
+                tr("Atualização em andamento"),
+                tr("Aguarde a atualização terminar antes de fechar o Onda."),
+                parent=self,
+            )
             return
         self.persist_preferences()
         self.persist_queue()
@@ -1075,11 +1735,15 @@ class App(UiMixin, tk.Tk):
         try:
             jobs = []
             for key in self.tree.get_children():
-                job=self.jobs[key]
+                job = self.jobs[key]
                 if job.get("remove_after_stop"):
                     continue
                 saved = dict(job)
-                if self.closing and job is self.jobs.get(self.active) and saved.get("state") == "Cancelado":
+                if (
+                    self.closing
+                    and job is self.jobs.get(self.active)
+                    and saved.get("state") == "Cancelado"
+                ):
                     saved["state"] = "Na fila"
                 jobs.append(saved)
             self.library.save_queue(jobs)
@@ -1088,10 +1752,16 @@ class App(UiMixin, tk.Tk):
 
     def restore_queue(self):
         try:
-            jobs = [job for job in self.library.load_queue() if job.get("mode") in MODES.values()]
+            jobs = [
+                job
+                for job in self.library.load_queue()
+                if job.get("mode") in MODES.values()
+            ]
             if jobs and self.add(restored_jobs=jobs) is not None:
                 self.persist_queue()
-                self.status.set("Fila restaurada · clique em Baixar fila para continuar")
+                self.status.set(
+                    "Fila restaurada · clique em Baixar fila para continuar"
+                )
         except Exception as exc:
             self.write_log("Não foi possível restaurar a fila: " + str(exc))
 
@@ -1104,7 +1774,15 @@ class App(UiMixin, tk.Tk):
 
     def tab_changed(self, _=None):
         selected = self.pages.select()
-        for page in (self.catalog_page, self.images_page, self.playlist_page, self.history_page, self.effects_page, self.metadata_page, self.converter_page):
+        for page in (
+            self.catalog_page,
+            self.images_page,
+            self.playlist_page,
+            self.history_page,
+            self.effects_page,
+            self.metadata_page,
+            self.converter_page,
+        ):
             if selected == str(page):
                 page.ensure_ready()
                 break
@@ -1120,38 +1798,78 @@ class App(UiMixin, tk.Tk):
     def update_downloader(self):
         if self.updating:
             return
-        if self.active or self.effects_page.busy or self.playlist_page.busy or self.metadata_page.busy or self.converter_page.busy:
-            self.update_status.set("Termine os downloads, consultas de playlist e exportações antes de atualizar.")
+        if (
+            self.active
+            or self.effects_page.busy
+            or self.playlist_page.busy
+            or self.metadata_page.busy
+            or self.converter_page.busy
+        ):
+            self.update_status.set(
+                "Termine os downloads, consultas de playlist e exportações antes de atualizar."
+            )
             return
         self.updating = True
         self.update_button.configure(state="disabled")
-        self.update_status.set("Atualizando yt-dlp, gallery-dl e componente JavaScript…")
+        self.update_status.set(
+            "Atualizando yt-dlp, gallery-dl e componente JavaScript…"
+        )
         self.catalog_page.stop_preview()
         self.effects_page.stop_preview()
+
         def worker():
             from audio_tools import process_options
+
             python = Path(sys.executable)
             if python.name.lower() == "pythonw.exe":
                 python = python.with_name("python.exe")
             packages = ["yt-dlp[default,curl-cffi]", "gallery-dl<2", "Pillow>=10"]
             if sys.version_info >= (3, 15):
                 packages[0] = "yt-dlp[curl-cffi]"
-                packages.extend(["brotlicffi>=1.2.0.1", "certifi", "mutagen>=1.47",
-                    "pycryptodomex", "requests>=2.32.2,<3", "urllib3>=2.0.2,<3",
-                    "websockets>=13.0", "yt-dlp-ejs==0.8.0"])
+                packages.extend(
+                    [
+                        "brotlicffi>=1.2.0.1",
+                        "certifi",
+                        "mutagen>=1.47",
+                        "pycryptodomex",
+                        "requests>=2.32.2,<3",
+                        "urllib3>=2.0.2,<3",
+                        "websockets>=13.0",
+                        "yt-dlp-ejs==0.8.0",
+                    ]
+                )
             try:
-                with subprocess.Popen([str(python), "-m", "pip", "--disable-pip-version-check", "install", "--upgrade", *packages],
-                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace", **process_options()) as process:
+                with subprocess.Popen(
+                    [
+                        str(python),
+                        "-m",
+                        "pip",
+                        "--disable-pip-version-check",
+                        "install",
+                        "--upgrade",
+                        *packages,
+                    ],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                    **process_options(),
+                ) as process:
                     for line in process.stdout:
-                        self.events.put((None, {"type": "update_log", "message": line.strip()}))
+                        self.events.put(
+                            (None, {"type": "update_log", "message": line.strip()})
+                        )
                     success = process.wait() == 0
             except Exception as exc:
                 success = False
                 self.events.put((None, {"type": "update_log", "message": str(exc)}))
             self.events.put((None, {"type": "update_done", "success": success}))
+
         threading.Thread(target=worker, daemon=True).start()
 
 
 if __name__ == "__main__":
     from single_instance import run_single_instance
+
     sys.exit(run_single_instance(App))

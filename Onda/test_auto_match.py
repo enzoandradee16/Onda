@@ -16,10 +16,14 @@ class AutoMatchTests(unittest.TestCase):
         with self.assertRaises(AmbiguousMatch):
             select_candidate(record, [similar, best])
         choose = Mock(return_value=best)
+
         def find(row, logger, *, prefer_best=False):
             return select_candidate(row, [similar, best], prefer_best=prefer_best)
+
         with patch("matching.find_youtube", side_effect=find) as search:
-            match = resolve_youtube(record, Mock(), choose, automatic=True, confirm=True)
+            match = resolve_youtube(
+                record, Mock(), choose, automatic=True, confirm=True
+            )
         self.assertEqual(match["id"], best["id"])
         self.assertTrue(search.call_args.kwargs["prefer_best"])
         choose.assert_not_called()
@@ -28,8 +32,8 @@ class AutoMatchTests(unittest.TestCase):
         first = candidate(id="first123456")
         second = candidate(id="other123456")
         remix = candidate(id="remix123456", title="Artista Exemplo Canção Azul Remix")
-        chosen=select_candidate(catalog(), [remix, first, second], prefer_best=True)
-        self.assertEqual(chosen['id'],first['id'])
+        chosen = select_candidate(catalog(), [remix, first, second], prefer_best=True)
+        self.assertEqual(chosen['id'], first['id'])
         with self.assertRaisesRegex(ValueError, "não foi baixado"):
             select_candidate(catalog(), [remix], prefer_best=True)
 
@@ -38,7 +42,12 @@ class AutoMatchTests(unittest.TestCase):
         with self.assertRaises(AmbiguousMatch):
             select_candidate(catalog(), [different])
         choose = Mock()
-        with patch("matching.find_youtube", side_effect=lambda row, logger, **kwargs: select_candidate(row, [different], **kwargs)):
+        with patch(
+            "matching.find_youtube",
+            side_effect=lambda row, logger, **kwargs: select_candidate(
+                row, [different], **kwargs
+            ),
+        ):
             with self.assertRaisesRegex(ValueError, "seleção automática"):
                 resolve_youtube(catalog(), Mock(), choose, automatic=True)
         choose.assert_not_called()
@@ -59,10 +68,14 @@ class AutoMatchTests(unittest.TestCase):
 @unittest.skipUnless(os.environ.get("ONDA_UI_TESTS"), "Tk integration")
 class AutoMatchUiTests(unittest.TestCase):
     def test_remember_and_playlist_confirmation_are_consistent(self):
-        with tempfile.TemporaryDirectory() as profile, patch.dict(os.environ, {"LOCALAPPDATA": profile}):
+        with (
+            tempfile.TemporaryDirectory() as profile,
+            patch.dict(os.environ, {"LOCALAPPDATA": profile}),
+        ):
             from app import App
+
             store = PreferenceStore()
-            store.save({"auto_match": True,"auto_metadata":True})
+            store.save({"auto_match": True, "auto_metadata": True})
             app = App(show_welcome=False)
             app.withdraw()
             try:
@@ -70,7 +83,9 @@ class AutoMatchUiTests(unittest.TestCase):
                 self.assertTrue(app.auto_metadata.get())
                 page = app.playlist_page
                 self.assertIn("disabled", page.confirm_version_check.state())
-                self.assertIn("Seleção automática", page.confirm_version_check.cget("text"))
+                self.assertIn(
+                    "Seleção automática", page.confirm_version_check.cget("text")
+                )
                 app.auto_match.set(False)
                 self.assertTrue(app.auto_metadata.get())
                 self.assertNotIn("disabled", page.confirm_version_check.state())

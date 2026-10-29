@@ -1,4 +1,5 @@
 """Safe output directories and explicit collision choices."""
+
 import os
 import errno
 import re
@@ -8,13 +9,28 @@ import tempfile
 
 from output_rules import EXTRA_ORGANIZATIONS
 
-ORGANIZATIONS = ("Catálogo", "Pasta de destino", "Artista", "Artista / Álbum") + EXTRA_ORGANIZATIONS
-DUPLICATES = {"Perguntar": "ask", "Manter ambos": "keep", "Substituir": "replace", "Ignorar": "skip"}
+ORGANIZATIONS = (
+    "Catálogo",
+    "Pasta de destino",
+    "Artista",
+    "Artista / Álbum",
+) + EXTRA_ORGANIZATIONS
+DUPLICATES = {
+    "Perguntar": "ask",
+    "Manter ambos": "keep",
+    "Substituir": "replace",
+    "Ignorar": "skip",
+}
 
 
 def component(value):
     from yt_dlp.utils import sanitize_filename
-    name = sanitize_filename(str(value or "Não informado"), restricted=False).replace("\\", "_").replace("/", "_")
+
+    name = (
+        sanitize_filename(str(value or "Não informado"), restricted=False)
+        .replace("\\", "_")
+        .replace("/", "_")
+    )
     name = name.strip(" .")[:100].rstrip(" .")
     if re.match(r"^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\.|$)", name, re.I):
         name = "_" + name
@@ -26,7 +42,9 @@ def destination(config, record=None, info=None):
     title = config.get("playlist_title")
     if not title and config.get("playlist") and info:
         title = info.get("playlist_title") or info.get("playlist")
-        if not title and (info.get("playlist_id") or info.get("playlist_index") is not None):
+        if not title and (
+            info.get("playlist_id") or info.get("playlist_index") is not None
+        ):
             title = "Playlist"
     if title:
         return root / component(title)
@@ -37,6 +55,7 @@ def destination(config, record=None, info=None):
     if organization not in ORGANIZATIONS:
         raise ValueError("Organização de pastas inválida.")
     from output_rules import folder_parts
+
     parts = folder_parts(organization, config.get("mode"), record, info)
     if parts is not None:
         return root.joinpath(*parts)
@@ -48,26 +67,54 @@ def destination(config, record=None, info=None):
     if organization == "Catálogo":
         if record.get("platform") not in ("Spotify", "Deezer", "Apple / iTunes"):
             return root
-        provider = {"Spotify": "spotify", "Deezer": "deezer"}.get(record["platform"], "apple")
+        provider = {"Spotify": "spotify", "Deezer": "deezer"}.get(
+            record["platform"], "apple"
+        )
         return root / component(provider + "-" + record["id"])
     return root
 
 
-def publish(source, folder, policy="keep", choose=None, *, config=None, record=None, info=None, companions=None):
+def publish(
+    source,
+    folder,
+    policy="keep",
+    choose=None,
+    *,
+    config=None,
+    record=None,
+    info=None,
+    companions=None,
+):
     """Publish a file, optionally reserving matching sidecars under keep policy."""
     source, folder = Path(source), Path(folder)
     companions = {suffix: Path(path) for suffix, path in (companions or {}).items()}
-    if companions and (policy != 'keep' or any(not re.fullmatch(r'\.[A-Za-z0-9]+', suffix) or suffix.lower() == source.suffix.lower() for suffix in companions)):
-        raise ValueError('Arquivos auxiliares exigem extensões distintas e a opção Manter ambos.')
+    if companions and (
+        policy != 'keep'
+        or any(
+            not re.fullmatch(r'\.[A-Za-z0-9]+', suffix)
+            or suffix.lower() == source.suffix.lower()
+            for suffix in companions
+        )
+    ):
+        raise ValueError(
+            'Arquivos auxiliares exigem extensões distintas e a opção Manter ambos.'
+        )
     folder.mkdir(parents=True, exist_ok=True)
     from output_rules import output_filename
-    target = folder / (output_filename(source, config, record, info) if config is not None else source.name)
+
+    target = folder / (
+        output_filename(source, config, record, info)
+        if config is not None
+        else source.name
+    )
     if target.exists():
         if not target.is_file():
             raise ValueError("Já existe uma pasta com o nome do arquivo de saída.")
         if policy == "ask":
             if choose is None:
-                raise ValueError("É necessário escolher como tratar o arquivo duplicado.")
+                raise ValueError(
+                    "É necessário escolher como tratar o arquivo duplicado."
+                )
             policy = choose(target)
         if policy == "skip":
             if target.is_file():
@@ -85,7 +132,9 @@ def publish(source, folder, policy="keep", choose=None, *, config=None, record=N
                 # A failed copy must preserve both the original and the source.
                 temporary = None
                 try:
-                    with tempfile.NamedTemporaryFile(dir=folder, prefix='.onda-', suffix='.tmp', delete=False) as output:
+                    with tempfile.NamedTemporaryFile(
+                        dir=folder, prefix='.onda-', suffix='.tmp', delete=False
+                    ) as output:
                         temporary = Path(output.name)
                         with source.open('rb') as original:
                             shutil.copyfileobj(original, output)
@@ -100,7 +149,11 @@ def publish(source, folder, policy="keep", choose=None, *, config=None, record=N
     # Exclusive creation also protects against another app creating the file.
     index = 1
     while True:
-        candidate = target if index == 1 else target.with_name(f"{target.stem} ({index}){target.suffix}")
+        candidate = (
+            target
+            if index == 1
+            else target.with_name(f"{target.stem} ({index}){target.suffix}")
+        )
         try:
             output = candidate.open("xb")
         except FileExistsError:
@@ -142,27 +195,36 @@ def publish(source, folder, policy="keep", choose=None, *, config=None, record=N
 def cleanup_completed_work(staging, root):
     """Remove only a successful job's staging tree; retain other jobs' partials."""
     import stat
+
     def reparse(path):
-        details=path.lstat()
-        return stat.S_ISLNK(details.st_mode) or bool(getattr(details,'st_file_attributes',0) & 0x400)
+        details = path.lstat()
+        return stat.S_ISLNK(details.st_mode) or bool(
+            getattr(details, 'st_file_attributes', 0) & 0x400
+        )
+
     try:
-        root=Path(root).expanduser().resolve()
-        staging=Path(staging).absolute()
-        work=staging.parent
-        if work.name!='.onda-work' or not re.fullmatch(r'[0-9a-f]{20}',staging.name):
+        root = Path(root).expanduser().resolve()
+        staging = Path(staging).absolute()
+        work = staging.parent
+        if work.name != '.onda-work' or not re.fullmatch(r'[0-9a-f]{20}', staging.name):
             return False
-        if not staging.resolve().is_relative_to(root) or staging.resolve()==root:
+        if not staging.resolve().is_relative_to(root) or staging.resolve() == root:
             return False
         # Reject junctions and symlinks before any recursive deletion.
-        for parent in (staging,*staging.parents):
-            if parent.exists() and reparse(parent):return False
-            if parent==root:break
+        for parent in (staging, *staging.parents):
+            if parent.exists() and reparse(parent):
+                return False
+            if parent == root:
+                break
         if staging.exists():
-            for directory,folders,files in os.walk(staging,followlinks=False):
-                if any(reparse(Path(directory)/name) for name in folders+files):return False
+            for directory, folders, files in os.walk(staging, followlinks=False):
+                if any(reparse(Path(directory) / name) for name in folders + files):
+                    return False
             shutil.rmtree(staging)
-        try:work.rmdir()
-        except OSError:pass  # Other workers or resumable partials may still own this root.
+        try:
+            work.rmdir()
+        except OSError:
+            pass  # Other workers or resumable partials may still own this root.
         return True
-    except (OSError,ValueError,RuntimeError):
+    except (OSError, ValueError, RuntimeError):
         return False

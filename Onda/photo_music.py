@@ -1,4 +1,5 @@
 """Render a still image with the soundtrack actually supplied by its post."""
+
 import math
 import subprocess
 import tempfile
@@ -14,7 +15,11 @@ def direct_audio(url, start=0, duration=None):
         duration = float(duration) if duration is not None else None
     except (ValueError, TypeError):
         return None
-    if not math.isfinite(start) or start < 0 or (duration is not None and (not math.isfinite(duration) or duration <= 0)):
+    if (
+        not math.isfinite(start)
+        or start < 0
+        or (duration is not None and (not math.isfinite(duration) or duration <= 0))
+    ):
         return None
     return {'url': url, 'start': start, 'duration': duration}
 
@@ -29,8 +34,11 @@ def instagram_audio(product):
         start = consumption.get('audio_asset_start_time_in_ms') or 0
         end = consumption.get('audio_asset_end_time_in_ms')
         try:
-            audio = direct_audio(asset.get('progressive_download_url'), float(start) / 1000,
-                                 (float(end) - float(start)) / 1000 if end is not None else None)
+            audio = direct_audio(
+                asset.get('progressive_download_url'),
+                float(start) / 1000,
+                (float(end) - float(start)) / 1000 if end is not None else None,
+            )
         except (TypeError, ValueError):
             audio = direct_audio(asset.get('progressive_download_url'))
         if audio:
@@ -39,24 +47,41 @@ def instagram_audio(product):
 
 
 def render_photo_video(photo, audio, session, headers, config, emit):
-    if not isinstance(audio, dict) or not direct_audio(audio.get('url'), audio.get('start'), audio.get('duration')):
-        raise ValueError('A plataforma não disponibilizou a música desta foto. Escolha Só foto.')
-    with tempfile.TemporaryDirectory(prefix='.onda-photo-',dir=photo.parent) as directory:
-        return _render_photo_video(photo,audio,session,headers,config,emit,Path(directory))
+    if not isinstance(audio, dict) or not direct_audio(
+        audio.get('url'), audio.get('start'), audio.get('duration')
+    ):
+        raise ValueError(
+            'A plataforma não disponibilizou a música desta foto. Escolha Só foto.'
+        )
+    with tempfile.TemporaryDirectory(
+        prefix='.onda-photo-', dir=photo.parent
+    ) as directory:
+        return _render_photo_video(
+            photo, audio, session, headers, config, emit, Path(directory)
+        )
 
 
 def _render_photo_video(photo, audio, session, headers, config, emit, directory):
     from audio_tools import executable, process_options
+
     # Use the authenticated platform session; never pass credentials to FFmpeg.
     soundtrack = directory / 'soundtrack'
     partial = directory / photo.with_suffix('.mp4').name
     emit('stage', message='Baixando a música da foto…')
     try:
-        with session.get(audio['url'], headers=headers, stream=True, timeout=(20, 30)) as response:
+        with session.get(
+            audio['url'], headers=headers, stream=True, timeout=(20, 30)
+        ) as response:
             response.raise_for_status()
             content_type = response.headers.get('Content-Type', '').lower()
-            if 'text/' in content_type or 'json' in content_type or 'image/' in content_type:
-                raise ValueError('A plataforma não forneceu um arquivo de áudio válido para esta foto.')
+            if (
+                'text/' in content_type
+                or 'json' in content_type
+                or 'image/' in content_type
+            ):
+                raise ValueError(
+                    'A plataforma não forneceu um arquivo de áudio válido para esta foto.'
+                )
             size = 0
             with soundtrack.open('wb') as output:
                 for chunk in response.iter_content(128 * 1024):
@@ -67,22 +92,58 @@ def _render_photo_video(photo, audio, session, headers, config, emit, directory)
             if not size or (expected and size != expected):
                 raise ValueError('Transferência da música incompleta. Tente novamente.')
         emit('stage', message='Criando MP4 com a foto inteira e a música…')
-        command = [executable('ffmpeg', config.get('ffmpeg', '')), '-y', '-v', 'error',
-                   '-loop', '1', '-framerate', '30', '-i', str(photo)]
+        command = [
+            executable('ffmpeg', config.get('ffmpeg', '')),
+            '-y',
+            '-v',
+            'error',
+            '-loop',
+            '1',
+            '-framerate',
+            '30',
+            '-i',
+            str(photo),
+        ]
         if audio.get('start'):
             command += ['-ss', str(audio['start'])]
-        command += ['-i', str(soundtrack), '-map', '0:v:0', '-map', '1:a:0',
-                    '-vf', 'scale=ceil(iw/2)*2:ceil(ih/2)*2',
-                    '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-pix_fmt', 'yuv420p',
-                    '-c:a', 'aac', '-b:a', '192k', '-shortest', '-movflags', '+faststart']
+        command += [
+            '-i',
+            str(soundtrack),
+            '-map',
+            '0:v:0',
+            '-map',
+            '1:a:0',
+            '-vf',
+            'scale=ceil(iw/2)*2:ceil(ih/2)*2',
+            '-c:v',
+            'libx264',
+            '-preset',
+            'veryfast',
+            '-crf',
+            '20',
+            '-pix_fmt',
+            'yuv420p',
+            '-c:a',
+            'aac',
+            '-b:a',
+            '192k',
+            '-shortest',
+            '-movflags',
+            '+faststart',
+        ]
         if audio.get('duration'):
             command += ['-t', str(audio['duration'])]
         command.append(str(partial))
-        result = subprocess.run(command, capture_output=True, timeout=600, **process_options())
+        result = subprocess.run(
+            command, capture_output=True, timeout=600, **process_options()
+        )
         if result.returncode or not partial.is_file() or not partial.stat().st_size:
-            raise ValueError('Não foi possível criar o MP4 com esta música. Tente baixar só a foto.')
+            raise ValueError(
+                'Não foi possível criar o MP4 com esta música. Tente baixar só a foto.'
+            )
         from file_output import publish
-        final, _ = publish(partial,photo.parent,'keep')
+
+        final, _ = publish(partial, photo.parent, 'keep')
         photo.unlink()
         return Path(final)
     finally:

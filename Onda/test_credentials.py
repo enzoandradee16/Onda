@@ -23,10 +23,19 @@ class CredentialTests(unittest.TestCase):
         encrypted = self.path.read_bytes()
         self.assertNotIn(b"fake-client-for-test", encrypted)
         self.assertNotIn(b"fake-secret-for-test", encrypted)
-        self.assertEqual(CredentialStore(self.path).load(), ("fake-client-for-test", "fake-secret-for-test"))
-        script = ("from credentials import CredentialStore; import sys; "
-                  "assert CredentialStore(sys.argv[1]).load() == ('fake-client-for-test','fake-secret-for-test')")
-        subprocess.run([sys.executable, "-c", script, str(self.path)], cwd=Path(__file__).parent, check=True)
+        self.assertEqual(
+            CredentialStore(self.path).load(),
+            ("fake-client-for-test", "fake-secret-for-test"),
+        )
+        script = (
+            "from credentials import CredentialStore; import sys; "
+            "assert CredentialStore(sys.argv[1]).load() == ('fake-client-for-test','fake-secret-for-test')"
+        )
+        subprocess.run(
+            [sys.executable, "-c", script, str(self.path)],
+            cwd=Path(__file__).parent,
+            check=True,
+        )
 
     def test_replace_and_forget(self):
         self.store.save("old-id", "old-secret")
@@ -45,7 +54,9 @@ class CredentialTests(unittest.TestCase):
     def test_no_plaintext_fallback_or_partial_overwrite(self):
         self.store.save("old-id", "old-secret")
         encrypted = self.path.read_bytes()
-        with patch("credentials._crypt", side_effect=CredentialError("Protection unavailable")):
+        with patch(
+            "credentials._crypt", side_effect=CredentialError("Protection unavailable")
+        ):
             with self.assertRaises(CredentialError):
                 self.store.save("new-id", "new-secret")
         self.assertEqual(self.path.read_bytes(), encrypted)

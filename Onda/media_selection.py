@@ -1,4 +1,5 @@
 """Validated per-video output choices shared by UI and worker."""
+
 VIDEO_OUTPUTS = {
     'Vídeo · MP4': 'mp4',
     'Vídeo · MKV': 'video',
@@ -25,7 +26,11 @@ def validate_selection(value, candidates):
         raise ValueError('Seleção de mídias inválida.')
     selected = value.get('selected_ids')
     allowed = {item['id']: item for item in candidates}
-    if not isinstance(selected, list) or not selected or any(not isinstance(key, str) for key in selected):
+    if (
+        not isinstance(selected, list)
+        or not selected
+        or any(not isinstance(key, str) for key in selected)
+    ):
         raise ValueError('Selecione pelo menos uma mídia válida.')
     if len(set(selected)) != len(selected) or not set(selected).issubset(allowed):
         raise ValueError('Seleção de mídias inválida.')
