@@ -2130,5 +2130,8 @@
   "Preparar próximas músicas": "Preparar próximas canciones",
   "Quantidade de próximas músicas preparadas antecipadamente. O processamento continua uma música por vez; valores maiores usam mais memória e cache.": "Cantidad de próximas canciones preparadas con antelación. El procesamiento continúa una canción a la vez; los valores mayores usan más memoria y caché.",
   "Limite de 5.000 músicas na fila de reprodução. Remova músicas antes de adicionar outras.": "La cola de reproducción está limitada a 5.000 canciones. Elimina canciones antes de añadir más.",
-  "Limite configurado: até {cap} faixas por carregamento. Ajuste o limite de playlists nas configurações se precisar carregar mais.": "Límite configurado: hasta {cap} canciones por carga. Ajusta el límite de listas en la configuración si necesitas cargar más."
+  "Limite configurado: até {cap} faixas por carregamento. Ajuste o limite de playlists nas configurações se precisar carregar mais.": "Límite configurado: hasta {cap} canciones por carga. Ajusta el límite de listas en la configuración si necesitas cargar más.",
+  "Imagens e carrosséis": "Imágenes y carruseles",
+  "Opções de imagem": "Opciones de imagen",
+  "Arquivo de origem": "Archivo de origen"
 }

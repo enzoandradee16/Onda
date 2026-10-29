@@ -96,7 +96,7 @@ import org.json.JSONObject
             OutlinedButton(onClick={DownloadService.batch(OndaStore.context,interrupted.map {it.id})}){UiText("Retomar interrompidos")}
         }
         Box(Modifier.fillMaxWidth().padding(vertical=16.dp)) {
-            ToolTabs(listOf("Em andamento","Concluídos"),if(completed)1 else 0){completed=it==1;stateFilter="Todos";selected=emptySet()}
+            ToolTabs(listOf("Em andamento","Concluídos"),if(completed)1 else 0,compact=true){completed=it==1;stateFilter="Todos";selected=emptySet()}
         }
         if(searching)OutlinedTextField(query,{query=it},label={UiText("Buscar na fila")},singleLine=true,shape=RoundedCornerShape(16.dp),modifier=Modifier.fillMaxWidth().padding(bottom=12.dp).testTag("queue-search"),trailingIcon={IconButton(onClick={query="";searching=false}){OndaIcon("close","Limpar filtros",Modifier.size(20.dp))}})
         if(stateFilter!="Todos")TextButton(onClick={stateFilter="Todos"},modifier=Modifier.testTag("downloads-clear-filter")){UiText("${translateUi("Estado")}: ${translateUi(stateFilter)} · ${translateUi("Limpar filtros")}")}

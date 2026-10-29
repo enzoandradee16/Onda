@@ -110,4 +110,33 @@ class OnlineImageGalleryTest {
             }finally {compose.runOnIdle {store.clear()}}
         }
     }
+    @Test fun imagesPageUsesEmbeddedCarouselWithoutOpeningTheGalleryDialog() {
+        Source().use {source->
+            val store=ViewModelStore();lateinit var model:OndaViewModel
+            compose.runOnIdle {model=vm(store)}
+            val history=OndaStore.history.value.map {it.id};val queue=OndaStore.items.value.map {it.id}
+            try {
+                compose.setContent {MaterialTheme {Column {ImagesPage(model);OnlineImageGallery(model)}}}
+                compose.onNodeWithTag("images-source-link").performTextInput(source.url+"/post")
+                compose.onNodeWithTag("online-image-preview-button").assertDoesNotExist()
+                compose.onNodeWithTag("images-search").performScrollTo().performClick()
+                compose.waitUntil(15000){model.onlineImageGallery.value!=null && model.onlineImageThumbnail.value?.has("path")==true}
+                compose.runOnIdle {assertTrue(model.onlineImageEmbedded.value)}
+                compose.onNodeWithTag("images-inline-gallery").performScrollTo().assertIsDisplayed()
+                compose.onNodeWithTag("online-gallery-image").assertDoesNotExist()
+                compose.onNodeWithTag("images-inline-gallery").performTouchInput {swipeLeft()}
+                compose.waitUntil(15000){model.onlineImageIndex.value==1 && model.onlineImageThumbnail.value?.has("path")==true}
+                compose.onNodeWithText("2 / 2").assertExists()
+                compose.onNodeWithTag("images-share-link").assertExists()
+                compose.onNodeWithTag("images-download").assertExists()
+                assertEquals(history,OndaStore.history.value.map {it.id});assertEquals(queue,OndaStore.items.value.map {it.id})
+                compose.onNodeWithTag("images-options").performScrollTo().assertIsDisplayed()
+                compose.onNodeWithText("Tamanho máximo").assertExists()
+                compose.onNodeWithText("Manter proporção").assertExists()
+                compose.onNodeWithTag("images-more-actions").performScrollTo().performClick()
+                compose.onNodeWithText("Escolher arquivo").assertExists()
+            } finally {compose.runOnIdle {model.cancelOnlineImagePreview();model.closeOnlineImages();store.clear()}}
+        }
+    }
+
 }

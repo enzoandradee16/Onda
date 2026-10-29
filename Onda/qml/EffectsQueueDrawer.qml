@@ -6,8 +6,12 @@ Drawer {
     id: drawer
     property bool effects: true
     property bool recent:false
-    onRecentChanged:if(bridge.animations&&visible)tabReveal.restart();else {tabReveal.stop();queueList.opacity=1}
-    NumberAnimation {id:tabReveal;target:queueList;property:"opacity";from:0.55;to:1;duration:180;easing.type:Easing.OutCubic}
+    onRecentChanged:if(bridge.animations&&visible)tabReveal.restart();else {tabReveal.stop();queueList.opacity=1;tabSlide.x=0}
+    ParallelAnimation {
+        id:tabReveal
+        NumberAnimation {target:queueList;property:"opacity";from:0.6;to:1;duration:200;easing.type:Easing.OutCubic}
+        NumberAnimation {target:tabSlide;property:"x";from:drawer.recent?queueList.width:-queueList.width;to:0;duration:240;easing.type:Easing.OutCubic}
+    }
     property bool searchExpanded:false
     property real requestedWidth: workspace.preferences.playback_queue_width || 470
     readonly property real maximumPanelWidth: Math.min(900,parent.width*0.95)
@@ -91,7 +95,7 @@ Drawer {
         onAccepted: bridge.enqueueFiles(selectedFiles)
     }
     ColumnLayout {
-        anchors.fill: parent; anchors.margins: 16; spacing: 14
+        anchors.fill: parent; anchors.margins: 16; spacing: 14;clip:true
         RowLayout {
             Layout.fillWidth:true;spacing:4
             QueueTabs {objectName:"playbackQueueTabs";Layout.fillWidth:true;Layout.rightMargin:12;recent:drawer.recent;onSelected:function(value){drawer.recent=value}}
@@ -124,6 +128,7 @@ Drawer {
         }
         ListView {
             id:queueList
+            transform:Translate {id:tabSlide;objectName:"queueTabSlide"}
             property var activeDrag:null
             objectName:"playbackQueueList"
             Layout.fillWidth:true;Layout.fillHeight:true;clip:true;spacing:4;model:drawer.tracks

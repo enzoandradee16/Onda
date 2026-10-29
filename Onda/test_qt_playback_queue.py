@@ -38,15 +38,18 @@ class PlaybackQueueDrawerTests(unittest.TestCase):
         self.settle()
     def test_both_drawers_open_close_without_changing_tab_or_other_queue(self):
         self.seed()
-        for effects in (True,False):
-            key='effectsQueueOpen' if effects else 'jukeboxQueueOpen'
-            drawer=self.drawer(effects)
+        # Both playback modes now share one drawer, accessible from any page.
+        self.assertIsNone(self.drawer(True))
+        for page in ('search','images','jukebox'):
+            self.ws.selectPage(page);self.settle()
+            key='jukeboxQueueOpen'
+            drawer=self.drawer(False)
             self.assertIsNotNone(drawer)
             original=self.ws.currentPage
             self.ws.setOption(key,True);self.settle()
             self.assertTrue(drawer.property('visible'))
             self.assertEqual(self.ws.currentPage,original)
-            self.assertEqual(len(drawer.property('tracks')),3)
+            self.assertEqual([row['id'] for row in drawer.property('tracks')],['1','2'])
             from PySide6.QtCore import QMetaObject
             QMetaObject.invokeMethod(drawer,'close');self.settle()
             self.assertFalse(self.ws.values[key])
@@ -54,35 +57,27 @@ class PlaybackQueueDrawerTests(unittest.TestCase):
         self.assertEqual(len(self.ws.values['effectsQueue']),3)
     def test_reordering_and_removing_preserve_active_identity_and_isolation(self):
         self.seed()
-        for effects in (True,False):
-            drawer=self.drawer(effects)
-            self.call(drawer,'move',1,-1)
-            self.call(drawer,'remove',2)
-            if effects:
-                self.assertEqual(self.ws.values['effectsQueueIndex'],0)
-                self.assertEqual(self.ws.values['effectsQueue'][0]['source'],'1.wav')
-                self.assertEqual(len(self.bridge.playlist),3)
-            else:
-                self.assertEqual(self.bridge.queue_index,0)
-                self.assertEqual(self.bridge.playlist[0]['id'],'1')
-                self.assertEqual(len(self.ws.values['effectsQueue']),2)
+        self.bridge.moveQueued(1,-1);self.settle()
+        self.call(self.drawer(False),'remove',1)
+        self.assertEqual(self.bridge.queue_index,0)
+        self.assertEqual([row['id'] for row in self.bridge.playlist],['1','2'])
+        self.assertEqual(self.ws.values['effectsQueueIndex'],1)
+        self.assertEqual(len(self.ws.values['effectsQueue']),3)
     def test_play_routes_to_corresponding_transport(self):
         self.seed()
         with patch.object(self.ws,'play_effects_entry') as effects,patch.object(self.bridge,'playQueued') as jukebox:
-            self.call(self.drawer(True),'play',2)
-            effects.assert_called_once_with(2);jukebox.assert_not_called()
             self.call(self.drawer(False),'play',1)
-            jukebox.assert_called_once_with(1)
+            jukebox.assert_called_once_with(2);effects.assert_not_called()
     def test_clear_only_affects_selected_drawer(self):
         self.seed()
         from PySide6.QtCore import QObject,QMetaObject
-        for effects in (True,False):
-            button=self.drawer(effects).findChild(QObject,'clearPlaybackQueue')
-            self.assertTrue(button.property('enabled'))
-            self.assertTrue(QMetaObject.invokeMethod(button,'clicked'));self.settle()
-            self.assertFalse(button.property('enabled'))
-            self.assertEqual(len(self.bridge.playlist),3 if effects else 0)
-            self.assertEqual(len(self.ws.values['effectsQueue']),0)
+        button=self.drawer(False).findChild(QObject,'clearPlaybackQueue')
+        self.assertTrue(button.property('enabled'))
+        self.assertTrue(QMetaObject.invokeMethod(button,'triggered'));self.settle()
+        self.assertEqual(len(self.bridge.playlist),0)
+        self.assertEqual(self.bridge.queue_index,-1)
+        self.assertEqual(len(self.drawer(False).property('tracks')),0)
+        self.assertEqual(len(self.ws.values['effectsQueue']),3)
 
     def test_repeat_does_not_change_other_transport(self):
         self.seed()
@@ -98,15 +93,14 @@ class PlaybackQueueDrawerTests(unittest.TestCase):
 
     def test_shuffle_is_an_icon_in_each_bar_and_keeps_queues_independent(self):
         from PySide6.QtCore import QObject,QMetaObject
-        fx=self.window.findChild(QObject,'effectsShuffleButton');juke=self.window.findChild(QObject,'jukeboxShuffleButton')
-        for button in (fx,juke):
-            self.assertIsNotNone(button);self.assertEqual(button.property('text'),'');self.assertEqual(button.property('glyph'),'shuffle')
-        self.assertTrue(QMetaObject.invokeMethod(fx,'clicked'));self.settle()
-        self.assertTrue(self.ws.options['effectsShuffle']);self.assertFalse(self.bridge.queueShuffle)
-        self.assertTrue(QMetaObject.invokeMethod(juke,'clicked'));self.settle()
+        buttons=[item for item in self.window.findChildren(QObject) if item.property('glyph')=='shuffle']
+        self.assertTrue(buttons)
+        button=buttons[0];self.assertEqual(button.property('text'),'')
+        self.assertTrue(QMetaObject.invokeMethod(button,'clicked'));self.settle()
         self.assertTrue(self.bridge.queueShuffle)
-        self.assertTrue(QMetaObject.invokeMethod(fx,'clicked'));self.settle()
-        self.assertFalse(self.ws.options['effectsShuffle']);self.assertTrue(self.bridge.queueShuffle)
+        self.assertFalse(self.ws.options['effectsShuffle'])
+        self.assertTrue(QMetaObject.invokeMethod(button,'clicked'));self.settle()
+        self.assertFalse(self.bridge.queueShuffle)
 
     def test_session_restores_jukebox_identity_position_and_settings_without_playing(self):
         from playback_session import save,restore
@@ -123,6 +117,27 @@ class PlaybackQueueDrawerTests(unittest.TestCase):
         self.assertEqual(self.bridge.queue_index,0);self.assertEqual(self.bridge.playlist[0]['id'],'current')
         self.assertEqual(self.bridge.position,1);self.assertAlmostEqual(self.bridge.phase,.4)
         self.assertFalse(self.bridge.state['playing']);self.assertEqual(self.bridge._params,(30.,20.,75.,True))
+
+    def test_session_keeps_resume_seconds_when_prepared_cache_is_missing(self):
+        from playback_session import save,restore
+        source=Path(self.temp.name)/'resume.wav';source.write_bytes(b'fixture')
+        cache=Path(self.temp.name)/'missing-cache'
+        model=dict(cache=str(cache),title='Resume',source=str(source),beats=[0,10,20,30],neighbors=[[1],[2],[0]],duration=30,links=3)
+        self.bridge.playlist=[dict(id='resume',kind='file',source=str(source),title='Resume')]
+        self.bridge.queue_index=0;self.bridge.model=model;self.bridge._position=1.5;self.bridge._phase=.5
+        save(self.ws)
+        self.bridge.model=None;self.bridge.playlist=[];self.bridge.queue_index=-1
+        with patch.object(self.bridge,'playPause') as play:
+            restore(self.ws);play.assert_not_called()
+        self.assertEqual(self.bridge.playlist[0]['restore_seconds'],15)
+        self.assertFalse(self.bridge.state['playing'])
+        save(self.ws);self.bridge.playlist=[];restore(self.ws)
+        self.assertEqual(self.bridge.playlist[0]['restore_seconds'],15)
+        cache.mkdir();(cache/'analysis.json').write_text('{}')
+        with patch.object(self.bridge,'playPause') as play,patch.object(self.bridge,'prepare_next_queued'):
+            self.bridge.activate_queued(0,model);play.assert_called_once()
+        self.assertEqual(self.bridge.sourcePosition,15)
+        self.assertNotIn('restore_seconds',self.bridge.playlist[0])
 
     def test_image_gallery_remains_complete_under_history_search_filter(self):
         for name in ['first.png','second.png']:self.ws.library.add_history(Path(self.temp.name)/name,'png','https://example.com/post')

@@ -17,25 +17,24 @@ import org.json.JSONObject
     val presets=remember {linkedMapOf("Original" to (100 to 0),"Slowed leve" to (90 to 0),"Slowed intenso" to (75 to 0),"Sped Up leve" to (115 to 0),"Sped Up intenso" to (130 to 0),"Sped Up + Reverb" to (120 to 25),"Só Reverb" to (100 to 30),"Clássico" to (85 to 25),"Atmosférico" to (75 to 50))}
     val preset=presets.entries.firstOrNull {it.value.first==effects.optInt("speed",85)&&it.value.second==effects.optInt("reverb",25)}?.key ?: "Personalizado"
     var export by rememberSaveable {mutableStateOf(false)}
-    var more by rememberSaveable {mutableStateOf(false)}
     var format by rememberSaveable {mutableStateOf("MP3")}
-    ToolCard(Modifier.testTag("unified-effects-card")) {
-        Row(Modifier.fillMaxWidth(),verticalAlignment=androidx.compose.ui.Alignment.CenterVertically) {
-            Box(Modifier.weight(1f)){Toggle("Efeitos",effects.optBoolean("enabled")){controller.setEffects("enabled",it)}}
-            IconButton(onClick={more=true}){OndaIcon("more-vertical","Mais ações",Modifier.size(22.dp))}
+    PlaybackCard(Modifier.testTag("unified-effects-card")) {
+        PlaybackSectionToggle("Efeitos",effects.optBoolean("enabled")){controller.setEffects("enabled",it)}
+        Row(Modifier.fillMaxWidth(),verticalAlignment=androidx.compose.ui.Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+            UiText("Preset",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+            Box(Modifier.weight(1f).testTag("unified-effects-preset")) {
+                Select("",preset,presets.keys.toList()){name->val pair=presets.getValue(name);controller.setEffects("speed",pair.first);controller.setEffects("reverb",pair.second)}
+            }
         }
-        UiText("Velocidade · ${effects.optInt("speed",85)}%",style=MaterialTheme.typography.labelLarge)
-        RoundSlider(effects.optInt("speed",85).toFloat(),{controller.setEffects("speed",it.toInt())},valueRange=50f..150f,slim=true,modifier=Modifier.fillMaxWidth().testTag("unified-effects-speed").a11yLabel("Velocidade da música","${effects.optInt("speed",85)}%"))
-        UiText("Reverb · ${effects.optInt("reverb",25)}%",style=MaterialTheme.typography.labelLarge)
-        RoundSlider(effects.optInt("reverb",25).toFloat(),{controller.setEffects("reverb",it.toInt())},valueRange=0f..100f,slim=true,modifier=Modifier.fillMaxWidth().testTag("unified-effects-reverb").a11yLabel("Intensidade do reverb","${effects.optInt("reverb",25)}%"))
-        if(state.effectsPending)UiText("Preparando efeitos; a reprodução atual continua.",style=MaterialTheme.typography.bodySmall)
-        if(state.effectsError.isNotBlank())Text(uiExceptionMessage(IllegalStateException(state.effectsError),"Não foi possível preparar os efeitos desta música."),style=MaterialTheme.typography.bodySmall)
-    }
-    if(more)AlertDialog(onDismissRequest={more=false},title={UiText("Efeitos")},text={Column {
-        Select("Preset",preset,presets.keys.toList()){name->val pair=presets.getValue(name);controller.setEffects("speed",pair.first);controller.setEffects("reverb",pair.second)}
+        PlaybackAdjustment("Velocidade · ${effects.optInt("speed",85)}%",effects.optInt("speed",85).toFloat(),50f..150f,"unified-effects-speed"){controller.setEffects("speed",it.toInt())}
+        PlaybackAdjustment("Reverb · ${effects.optInt("reverb",25)}%",effects.optInt("reverb",25).toFloat(),0f..100f,"unified-effects-reverb"){controller.setEffects("reverb",it.toInt())}
         Toggle("Manter tom",effects.optBoolean("keep_pitch")){controller.setEffects("keep_pitch",it)}
-        TextButton(onClick={more=false;export=true},enabled=state.model!=null){UiText("Exportar música")}
-    }},confirmButton={TextButton(onClick={more=false}){UiText("Pronto")}})
+        OutlinedButton(onClick={export=true},enabled=state.model!=null,modifier=Modifier.fillMaxWidth().testTag("unified-effects-export"),shape=androidx.compose.foundation.shape.RoundedCornerShape(12.dp)) {
+            OndaIcon("share",modifier=Modifier.size(18.dp));Spacer(Modifier.width(8.dp));UiText("Exportar música")
+        }
+        if(state.effectsPending)LinearProgressIndicator(Modifier.fillMaxWidth().testTag("unified-effects-progress"))
+        if(state.effectsError.isNotBlank())Text(uiExceptionMessage(IllegalStateException(state.effectsError),"Não foi possível preparar os efeitos desta música."),color=MaterialTheme.colorScheme.error,style=MaterialTheme.typography.bodySmall)
+    }
     if(export)AlertDialog(onDismissRequest={export=false},title={UiText("Exportar música")},text={
         Select("Salvar como",format,listOf("MP3","M4A","FLAC","WAV")){format=it}
     },confirmButton={TextButton(onClick={

@@ -1,34 +1,33 @@
 # Validação local — ONDA 1.2.4
 
-Data: 28/10/2026. Versões: Windows 1.2.4.0; Android 1.2.4, código 31.
+Data: 29/10/2026. Windows 1.2.4.0; Android 1.2.4, código 31.
 
-## Auditoria e correções
-
-- Corrigido o volume do miniplayer: o gesto agora atualiza os parâmetros do áudio, além do slider.
-- Finalizações de preparação pertencentes a uma operação antiga são ignoradas. Cancelamentos válidos voltam a faixa ao estado pendente e liberam a preparação seguinte.
-- Falhas temporárias na obtenção de capas não ficam memorizadas no cache de fundos; uma capa inválida não mantém o fundo do álbum anterior.
-- Duplo clique restrito às músicas das filas de reprodução, preservando a interação dos demais componentes de arraste.
-- Removido o componente EffectsMiniPlayer.qml e seus caminhos obsoletos; mantido o miniplayer unificado.
-- Removidos imports duplicados, imports sem uso e variáveis descartadas. Importações de diagnóstico continuam verificando a disponibilidade das dependências.
-- Não foram removidos os motores de áudio, a interface legada e os utilitários de empacotamento necessários à compatibilidade e aos testes.
-
-## Testes executados
+## Resultados da revisão final
 
 | Grupo | Resultado |
 | --- | --- |
-| Descoberta completa dos testes Python | 1.151 encontrados; 727 executados sem falhas; 424 condicionais ignorados |
-| Reprodução, letras, restauração e transições Qt | 70 testes aprovados |
-| Interface Qt em janela Windows, miniplayer, filas e navegação | 47 testes aprovados |
-| Android JVM | 87 testes aprovados, sem falhas |
-| Android debug e APK de instrumentação | Compilação concluída |
-| Análise estática Python de produção | Sem nomes indefinidos ou imports sem uso identificados pelo Pyflakes |
+| Descoberta completa Python | 1.154 encontrados; 728 executados sem falhas; 426 condicionais ignorados |
+| Reprodução, filas, restauração, áudio e interface Qt | 45 testes aprovados em janela Windows |
+| Android JVM | 87 testes aprovados |
+| Código dos testes de interface Android | Compilação x86_64 concluída |
+| Portátil | Autoverificação de inicialização aprovada |
 
-Os grupos possuem cobertura sobreposta; seus totais não devem ser somados como testes únicos. Os testes condicionais incluem interfaces opcionais e integrações externas. As capturas do Swirl foram verificadas com a plataforma Windows: a captura offscreen não reproduziu a animação.
+Os grupos possuem cobertura sobreposta e não devem ser somados como testes únicos. A suíte Qt confere abertura e fechamento da fila sem navegar, identidade da faixa após reorganização, acionamento da reprodução, limpeza da fila, shuffle, restauração silenciosa, precisão dentro da batida e animações de conteúdo e indicador. Os testes do modelo antigo de filas separadas foram preservados e adaptados à fila unificada.
 
-## Pacotes e limites
+## Alterações verificadas
 
-Os APKs ARM64 e x86_64 são conferidos quanto à versão, arquitetura, assinatura original, alinhamento de 16 KB, ferramentas nativas e licenças. O portátil, instalador e desinstalador Windows passam pelos respectivos autotestes. Manifestos e hashes acompanham os sete pacotes.
+- Restauração da posição em segundos e da fase da música; a sessão permanece pausada ao reabrir. A posição é preservada quando o cache precisa ser preparado novamente.
+- Encerramento do serviço Android preserva a posição, sem confundir o fechamento do aplicativo com o comando explícito Parar.
+- Reprodução Android reorganizada, fila independente da página de origem, player expandido com fila inferior e gesto de remoção de cards.
+- Animações de abertura da fila e troca entre Fila e Tocado recentemente; as abas mantêm estados de rolagem separados no Android.
+- Imagens e carrosséis com prévia integrada; no PC, imagem centralizada. Conversão real preserva o original.
+- Conversor Android organizado em cards, sem Prévia do original nas duas versões. Opções de imagem visíveis, com Formato e Tamanho máximo juntos.
+- Fontes Modern e Legacy ajustadas no Android, sem mudar a seleção do PC. Letras com duração em minutos e segundos.
 
-O emulador não estava acessível por ADB nesta rodada; testes de instrumentação não foram executados. Não houve validação em celular físico. O executável Windows não possui assinatura Authenticode.
+## Pacotes e limites da validação
 
-Preparação para rascunho da release no GitHub, sem publicação. Os manifestos registram o commit e os hashes dos fontes utilizados; os APKs preparados anteriormente foram conferidos contra os mesmos fontes Android e compartilhados antes de associá-los ao commit final. Chaves de assinatura, credenciais, cookies, perfis pessoais e o ambiente Testes não integram os pacotes.
+Os dois APKs de produção são conferidos quanto à versão, arquitetura, assinatura original, alinhamento de 16 KB, ferramentas nativas e licenças. Portátil, instalador e desinstalador Windows passam pelos respectivos autotestes. Os manifestos identificam o commit e os hashes dos fontes e pacotes.
+
+Não há dispositivo conectado ao ADB na revisão final: os testes de interface Android foram compilados, mas não executados nesta rodada. Não houve validação em celular físico. Os testes Python usam serviços simulados ou servidores locais; não constituem nova verificação de todos os serviços externos de download. Os executáveis Windows não possuem assinatura Authenticode.
+
+Preparado para rascunho no GitHub, sem publicação. Chaves, credenciais, cookies, perfis pessoais e o ambiente Testes ficam fora dos arquivos distribuídos.

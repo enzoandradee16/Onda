@@ -176,9 +176,9 @@ import androidx.compose.ui.text.input.ImeAction
     OutlinedTextField(query,{query=it},label={UiText(PLAYBACK_INPUT_HINT)},singleLine=true,keyboardOptions=KeyboardOptions(imeAction=ImeAction.Search),keyboardActions=KeyboardActions(onSearch={search()}),trailingIcon={if(query.isNotEmpty()||results.isNotEmpty()||searching)IconButton(onClick={job?.cancel();MobileEngine.cancel(id);results=emptyList();query="";message="";searching=false},modifier=Modifier.testTag("close-playback-queue-search")){OndaIcon("close","Fechar pesquisa",Modifier.size(22.dp))}},modifier=Modifier.fillMaxWidth().testTag("playback-queue-search"))
     TextButton(onClick=::search,enabled=searching||(!jukeboxTarget&&loading)||query.isNotBlank()){UiText(if(searching||(!jukeboxTarget&&loading))"Cancelar" else "Pesquisar")}
     if(message.isNotBlank())UiText(message,style=MaterialTheme.typography.bodySmall)
-    if(results.isNotEmpty())LazyColumn(Modifier.fillMaxWidth().heightIn(max=230.dp)) {
+    if(results.isNotEmpty())LazyColumn(Modifier.fillMaxWidth().heightIn(max=230.dp),verticalArrangement=Arrangement.spacedBy(10.dp),contentPadding=PaddingValues(vertical=6.dp)) {
         itemsIndexed(results) {_,record->
-            OutlinedButton(onClick={vm.addPlaybackCollection(listOf(record),jukeboxTarget);results=results.filter {it!==record}},enabled=jukeboxTarget||!loading,modifier=Modifier.fillMaxWidth()) {
+            OutlinedButton(onClick={vm.addPlaybackCollection(listOf(record),jukeboxTarget);results=results.filter {it!==record}},enabled=jukeboxTarget||!loading,modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(12.dp),contentPadding=PaddingValues(12.dp),border=androidx.compose.foundation.BorderStroke(1.dp,MaterialTheme.colorScheme.outlineVariant),colors=ButtonDefaults.outlinedButtonColors(containerColor=MaterialTheme.colorScheme.surfaceContainerLow)) {
                 Column(Modifier.weight(1f)){SearchTrackInformation(record,vm)}
                 OndaIcon("add","Adicionar à fila",Modifier.size(22.dp))
             }

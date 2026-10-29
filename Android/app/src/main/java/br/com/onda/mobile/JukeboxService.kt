@@ -112,11 +112,11 @@ class JukeboxService:Service() {
         when(intent?.action){"play"->if(controller.state.value.paused)controller.playPause();"pause"->controller.pause();"stop"->controller.stop()}
         return START_NOT_STICKY
     }
-    override fun onTaskRemoved(rootIntent:Intent?) {controller.stop();stopSelf()}
+    override fun onTaskRemoved(rootIntent:Intent?) {controller.stopPreservingPosition();stopSelf()}
     override fun onDestroy() {
         // A stop from the previous song may finish after the next one has started.
         val restart=selfStopped && controller.state.value.playing
-        if(!selfStopped)controller.stop()
+        if(!selfStopped)controller.stopPreservingPosition()
         scope.cancel();if(wake.isHeld)wake.release();session.isActive=false;session.release();stopForeground(STOP_FOREGROUND_REMOVE);super.onDestroy()
         if(restart)androidx.core.content.ContextCompat.startForegroundService(applicationContext,Intent(applicationContext,JukeboxService::class.java))
     }

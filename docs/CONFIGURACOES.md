@@ -45,7 +45,7 @@ Essa opção controla também a aurora com as cores da capa, o halo ao redor da 
 
 **Mostrar bordas e separações no Preto puro** aparece também na janela rápida de Aparência quando esse tema está selecionado. Desativado, os cards de Reprodução e suas filas usam fundo preto sem contornos. Nas filas, uma barra sobre a capa mostra a preparação da música, sem texto ou porcentagem escrita, e desaparece quando ela está pronta.
 
-Em **Fonte da interface**, o padrão **ONDA Modern** usa Inter incluída no pacote e funciona offline. Os títulos das músicas usam semibold e os títulos de seção, bold. **ONDA Legacy** mantém a família anterior (Segoe UI no PC e a fonte padrão do Android). Outras escolhas personalizadas continuam disponíveis.
+Em **Fonte da interface**, **ONDA Modern** é o padrão. No PC, essa opção usa Inter incluída no pacote, com títulos das músicas em semibold e seções em bold; **ONDA Legacy** usa Segoe UI. No Android, **ONDA Modern** usa a fonte padrão do sistema, antes chamada Legacy, e **ONDA Legacy** mantém Inter com seus pesos anteriores. As duas opções funcionam offline. Outras escolhas personalizadas continuam disponíveis.
 
 Português (Brasil), Español e English ficam em Geral. Android aplica a mudança imediatamente; no PC, reinicie pelo controle oferecido quando houver mudança pendente. O idioma do instalador é independente do idioma salvo no aplicativo.
 

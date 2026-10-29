@@ -12,8 +12,8 @@ Popup {
     property var images: workspace.values.imageGallery || []
     property int index: workspace.values.imageGalleryIndex || 0
     property var current: images[index] || ({})
-    visible: images.length>0
-    onClosed: workspace.invoke("image_gallery_close",{})
+    visible: images.length>0 && !workspace.values.imageGalleryEmbedded
+    onClosed: if(!workspace.values.imageGalleryEmbedded)workspace.invoke("image_gallery_close",{})
     readonly property bool online: !!workspace.values.imageGalleryToken
     function navigate(delta) {
         var target=index+delta

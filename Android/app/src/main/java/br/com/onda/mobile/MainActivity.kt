@@ -54,7 +54,7 @@ class MainActivity : ComponentActivity() {
         receive(intent)
         setContent { OndaApp(model) }
     }
-    override fun onStop() {model.savePlaybackSession();model.jukebox.savePlaybackSession();super.onStop()}
+    override fun onStop() {model.savePlaybackSession();model.jukebox.savePlaybackSession(synchronous=true);super.onStop()}
     override fun onResume() {super.onResume();model.restartReturned()}
     override fun onNewIntent(intent: Intent) { super.onNewIntent(intent); setIntent(intent); receive(intent) }
     // Public Activity override; AndroidX's bridge carries an internal annotation.
@@ -117,12 +117,14 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
     var tab by rememberSaveable { mutableStateOf(homeTab) }
     LaunchedEffect(tab,tabs.toString()) {if(tab!="Mais" && (0 until tabs.length()).none {tabs.getString(it)==tab}) tab=homeTab}
     val queueRequested by vm.queueNavigation.collectAsStateWithLifecycle()
-    LaunchedEffect(queueRequested) {if(queueRequested) {tab="Fila";vm.queueNavigation.value=false}}
+    LaunchedEffect(queueRequested) {if(queueRequested) {vm.playbackQueueOpen.value=false;tab="Fila";vm.queueNavigation.value=false}}
     val effectsRequested by vm.effectsNavigation.collectAsStateWithLifecycle()
+    val playbackQueueOpen by vm.playbackQueueOpen.collectAsStateWithLifecycle()
     var metadataUri by rememberSaveable {mutableStateOf<String?>(null)}
     var showSettings by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(playbackQueueOpen){if(playbackQueueOpen)showSettings=false}
     var showAppearance by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(effectsRequested) {if(effectsRequested){tab="Efeitos";showSettings=false;vm.effectsNavigation.value=false}}
+    LaunchedEffect(effectsRequested) {if(effectsRequested){vm.playbackQueueOpen.value=false;tab="Efeitos";showSettings=false;vm.effectsNavigation.value=false}}
     var settingsCategory by rememberSaveable { mutableStateOf("Geral") }
     var youtubeSession by rememberSaveable {mutableStateOf(false)}
     var showLicenses by rememberSaveable {mutableStateOf(false)}
@@ -131,8 +133,8 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
     val preferences=OndaStore.context.getSharedPreferences("preferences",0)
     var welcome by remember { mutableStateOf(!preferences.getBoolean("welcome_seen",false)) }
     val permission=rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
-    BackHandler(enabled=(showLinks || tab!=homeTab) && !showSettings && !showAppearance && !youtubeSession && !showLicenses && !welcome && question==null && notice==null) {
-        if(showLinks)showLinks=false else tab=if(tab in listOf("Imagens","Conversor de vídeos","Playlists / Álbuns","Histórico","Metadados")) "Mais" else homeTab
+    BackHandler(enabled=(showLinks || playbackQueueOpen || tab!=homeTab) && !showSettings && !showAppearance && !youtubeSession && !showLicenses && !welcome && question==null && notice==null) {
+        if(showLinks)showLinks=false else if(playbackQueueOpen)vm.playbackQueueOpen.value=false else tab=if(tab in listOf("Imagens","Conversor de vídeos","Playlists / Álbuns","Histórico","Metadados")) "Mais" else homeTab
     }
     LaunchedEffect(Unit) { if(Build.VERSION.SDK_INT>=33) permission.launch(Manifest.permission.POST_NOTIFICATIONS) }
     LaunchedEffect(shared) { if(shared.isNotBlank()) {tab="Fila";showLinks=true} }
@@ -144,12 +146,12 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
     val typography=remember(settings.optString("interface_font"),settings.optString("interface_font_size")) {interfaceTypography(settings.optString("interface_font",DEFAULT_INTERFACE_FONT),settings.optString("interface_font_size","100%"))}
     LocalizedTheme(language=settings.optString("language","pt-BR"),colorScheme=scheme,typography=typography,spacing=settings.optString("interface_spacing","Padrão")) {
         Scaffold(
-            topBar={OndaAppBar(onAppearance={showAppearance=true},onSettings={settingsCategory="Geral";showSettings=true})},
+            topBar={OndaAppBar(onAppearance={showAppearance=true},onSettings={vm.playbackQueueOpen.value=false;settingsCategory="Geral";showSettings=true})},
             bottomBar={Column {
-                AndroidPlaybackSurface(vm)
-                OndaBottomNavigation(if(showSettings)"Mais" else tab,tabs) {destination->showSettings=false;tab=destination}
+                AndroidPlaybackSurface(vm,queueIsVisible=!showSettings && playbackQueueOpen)
+                OndaBottomNavigation(if(showSettings)"Mais" else tab,tabs) {destination->showSettings=false;vm.playbackQueueOpen.value=false;tab=destination}
             }},
-            floatingActionButton={if(!showSettings && (tab=="Fila" || tab=="Links e fila"))FloatingActionButton(onClick={showLinks=true},containerColor=MaterialTheme.colorScheme.primary,shape=RoundedCornerShape(50)) {OndaIcon("add","Adicionar links",Modifier.size(24.dp))}}
+            floatingActionButton={if(!showSettings && !playbackQueueOpen && (tab=="Fila" || tab=="Links e fila"))FloatingActionButton(onClick={showLinks=true},containerColor=MaterialTheme.colorScheme.primary,shape=RoundedCornerShape(50)) {OndaIcon("add","Adicionar links",Modifier.size(24.dp))}}
         ) { padding ->
             Column(Modifier.fillMaxSize().padding(padding)) {
                 if(busy && !tools.running) LinearProgressIndicator(Modifier.fillMaxWidth())
@@ -162,18 +164,22 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
                     } else LinearProgressIndicator(Modifier.fillMaxWidth())
                 }
                 TopStatusNotice(status,statusVisible && !(busy && status.trim().startsWith("Preparando",ignoreCase=true)),busy,settings.optBoolean("notice_animation",true),onCancel={vm.cancel()},onDismiss={statusVisible=false},cancellable=!tools.running && (showSettings || tab !in listOf("Pesquisar","Efeitos","Playlists / Álbuns")),onOpenSettings={category->if(category=="Sessão do YouTube")youtubeSession=true else {settingsCategory=category;showSettings=true}})
-                if(showSettings)Box(Modifier.weight(1f).fillMaxWidth()){SettingsWindow(vm,initialCategory=settingsCategory){showSettings=false}} else SwipePageHost(current=tab,pages=mainDestinations(tabs,bottomBarOrder(settings)),onNavigate={tab=it},modifier=Modifier.weight(1f).fillMaxWidth()) {
+                if(showSettings)Box(Modifier.weight(1f).fillMaxWidth()){SettingsWindow(vm,initialCategory=settingsCategory){showSettings=false}} else Box(Modifier.weight(1f).fillMaxWidth()) {
+                    PlaybackQueueTransition(vm,pages,playbackQueueOpen,settings.optBoolean("qt_animations",true)) {
+                    SwipePageHost(current=tab,pages=mainDestinations(tabs,bottomBarOrder(settings)),onNavigate={tab=it},modifier=Modifier.fillMaxSize()) {
                     pages.SaveableStateProvider(tab) {when(tab) {
                         "Pesquisar"->SearchPage(vm,onConnectSpotify={settingsCategory="Contas";showSettings=true})
                         "Links e fila","Fila"->DownloadsHome(vm)
                         "Mais"->MorePage(tabs,tabGroupOrder(settings),onNavigate={tab=it},onYouTube={youtubeSession=true},onLicenses={showLicenses=true},onFailures={OndaStore.failureSummary.value=OndaStore.items.value.filter {it.state=="Erro"}.map {it.id}.takeIf {it.isNotEmpty()}})
+                        "Efeitos"->PlaybackPage(vm)
                         "Imagens"->ImagesPage(vm)
                         "Playlists / Álbuns"->CollectionsPage(vm)
                         "Histórico"->HistoryPage(vm,onEditMetadata={metadataUri=it.uri;tab="Metadados"})
-                        "Efeitos"->PlaybackPage(vm)
                         "Metadados"->MetadataPage(vm,metadataUri){metadataUri=null}
                         "Conversor de vídeos"->VideoConverterPage(vm)
                     }}
+                    }
+                    }
                 }
             }
         }

@@ -118,7 +118,8 @@ def fetch_lyrics(source,record=None,cancel=None,session=None,alternatives=False)
             timed,word_sync=timed_record(row)
             plain=row.get('plainLyrics') or ''
             if row.get('instrumental') or not (timed or plain):continue
-            candidates.append(dict(id=str(row['id']),source_url=str(row['id']),title=str(row.get('trackName') or title)+' · '+str(row.get('artistName') or artist)+' · '+str(row.get('albumName') or '')+' · '+str(round(row.get('duration') or 0))+' s',lines=timed or [(0,plain)],synced=bool(timed),word_synced=word_sync,provider='Letras online'))
+            minutes,seconds=divmod(max(0,round(row.get('duration') or 0)),60)
+            candidates.append(dict(id=str(row['id']),source_url=str(row['id']),title=str(row.get('trackName') or title)+' · '+str(row.get('artistName') or artist)+' · '+str(row.get('albumName') or '')+f' · {minutes}:{seconds:02d}',lines=timed or [(0,plain)],synced=bool(timed),word_synced=word_sync,provider='Letras online'))
         return {'candidates':candidates}
     if result.get('instrumental'):raise ValueError('Esta gravação foi identificada como instrumental.')
     rows,word_sync=timed_record(result)

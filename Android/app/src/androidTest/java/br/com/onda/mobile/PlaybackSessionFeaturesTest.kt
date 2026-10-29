@@ -52,6 +52,16 @@ class PlaybackSessionFeaturesTest {
                 assertFalse(vm.effectsPreviewEnabled.value);assertFalse(vm.player.isPlaying)
                 assertTrue(vm.effectsShuffle.value)
                 store.clear();controller.close()
+                val saved=PlaybackSessions.load(context,"jukebox")!!
+                assertEquals(1.5,saved.getDouble("seconds"),0.0)
+                assertFalse(saved.optBoolean("playing"))
+                File(folder,"analysis.json").delete()
+                val restored=JukeboxController(context,scope,{}, {_,_,_->calls++;JSONObject()})
+                assertEquals(1.5,restored.playbackQueue.value.first().getDouble("_restore_seconds"),0.0)
+                assertFalse(restored.state.value.playing)
+                restored.savePlaybackSession(synchronous=true)
+                assertEquals(1.5,PlaybackSessions.load(context,"jukebox")!!.getDouble("seconds"),0.0)
+                assertEquals(0,calls);restored.close()
             }
         } finally {
             scope.cancel()

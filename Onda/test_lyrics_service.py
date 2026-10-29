@@ -28,6 +28,8 @@ class LyricsServiceTests(unittest.TestCase):
         self.assertEqual(len(result['candidates']),2)
         self.assertTrue(result['candidates'][0]['synced'])
         self.assertFalse(result['candidates'][1]['synced'])
+        self.assertTrue(result['candidates'][0]['title'].endswith(' · 2:00'))
+        self.assertTrue(result['candidates'][1]['title'].endswith(' · 2:05'))
         self.assertIn('/search',session.get.call_args.args[0])
 
     def test_lyricsfile_word_timing_preserves_spaces_and_precision(self):

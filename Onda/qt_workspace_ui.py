@@ -42,7 +42,7 @@ class DesktopWorkspace(QObject):
         self.memory_waiting=False;self.queue_scope=None;self.queue_attempted=set();self.restore_state=Qt.WindowState.WindowNoState
         self.lyrics=[];self.last_preview_processed=True;self.preview_kind='';self.preview_source=''
         self.preview_timer=QTimer(self);self.preview_timer.setSingleShot(True);self.preview_timer.setInterval(150);self.preview_timer.timeout.connect(self.play_effects_preview)
-        self.options={'effectsRepeat':'Desativada','effectsShuffle':False,'effectsStopMinutes':0,'effectsStopRemaining':0,'effectsTrackMinutes':0,'effectsSwitchRemaining':0,'effectsQueue':[],'effectsQueueIndex':-1,'effectsPaused':False,'effectsVolume':80,'effectsQuery':'','effectsResults':[],'effectsOnlineRecord':{},'previewActive':False,'previewKind':'','previewSource':'','previewProcessed':False,'metadataFields':{},'lyricText':'','effectLyricsName':'','query':'','provider':self.settings.get('catalog_provider','Deezer'),'links':'','linksNotice':'','playlistUrl':'','playlistTitle':'','queueQuery':'','queueState':'Todos','historyQuery':'','historyKind':'Todos','silenceResults':[],'trimSilence':False,'converterSources':[],'converterFormat':'MP4','video_quality':'Equilibrada','video_resolution':'Original','video_bitrate':'Automático','audio_bitrate':'192k','video_fps':'Original','video_audio':'Manter áudio','effectsSource':'','effectsRecord':{},'effectsCover':'','speed':85,'reverb':25,'keep_pitch':self.settings.get('effects_keep_pitch',False),'effectFormat':'MP3','position':0,'duration':0,'imageInfo':{},'catalogSearched':False,'imageSource':'','imageUrl':'','imagePreview':'','metadataSources':[],'metadata':{},'cover_path':'','lyrics_path':'','normalize_volume':False,'overwrite_original':False,'comparison':{},'selectedCatalog':-1,'selectedPlaylist':-1,'filterArtist':'','filterAlbum':'','filterVersion':''}
+        self.options={'effectsRepeat':'Desativada','effectsShuffle':False,'effectsStopMinutes':0,'effectsStopRemaining':0,'effectsTrackMinutes':0,'effectsSwitchRemaining':0,'effectsQueue':[],'effectsQueueIndex':-1,'effectsPaused':False,'effectsVolume':80,'effectsQuery':'','effectsResults':[],'effectsOnlineRecord':{},'previewActive':False,'previewKind':'','previewSource':'','previewProcessed':False,'metadataFields':{},'lyricText':'','effectLyricsName':'','query':'','provider':self.settings.get('catalog_provider','Deezer'),'links':'','linksNotice':'','playlistUrl':'','playlistTitle':'','queueQuery':'','queueState':'Todos','historyQuery':'','historyKind':'Todos','silenceResults':[],'trimSilence':False,'converterSources':[],'converterFormat':'MP4','video_quality':'Equilibrada','video_resolution':'Original','video_bitrate':'Automático','audio_bitrate':'192k','video_fps':'Original','video_audio':'Manter áudio','effectsSource':'','effectsRecord':{},'effectsCover':'','speed':85,'reverb':25,'keep_pitch':self.settings.get('effects_keep_pitch',False),'effectFormat':'MP3','position':0,'duration':0,'imageInfo':{},'catalogSearched':False,'imageSource':'','imageUrl':'','imagePreview':'','imageGalleryEmbedded':False,'metadataSources':[],'metadata':{},'cover_path':'','lyrics_path':'','normalize_volume':False,'overwrite_original':False,'comparison':{},'selectedCatalog':-1,'selectedPlaylist':-1,'filterArtist':'','filterAlbum':'','filterVersion':''}
         from audio_tools import PreviewPlayer
         self.effects_tails=[];self.player=PreviewPlayer();self.tray=None;self.shell=None;self.shortcuts=[];self.shortcuts_suspended=False;self.tasks_threads=[]
         bridge.playbackRequested.connect(self.pause_effects_for_jukebox)
@@ -198,6 +198,8 @@ class DesktopWorkspace(QObject):
         if key in ('speed','reverb','keep_pitch','effectsEnabled'):self.sync_unified_effects()
         if key=='imageUrl':
             self.cancel_task('image_info');self.cancel_task('image_preview');self.options['imageInfo']={};self.options['imageSource']='';self.options['imagePreview']=''
+            if self.options.get('imageGalleryEmbedded'):
+                self.cancel_task('image_gallery_manifest');self.cancel_task('image_gallery_thumbnail');self.options.update(imageGallery=[],imageGalleryToken='',imageGallerySource='',imageGalleryEmbedded=False)
         self.optionsChanged.emit()
         if key=='imageGalleryIndex' and self.options.get('imageGalleryToken'):self.load_online_gallery_image()
         if key in ('queueQuery','queueState'):self.refresh_queue()
@@ -368,11 +370,13 @@ class DesktopWorkspace(QObject):
             else:self.run_task('effects_info',{'source':source},loaded)
         elif action=='preview_images':
             url=p.get('url') or self.options.get('links','')
+            self.cancel_task('image_gallery_thumbnail');self.options.update(imageGallery=[],imageGalleryToken='',imageGallerySource='',imageGalleryEmbedded=bool(p.get('embedded')))
+            if p.get('embedded'):self.options['imagePreview']=''
             self.setOption('imageGalleryPendingSource',url)
-            self.run_task('image_gallery_manifest',{'url':url},self.online_gallery_loaded)
+            self.run_task('image_gallery_manifest',{'url':url},lambda result:self.online_gallery_loaded(result,embedded=bool(p.get('embedded'))))
         elif action=='image_gallery_retry':self.load_online_gallery_image()
         elif action=='image_gallery_close':
-            self.cancel_task('image_gallery_thumbnail');self.options.update(imageGallery=[],imageGalleryToken='',imageGallerySource='');self.optionsChanged.emit()
+            self.cancel_task('image_gallery_thumbnail');self.options.update(imageGallery=[],imageGalleryToken='',imageGallerySource='',imageGalleryEmbedded=False);self.optionsChanged.emit()
         elif action=='image_gallery_download':
             source=self.options.get('imageGallerySource','')
             if source:self.enqueue([source],overrides={'mode':'photos','playlist':False},start=True)
@@ -581,7 +585,7 @@ class DesktopWorkspace(QObject):
         elif action=='effects_export':self.export_effects()
         elif action in ('image_preview','image_export'):
             if action=='image_preview' and self.options.get('imageUrl'):
-                self.dispatch('preview_images',{'url':self.options['imageUrl']});return
+                self.dispatch('preview_images',{'url':self.options['imageUrl'].strip(),'embedded':True});return
             if not self.options['imageSource']:
                 if action=='image_preview':
                     if not self.options['imageUrl'].strip():raise ValueError('Escolha um arquivo ou informe um link de imagem.')
@@ -823,23 +827,31 @@ class DesktopWorkspace(QObject):
 
     def expire_history_undo(self):
         self.history_undo_timer.stop();self.removed_history=None;self.setOption('historyUndo',False)
-    def online_gallery_loaded(self,result):
-        self.options.update(imageGallery=result['images'],imageGalleryIndex=0,imageGalleryToken=result['token'],imageGallerySource=result['source_url']);self.optionsChanged.emit();self.load_online_gallery_image()
+    def online_gallery_loaded(self,result,embedded=False):
+        self.options.update(imageGallery=result['images'],imageGalleryIndex=0,imageGalleryToken=result['token'],imageGallerySource=result['source_url'],imageGalleryEmbedded=embedded)
+        if embedded:self.options['imagePreview']=''
+        self.optionsChanged.emit();self.load_online_gallery_image()
     def load_online_gallery_image(self):
         token=self.options.get('imageGalleryToken','');index=int(self.options.get('imageGalleryIndex',0));rows=self.options.get('imageGallery',[])
         if not token or not 0<=index<len(rows):return
         self.cancel_task('image_gallery_thumbnail')
-        if rows[index].get('url'):return
-        rows=[dict(row) for row in rows];rows[index].pop('error',None);self.options['imageGallery']=rows;self.optionsChanged.emit()
+        if rows[index].get('url'):
+            if self.options.get('imageGalleryEmbedded'):self.setOption('imagePreview',rows[index]['url'])
+            return
+        rows=[dict(row) for row in rows];rows[index].pop('error',None);self.options['imageGallery']=rows
+        if self.options.get('imageGalleryEmbedded'):self.options['imagePreview']=''
+        self.optionsChanged.emit()
         def loaded(result):
             if token!=self.options.get('imageGalleryToken') or index!=int(self.options.get('imageGalleryIndex',0)):return
             rows=[dict(row) for row in self.options['imageGallery']]
             if result.get('path'):rows[index].update(path=result['path'],url=QUrl.fromLocalFile(result['path']).toString())
             else:rows[index]['error']=result.get('error','Não foi possível abrir este arquivo.')
-            self.options['imageGallery']=rows;self.optionsChanged.emit()
+            self.options['imageGallery']=rows
+            if self.options.get('imageGalleryEmbedded'):self.options['imagePreview']=rows[index].get('url','')
+            self.optionsChanged.emit()
         self.run_task('image_gallery_thumbnail',{'token':token,'index':index},loaded,background=True)
     def local_gallery(self,images,index):
-        self.cancel_task('image_gallery_thumbnail');self.options.update(imageGallery=images,imageGalleryIndex=index,imageGalleryToken='',imageGallerySource='');self.optionsChanged.emit()
+        self.cancel_task('image_gallery_thumbnail');self.options.update(imageGallery=images,imageGalleryIndex=index,imageGalleryToken='',imageGallerySource='',imageGalleryEmbedded=False);self.optionsChanged.emit()
 
     def open_image_gallery(self,rows,row):
         images=sorted((r for r in rows if r['id']==row['id'] or row.get('source') and r.get('source')==row['source']),key=lambda r:r['id'])
@@ -1227,6 +1239,8 @@ class DesktopWorkspace(QObject):
             self.options.update(metadataFields={},metadataSources=paths,metadata={},cover_path='',lyrics_path='',metadataCover='',originalCover='')
             self.run_task('audio_read',{'source':paths[0]},self.audio_loaded)
         elif kind=='image':
+            if self.options.get('imageGalleryEmbedded'):
+                self.cancel_task('image_gallery_manifest');self.cancel_task('image_gallery_thumbnail');self.options.update(imageGallery=[],imageGalleryToken='',imageGallerySource='',imageGalleryEmbedded=False)
             self.cancel_task('image_preview');self.options['imageInfo']={};self.options['imageUrl']='';self.options['imageSource']=paths[0];self.options['imagePreview']=QUrl.fromLocalFile(paths[0]).toString();self.run_task('image_info',{'source':paths[0]},lambda result:self.setOption('imageInfo',dict(self.options.get('imageInfo',{}),**result)))
         else:self.options[kind]=paths[0]
         self.optionsChanged.emit()

@@ -71,9 +71,9 @@ import androidx.compose.ui.text.font.FontWeight
     })
 }
 
-@Composable internal fun ToolTabs(labels:List<String>,selected:Int,onSelect:(Int)->Unit) {
+@Composable internal fun ToolTabs(labels:List<String>,selected:Int,compact:Boolean=false,onSelect:(Int)->Unit) {
     Surface(shape=RoundedCornerShape(16.dp),color=MaterialTheme.colorScheme.surfaceVariant.copy(alpha=.5f)) {
-        Row(Modifier.fillMaxWidth().padding(6.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+        Row(Modifier.fillMaxWidth().padding(horizontal=6.dp,vertical=if(compact)2.dp else 6.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
             labels.forEachIndexed {index,label->
                 val active=index==selected
                 Surface(Modifier.weight(1f).selectable(selected=active,role=androidx.compose.ui.semantics.Role.Tab,onClick={onSelect(index)}),shape=RoundedCornerShape(12.dp),color=if(active)MaterialTheme.colorScheme.primary else androidx.compose.ui.graphics.Color.Transparent,contentColor=if(active)MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface) {

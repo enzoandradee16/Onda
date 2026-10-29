@@ -19,10 +19,13 @@ def mix_pcm(outgoing,incoming,start,total):
 
 class _Buffered:
     def __init__(self,cache):
-        self.session=Session(cache);self.cache=str(cache);self.part=None;self.offset=0
+        self.session=Session(cache);self.cache=str(cache);self.part=None;self.offset=0;self.start_phase=0.
     def fill(self,args,kwargs):
         if self.part is None or self.offset>=len(self.part['pcm']):
             self.part=self.session.chunk(*args,**kwargs);self.offset=0
+            if self.start_phase:
+                frames=len(self.part['pcm'])//4
+                self.offset=min(max(0,frames-1),round(frames*self.start_phase))*4;self.start_phase=0.
         return (len(self.part['pcm'])-self.offset)//4
     def take(self,frames):
         part=dict(self.part);total=len(part['pcm'])//4;start=self.offset//4
@@ -53,12 +56,13 @@ class Stream:
             self.current.close();self.current=target
         else:self.incoming=target
         self.announce=True
-    def seek(self,index,expected_cache=None):
+    def seek(self,index,expected_cache=None,phase=0.):
         # A seek targets the track currently becoming audible.
         if expected_cache is not None and str(expected_cache)!=(self.incoming or self.current).cache:return False
         if self.incoming is not None:
             self.current.close();self.current=self.incoming;self.incoming=None
         self.current.session.seek(index);self.current.part=None;self.current.offset=0
+        self.current.start_phase=max(0.,min(.999999,float(phase)))
         return True
     def chunk(self,*args,**kwargs):
         count=self.current.fill(args,kwargs)

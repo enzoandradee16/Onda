@@ -56,8 +56,10 @@ import androidx.compose.ui.graphics.drawscope.rotate
             "close"->{line(6f,6f,18f,18f);line(18f,6f,6f,18f)}
             "shuffle"->{path(3f to 6f,7f to 6f,17f to 18f,21f to 18f);path(3f to 18f,7f to 18f,17f to 6f,21f to 6f);path(18f to 3f,21f to 6f,18f to 9f);path(18f to 15f,21f to 18f,18f to 21f)}
             "repeat","repeat-one"->{path(4f to 10f,4f to 6f,20f to 6f,17f to 3f);path(20f to 14f,20f to 18f,4f to 18f,7f to 21f);path(17f to 9f,20f to 6f);path(7f to 15f,4f to 18f);if(name=="repeat-one"){path(10f to 10f,12f to 9f,12f to 15f);path(10f to 15f,14f to 15f)}}
+            "link"->{path(10f to 14f,14f to 10f);path(8f to 15f,6f to 17f,3f to 17f,2f to 15f,2f to 12f,7f to 7f,10f to 7f,12f to 9f);path(16f to 9f,18f to 7f,21f to 7f,22f to 9f,22f to 12f,17f to 17f,14f to 17f,12f to 15f)}
             "share"->{line(6f,12f,18f,5f);line(6f,12f,18f,19f);listOf(6f to 12f,18f to 5f,18f to 19f).forEach {(x,y)->drawCircle(tint,3f*u,Offset(x*u,y*v),style=Stroke(stroke))}}
             "mini"->{path(3f to 4f,21f to 4f,21f to 20f,3f to 20f,close=true);path(12f to 12f,19f to 12f,19f to 18f,12f to 18f,close=true)}
+            "drag-lines"->{for(y in listOf(7f,12f,17f))line(5f,y,19f,y)}
             "drag"->{for(x in listOf(9f,15f))for(y in listOf(6f,12f,18f))drawCircle(tint,1.5f*u,Offset(x*u,y*v))}
             "queue"->{for(y in listOf(5f,12f,19f)){drawCircle(tint,1f*u,Offset(3*u,y*v));line(7f,y,21f,y)}}
             "expand"->{path(3f to 9f,3f to 3f,9f to 3f);path(15f to 3f,21f to 3f,21f to 9f);path(21f to 15f,21f to 21f,15f to 21f);path(9f to 21f,3f to 21f,3f to 15f)}
@@ -88,6 +90,9 @@ import androidx.compose.ui.graphics.drawscope.rotate
             "tag"->path(3f to 12f,12f to 3f,21f to 3f,21f to 12f,12f to 21f,3f to 12f)
             "timer"->{drawCircle(tint,8*u,Offset(12*u,14*v),style=Stroke(stroke));line(9f,2f,15f,2f);line(12f,2f,12f,6f);line(12f,14f,12f,9f);line(18f,7f,20f,5f)}
             "history"->{drawCircle(tint,9*u,center,style=Stroke(stroke));path(12f to 6f,12f to 12f,17f to 14f)}
+            "music"->{line(15f,4f,15f,17f);path(15f to 4f,20f to 6f,20f to 10f,15f to 8f);drawOval(tint,Offset(5*u,14*v),androidx.compose.ui.geometry.Size(10*u,7*v))}
+            "file"->{path(6f to 2f,14f to 2f,20f to 8f,20f to 22f,6f to 22f,6f to 2f);path(14f to 2f,14f to 8f,20f to 8f)}
+            "folder"->{path(3f to 7f,3f to 4f,9f to 4f,12f to 7f,21f to 7f,21f to 20f,3f to 20f,close=true)}
             "album"->{path(4f to 6f,20f to 6f,20f to 22f,4f to 22f,close=true);line(7f,2f,17f,2f);drawCircle(tint,4*u,Offset(12*u,14*v),style=Stroke(stroke))}
             "equalizer"->{line(5f,3f,5f,21f);line(12f,3f,12f,21f);line(19f,3f,19f,21f);drawCircle(tint,2.5f*u,Offset(5*u,8*v));drawCircle(tint,2.5f*u,Offset(12*u,16*v));drawCircle(tint,2.5f*u,Offset(19*u,10*v))}
             "appearance"->{
@@ -214,9 +219,7 @@ private val LocalPageSwipeExclusions=staticCompositionLocalOf<MutableMap<Any,Lay
     val cover=remember(embedded,model?.optString("cover_url")){if(embedded.isNotBlank())runCatching {android.util.Base64.decode(embedded,android.util.Base64.DEFAULT)}.getOrNull() else model?.optString("cover_url")}
     var controls by remember {mutableStateOf(false)}
     var timers by remember {mutableStateOf(false)}
-    var showQueue by remember {mutableStateOf(false)}
     if(timers)JukeboxTimerDialog(vm.jukebox){timers=false}
-    if(showQueue)JukeboxQueueDialog(vm.jukebox,vm){showQueue=false}
     Surface(Modifier.fillMaxWidth().padding(horizontal=LayoutSpacing.inset,vertical=LayoutSpacing.details).testTag("jukebox-miniplayer"),shape=RoundedCornerShape(16.dp),color=MaterialTheme.colorScheme.surfaceContainer) {
         Column {
         Row(Modifier.clickable(onClick=onOpen).padding(LayoutSpacing.controls),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(LayoutSpacing.details)) {
@@ -234,7 +237,7 @@ private val LocalPageSwipeExclusions=staticCompositionLocalOf<MutableMap<Any,Lay
                     DropdownMenuItem(text={UiText("Parar")},onClick={controls=false;vm.jukebox.stop()})
                     DropdownMenuItem(text={UiText("Equalizador")},onClick={controls=false;showEqualizer=true})
                     DropdownMenuItem(text={UiText("Timer")},onClick={controls=false;timers=true})
-                    DropdownMenuItem(text={UiText("Fila de reprodução")},onClick={controls=false;showQueue=true})
+                    DropdownMenuItem(text={UiText("Fila de reprodução")},onClick={controls=false;vm.openPlaybackQueue()})
                     Row(Modifier.width(220.dp).padding(horizontal=12.dp),verticalAlignment=Alignment.CenterVertically) {
                         UiText("Volume",style=MaterialTheme.typography.labelSmall)
                         RoundSlider(volume,vm.jukebox::setVolume,slim=true,modifier=Modifier.weight(1f).a11yLabel("Volume"))

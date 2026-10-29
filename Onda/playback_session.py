@@ -24,7 +24,7 @@ def save(workspace,strict=False):
     bridge=workspace.bridge
     data={'version':1,'unified':True,'effectsEnabled':workspace.options.get('effectsEnabled',False),'effects':{key:workspace.options[key] for key in FIELDS},
           'jukebox':{'queue':[dict(row,prepared_cache=prepared_reference(bridge._prepared[row['id']])) if row.get('id') in bridge._prepared else row for row in bridge.playlist],'index':bridge.queue_index,'model':bridge.model,
-                     'position':bridge.position,'phase':bridge.phase,'params':bridge._params,'repeat':bridge.queue_repeat,'shuffle':bridge.queue_shuffle,'shuffle_order':bridge._shuffle_order,'recent':bridge._queue_history}}
+                     'seconds':bridge.sourcePosition if bridge.model else next((row.get('restore_seconds',0) for i,row in enumerate(bridge.playlist) if i==bridge.queue_index),0),'position':bridge.position,'phase':bridge.phase,'params':bridge._params,'repeat':bridge.queue_repeat,'shuffle':bridge.queue_shuffle,'shuffle_order':bridge._shuffle_order,'recent':bridge._queue_history}}
     target=workspace.store.path.with_name('playback-session.json')
     try:
         raw=json.dumps(data,ensure_ascii=False,allow_nan=False)
@@ -80,6 +80,14 @@ def restore(workspace):
         bridge._shuffle_order=[identity for identity in jukebox.get('shuffle_order',[]) if isinstance(identity,str)]
         bridge._queue_history=[identity for identity in jukebox.get('recent',[]) if isinstance(identity,str)][-200:]
         model=jukebox.get('model')
+        seconds=jukebox.get('seconds')
+        if seconds is None and isinstance(model,dict):
+            beats=model.get('beats',[]);index=min(int(jukebox.get('position',0)),len(beats)-2)
+            if index>=0:seconds=beats[index]+(beats[index+1]-beats[index])*float(jukebox.get('phase',0))
+        if type(seconds) not in (int,float) or not math.isfinite(seconds):seconds=0
+        seconds=max(0,seconds)
+        current=bridge.playlist[bridge.queue_index] if bridge.queue_index>=0 else None
+        if current is not None:current['restore_seconds']=seconds
         if isinstance(model,dict) and (Path(model.get('cache',''))/'analysis.json').is_file():
             bridge.handle_event(bridge.revision,'result',model)
             position=float(jukebox.get('position',0));phase=float(jukebox.get('phase',0))
@@ -90,7 +98,9 @@ def restore(workspace):
             bridge.update_state(status=__import__('i18n').tr('Sessão restaurada. Toque em reproduzir.'),playing=False,paused=False)
             bridge.positionChanged.emit()
             if bridge.queue_index>=0:
-                entry=bridge.playlist[bridge.queue_index];bridge._prepared[entry['id']]=model;entry.update(analysis='ready',error='')
+                entry=bridge.playlist[bridge.queue_index];entry.pop('restore_seconds',None);bridge._prepared[entry['id']]=model;entry.update(analysis='ready',error='')
+        elif current is not None:
+            bridge.update_state(title=current.get('title',''),status=__import__('i18n').tr('Sessão restaurada. Toque em reproduzir.'),playing=False,paused=False)
         workspace.options['effectsEnabled']=data.get('effectsEnabled',False) is True
         if not data.get('unified'):
             import uuid

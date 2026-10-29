@@ -80,7 +80,7 @@ private val queueDragPreviews=WeakHashMap<LazyListState,QueueDragPreview>()
     },content=content)
 }
 
-@Composable internal fun QueueDragHandle(state:LazyListState,index:Int,count:Int,enabled:Boolean=true,itemLabel:String="",modifier:Modifier=Modifier,move:(Int,Int)->Unit) {
+@Composable internal fun QueueDragHandle(state:LazyListState,index:Int,count:Int,enabled:Boolean=true,itemLabel:String="",modifier:Modifier=Modifier,icon:String="drag",move:(Int,Int)->Unit) {
     val label=translateUi("Arrastar para reorganizar")
     val up=translateUi("Mover para cima");val down=translateUi("Mover para baixo")
     Box(modifier.size(24.dp).semantics {
@@ -88,5 +88,5 @@ private val queueDragPreviews=WeakHashMap<LazyListState,QueueDragPreview>()
         if(!enabled)disabled()
         contentDescription=if(itemLabel.isBlank())label else "$label: $itemLabel"
         customActions=listOf(CustomAccessibilityAction(up){if(index>0){move(index,index-1);true}else false},CustomAccessibilityAction(down){if(index+1<count){move(index,index+1);true}else false})
-    },contentAlignment=androidx.compose.ui.Alignment.Center) {OndaIcon("drag",modifier=Modifier.size(16.dp),tint=if(enabled)MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha=.38f))}
+    },contentAlignment=androidx.compose.ui.Alignment.Center) {OndaIcon(icon,modifier=Modifier.size(16.dp),tint=if(enabled)MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha=.38f))}
 }

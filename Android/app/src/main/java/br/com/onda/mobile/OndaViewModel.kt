@@ -95,6 +95,8 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
     val addingToQueue=MutableStateFlow(false)
     val queueNavigation=MutableStateFlow(false)
     val effectsNavigation=MutableStateFlow(false)
+    val playbackQueueOpen=MutableStateFlow(false)
+    fun openPlaybackQueue(){playbackQueueOpen.value=true}
     val dialogNotice=MutableStateFlow<DialogNotice?>(null)
     fun showNotice(title:String,message:String,error:Boolean=false) {dialogNotice.value=DialogNotice(title,message,error)}
     fun dismissNotice() {dialogNotice.value=null}
@@ -120,10 +122,12 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
     private var previewLimit: Job?=null
     val onlineImageGallery=MutableStateFlow<JSONObject?>(null)
     val onlineImageLoading=MutableStateFlow("")
+    val onlineImageEmbedded=MutableStateFlow(false)
+    val onlineImageError=MutableStateFlow("")
     val onlineImageIndex=MutableStateFlow(0)
     val onlineImageThumbnail=MutableStateFlow<JSONObject?>(null)
     private val onlineThumbnailRequest=PreviewRequest(viewModelScope) {MobileEngine.cancel(it)}
-    fun closeOnlineImages(){onlineThumbnailRequest.cancel();onlineImageGallery.value=null;onlineImageThumbnail.value=null}
+    fun closeOnlineImages(){onlineThumbnailRequest.cancel();onlineImageGallery.value=null;onlineImageThumbnail.value=null;onlineImageEmbedded.value=false;onlineImageError.value=""}
     fun previewOnlineImageAt(index:Int) {
         val gallery=onlineImageGallery.value ?: return
         if(index !in 0 until (gallery.optJSONArray("images")?.length() ?: 0))return
@@ -136,19 +140,19 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
     }
     private val onlineImageRequest=PreviewRequest(viewModelScope) {MobileEngine.cancel(it)}
     fun cancelOnlineImagePreview(){onlineImageRequest.cancel();onlineImageLoading.value=""}
-    fun previewOnlineImages(url:String) {
-        closeOnlineImages();onlineImageLoading.value=url
+    fun previewOnlineImages(url:String,embedded:Boolean=false) {
+        closeOnlineImages();onlineImageEmbedded.value=embedded;onlineImageLoading.value=url
         onlineImageRequest.start(
             resolve={id->withContext(Dispatchers.IO){MobileEngine.call(getApplication(),id,"image_gallery_manifest",OndaStore.config().put("url",url),EventCallback {})}},
-            onResult={result->onlineImageLoading.value="";if(result.has("error"))showNotice("Prévia de imagens",result.optString("error")) else {onlineImageGallery.value=result;previewOnlineImageAt(0)}},
-            onError={error->onlineImageLoading.value="";showNotice("Prévia de imagens",uiExceptionMessage(error,"Não foi possível abrir este arquivo."))}
+            onResult={result->onlineImageLoading.value="";if(result.has("error")){if(embedded)onlineImageError.value=translateError(result.optString("error")) else showNotice("Prévia de imagens",result.optString("error"))} else {onlineImageGallery.value=result;previewOnlineImageAt(0)}},
+            onError={error->onlineImageLoading.value="";val message=uiExceptionMessage(error,"Não foi possível abrir este arquivo.");if(embedded)onlineImageError.value=message else showNotice("Prévia de imagens",message)}
         )
     }
-    fun downloadOnlineImages() {
+    fun downloadOnlineImages(keepPreview:Boolean=false) {
         val url=onlineImageGallery.value?.optString("source_url").orEmpty()
         if(url.isBlank())return
         val id=OndaStore.enqueue(url,options=JSONObject(OndaStore.settings.value.toString()).put("mode","photos"),extra=JSONObject().put("_immediate",true))
-        closeOnlineImages()
+        if(!keepPreview)closeOnlineImages()
         if(id.isNotBlank())DownloadService.start(getApplication(),id)
     }
     private val previewRequest=PreviewRequest(viewModelScope) {MobileEngine.cancel(it)}

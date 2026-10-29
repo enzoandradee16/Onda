@@ -8,6 +8,10 @@ ScrollView {
     id: page
     property string mode: workspace.currentPage
     readonly property bool effectsSearching: workspace.activity.busy.indexOf("effects_collection")>=0 || workspace.activity.busy.indexOf("effects_search")>=0 || workspace.activity.busy.indexOf("effects_load")>=0 || workspace.activity.busy.indexOf("effects_queue_info")>=0
+    readonly property var inlineImages: workspace.values.imageGalleryEmbedded ? (workspace.values.imageGallery || []) : []
+    readonly property int inlineImageIndex: workspace.values.imageGalleryIndex || 0
+    readonly property var inlineImage: inlineImages[inlineImageIndex] || ({})
+    function navigateImage(delta) { var next=inlineImageIndex+delta; if(next>=0 && next<inlineImages.length)workspace.setOption("imageGalleryIndex",next) }
     property bool audioOnly: workspace.values.converterSources.some(function(path) { return /\.(mp3|m4a|aac|flac|wav|ogg|opus)$/i.test(path) })
     clip: true
     contentWidth: availableWidth
@@ -112,7 +116,6 @@ ScrollView {
             }
             RowLayout {
                 TaskButton { objectName: "convertButton"; primary: true; idleText: bridge.translate("Converter em lote"); enabled: taskRunning || workspace.values.converterSources.length > 0; operation: "convert"; taskNames: ["convert"] }
-                ActionButton { visible: workspace.values.converterSources.length > 0; text: bridge.translate("Prévia do original"); onClicked: workspace.invoke("open_file",{path:workspace.values.converterSources[0]}) }
             }
         }
         ColumnLayout { visible: page.mode === "effects"; Layout.fillWidth: true; spacing: Math.round(18*bridge.spacing)
@@ -185,8 +188,25 @@ ScrollView {
                 Layout.fillWidth: true; wrapMode: Text.Wrap; color: bridge.palette.muted
                 text: (original.width ? bridge.translate("Original")+": "+summary(original) : "")+(output.width ? "\n"+bridge.translate("Resultado")+": "+summary(output) : "")
             }
-            EmptyState { Layout.fillWidth: true; Layout.preferredHeight: 220; visible: !workspace.values.imagePreview; heading: bridge.translate(workspace.activity.busy.indexOf("image_preview")>=0 ? "Carregando imagem…" : "Sua imagem aparecerá aqui"); description: bridge.translate("Escolha um arquivo ou cole um link e clique em Visualizar. A resolução e o formato serão mostrados quando disponíveis.") }
-            Image { visible: !!workspace.values.imagePreview; source: workspace.values.imagePreview; Layout.fillWidth: true; Layout.preferredHeight: 360; fillMode: Image.PreserveAspectFit; asynchronous: true; cache: false }
+            EmptyState { Layout.fillWidth: true; Layout.preferredHeight: 220; visible: !workspace.values.imagePreview && (!workspace.values.imageGalleryEmbedded || !page.inlineImages.length); heading: bridge.translate((workspace.activity.busy.indexOf("image_preview")>=0 || workspace.activity.busy.indexOf("image_gallery_manifest")>=0 || workspace.activity.busy.indexOf("image_gallery_thumbnail")>=0) ? "Carregando imagem…" : "Sua imagem aparecerá aqui"); description: bridge.translate("Escolha um arquivo ou cole um link e clique em Visualizar. A resolução e o formato serão mostrados quando disponíveis.") }
+            Image { objectName:"inlineImagePreview"; visible: !!workspace.values.imagePreview || (workspace.values.imageGalleryEmbedded && page.inlineImages.length>0); source: workspace.values.imagePreview; Layout.fillWidth: true; Layout.preferredHeight: 360; fillMode: Image.PreserveAspectFit; horizontalAlignment:Image.AlignHCenter;verticalAlignment:Image.AlignVCenter;asynchronous: true; cache: false
+                focus: false
+                BusyIndicator {anchors.centerIn:parent;running:workspace.values.imageGalleryEmbedded && !workspace.values.imagePreview && !page.inlineImage.error;visible:running}
+                Keys.onLeftPressed:page.navigateImage(-1)
+                Keys.onRightPressed:page.navigateImage(1)
+                MouseArea {
+                    anchors.fill:parent;property real startX:0;property real startY:0
+                    onPressed:function(mouse){parent.forceActiveFocus();startX=mouse.x;startY=mouse.y}
+                    onReleased:function(mouse){var dx=mouse.x-startX,dy=mouse.y-startY;if(Math.abs(dx)>=48 && Math.abs(dx)>Math.abs(dy))page.navigateImage(dx<0 ? 1 : -1)}
+                }
+            }
+            Label {visible:!!page.inlineImage.error;Layout.fillWidth:true;wrapMode:Text.Wrap;color:bridge.palette.error;text:page.inlineImage.error ? bridge.translateError(page.inlineImage.error) : ""}
+            ActionButton {visible:!!page.inlineImage.error;text:bridge.translate("Tentar novamente");onClicked:workspace.invoke("image_gallery_retry",{})}
+            RowLayout {visible:page.inlineImages.length>1;Layout.alignment:Qt.AlignHCenter;spacing:12
+                ActionButton {text:"‹";Accessible.name:bridge.translate("Anterior");enabled:page.inlineImageIndex>0;onClicked:page.navigateImage(-1)}
+                Label {text:(page.inlineImageIndex+1)+" / "+page.inlineImages.length;color:bridge.palette.muted}
+                ActionButton {text:"›";Accessible.name:bridge.translate("Próxima");enabled:page.inlineImageIndex+1<page.inlineImages.length;onClicked:page.navigateImage(1)}
+            }
         }
         ColumnLayout { visible: page.mode === "metadata"; Layout.fillWidth: true; spacing: Math.round(14*bridge.spacing)
             GridLayout { columns: 2; Layout.fillWidth: true; columnSpacing: 16; rowSpacing: 14

@@ -482,7 +482,12 @@ class NativeDesktopTests(unittest.TestCase):
                 images=self.ws.options.get('imageGallery',[])
                 self.assertEqual(len(images),1,self.ws.status)
                 with Image.open(images[0]['path']) as preview:self.assertEqual(preview.size,(160,90))
+                self.assertTrue(self.ws.options['imageGalleryEmbedded'])
+                self.assertEqual(self.ws.options['imagePreview'],images[0]['url'])
                 self.assertEqual(self.ws.library.history(),before)
+                self.ws.dispatch('preview_images',{'url':self.ws.options['imageUrl']})
+                self.task_done('image_gallery_manifest');self.task_done('image_gallery_thumbnail')
+                self.assertFalse(self.ws.options['imageGalleryEmbedded'])
         finally:server.shutdown();server.server_close();thread.join()
     def test_embedded_artwork_is_a_qt_image_url(self):
         import base64,io

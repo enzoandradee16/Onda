@@ -3,9 +3,14 @@ import QtQuick.Controls
 import QtQuick.Layouts
 Card {
     id:queuePanel
+    clip:true
     property bool recent:false
-    onRecentChanged:if(bridge.animations&&visible)tabReveal.restart();else {tabReveal.stop();queueList.opacity=1}
-    NumberAnimation {id:tabReveal;target:queueList;property:"opacity";from:0.55;to:1;duration:180;easing.type:Easing.OutCubic}
+    onRecentChanged:if(bridge.animations&&visible)tabReveal.restart();else {tabReveal.stop();queueList.opacity=1;tabSlide.x=0}
+    ParallelAnimation {
+        id:tabReveal
+        NumberAnimation {target:queueList;property:"opacity";from:0.6;to:1;duration:200;easing.type:Easing.OutCubic}
+        NumberAnimation {target:tabSlide;property:"x";from:queuePanel.recent?queueList.width:-queueList.width;to:0;duration:240;easing.type:Easing.OutCubic}
+    }
     readonly property var rows:recent ? bridge.recentTracks : bridge.upcomingTracks
     function original(i){return rows[i].queueIndex}
     function move(i,target){bridge.moveQueued(original(i),original(target)-original(i))}
@@ -33,6 +38,7 @@ Card {
         QueueTabs {recent:queuePanel.recent;onSelected:function(value){queuePanel.recent=value}}
         Label {visible:!queuePanel.rows.length;text:bridge.translate("Adicione arquivos ou músicas dos resultados.");Layout.fillWidth:true;wrapMode:Text.Wrap;color:bridge.palette.muted}
         ListView {
+            transform:Translate {id:tabSlide;objectName:"queueTabSlide"}
             id:queueList;property var activeDrag:null;objectName:"unifiedPlaybackQueueList"
             Layout.fillWidth:true;Layout.fillHeight:true;clip:true;model:queuePanel.rows;spacing:6
             section.property:"group"

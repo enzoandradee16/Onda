@@ -1,6 +1,7 @@
 package br.com.onda.mobile
 
 import android.util.Base64
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -22,7 +23,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 
 /** One compact player across navigation; expanding never transfers audio between tabs. */
-@Composable internal fun AndroidPlaybackSurface(vm:OndaViewModel) {
+@Composable internal fun AndroidPlaybackSurface(vm:OndaViewModel,queueIsVisible:Boolean=false) {
     val mode by vm.playbackMode.collectAsStateWithLifecycle()
     val fxSource by vm.effectsSource.collectAsStateWithLifecycle()
     val infos by vm.effectsInfo.collectAsStateWithLifecycle()
@@ -34,6 +35,8 @@ import coil.compose.AsyncImage
     val juke by vm.jukebox.state.collectAsStateWithLifecycle()
     val jukeQueue by vm.jukebox.playbackQueue.collectAsStateWithLifecycle()
     var expanded by rememberSaveable {mutableStateOf(false)}
+    var expandedQueue by rememberSaveable {mutableStateOf(false)}
+    LaunchedEffect(expanded){if(!expanded)expandedQueue=false}
     var expandedJukebox by rememberSaveable {mutableStateOf(false)}
     var lastJukebox by rememberSaveable(mode,fxSource,juke.model?.optString("source")) {mutableStateOf(mode==1&&juke.model!=null)}
     LaunchedEffect(juke.playing,juke.paused,fxMedia?.playing,fxPreparing) {
@@ -68,7 +71,6 @@ import coil.compose.AsyncImage
     val jukeRepeat by vm.jukebox.queueRepeat.collectAsStateWithLifecycle()
     val jukeShuffle by vm.jukebox.queueShuffle.collectAsStateWithLifecycle()
     val hasNext=if(useJukebox)(vm.jukebox.nextQueueIndex<jukeQueue.size || jukeRepeat=="Todas" && jukeQueue.isNotEmpty()) else (vm.effectsQueueIndex(source)+1<fxQueue.size || fxRepeat=="Todas" && fxQueue.isNotEmpty())
-    var queue by rememberSaveable {mutableStateOf(false)}
     var menu by remember {mutableStateOf(false)}
     var timer by remember {mutableStateOf(false)}
     var equalizer by remember {mutableStateOf(false)}
@@ -80,7 +82,13 @@ import coil.compose.AsyncImage
         if(useJukebox){if(beats!=null)vm.jukebox.seek((0 until (beats.length()-1).coerceAtLeast(0)).lastOrNull {beats.optDouble(it)<=seconds} ?: 0)}
         else vm.mediaSeekEffects(seconds)
     }
-    fun openQueue(){if(useJukebox)queue=true else vm.effectsQueueOpen.value=true}
+    fun openQueue(){
+        if(useJukebox) {
+            if(expanded)expandedQueue=!expandedQueue
+            else if(queueIsVisible)vm.playbackQueueOpen.value=false
+            else vm.openPlaybackQueue()
+        } else vm.effectsQueueOpen.value=true
+    }
     @Composable fun cover(modifier:Modifier){
         Surface(modifier.clip(RoundedCornerShape(12.dp)),color=MaterialTheme.colorScheme.surfaceContainerHighest) {
             if(artwork!=null)AsyncImage(artwork,translateUi("Capa do álbum"),Modifier.fillMaxSize(),contentScale=ContentScale.Fit)
@@ -89,21 +97,24 @@ import coil.compose.AsyncImage
     }
     AlbumGlass(artwork,Modifier.fillMaxWidth().padding(horizontal=8.dp,vertical=4.dp).testTag("android-compact-player")) {glass->
         Column {
-            Row(Modifier.fillMaxWidth().clickable {expandedJukebox=useJukebox;expanded=true}.padding(6.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+            Row(Modifier.fillMaxWidth().clickable {expandedJukebox=useJukebox;expanded=true}.testTag("compact-player-expand").padding(6.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)) {
                 cover(Modifier.size(48.dp))
                 Column(Modifier.weight(1f)) {
                     Text(title,maxLines=1,overflow=TextOverflow.Ellipsis,style=MaterialTheme.typography.labelLarge)
                     Text(artist,maxLines=1,overflow=TextOverflow.Ellipsis,style=MaterialTheme.typography.bodySmall,color=glass.secondary)
                 }
-                ShufflePlaybackButton(if(useJukebox)jukeShuffle else fxShuffle,{if(useJukebox)vm.jukebox.queueShuffle.value=it else vm.effectsShuffle.value=it})
                 LyricsButton(vm,source,{position},duration,::seek,::toggle,isPlaying={playing},title=title,artist=artist)
-                IconButton(onClick=::openQueue,modifier=Modifier.testTag("compact-player-queue")){OndaIcon("queue","Fila",Modifier.size(24.dp))}
-                IconButton(onClick=::toggle,enabled=duration>0,modifier=Modifier.testTag("compact-player-toggle"),colors=IconButtonDefaults.iconButtonColors(contentColor=glass.ink,disabledContentColor=glass.ink.copy(alpha=if(glass.highContrast)1f else .38f))) {
+                IconButton(onClick=::openQueue,modifier=Modifier.testTag("compact-player-queue"),colors=IconButtonDefaults.iconButtonColors(contentColor=if(queueIsVisible)MaterialTheme.colorScheme.primary else glass.ink)){OndaIcon("queue",if(queueIsVisible)"Fechar fila" else "Fila",Modifier.size(24.dp))}
+                OutlinedIconButton(onClick=::toggle,enabled=duration>0,modifier=Modifier.testTag("compact-player-toggle"),border=BorderStroke(1.dp,MaterialTheme.colorScheme.primary),colors=IconButtonDefaults.outlinedIconButtonColors(contentColor=glass.ink,disabledContentColor=glass.ink.copy(alpha=if(glass.highContrast)1f else .38f))) {
                     if(preparing)CircularProgressIndicator(Modifier.size(23.dp),strokeWidth=2.dp,color=glass.ink)
                     else OndaIcon(if(playing)"pause" else "play",if(playing)"Pausar" else "Reproduzir",Modifier.size(26.dp))
                 }
             }
-            LinearProgressIndicator(progress={if(duration>0)(position/duration).toFloat().coerceIn(0f,1f) else 0f},modifier=Modifier.fillMaxWidth().height(if(glass.highContrast)3.dp else 2.dp),color=glass.ink,trackColor=glass.ink.copy(alpha=if(glass.highContrast).4f else .18f))
+            Row(Modifier.fillMaxWidth().padding(horizontal=10.dp,vertical=3.dp).testTag("compact-player-times"),horizontalArrangement=Arrangement.SpaceBetween) {
+                Text(mediaClock(position.toLong()),style=MaterialTheme.typography.labelSmall,color=glass.secondary)
+                Text(mediaClock(duration.toLong()),style=MaterialTheme.typography.labelSmall,color=glass.secondary)
+            }
+            LinearProgressIndicator(progress={if(duration>0)(position/duration).toFloat().coerceIn(0f,1f) else 0f},modifier=Modifier.fillMaxWidth().height(if(glass.highContrast)3.dp else 2.dp).testTag("compact-player-progress"),color=MaterialTheme.colorScheme.primary,trackColor=glass.ink.copy(alpha=if(glass.highContrast).4f else .18f))
         }
     }
     if(expanded)Dialog(onDismissRequest={expanded=false},properties=DialogProperties(usePlatformDefaultWidth=false)) {
@@ -149,11 +160,11 @@ import coil.compose.AsyncImage
                 }
             }
         }
-        // Keep the queue above the expanded player, without closing the player underneath.
+        // The sheet belongs to this dialog so it stays above the expanded player.
+        if(useJukebox && expandedQueue)PlaybackQueueSheet(vm){expandedQueue=false}
         if(!useJukebox)EffectsQueueDrawer(vm)
     }
     if(!expanded || useJukebox)EffectsQueueDrawer(vm)
-    if(queue)JukeboxQueueDialog(vm.jukebox,vm){queue=false}
     if(timer)JukeboxTimerDialog(vm.jukebox){timer=false}
     if(equalizer)JukeboxEqualizerDialog {equalizer=false}
 }

@@ -21,6 +21,18 @@ class CrossfadeTests(unittest.TestCase):
     def setUp(self):
         FakeSession.instances=[];self.patch=patch('jukebox_stream.Session',FakeSession);self.patch.start()
     def tearDown(self):self.patch.stop()
+    def test_resume_starts_inside_the_saved_beat_not_at_its_beginning(self):
+        stream=Stream('old')
+        try:
+            self.assertTrue(stream.seek(3,phase=.5))
+            first=stream.chunk()
+            self.assertEqual(first['index'],3)
+            self.assertAlmostEqual(first['phase_start'],.5,delta=1/(RATE//4))
+            self.assertAlmostEqual(first['seconds'],.125,delta=1/RATE)
+            second=stream.chunk()
+            self.assertEqual(second['index'],4)
+            self.assertEqual(second['phase_start'],0)
+        finally:stream.close()
     def test_seek_from_previous_track_cannot_seek_incoming_song(self):
         stream=Stream('old');stream.chunk();stream.switch('new',1)
         try:

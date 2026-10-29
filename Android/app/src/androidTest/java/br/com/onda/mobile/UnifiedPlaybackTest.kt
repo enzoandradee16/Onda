@@ -44,15 +44,19 @@ class UnifiedPlaybackTest {
         assertEquals("Discovery",albumReleaseText(JSONObject().put("album","Discovery")))
         assertEquals("",albumReleaseText(JSONObject()))
     }
-    @Test fun modernFontIsBundledAndLegacyRemainsSelectable() {
+    @Test fun modernUsesSystemFontAndLegacyKeepsBundledInter() {
         assertEquals("ONDA Modern",OndaStore.defaults().getString("interface_font"))
         assertEquals(DEFAULT_INTERFACE_FONT,normalizeInterfaceFont("Padrão do sistema"))
         assertTrue(interfaceFonts.containsKey("ONDA Legacy"))
         assertNotEquals(interfaceFonts[DEFAULT_INTERFACE_FONT],interfaceFonts["ONDA Legacy"])
         context.resources.openRawResource(R.font.onda_modern).use {stream->assertEquals(0,stream.read());assertEquals(1,stream.read())}
         val modern=interfaceTypography(DEFAULT_INTERFACE_FONT)
-        assertEquals(androidx.compose.ui.text.font.FontWeight.SemiBold,modern.titleMedium.fontWeight)
-        assertEquals(androidx.compose.ui.text.font.FontWeight.Bold,modern.headlineMedium.fontWeight)
+        assertEquals(androidx.compose.ui.text.font.FontFamily.Default,interfaceFonts[DEFAULT_INTERFACE_FONT])
+        assertEquals(androidx.compose.material3.Typography().titleMedium.fontWeight,modern.titleMedium.fontWeight)
+        assertEquals(androidx.compose.material3.Typography().headlineMedium.fontWeight,modern.headlineMedium.fontWeight)
+        val legacy=interfaceTypography("ONDA Legacy")
+        assertEquals(androidx.compose.ui.text.font.FontWeight.SemiBold,legacy.titleMedium.fontWeight)
+        assertEquals(androidx.compose.ui.text.font.FontWeight.Bold,legacy.headlineMedium.fontWeight)
     }
     @Test fun preparationPreferenceKeepsSupportedChoicesAndSafeDefault() {
         assertEquals(2,preparationAhead(JSONObject()))
@@ -191,7 +195,7 @@ class UnifiedPlaybackTest {
             compose.onNodeWithText("Jukebox infinito").performScrollTo().performClick()
             compose.runOnIdle {assertFalse(vm.jukebox.normal);assertTrue(vm.jukebox.effects.value.optBoolean("enabled"));assertFalse(vm.jukebox.state.value.playing)}
             compose.onNodeWithTag("unified-open-queue").performClick()
-            compose.onNodeWithText("Fila de reprodução").assertIsDisplayed()
+            compose.runOnIdle {assertTrue(vm.playbackQueueOpen.value)}
             val image=InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
             File(context.getExternalFilesDir(null),"unified-android-queue.png").outputStream().use {image.compress(android.graphics.Bitmap.CompressFormat.PNG,100,it)};image.recycle()
         } finally {compose.runOnUiThread {vm.jukebox.stop();store.clear()}}

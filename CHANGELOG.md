@@ -1,6 +1,13 @@
 # Histórico de versões
 
-## 1.2.4 — 2026-10-28
+## 1.2.4 — 2026-10-29
+
+- Recuperação precisa da posição ao reabrir nas duas versões, mantendo a reprodução pausada; encerramento do serviço Android não apaga a posição e a retomada sobrevive à perda do cache.
+- Deslizamento horizontal do conteúdo entre Fila e Tocado recentemente no PC e Android.
+- Android: fila independente da página de Reprodução, abertura de baixo para cima, retorno à página anterior, alternância de abas por gesto, remoção de músicas deslizando o card e indicador animado das abas.
+- Android: Reprodução, Imagens e Conversor reorganizados; prévia de imagens integrada à página, opções visíveis e Formato ao lado de Tamanho máximo. Player com tempos acima da barra e fila inferior no player expandido.
+- PC: Visualizar na página Imagens volta a exibir a imagem centralizada. Removida Prévia do original no Conversor nas duas versões.
+- Android: Modern passa a usar a fonte do sistema e Legacy mantém Inter, preservando as duas opções.
 
 - PC: corrigidos volume do miniplayer, finalizações antigas de preparação e nova tentativa de capa após falha temporária; removido o miniplayer separado de Efeitos sem uso.
 - PC: miniplayer arredondado com fundo em alta resolução, Swirl, halo e efeitos opcionais; melhorias de expansão e rolagem, indicadores de preparação nas capas e painéis de fila redimensionáveis.
@@ -8,7 +15,7 @@
 - PC: troca rápida de faixas preserva a identidade após reorganizar a fila; mudanças de posição não são aplicadas a outra música durante a transição. Prévia da letra limitada ao card.
 - PC: menus suspensos padronizados, bordas arredondadas, espaçamento consistente e tamanho calculado apenas pelos itens visíveis; corrigida a sobra no menu do Histórico.
 - Cards de pesquisa, coleções, reprodução e downloads alinham lançamento ao lado do álbum, sem rótulo, nas duas versões.
-- Fonte Inter incluída offline como **ONDA Modern**, novo padrão no PC e Android; títulos de músicas semibold e seções bold. A tipografia anterior continua disponível como **ONDA Legacy**, em Aparência.
+- Fonte Inter incluída offline como **ONDA Modern**, padrão no PC; no Android, Inter fica em **ONDA Legacy**. Títulos de músicas semibold e seções bold. A tipografia anterior continua disponível como **ONDA Legacy**, em Aparência.
 - PC: visual compacto da fila com abas sublinhadas, capas pequenas, ações discretas e lupa para abrir/recolher a pesquisa; Escape fecha apenas a pesquisa.
 - PC: fila dividida entre música atual, adições manuais prioritárias e próximas da coleção; aba Tocado recentemente e retorno pelo Retroceder. Ordem original guardada ao embaralhar e restaurada ao desativar.
 - Configuração **Preparar próximas músicas**, em Áudio nas duas versões: 1, 2, 3 ou 5 faixas, padrão 2, mantendo um processamento por vez.

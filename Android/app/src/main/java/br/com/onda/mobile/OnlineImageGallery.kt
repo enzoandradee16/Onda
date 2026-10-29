@@ -2,6 +2,8 @@ package br.com.onda.mobile
 
 import android.content.Intent
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
+import androidx.compose.ui.draw.clip
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -34,6 +36,8 @@ internal fun canPreviewOnlineImages(config:JSONObject):Boolean {
 
 @Composable internal fun OnlineImageGallery(vm:OndaViewModel) {
     val manifest by vm.onlineImageGallery.collectAsStateWithLifecycle()
+    val embedded by vm.onlineImageEmbedded.collectAsStateWithLifecycle()
+    if(embedded)return
     val gallery=manifest ?: return
     val images=gallery.optJSONArray("images")?.objects().orEmpty()
     if(images.isEmpty())return
@@ -64,10 +68,38 @@ internal fun canPreviewOnlineImages(config:JSONObject):Boolean {
                         val share=Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT,gallery.getString("source_url"))
                         runCatching {OndaStore.context.startActivity(Intent.createChooser(share,translateUi("Compartilhar link")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))}.onFailure {vm.showNotice("Compartilhar","Não foi possível abrir este arquivo.")}
                     }){UiText("Compartilhar link")}
-                    Button(onClick=vm::downloadOnlineImages){UiText("Baixar imagens")}
+                    Button(onClick={vm.downloadOnlineImages()}){UiText("Baixar imagens")}
                 }
                 TextButton(onClick=vm::closeOnlineImages){UiText("Fechar")}
             }
         }
+    }
+}
+
+
+/** Embedded carousel for Images; the other entry points keep the full-screen gallery. */
+@Composable internal fun InlineOnlineImageGallery(vm:OndaViewModel) {
+    val manifest by vm.onlineImageGallery.collectAsStateWithLifecycle()
+    val gallery=manifest ?: return
+    val images=gallery.optJSONArray("images")?.objects().orEmpty()
+    if(images.isEmpty())return
+    val selected by vm.onlineImageIndex.collectAsStateWithLifecycle()
+    val index=selected.coerceIn(images.indices)
+    val result by vm.onlineImageThumbnail.collectAsStateWithLifecycle()
+    var loaded by remember(gallery.optString("token"),index,result?.optString("path")){mutableStateOf(false)}
+    Box(Modifier.fillMaxWidth().aspectRatio(4f/3f).clip(androidx.compose.foundation.shape.RoundedCornerShape(14.dp))
+        .background(MaterialTheme.colorScheme.surfaceContainerLow).testTag("images-inline-gallery")
+        .gallerySwipe(previous={if(index>0)vm.previewOnlineImageAt(index-1)},next={if(index<images.lastIndex)vm.previewOnlineImageAt(index+1)}),contentAlignment=Alignment.Center) {
+        when {
+            result==null->CircularProgressIndicator()
+            result!!.has("error")->Column(Modifier.padding(16.dp)) {
+                UiErrorText(result!!.optString("error"))
+                TextButton(onClick={vm.previewOnlineImageAt(index)}){UiText("Tentar novamente")}
+            }
+            else->coil.compose.SubcomposeAsyncImage(File(result!!.getString("path")),translateUi("Prévia da imagem"),Modifier.fillMaxSize().testTag("images-inline-image")
+                .semantics {stateDescription=if(loaded)"Imagem carregada" else "Carregando imagem…"},contentScale=ContentScale.Fit,onSuccess={loaded=true},
+                loading={Box(contentAlignment=Alignment.Center){CircularProgressIndicator(Modifier.size(32.dp))}},error={UiText("Não foi possível abrir este arquivo.")})
+        }
+        GalleryArrows(index,images.size,previous={if(index>0)vm.previewOnlineImageAt(index-1)},next={if(index<images.lastIndex)vm.previewOnlineImageAt(index+1)})
     }
 }

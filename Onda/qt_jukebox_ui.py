@@ -365,7 +365,10 @@ class JukeboxBridge(QObject):
     def seekSeconds(self,seconds):
         import bisect
         beats=(self.model or {}).get('beats',[])
-        if len(beats)>1:self.seek(max(0,min(len(beats)-2,bisect.bisect_right(beats,seconds)-1)))
+        if len(beats)>1:
+            index=max(0,min(len(beats)-2,bisect.bisect_right(beats,seconds)-1))
+            phase=max(0.,min(.999999,(seconds-beats[index])/max(.000001,beats[index+1]-beats[index])))
+            self.seek(index,phase)
     @Property(float,notify=positionChanged)
     def phase(self):return self._phase
     @Property(str,notify=positionChanged)
@@ -691,14 +694,14 @@ class JukeboxBridge(QObject):
             return
         self.playbackRequested.emit()
         self.cancelled=threading.Event();self.paused.clear();cancel=self.cancelled;revision=self.revision
-        cache=self.model['cache'];initial=int(self._position);self.seeks=queue.SimpleQueue();seeks=self.seeks;switch_requests=self._switch_requests;self._fade_initial=True
+        cache=self.model['cache'];initial=int(self._position);initial_phase=self._phase;self.seeks=queue.SimpleQueue();seeks=self.seeks;switch_requests=self._switch_requests;self._fade_initial=True
         self._elapsed=0;self._track_started=0;self._jumps=0;self.flow=[];self.used_edges=set();self.positionChanged.emit();self.update_graph()
         self.update_state(playing=True,paused=False,status=tr('Reproduzindo…'));self.sync_media();self.media_timer.start()
         def worker():
             session=output=None
             try:
                 from jukebox_audio import PcmOutput
-                session=Stream(cache);session.seek(initial);timeline=deque();submitted=0;heard_jumps=0;track_base=0;cursor_initial=initial;elapsed_offset=0.
+                session=Stream(cache);session.seek(initial,phase=initial_phase);timeline=deque();submitted=0;heard_jumps=0;track_base=0;cursor_initial=initial;elapsed_offset=0.
                 def progress(played):
                     nonlocal heard_jumps
                     edges=[];index=cursor_initial;phase=0.;next_index=-1;blend=0.;level=0.
@@ -728,8 +731,8 @@ class JukeboxBridge(QObject):
                     target=None
                     while not seeks.empty():target=seeks.get()
                     if target is not None:
-                        expected,index=target if isinstance(target,tuple) else (None,target)
-                        if session.seek(index,expected_cache=expected):
+                        expected,index,phase=(*target,0.) if isinstance(target,tuple) and len(target)==2 else target if isinstance(target,tuple) else (None,target,0.)
+                        if session.seek(index,expected_cache=expected,phase=phase):
                             elapsed_offset+=max(0,getattr(output,'last_frame',0)-track_base)/RATE
                             gain=output.last_gain;output.close();timeline.clear();submitted=0;track_base=0;heard_jumps=0;cursor_initial=index
                             output=PcmOutput(progress=progress);output.gain=self.playback_gain;output.last_gain=gain
@@ -771,9 +774,9 @@ class JukeboxBridge(QObject):
         self._position=0.;self._phase=0.;self._beat_index=0;self._next_index=-1;self._jump_blend=0.;self.flow=[];self.used_edges=set();self._elapsed=0.;self._jumps=0
         self.update_state(playing=False,paused=False,busy=False);self.update_graph();self.positionChanged.emit();self.sync_media()
     @Slot(int)
-    def seek(self,index):
+    def seek(self,index,phase=0.):
         if self.model and 0<=index<len(self.model['neighbors']):
-            self.seeks.put((str(self.model['cache']),index));self._position=float(index);self._phase=0.;self.flow=[];self.used_edges=set();self.update_graph();self.positionChanged.emit()
+            self.seeks.put((str(self.model['cache']),index,phase));self._position=float(index)+phase;self._phase=phase;self.flow=[];self.used_edges=set();self.update_graph();self.positionChanged.emit()
     def media_state(self):
         state=self.media_state_provider() if self.media_state_provider else None
         return state or dict(self._state,owner='jukebox',previous=bool(self.model),next=bool(self.playlist) and (self.queue_repeat=='Todas' or self.queue_index+1<len(self.playlist)))
