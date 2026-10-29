@@ -29,8 +29,8 @@ def read_audio(source):
     record['duration']=getattr(audio.info,'length',0)
     return record
 
-def cover_preview(source):
-    """Small PNG preview of embedded front artwork; never changes the audio."""
+def cover_preview(source,size=240):
+    """Bounded PNG preview of embedded front artwork; never changes the audio."""
     import base64, io
     from mutagen import File
     from mutagen.id3 import ID3
@@ -52,7 +52,7 @@ def cover_preview(source):
             picture=next((p for p in pictures if p.type==3),pictures[0]);data=picture.data
         if not data:return ''
         with Image.open(io.BytesIO(data)) as image:
-            image.thumbnail((240,240))
+            image.thumbnail((size,size),Image.Resampling.LANCZOS)
             output=io.BytesIO();image.convert('RGB').save(output,format='PNG')
             return base64.b64encode(output.getvalue()).decode('ascii')
     except Exception:return ''

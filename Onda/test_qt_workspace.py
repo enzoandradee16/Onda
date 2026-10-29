@@ -252,6 +252,29 @@ class NativeDesktopTests(unittest.TestCase):
         self.ws.setSetting('hidden_tabs',['catalog','downloads','queue','images','metadata']);self.assertEqual(self.ws.hiddenTabs,['images','metadata'])
         self.ws.selectPage('images');self.assertEqual(self.ws.currentPage,'catalog')
         self.ws.invoke('tab_move',{'key':'history','direction':-1});self.assertLess(self.ws.settings['tab_order'].index('history'),self.ws.defaults['tab_order'].index('history'))
+    def test_category_order_preserves_tabs_visibility_selection_and_saved_order(self):
+        from preferences import PreferenceStore
+        self.ws.selectPage('history')
+        self.ws.setSetting('hidden_tabs',['images'])
+        self.ws.invoke('tab_move',{'key':'history','direction':-1})
+        tabs=list(self.ws.settings['tab_order'])
+        self.ws.invoke('tab_group_move',{'key':'tools','direction':-1})
+        groups=[row for row in self.ws.navigation if row.get('group')]
+        self.assertEqual([row['groupKey'] for row in groups],['tools','library'])
+        self.assertFalse(groups[0]['canMoveUp']);self.assertFalse(groups[1]['canMoveDown'])
+        self.assertEqual(self.ws.settings['tab_order'],tabs)
+        self.assertEqual(self.ws.hiddenTabs,['images'])
+        self.assertEqual(self.ws.currentPage,'history')
+        self.ws.persist()
+        self.assertEqual(self.ws.store.load()['tab_group_order'],['tools','library'])
+        self.ws.invoke('tab_group_move',{'key':'tools','direction':-1})
+        self.assertEqual(self.ws.settings['tab_group_order'],['tools','library'])
+        self.assertEqual(PreferenceStore.clean({'tab_group_order':['tools','tools','invalid']})['tab_group_order'],['tools','library'])
+        self.ws.invoke('reset_tab_order',{})
+        self.assertEqual(self.ws.settings['tab_group_order'],['library','tools'])
+        self.assertEqual(self.ws.settings['tab_order'],self.ws.defaults['tab_order'])
+        self.assertEqual(self.ws.hiddenTabs,['images'])
+
     def test_tab_order_moves_only_inside_its_category(self):
         self.ws.setSetting('tab_order',['images','catalog','converter','downloads','queue','playlists','history','effects','metadata'])
         self.ws.invoke('tab_move',{'key':'downloads','direction':-1})
@@ -633,26 +656,26 @@ class NativeDesktopTests(unittest.TestCase):
         from PySide6.QtCore import QObject,QMetaObject
         app,engine,bridge=create_application(complete=False)
         try:
-            for name in ('miniPlayer','effectsFloatingPlayer'):
+            for name in ('miniPlayer',):
                 mini=engine.rootObjects()[0].findChild(QObject,name)
                 QMetaObject.invokeMethod(mini,'show');self.settle()
                 for mode in ('lyricsVisible','queueVisible','lyricsVisible','queueVisible'):
-                    mini.setProperty(mode,True);self.settle()
+                    mini.setProperty(mode,True);self.wait_for(lambda:mini.height()>=450)
                     self.assertGreaterEqual(mini.height(),450)
                     if mode=='lyricsVisible':
                         lyrics=mini.findChild(QObject,'miniPlayerLyrics')
                         self.assertGreater(lyrics.property('height'),100)
                         self.assertLess(lyrics.property('y')+lyrics.property('height'),mini.height())
-                    mini.setProperty(mode,False);self.settle()
+                    mini.setProperty(mode,False);self.wait_for(lambda:mini.height()<=310)
                     self.assertLessEqual(mini.height(),310)
         finally:close_application(engine,bridge)
-    def test_miniplayers_remain_independent_and_obey_current_minimize_setting(self):
+    def test_miniplayer_remains_independent_and_obeys_current_minimize_setting(self):
         from qt_desktop_ui import create_application,close_application
         from preferences import PreferenceStore
         from PySide6.QtCore import QObject,QMetaObject,Qt
         app,engine,bridge=create_application(complete=False);ws=engine.workspace;window=engine.rootObjects()[0]
         try:
-            for name in ('miniPlayer','effectsFloatingPlayer'):
+            for name in ('miniPlayer',):
                 mini=window.findChild(QObject,name)
                 for minimize in (True,False,True,False):
                     window.showNormal();mini.hide();ws.setSetting('minimize_on_miniplayer',minimize);self.settle()
@@ -677,36 +700,23 @@ class NativeDesktopTests(unittest.TestCase):
             ws.persist()
             self.assertIs(PreferenceStore.clean({'minimize_on_miniplayer':False})['minimize_on_miniplayer'],False)
         finally:close_application(engine,bridge)
-    def test_miniplayers_share_header_and_effects_use_their_own_track(self):
+    def test_unified_miniplayer_uses_current_track_transport_and_audio_volume(self):
         from qt_desktop_ui import create_application,close_application
         from PySide6.QtCore import QObject,QMetaObject
-        app,engine,bridge=create_application(complete=False);ws=engine.workspace;window=engine.rootObjects()[0]
+        app,engine,bridge=create_application(complete=False);window=engine.rootObjects()[0]
         try:
-            ws.options.update(effectsRecord={'title':'Effects song','artists':['Effects artist'],'album':'Effects album'},position=42,duration=180)
-            ws.optionsChanged.emit();ws.selectPage('jukebox')
-            bridge.update_state(title='Jukebox song',artist='Jukebox artist',album='Jukebox album')
-            for name,effects in (('miniPlayer',False),('effectsFloatingPlayer',True)):
-                mini=window.findChild(QObject,name);QMetaObject.invokeMethod(mini,'show');self.settle()
-                drag=mini.findChild(QObject,'miniPlayerDragArea')
-                self.assertEqual(drag.property('x'),0);self.assertEqual(drag.property('y'),0)
-                self.assertEqual(drag.property('width'),mini.width());self.assertGreaterEqual(drag.property('height'),150)
-                self.assertEqual(mini.property('trackTitle'),'Effects song' if effects else 'Jukebox song')
-                self.assertEqual(mini.property('trackAlbum'),'Effects album' if effects else 'Jukebox album')
-                if effects:
-                    def frame():
-                        value=mini.property('frame')
-                        return value.toVariant() if hasattr(value,'toVariant') else value
-                    self.wait_for(lambda:frame()['position']==42)
-                    self.assertFalse(frame()['jukebox'])
-                    ws.options['effectsQueue']=[dict(source='next.wav',record={},duration=60)]
-                    with patch.object(ws,'play_effects_entry') as play:
-                        QMetaObject.invokeMethod(mini.findChild(QObject,'miniNext'),'clicked')
-                        play.assert_called_once_with(0)
-                    volume=mini.findChild(QObject,'miniVolume');volume.setProperty('value',33)
-                    QMetaObject.invokeMethod(volume,'moved');self.settle()
-                    self.assertEqual(ws.options['effectsVolume'],33)
-                    QMetaObject.invokeMethod(mini.findChild(QObject,'miniStop'),'clicked');self.settle()
-                    self.assertEqual(ws.options['position'],0)
+            bridge.update_state(title='Unified song',artist='Artist',album='Album')
+            mini=window.findChild(QObject,'miniPlayer');QMetaObject.invokeMethod(mini,'show');self.settle()
+            self.assertIsNone(window.findChild(QObject,'effectsFloatingPlayer'))
+            drag=mini.findChild(QObject,'miniPlayerDragArea')
+            self.assertEqual(drag.property('width'),mini.width())
+            self.assertEqual(mini.property('trackTitle'),'Unified song')
+            self.assertEqual(mini.property('trackAlbum'),'Album')
+            with patch.object(bridge,'nextTrack') as play:
+                QMetaObject.invokeMethod(mini.findChild(QObject,'miniNext'),'clicked');play.assert_called_once()
+            volume=mini.findChild(QObject,'miniVolume');volume.setProperty('value',33)
+            QMetaObject.invokeMethod(volume,'moved');self.settle()
+            self.assertAlmostEqual(bridge.playbackParams['volume'],33)
         finally:close_application(engine,bridge)
     def test_qml_all_pages_settings_and_decisions_have_no_runtime_warnings(self):
         from qt_desktop_ui import create_application,close_application

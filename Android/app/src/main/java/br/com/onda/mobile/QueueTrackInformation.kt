@@ -26,11 +26,10 @@ import coil.compose.AsyncImage
             val artists=info?.optJSONArray("artists")
             val artist=if(artists==null)"" else (0 until artists.length()).map {artists.optString(it)}.filter {it.isNotBlank()}.joinToString(", ")
             if(artist.isNotBlank())Text(artist,style=MaterialTheme.typography.bodySmall,maxLines=if(small)1 else 2,overflow=TextOverflow.Ellipsis)
-            val album=info?.cleanString("album").orEmpty()
-            if(album.isNotBlank())Row {UiText("Álbum / single",style=MaterialTheme.typography.bodySmall);Text(": $album",style=MaterialTheme.typography.bodySmall,maxLines=2,overflow=TextOverflow.Ellipsis)}
+            info?.let {AlbumDateLabel(it)}
             val duration=info?.optLong("duration_ms") ?: 0L
             if(duration>0)Text(mediaClock(duration/1000),style=MaterialTheme.typography.bodySmall)
-            for((key,label) in listOf("release_date" to "Lançamento","genre" to "Gênero","track_number" to "Faixa","disc_number" to "Disco")) {
+            for((key,label) in listOf("genre" to "Gênero","track_number" to "Faixa","disc_number" to "Disco")) {
                 val value=info?.cleanString(key).orEmpty()
                 if(value.isNotBlank())Row {UiText(label,style=MaterialTheme.typography.bodySmall);Text(": $value",style=MaterialTheme.typography.bodySmall,maxLines=1,overflow=TextOverflow.Ellipsis)}
             }

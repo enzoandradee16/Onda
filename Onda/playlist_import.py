@@ -10,6 +10,24 @@ from playlist_options import DEFAULT_PLAYLIST_LIMIT, playlist_limit
 
 LIMIT = DEFAULT_PLAYLIST_LIMIT
 
+def load_interactive_playlist(url,client,limit=LIMIT,account=None,cancelled=lambda:False,*,playback=False):
+    """Bound interactive payloads before enumeration, without changing download limits."""
+    cap=playlist_limit(limit)
+    bounded=cap
+    if cancelled():raise MetadataError('Carregamento cancelado.')
+    result=load_playlist(url,client,limit=bounded,account=account,cancelled=cancelled)
+    if cancelled():raise MetadataError('Carregamento cancelado.')
+    rows=result.get('tracks') or []
+    result['tracks']=rows[:bounded]
+    if len(rows)>bounded:
+        from collection_coverage import annotate
+        annotate(result,(result.get('coverage') or {}).get('total') or len(rows),capped=True)
+    if len(rows)>=bounded and bounded==cap:
+        warning=f'Limite configurado: até {cap} faixas por carregamento. Ajuste o limite de playlists nas configurações se precisar carregar mais.'
+        result['note']=' '.join(filter(None,[result.get('note'),warning]))
+        result['coverage_summary']=' '.join(filter(None,[result.get('coverage_summary'),warning]))
+    return result
+
 
 def spotify_playlist(html, playlist_id, limit=LIMIT):
     limit = playlist_limit(limit)
@@ -72,6 +90,7 @@ def _load_playlist(url, client, limit=LIMIT, account=None, cancelled=lambda: Fal
             raise MetadataError("Playlist Deezer indisponível ou privada.")
         records, offset = [], 0
         while offset < limit:
+            if cancelled():raise MetadataError('Carregamento cancelado.')
             tracks = client.get_json("https://api.deezer.com/playlist/" + parts[1] + "/tracks",
                                      params={"limit": min(100, limit - offset), "index": offset})
             if tracks.get("error"):

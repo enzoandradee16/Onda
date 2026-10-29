@@ -53,11 +53,13 @@ class Stream:
             self.current.close();self.current=target
         else:self.incoming=target
         self.announce=True
-    def seek(self,index):
+    def seek(self,index,expected_cache=None):
         # A seek targets the track currently becoming audible.
+        if expected_cache is not None and str(expected_cache)!=(self.incoming or self.current).cache:return False
         if self.incoming is not None:
             self.current.close();self.current=self.incoming;self.incoming=None
         self.current.session.seek(index);self.current.part=None;self.current.offset=0
+        return True
     def chunk(self,*args,**kwargs):
         count=self.current.fill(args,kwargs)
         if self.incoming is not None:

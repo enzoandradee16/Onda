@@ -6,11 +6,13 @@
 
 Aplicación gratuita, de código abierto y **sin anuncios** para Windows y Android. Reúne herramientas para descargar, organizar y editar música, vídeos e imágenes, con interfaz en portugués y compatibilidad con español e inglés.
 
+**Desarrollado con ayuda de inteligencia artificial.**
+
 ONDA nació como un proyecto personal, creado inicialmente para mí y mis amigos. Decidí compartirlo con quienes también encuentren útil tener estas herramientas en un mismo lugar, sin anuncios y con opciones para personalizar la experiencia.
 
 El proyecto sigue en desarrollo. Las sugerencias, contribuciones e informes de errores son bienvenidos.
 
-**Versión 1.2.3 para Windows 10 o superior (x64) y Android 8 o superior (ARM64 y x86_64).**
+**Versión 1.2.4 para Windows 10 o superior (x64) y Android 8 o superior (ARM64 y x86_64).**
 
 ![ONDA Windows 1.2.0](docs/images/pc%20novo/pesquisa-musicas-preto-puro.png)
 
@@ -21,8 +23,8 @@ En PC, haz clic derecho en las listas o tarjetas para abrir las acciones disponi
 ## Características destacadas
 
 - **Windows:** Descargar ahora en la búsqueda abre la elección de formato y calidad: MP3, M4A, FLAC o audio original. Parte de las preferencias guardadas. Permite descargar o añadir a la cola; cancelar no inicia nada. La elección se aplica a esa canción.
-- **Minirreproductores del PC:** Efectos y Jukebox comparten el diseño, cada uno con portada, álbum, controles, volumen, letras y cola propios. Siguen visibles al minimizar ONDA. Apariencia permite elegir si ONDA se minimiza al abrirlos; el encabezado, la portada y los datos de la canción permiten mover la ventana.
-- **Android:** navegación por Buscar, Descargas, Reproducción y Más, con En curso / Completados y Efectos / Jukebox usando el mismo selector redondeado de Guardados / Importar. Incluye reproductor ampliado, letras a pantalla completa y colas independientes.
+- **Minirreproductor del PC:** reproducción unificada de Efectos y Jukebox, con portada, álbum, controles, volumen, letras y cola. Sigue visible al minimizar ONDA. Apariencia permite elegir si ONDA se minimiza al abrirlo; el encabezado, la portada y los datos de la canción permiten mover la ventana.
+- **Android:** navegación por Buscar, Descargas, Reproducción y Más. Efectos y Jukebox pueden aplicarse juntos a la misma canción y cola, con reproductor ampliado y letras a pantalla completa.
 - **Instalador propio:** “Tu ONDA empieza aquí.”, selección de carpeta y acceso directo, progreso y finalización. Portugués, español e inglés se eligen desde la apertura, incluidos los mensajes del desinstalador. No cambia el idioma guardado en la aplicación.
 - **Desinstalador propio:** el mismo diseño del instalador, con “Hasta la próxima ONDA.”, tres idiomas y opciones independientes para borrar configuración/cola/historial y eliminar herramientas descargadas. Ambas empiezan desactivadas. Se conservan descargas, cookies externos y herramientas personales.
 
@@ -40,7 +42,7 @@ Descarga los paquetes oficiales desde [Releases](https://github.com/enzoandradee
 
 - **Portátil:** extrae el ZIP completo y abre `Onda.exe`. Mantén las carpetas `Onda` y `_runtime` junto al ejecutable. No necesitas instalar Python. En el primer uso, ONDA descarga FFmpeg directamente de gyan.dev, con barra de progreso y verificación SHA-256; esta preparación inicial requiere conexión a Internet.
 - **Instalador:** ejecuta `Onda-…-Setup-Windows-x64.exe`. La interfaz propia de ONDA permite elegir la carpeta, crear un acceso directo y seguir el progreso de la instalación. La instalación es por usuario, con desinstalador y compatibilidad con versiones anteriores. FFmpeg también se prepara automáticamente en el primer uso.
-- **Android:** el APK está firmado con la clave de producción y requiere un dispositivo ARM64 con Android 8 o superior. El código fuente de las herramientas nativas recompiladas se incluye en el paquete Fontes-nativos-Android de la misma release.
+- **Android:** navegación por Buscar, Descargas, Reproducción y Más. Efectos y Jukebox pueden aplicarse juntos a la misma canción y cola, con reproductor ampliado y letras a pantalla completa.
 - **Código fuente:** consulta las [instrucciones de desarrollo](Onda/README.md) (en portugués).
 
 Los ejecutables de Windows no tienen firma digital. Windows puede mostrar un aviso de reputación; comprueba el origen y los hashes antes de ejecutarlos.

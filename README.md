@@ -6,11 +6,13 @@
 
 Aplicativo gratuito, de código aberto e **sem anúncios** para Windows e Android. Reúne ferramentas para baixar, organizar e editar músicas, vídeos e imagens, com interface em português e suporte ao espanhol e ao inglês.
 
+**Desenvolvido com auxílio de inteligência artificial.**
+
 O ONDA nasceu como um projeto pessoal, feito inicialmente para meu uso e de amigos. Resolvi disponibilizá-lo para quem também achar útil ter essas ferramentas no mesmo lugar, sem anúncios e com opções para personalizar a experiência.
 
 O projeto continua em desenvolvimento. Sugestões, contribuições e relatos de problemas são bem-vindos.
 
-**Versão 1.2.3 para Windows 10 ou superior (x64) e Android 8 ou superior (ARM64 e x86_64).**
+**Versão 1.2.4 para Windows 10 ou superior (x64) e Android 8 ou superior (ARM64 e x86_64).**
 
 ![ONDA Windows 1.2.1](docs/images/pc%20novo/pesquisa-musicas-preto-puro.png)
 
@@ -21,8 +23,8 @@ No PC, clique com o botão direito nas listas ou cards para abrir as ações dis
 ## Destaques do aplicativo
 
 - **Windows:** ao clicar em Baixar agora na pesquisa, escolha MP3, M4A, FLAC ou áudio original e a qualidade disponível. A janela parte das preferências salvas e permite baixar ou adicionar à fila; cancelar não inicia o download. A escolha vale para aquela música.
-- **Miniplayers no PC:** Efeitos e Jukebox compartilham o visual, com capa, álbum, controles, volume, letras e fila próprios. Continuam visíveis ao minimizar o ONDA. A opção de minimizar ao abrir fica em Aparência; capa e informações da faixa também permitem arrastar a janela.
-- **Android:** navegação por Pesquisar, Downloads, Reprodução e Mais, com os seletores Em andamento / Concluídos e Efeitos / Jukebox no mesmo estilo arredondado de Salvos / Importar. Há player expandido, letras em tela cheia e filas independentes de reprodução.
+- **Miniplayer no PC:** reprodução unificada de Efeitos e Jukebox, com capa, álbum, controles, volume, letras e fila. Continua visível ao minimizar o ONDA. A opção de minimizar ao abrir fica em Aparência; capa e informações da faixa também permitem arrastar a janela.
+- **Android:** navegação por Pesquisar, Downloads, Reprodução e Mais. Efeitos e Jukebox podem ser aplicados juntos à mesma música e fila, com player expandido e letras em tela cheia.
 - **Instalador próprio:** “Sua ONDA começa aqui.”, escolha de pasta e atalho, progresso e conclusão. Português, espanhol e inglês podem ser selecionados desde a abertura, incluindo as mensagens do desinstalador. A seleção não altera o idioma salvo no aplicativo.
 - **Desinstalador próprio:** mesmo estilo do instalador, com “Até a próxima ONDA.”, três idiomas e duas opções independentes: apagar configurações/fila/histórico e remover ferramentas baixadas. Ambas começam desativadas. Downloads, cookies externos e ferramentas pessoais são preservados.
 
@@ -40,7 +42,7 @@ Baixe os pacotes oficiais em [Releases](https://github.com/enzoandradee16/Onda/r
 
 - **Portátil:** extraia o ZIP inteiro e abra `Onda.exe`. Mantenha as pastas `Onda` e `_runtime` junto dele. Não precisa instalar Python. No primeiro uso, o ONDA baixa o FFmpeg diretamente de gyan.dev, com barra de progresso e verificação SHA-256; é necessário acesso à internet nessa preparação.
 - **Instalador:** execute o arquivo `Onda-…-Setup-Windows-x64.exe`. A interface própria do ONDA permite escolher a pasta, criar um atalho e acompanhar a instalação. A instalação é por usuário, com desinstalador e compatibilidade com versões anteriores. O FFmpeg também é preparado automaticamente no primeiro uso.
-- **Android:** o APK usa assinatura de produção e requer Android 8 ou superior, em aparelho ARM64. As fontes das ferramentas nativas recompiladas são disponibilizadas no pacote Fontes-nativos-Android da mesma release.
+- **Android:** navegação por Pesquisar, Downloads, Reprodução e Mais. Efeitos e Jukebox podem ser aplicados juntos à mesma música e fila, com player expandido e letras em tela cheia.
 - **Código-fonte:** consulte [as instruções de desenvolvimento](Onda/README.md).
 
 Os executáveis Windows não têm assinatura digital. O Windows pode mostrar um aviso de reputação; confira a origem e os hashes antes de executar.

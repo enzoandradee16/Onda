@@ -10,6 +10,11 @@ class CollectionInputTests(unittest.TestCase):
     setUp=fixture.NativeDesktopTests.setUp
     tearDown=fixture.NativeDesktopTests.tearDown
     settle=fixture.NativeDesktopTests.settle
+    def test_album_and_release_date_share_a_line_without_empty_separators(self):
+        self.assertEqual(self.ws.albumReleaseText({'album':'Discovery','release_date':'2001-03-12'}),'Discovery · 12/03/2001')
+        self.assertEqual(self.ws.albumReleaseText({'release_date':'2001'}),'2001')
+        self.assertEqual(self.ws.albumReleaseText({'album':'Discovery'}),'Discovery')
+        self.assertEqual(self.ws.albumReleaseText({}),'')
 
     def test_effects_destination_adds_selected_catalog_track_without_opening_or_playing(self):
         record={'title':'Selected','artists':['Artist'],'source_url':'https://example.com/selected'}
@@ -35,10 +40,10 @@ class CollectionInputTests(unittest.TestCase):
     def test_sidebar_collection_keeps_current_page_and_drawer_state(self):
         rows=[{'title':'A','source_url':'https://example.com/a'},{'title':'B','source_url':'https://example.com/b'}]
         self.ws.selectPage('catalog');self.ws.setOption('jukeboxQueueOpen',False)
-        with patch.object(self.ws,'run_task') as task,patch.object(self.bridge,'enqueueRecord') as enqueue:
+        with patch.object(self.ws,'run_task') as task,patch.object(self.bridge,'enqueueRecords',return_value=2) as enqueue:
             self.ws.dispatch('playback_queue_search',{'effects':False,'query':'collection'})
             task.call_args.args[2]({'is_collection':True,'tracks':rows})
-        self.assertEqual(enqueue.call_count,2);self.assertEqual(self.ws.currentPage,'catalog');self.assertFalse(self.ws.options['jukeboxQueueOpen'])
+        enqueue.assert_called_once_with(rows);self.assertEqual(self.ws.currentPage,'catalog');self.assertFalse(self.ws.options['jukeboxQueueOpen'])
 
     def test_effects_sidebar_add_keeps_actual_download_metadata_and_stays_closed(self):
         record={'title':'URL','source_url':'https://example.com/a'}

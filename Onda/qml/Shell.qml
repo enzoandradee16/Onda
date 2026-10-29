@@ -6,7 +6,7 @@ Pane {
     ImageGalleryPopup {}
     LyricsWindow { id: lyricsWindow }
     EffectsQueueDrawer {parent: Overlay.overlay; effects: false}
-    MiniPlayer { id: floatingPlayer; mainWindow: app.Window.window; volumeValue: volume.value; onVolumeMoved: function(value){volume.value=value} }
+    MiniPlayer { id: floatingPlayer; mainWindow: app.Window.window; volumeValue: volume.value; onVolumeMoved: function(value){bridge.setParams(bridge.playbackParams.variation,bridge.playbackParams.smooth,value,bridge.playbackParams.normal)} }
 
     Connections { target: workspace; function onLyricsRequested() {lyricsWindow.open()} }
     id: app
@@ -15,7 +15,7 @@ Pane {
     readonly property var remainingTasks: workspace.activity.busy.filter(function(name) { return app.inlineTasks.indexOf(name)<0 && workspace.activity.background.indexOf(name)<0 })
     padding: 0
     background: Rectangle { color: bridge.palette.bg }
-    font.family: workspace.preferences.interface_font === "Padrão do sistema" ? "Segoe UI" : workspace.preferences.interface_font; font.pixelSize: Math.round(14*bridge.fontScale)
+    font.family: bridge.interfaceFamily; font.pixelSize: Math.round(14*bridge.fontScale)
     palette.window: bridge.palette.bg
     palette.windowText: bridge.palette.text
     palette.base: bridge.palette.surface
@@ -47,16 +47,19 @@ Pane {
                 Layout.fillWidth: true; Layout.leftMargin: 24; Layout.rightMargin: 24; Layout.topMargin: 24; Layout.bottomMargin: 18; spacing: Math.round(5*bridge.spacing)
                 RowLayout {
                 Layout.fillWidth: true
-                Text { Layout.fillWidth: true; text: workspace.title; font.pixelSize: Math.round(28*bridge.fontScale); font.weight: Font.DemiBold; color: bridge.palette.text }
+                Text { Layout.fillWidth: true; text: workspace.title; font.pixelSize: Math.round(28*bridge.fontScale); font.weight: Font.Bold; color: bridge.palette.text }
                 ActionButton { text: bridge.translate("Aparência"); onClicked: appearance.open() }
                 ActionButton { text: bridge.translate("Atalhos"); onClicked: workspace.showShortcuts() }
-                ActionButton { text: bridge.translate("Metadados"); onClicked: workspace.showMetadata() }
                 }
                 Text { visible: workspace.currentPage === "effects" || workspace.currentPage === "jukebox"; text: bridge.translate("Sua música, do seu jeito."); font.pixelSize: Math.round(15*bridge.fontScale); color: bridge.palette.muted }
 
             }
-            Flow { Layout.fillWidth: true; Layout.leftMargin: 24; Layout.rightMargin: 24; spacing: Math.round(8*bridge.spacing); visible: app.remainingTasks.length > 0
-                Repeater { model: app.remainingTasks.filter(function(name) { return name !== "prepare_tools" && name !== "update_tools" }); ActionButton { required property string modelData; text: bridge.translate("Cancelar")+" "+workspace.taskLabel(modelData); onClicked: workspace.invoke("cancel_task",{name:modelData}) } }
+            OndaProgressBar {
+                objectName: "globalOperationProgress"
+                Layout.fillWidth: true; Layout.leftMargin: 24; Layout.rightMargin: 24; Layout.bottomMargin: 12
+                visible: app.remainingTasks.some(function(name) { return name !== "prepare_tools" && name !== "update_tools" })
+                indeterminate: true
+                Accessible.name: bridge.translate("Operação em andamento")
             }
             Card {
                 objectName: "toolsProgressCard"
@@ -126,7 +129,7 @@ Pane {
                     MicrophoneButton { onClicked: { if (lyricsWindow.visible) lyricsWindow.close(); else lyricsWindow.open() } }
                     TimerButton { onClicked: miniTimers.open() }
                     PlaybackButton { glyph: "mini"; Accessible.name: bridge.translate("Mini player"); ToolTip.visible: hovered; ToolTip.text: Accessible.name; onClicked: {floatingPlayer.openPlayer()} }
-                    ActionButton { text: bridge.translate("Fila"); onClicked: {workspace.setOption("jukeboxQueueOpen",true)} }
+                    PlaybackButton { glyph: "queue"; Accessible.name: bridge.translate("Fila"); ToolTip.visible: hovered; ToolTip.text: Accessible.name; onClicked: {workspace.setOption("jukeboxQueueOpen",true)} }
                 }
             }
             Rectangle {
@@ -214,9 +217,11 @@ Pane {
             Text { text: bridge.translate("Aparência"); color: bridge.palette.text; font.pixelSize: Math.round(22*bridge.fontScale); font.weight: Font.DemiBold }
             Label { text: bridge.translate("Modo de aparência"); color: bridge.palette.muted }
             ChoiceBox { Layout.fillWidth: true; model: bridge.themes; currentIndex: model.indexOf(bridge.theme); displayText: bridge.translate(bridge.theme); onActivated: bridge.setAppearance(model[index],bridge.accent,bridge.animations) }
+            OndaSwitch { objectName:"appearanceBlackSeparators"; visible:bridge.theme==="Preto puro"; Layout.fillWidth:true; text:bridge.translate("Mostrar bordas e separações no Preto puro"); checked:workspace.preferences.pure_black_separators===true; onToggled:workspace.setSetting("pure_black_separators",checked) }
             Label { text: bridge.translate("Cor de destaque"); color: bridge.palette.muted }
             ChoiceBox { Layout.fillWidth: true; model: bridge.accents; currentIndex: model.indexOf(bridge.accent); displayText: bridge.translate(bridge.accent); onActivated: bridge.setAppearance(bridge.theme,model[index],bridge.animations) }
             OndaSwitch { text: bridge.translate("Animações da interface"); checked: bridge.animations; onToggled: bridge.setAppearance(bridge.theme,bridge.accent,checked) }
+            OndaSwitch { objectName:"appearanceGlassToggle"; text: bridge.translate("Efeitos translúcidos e liquid glass"); checked: workspace.preferences.translucent_effects !== false; onToggled: workspace.setSetting("translucent_effects",checked) }
             ActionButton { Layout.alignment: Qt.AlignRight; primary: true; text: bridge.translate("Pronto"); onClicked: appearance.close() }
         }
     }

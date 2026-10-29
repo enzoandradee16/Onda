@@ -4,15 +4,13 @@ import android.app.*
 import android.content.*
 import android.content.pm.ServiceInfo
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.media.MediaMetadata
 import android.media.session.MediaSession
 import android.media.session.PlaybackState
 import android.os.*
-import android.util.Base64
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.combine
 import java.net.HttpURLConnection
 import java.net.URL
 
@@ -28,7 +26,7 @@ class JukeboxService:Service() {
     private lateinit var controller:JukeboxController
     private lateinit var wake:PowerManager.WakeLock
     private var artwork:Bitmap?=null
-    private var artworkModel:org.json.JSONObject?=null
+    private var artworkKey:List<String>?=null
     private var artworkTask:Job?=null
     private var selfStopped=false
     override fun onBind(intent:Intent?)=null
@@ -48,36 +46,42 @@ class JukeboxService:Service() {
         val notification=notification()
         if(Build.VERSION.SDK_INT>=29)startForeground(13,notification,ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK) else startForeground(13,notification)
         scope.launch {
-            controller.state.map {Triple(it.playing,it.paused,it.model)}.distinctUntilChanged().collect {state->
-                if(!state.first){selfStopped=true;stopSelf();return@collect}
-                if(state.second){if(wake.isHeld)wake.release()}else if(!wake.isHeld)wake.acquire()
+            combine(controller.state,controller.playbackQueue,controller.currentQueueId) {state,rows,id->
+                val row=rows.firstOrNull {it.optString("_queue_id")==id}
+                val model=state.model
+                listOf(state.playing.toString(),state.paused.toString(),model?.optString("source").orEmpty(),
+                    model?.optString("media_title").orEmpty(),model?.optString("media_artist").orEmpty(),
+                    model?.optString("media_cover").orEmpty().ifBlank {model?.optString("_cover").orEmpty()}.ifBlank {row?.optString("_cover").orEmpty()},
+                    model?.optString("cover_url").orEmpty().ifBlank {row?.optString("cover_url").orEmpty()})
+            }.distinctUntilChanged().collect {state->
+                if(state[0]!="true"){selfStopped=true;stopSelf();return@collect}
+                if(state[1]=="true"){if(wake.isHeld)wake.release()}else if(!wake.isHeld)wake.acquire()
                 session.isActive=true
-                refresh()
-                if(artworkModel!==state.third) {
-                    artworkModel=state.third;artwork=null;artworkTask?.cancel()
-                    val model=state.third
+                val key=state.drop(2)
+                if(artworkKey!=key) {
+                    artworkKey=key;artwork=null;artworkTask?.cancel()
                     artworkTask=launch {
-                        val image=withContext(Dispatchers.IO) {runCatching {
-                            val embedded=model?.optString("media_cover").orEmpty()
-                            if(embedded.isNotBlank()) {
-                                val bytes=Base64.decode(embedded,Base64.DEFAULT);BitmapFactory.decodeByteArray(bytes,0,bytes.size)
-                            } else {
-                                val url=model?.optString("cover_url").orEmpty()
-                                if(!url.startsWith("https://"))null else {
+                        for(attempt in 0..2) {
+                            if(attempt>0)delay(1000L*attempt)
+                            val image=withContext(Dispatchers.IO) {
+                                decodeMediaArtwork(state[5],state[6]) {url->
                                     val connection=URL(url).openConnection() as HttpURLConnection
                                     connection.connectTimeout=5000;connection.readTimeout=5000
                                     try {connection.inputStream.use {input->
                                         val output=java.io.ByteArrayOutputStream();val buffer=ByteArray(8192)
-                                        while(output.size()<=2*1024*1024){val count=input.read(buffer);if(count<0)break;output.write(buffer,0,count)}
+                                        while(output.size()<=10*1024*1024){val count=input.read(buffer);if(count<0)break;output.write(buffer,0,count)}
                                         val bytes=output.toByteArray()
-                                        if(bytes.size>2*1024*1024)null else BitmapFactory.decodeByteArray(bytes,0,bytes.size,BitmapFactory.Options().apply {inSampleSize=2})
+                                        if(bytes.size>10*1024*1024)null else bytes
                                     }}finally {connection.disconnect()}
                                 }
                             }
-                        }.getOrNull()}
-                        if(isActive && artworkModel===model){artwork=image;refresh()}
+                            ensureActive()
+                            if(artworkKey!=key)return@launch
+                            if(image!=null){artwork=image;refresh();break}
+                        }
                     }
                 }
+                refresh()
             }
         }
     }
@@ -99,7 +103,9 @@ class JukeboxService:Service() {
         session.setPlaybackState(PlaybackState.Builder().setActions(PlaybackState.ACTION_PLAY or PlaybackState.ACTION_PAUSE or PlaybackState.ACTION_PLAY_PAUSE or PlaybackState.ACTION_STOP or PlaybackState.ACTION_SKIP_TO_PREVIOUS or PlaybackState.ACTION_SKIP_TO_NEXT)
             .setState(if(state.paused)PlaybackState.STATE_PAUSED else PlaybackState.STATE_PLAYING,PlaybackState.PLAYBACK_POSITION_UNKNOWN,if(state.paused)0f else 1f).build())
         session.setMetadata(MediaMetadata.Builder().putString(MediaMetadata.METADATA_KEY_TITLE,model?.optString("media_title")?.takeIf {it.isNotBlank()} ?: state.title.ifBlank {translateUi("Reprodução")})
-            .putString(MediaMetadata.METADATA_KEY_ARTIST,model?.optString("media_artist").orEmpty()).putBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART,artwork).build())
+            .putString(MediaMetadata.METADATA_KEY_ARTIST,model?.optString("media_artist").orEmpty())
+            .putBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART,artwork).putBitmap(MediaMetadata.METADATA_KEY_ART,artwork)
+            .putBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON,artwork).build())
         getSystemService(NotificationManager::class.java).notify(13,notification())
     }
     override fun onStartCommand(intent:Intent?,flags:Int,startId:Int):Int {

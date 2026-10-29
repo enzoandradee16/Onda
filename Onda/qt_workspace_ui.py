@@ -232,6 +232,7 @@ class DesktopWorkspace(QObject):
         self.syncing=True
         try:self.bridge.preferences.update({k:v for k,v in self.settings.items() if k in self.defaults});self.bridge.appearanceChanged.emit()
         finally:self.syncing=False
+        if key=='playback_prepare_ahead':self.bridge.prepare_next_queued();self.bridge.effect_prepare_timer.start()
         if self._page in self.hiddenTabs or self._page=='jukebox' and 'effects' in self.hiddenTabs:self.selectPage('catalog')
         self.settingsChanged.emit();self.save_timer.start()
     @Slot()
@@ -388,16 +389,18 @@ class DesktopWorkspace(QObject):
                     self.setOption(key,[])
                     if effects:self.effects_input_loaded(result)
                     else:
-                        for row in result.get('tracks',[]):self.bridge.enqueueRecord(row)
-                        self.notify(tr('{count} músicas adicionadas à fila.').replace('{count}',str(len(result.get('tracks',[])))))
+                        for row in result.get('tracks',[]):row['_queue_collection']=result.get('title') or 'Playlist'
+                        count=self.bridge.enqueueRecords(result.get('tracks',[]))
+                        self.notify(tr('{count} músicas adicionadas à fila.').replace('{count}',str(count)))
                 else:self.setOption(key,result.get('tracks',[]))
             self.run_task('playback_input',{'query':p.get('query','')},loaded)
         elif action=='playback_queue_add':
             effects=p.get('effects',True);rows=self.options.get('effectsQueueResults' if effects else 'jukeboxQueueResults',[]);index=int(p.get('index',-1))
-            if not 0<=index<len(rows):return
-            if not effects:self.bridge.enqueueRecord(rows[index])
+            record=next((row for row in rows if row.get('source_url')==p['source']),None) if p.get('source') else rows[index] if 0<=index<len(rows) else None
+            if record is None:return
+            if not effects:self.bridge.enqueueRecord(record)
             else:
-                record=dict(rows[index])
+                record=dict(record)
                 def loaded(result):
                     if not hasattr(self,'effects_catalog_records'):self.effects_catalog_records={}
                     self.effects_catalog_records[result['source']]=dict(result.get('record') or record);self.accept_files('effects_queue',[result['source']])
@@ -407,8 +410,9 @@ class DesktopWorkspace(QObject):
             destination=p.get('destination','effects')
             records=[dict(row) for row in self.models['playlists'].rows if row.get('checked')]
             if not records:records=[dict(row) for row in self.models['playlists'].rows]
+            for row in records:row['_queue_collection']=self.options.get('playlistTitle') or 'Playlist'
             if destination=='jukebox':
-                for record in records:self.bridge.enqueueRecord(record)
+                self.bridge.enqueueRecords(records)
             else:
                 def loaded(rows):
                     self.options['effectsQueue'].extend(rows);self.optionsChanged.emit()
@@ -679,7 +683,16 @@ class DesktopWorkspace(QObject):
         elif action=='spotify_disconnect':self.account.disconnect();self.statusChanged.emit()
         elif action=='logs':self.message.emit(tr('Detalhes'),'\n'.join(self.logs[-200:]) or tr('Sem registros.'))
         elif action=='failures':self.message.emit(tr('Falhas da fila'),'\n'.join(job.get('display_name',job['url'])+': '+error_text(job.get('last_error','')) for job in self.jobs if job['state']=='Falhou') or tr('Nenhuma falha.'))
-        elif action=='reset_tab_order':self.setSetting('tab_order',self.defaults['tab_order'])
+        elif action=='reset_tab_order':
+            self.setSetting('tab_order',self.defaults['tab_order'])
+            self.setSetting('tab_group_order',self.defaults['tab_group_order'])
+        elif action=='tab_group_move':
+            values=list(self.settings['tab_group_order']);key=p.get('key')
+            if key in values:
+                source=values.index(key);target=source+int(p['direction'])
+                if 0<=target<len(values):
+                    values[source],values[target]=values[target],values[source]
+                    self.setSetting('tab_group_order',values)
         elif action=='toggle_tab':
             values=list(self.hiddenTabs);key=p['key']
             if key in ('catalog','downloads','queue'):return
@@ -1095,7 +1108,7 @@ class DesktopWorkspace(QObject):
             if event['id'] in self.active:self.active[event['id']]['process']=event['process']
             return
         if identity=='finished':
-            key=event['id'];state=self.active.pop(key,None);job=next((job for job in self.jobs if job['id']==key),None)
+            key=event['id'];self.active.pop(key,None);job=next((job for job in self.jobs if job['id']==key),None)
             if job:
                 job['interrupted']=bool(event['cancelled'])
                 if event['success']:self.timing.record_completion()
@@ -1355,7 +1368,6 @@ class DesktopWorkspace(QObject):
             active=[job['percent'] for job in self.jobs if job['id'] in self.active];self.shell.progress(sum(active)/len(active) if active else None,self.paused_all,self.settings.get('taskbar_progress',True))
         self.effects_tails=[tail for tail in self.effects_tails if tail.active]
         if self.preview_kind=='effects' and getattr(self,'effects_transport',False) and not self.options['effectsPaused']:
-            index=self.options['effectsQueueIndex'];rows=self.options['effectsQueue']
             remaining=(self.options['duration']-self.player.position_snapshot())/max(.5,self.options['speed']/100)
             fade=self.effects_transition_seconds()
             if self.player.active and remaining<=fade or self.options['previewActive'] and not self.player.active:self.advance_effects(automatic=True)
@@ -1495,13 +1507,25 @@ class DesktopWorkspace(QObject):
             self.run_task('compare_collection',{'url':self.options['playlistUrl'],'tracks':self.models['playlists'].rows,'history':self.library.comparison_history(),'queued':self.jobs,'database':str(self.library.path)},compared)
         self.run_task('collection',{'url':self.options['playlistUrl']},loaded)
     @Slot(bool)
-    def setMiniPlayerActive(self,active):self._mini_active=active
+    def setMiniPlayerActive(self,active):self._mini_active=active;self.bridge._mini_active=active
+    @Slot(str,result=str)
+    def backdropUrl(self,source):
+        import base64
+        return 'image://backdrop/'+base64.urlsafe_b64encode(source.encode('utf-8')).decode('ascii').rstrip('=') if source else ''
+    @Slot(QObject)
+    def roundMiniPlayer(self,window):
+        from PySide6.QtGui import QPainterPath,QRegion
+        # Rectangle.clip only clips to a rectangle in Qt Quick. Mask the window
+        # itself so the artwork and glass layers also respect its rounded edge.
+        outline=QPainterPath()
+        outline.addRoundedRect(0,0,window.width(),window.height(),20,20)
+        window.setMask(QRegion(outline.toFillPolygon().toPolygon()))
     @Slot(QObject)
     def openMiniPlayer(self,window):
         # Owned windows are minimized with their owner on Windows.
         window.setTransientParent(None)
         if self.settings.get('minimize_on_miniplayer',True):self.window.showMinimized()
-        window.showNormal();window.raise_();window.requestActivate()
+        window.showNormal();self.roundMiniPlayer(window);window.raise_();window.requestActivate()
     @Slot(QObject,bool)
     def pinPlayer(self,window,pinned):
         if os.name=='nt':
@@ -1538,7 +1562,13 @@ class DesktopWorkspace(QObject):
         import bisect
         active=bisect.bisect_right(rows,position,key=lambda row:row[0])-1
         import re
-        lines=[dict(time=row[0],text=re.sub(r'<[^>]+>','',row[1])) for index,row in enumerate(rows)]
+        # The 100 ms playback clock changes the active verse, not the whole
+        # lyric document. Avoid stripping every line on each clock update.
+        display_key=(key,tuple(rows))
+        if display_key!=getattr(self,'_lyrics_display_key',None):
+            self._lyrics_display_key=display_key
+            self._lyrics_display_lines=[dict(time=row[0],text=re.sub(r'<[^>]+>','',row[1])) for row in rows]
+        lines=self._lyrics_display_lines
         return dict(text=karaoke_at(rows,position),lines=lines,active=active,position=position,duration=duration,jukebox=jukebox)
     @Slot(float,bool)
     def seekLyrics(self,seconds,jukebox):
@@ -1681,8 +1711,9 @@ class DesktopWorkspace(QObject):
         icons={'catalog':'E721','downloads':'E71B','queue':'E8FD','playlists':'E93C','history':'E81C','images':'EB9F','converter':'E8AB','effects':'E768','metadata':'E8D2'}
         order=self.settings.get('tab_order',self.defaults['tab_order'])
         rows=[]
-        for label,keys in TAB_GROUPS:
-            rows.append({'group':label})
+        for group_index,group_key in enumerate(self.settings['tab_group_order']):
+            label,keys=TAB_GROUPS[0 if group_key=='library' else 1]
+            rows.append({'group':label,'groupKey':group_key,'canMoveUp':group_index>0,'canMoveDown':group_index<1})
             members=[key for key in order if key in keys]
             rows.extend({'name':PAGES[key],'key':key,'icon':chr(int(icons[key],16)),'canMoveUp':index>0,'canMoveDown':index<len(members)-1} for index,key in enumerate(members))
         return rows
@@ -1691,6 +1722,10 @@ class DesktopWorkspace(QObject):
     def releaseDateText(self,value):
         from metadata import display_release_date
         return display_release_date(value)
+
+    @Slot('QVariantMap',result=str)
+    def albumReleaseText(self,record):
+        return ' · '.join(str(value) for value in (record.get('album') or '',self.releaseDateText(record.get('release_date') or '')) if value)
 
     @Slot(int,result=str)
     def clock(self,seconds):

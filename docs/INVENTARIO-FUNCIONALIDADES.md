@@ -339,7 +339,7 @@ Nos caminhos abreviados `Android/.../`, o diretório é `Android/app/src/main/ja
 <details>
 <summary>Referências de implementação</summary>
 
-[playback_input.py](../Onda/playback_input.py), [playback_session.py](../Onda/playback_session.py), [playback_controls.py](../Onda/playback_controls.py), [qt_workspace_ui.py](../Onda/qt_workspace_ui.py), [qt_jukebox_ui.py](../Onda/qt_jukebox_ui.py), [windows_media.py](../Onda/windows_media.py), [EffectsQueueDrawer.qml](../Onda/qml/EffectsQueueDrawer.qml), [EffectsMiniPlayer.qml](../Onda/qml/EffectsMiniPlayer.qml), [MiniPlayer.qml](../Onda/qml/MiniPlayer.qml), [PlaybackSessions.kt](../Android/app/src/main/java/br/com/onda/mobile/PlaybackSessions.kt), [AndroidPlaybackSurface.kt](../Android/app/src/main/java/br/com/onda/mobile/AndroidPlaybackSurface.kt), [EffectsPlaybackBar.kt](../Android/app/src/main/java/br/com/onda/mobile/EffectsPlaybackBar.kt), [EffectsQueuePanel.kt](../Android/app/src/main/java/br/com/onda/mobile/EffectsQueuePanel.kt), [EffectsPlaybackService.kt](../Android/app/src/main/java/br/com/onda/mobile/EffectsPlaybackService.kt), [JukeboxService.kt](../Android/app/src/main/java/br/com/onda/mobile/JukeboxService.kt), [AlbumGlass.kt](../Android/app/src/main/java/br/com/onda/mobile/AlbumGlass.kt).
+[playback_input.py](../Onda/playback_input.py), [playback_session.py](../Onda/playback_session.py), [playback_controls.py](../Onda/playback_controls.py), [qt_workspace_ui.py](../Onda/qt_workspace_ui.py), [qt_jukebox_ui.py](../Onda/qt_jukebox_ui.py), [windows_media.py](../Onda/windows_media.py), [EffectsQueueDrawer.qml](../Onda/qml/EffectsQueueDrawer.qml), [MiniPlayer.qml](../Onda/qml/MiniPlayer.qml), [PlaybackSessions.kt](../Android/app/src/main/java/br/com/onda/mobile/PlaybackSessions.kt), [AndroidPlaybackSurface.kt](../Android/app/src/main/java/br/com/onda/mobile/AndroidPlaybackSurface.kt), [EffectsPlaybackBar.kt](../Android/app/src/main/java/br/com/onda/mobile/EffectsPlaybackBar.kt), [EffectsQueuePanel.kt](../Android/app/src/main/java/br/com/onda/mobile/EffectsQueuePanel.kt), [EffectsPlaybackService.kt](../Android/app/src/main/java/br/com/onda/mobile/EffectsPlaybackService.kt), [JukeboxService.kt](../Android/app/src/main/java/br/com/onda/mobile/JukeboxService.kt), [AlbumGlass.kt](../Android/app/src/main/java/br/com/onda/mobile/AlbumGlass.kt).
 
 </details>
 
@@ -4577,14 +4577,7 @@ Componente declarativo sem função nomeada extraída; consultar o arquivo.
 
 </details>
 
-<details>
-<summary><code>EffectsMiniPlayer.qml</code> — 0 declarações</summary>
 
-[Onda/qml/EffectsMiniPlayer.qml](../Onda/qml/EffectsMiniPlayer.qml)
-
-Componente declarativo sem função nomeada extraída; consultar o arquivo.
-
-</details>
 
 <details>
 <summary><code>EffectsQueueDrawer.qml</code> — 6 declarações</summary>

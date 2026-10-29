@@ -7,31 +7,31 @@ ColumnLayout {
     readonly property string cardSize: workspace.preferences.queue_card_size || "Grande"
     readonly property bool smallCards: cardSize === "Pequeno"
     spacing: Math.round(14*bridge.spacing)
-    Menu {
+    OndaMenu {
         id: queueContext
         property string targetId: ""
         property bool targetChecked: false
         readonly property string actionId: targetChecked ? "" : targetId
         objectName: "queueContextMenu"
         width: Math.round(260*bridge.fontScale)
-        background: Card {}
+
         OndaMenuItem { text: bridge.translate("Pausar"); enabled: workspace.activity.total>0 && queueContext.targetId!=="" && workspace.queueActionEnabled("pause",queueContext.actionId); onTriggered: workspace.invoke("queue_action",{id:queueContext.actionId,name:"pause"}) }
         OndaMenuItem { text: bridge.translate("Retomar"); enabled: workspace.activity.total>0 && queueContext.targetId!=="" && workspace.queueActionEnabled("resume",queueContext.actionId); onTriggered: workspace.invoke("queue_action",{id:queueContext.actionId,name:"resume"}) }
         OndaMenuItem { text: bridge.translate("Tentar novamente"); enabled: workspace.activity.total>0 && queueContext.targetId!=="" && workspace.queueActionEnabled("retry",queueContext.actionId); onTriggered: workspace.invoke("queue_action",{id:queueContext.actionId,name:"retry"}) }
         OndaMenuItem { text: bridge.translate("Editar metadados"); enabled: queueContext.targetId !== ""; onTriggered: workspace.invoke("queue_edit",{id:queueContext.actionId}) }
-        MenuSeparator {}
+        OndaMenuSeparator {}
         OndaMenuItem { text: bridge.translate("Mover para cima"); enabled: queueContext.targetId !== ""; onTriggered: workspace.invoke("queue_action",{id:queueContext.actionId,name:"up"}) }
         OndaMenuItem { text: bridge.translate("Mover para baixo"); enabled: queueContext.targetId !== ""; onTriggered: workspace.invoke("queue_action",{id:queueContext.actionId,name:"down"}) }
         OndaMenuItem { text: bridge.translate("Priorizar selecionados"); enabled: queueContext.targetId !== ""; onTriggered: workspace.invoke("queue_action",{id:queueContext.actionId,name:"priority"}) }
-        MenuSeparator {}
+        OndaMenuSeparator {}
         OndaMenuItem { objectName: "queueContextCopyLinks"; text: bridge.translate("Copiar link"); enabled: queueContext.targetId !== ""; onTriggered: workspace.invoke("queue_copy_links",{id:queueContext.actionId}) }
         OndaMenuItem { text: bridge.translate("Abrir pasta"); onTriggered: workspace.invoke("queue_open_folder",{}) }
         OndaMenuItem { text: bridge.translate("Ver detalhes"); onTriggered: workspace.invoke("logs",{}) }
-        MenuSeparator {}
+        OndaMenuSeparator {}
         OndaMenuItem { text: bridge.translate("Cancelar selecionados"); enabled: queueContext.targetId !== ""; onTriggered: workspace.invoke("queue_action",{id:queueContext.actionId,name:"cancel"}) }
         OndaMenuItem { text: bridge.translate("Remover"); enabled: queueContext.targetId !== ""; onTriggered: workspace.invoke("queue_action",{id:queueContext.actionId,name:"remove"}) }
         OndaMenuItem { text: bridge.translate("Desfazer"); enabled: workspace.activity.undoCount>0; onTriggered: workspace.invoke("undo_queue",{}) }
-        MenuSeparator {}
+        OndaMenuSeparator {}
         OndaMenuItem { text: bridge.translate("Selecionar todas"); enabled: workspace.queueModel.count>0; onTriggered: workspace.invoke("check_all",{model:"queue",checked:true}) }
         OndaMenuItem { text: bridge.translate("Limpar seleção"); enabled: workspace.activity.selected>0; onTriggered: workspace.invoke("check_all",{model:"queue",checked:false}) }
         OndaMenuItem { text: bridge.translate("Limpar fila"); enabled: workspace.activity.total>0; onTriggered: workspace.invoke("queue_action",{name:"clear"}) }
@@ -97,16 +97,16 @@ ColumnLayout {
             ActionButton { text: bridge.translate("Remover"); enabled: workspace.activity.selected>0; onClicked: workspace.invoke("queue_action",{name:"remove"}) }
             ActionButton { text: bridge.translate("Desfazer"); enabled: workspace.activity.undoCount>0; onClicked: workspace.invoke("undo_queue",{}) }
             ChoiceBox { implicitWidth: 200; model: ["Ordem original","Título","Menor duração","Maior duração","Menor tamanho estimado"]; onActivated: workspace.invoke("queue_action",{name:"sort:"+currentText}); Accessible.name: bridge.translate("Ordenar fila") }
-            ActionButton { text: bridge.translate("Mais ações"); onClicked: moreActions.popup()
-                Menu { id: moreActions; width: Math.round(260*bridge.fontScale); background: Card {}
+            ActionButton { id:queueMoreActionsButton;text: bridge.translate("Mais ações"); onClicked: moreActions.popup(queueMoreActionsButton,0,queueMoreActionsButton.height+6)
+                OndaMenu { id: moreActions; width: Math.round(260*bridge.fontScale);
                     OndaMenuItem { text: bridge.translate("Subir selecionados"); enabled: workspace.activity.selected>0; onTriggered: workspace.invoke("queue_action",{name:"up"}) }
                     OndaMenuItem { text: bridge.translate("Descer selecionados"); enabled: workspace.activity.selected>0; onTriggered: workspace.invoke("queue_action",{name:"down"}) }
                     OndaMenuItem { text: bridge.translate("Priorizar selecionados"); enabled: workspace.activity.selected>0; onTriggered: workspace.invoke("queue_action",{name:"priority"}) }
                     OndaMenuItem { text: bridge.translate("Tentar novamente"); enabled: workspace.activity.selected>0 && workspace.queueActionEnabled("retry",""); onTriggered: workspace.invoke("queue_action",{name:"retry"}) }
-                    MenuSeparator {}
+                    OndaMenuSeparator {}
                     OndaMenuItem { text: bridge.translate("Cancelar todas"); enabled: workspace.activity.total>0; onTriggered: workspace.invoke("queue_action",{name:"cancel_all"}) }
                     OndaMenuItem { text: bridge.translate("Limpar fila"); enabled: workspace.activity.total>0; onTriggered: workspace.invoke("queue_action",{name:"clear"}) }
-                    MenuSeparator {}
+                    OndaMenuSeparator {}
                     OndaMenuItem { text: bridge.translate("Ver falhas"); onTriggered: workspace.invoke("failures",{}) }
                     OndaMenuItem { text: bridge.translate("Ver detalhes"); onTriggered: workspace.invoke("logs",{}) }
                 }
@@ -147,8 +147,7 @@ ColumnLayout {
                 ColumnLayout { id: queueDetails; Layout.fillWidth: true; spacing: page.smallCards ? 3 : 5
                     Label { text: card.entry.track_title; font.pixelSize: Math.round((page.smallCards ? 13 : page.cardSize === "Médio" ? 14 : 16)*bridge.fontScale); color: bridge.palette.text; font.weight: Font.DemiBold; Layout.fillWidth: true; elide: Text.ElideRight }
                     Label { visible: !!card.entry.track_artist; text: card.entry.track_artist; color: bridge.palette.muted; Layout.fillWidth: true; elide: Text.ElideRight }
-                    Label { visible: !page.smallCards && !!card.entry.track_album; text: card.entry.track_album; color: bridge.palette.muted; Layout.fillWidth: true; elide: Text.ElideRight }
-                    Label {visible:!!card.entry.track_release_date;text:bridge.translate("Data de lançamento")+": "+(card.entry.track_release_date || "");color:bridge.palette.muted}
+                    Label { visible: (!page.smallCards && !!card.entry.track_album) || !!card.entry.track_release_date; text: [page.smallCards ? "" : (card.entry.track_album || ""),card.entry.track_release_date || ""].filter(Boolean).join(" · "); color: bridge.palette.muted; Layout.fillWidth: true; elide: Text.ElideRight }
                     Label { visible: !page.smallCards && card.entry.track_duration > 0; text: workspace.clock(card.entry.track_duration); color: bridge.palette.muted }
                     TaskButton {objectName:"previewPendingImages";compact:true;visible:!card.entry.has_images && !!card.entry.can_preview_images;idleText:bridge.translate("Prévia de imagens");operation:"preview_images";parameters:({url:card.entry.url});taskNames:workspace.values.imageGalleryPendingSource===card.entry.url ? ["image_gallery_manifest"] : []}
                     ActionButton {objectName:"downloadImagePreview";compact:true;visible:!!card.entry.has_images;text:bridge.translate("Ver imagens");onClicked:workspace.invoke("download_preview",{id:card.entry.id})}

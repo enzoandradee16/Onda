@@ -41,8 +41,8 @@ ColumnLayout {
         ActionButton {visible:!page.history;primary:true;text:bridge.translate("Adicionar à fila");enabled:workspace.playlistModel.count>0;onClicked:workspace.invoke("playlist_add",{})}
         ActionButton {visible:page.history && !!workspace.values.historyUndo;text:bridge.translate("Desfazer remoção");onClicked:workspace.invoke("history_undo",{})}
         ActionButton {visible:page.history;text:bridge.translate("Limpar histórico");onClicked:workspace.invoke("history_clear",{})}
-        ActionButton {text:bridge.translate("Mais ações");onClicked:collectionActions.popup()}
-        Menu {id:collectionActions;objectName:"collectionActionsMenu"
+        ActionButton {id:collectionActionsButton;objectName:"openCollectionActions";text:bridge.translate(page.history ? "Exportar histórico" : "Mais ações");onClicked:if(page.history)workspace.invoke("export_history",{});else collectionActions.popup(collectionActionsButton,0,collectionActionsButton.height+6)}
+        OndaMenu {id:collectionActions;objectName:"collectionActionsMenu"
             OndaMenuItem {text:bridge.translate("Exportar");onTriggered:workspace.invoke(page.history ? "export_history" : "export_playlist",{})}
             OndaMenuItem {visible:!page.history;text:bridge.translate("Selecionar todas");onTriggered:workspace.invoke("check_all",{model:"playlists",checked:true})}
             OndaMenuItem {visible:!page.history;text:bridge.translate("Desmarcar todas");onTriggered:workspace.invoke("check_all",{model:"playlists",checked:false})}
@@ -67,7 +67,7 @@ ColumnLayout {
         delegate: Card { id: rowCard; objectName: "libraryTrackCard"; required property var entry; required property int index; width: ListView.view.width; height: Math.max(page.history ? (page.smallCards ? 76 : page.cardSize === "Médio" ? 104 : 132) : (page.smallCards ? 132 : page.cardSize === "Médio" ? 160 : 192),trackDetails.implicitHeight+24)
             Component.onCompleted: if(!page.history)workspace.invoke("request_card_details",{model:page.catalog ? "catalog" : "playlists",source:entry.source_url || ""})
             ListView.onReused: if(!page.history)workspace.invoke("request_card_details",{model:page.catalog ? "catalog" : "playlists",source:entry.source_url || ""})
-            Menu {id:historyContext;objectName:"libraryCardActions"
+            OndaMenu {id:historyContext;objectName:"libraryCardActions"
                 OndaMenuItem {visible:!page.history;text:bridge.translate("Baixar agora");onTriggered:workspace.invoke("catalog_download",{model:page.catalog ? "catalog" : "playlists",index:rowCard.index})}
                 OndaMenuItem {visible:!page.history;text:bridge.translate("Adicionar à fila");onTriggered:workspace.invoke("catalog_add",{model:page.catalog ? "catalog" : "playlists",index:rowCard.index})}
                 OndaMenuItem {visible:page.catalog;text:bridge.translate("Ouvir prévia");onTriggered:workspace.invoke("preview_catalog",{index:rowCard.index})}
@@ -92,10 +92,11 @@ ColumnLayout {
                 }
                 ColumnLayout { id: trackDetails; Layout.fillWidth: true; Layout.minimumWidth:0; spacing: Math.round((page.smallCards ? 3 : 7)*bridge.spacing)
                     Label { text: rowCard.entry.title || rowCard.entry.name || ""; font.pixelSize: Math.round((page.smallCards ? 14 : page.cardSize === "Médio" ? 16 : 17)*bridge.fontScale); font.weight: Font.DemiBold; color: bridge.palette.text; Layout.fillWidth: true; elide: Text.ElideRight }
-                    Label { text: page.history ? (rowCard.entry.date_display || rowCard.entry.date)+" · "+rowCard.entry.mode : (rowCard.entry.artist || "")+" · "+(rowCard.entry.album || ""); color: bridge.palette.muted; Layout.fillWidth: true; elide: Text.ElideRight }
+                    Label { text: page.history ? (rowCard.entry.date_display || rowCard.entry.date)+" · "+rowCard.entry.mode : (rowCard.entry.artist || ""); color: bridge.palette.muted; Layout.fillWidth: true; elide: Text.ElideRight }
                     Label { visible: page.history && (!!rowCard.entry.artist || !!rowCard.entry.album); text: [rowCard.entry.artist || "",rowCard.entry.album || ""].filter(Boolean).join(" · "); color: bridge.palette.muted; Layout.fillWidth: true; elide: Text.ElideRight }
+                    Label {visible:!page.history&&!!text;text:workspace.albumReleaseText(rowCard.entry);color:bridge.palette.muted;Layout.fillWidth:true;elide:Text.ElideRight}
                     PlatformBadge {imageMedia:!!rowCard.entry.is_image;platformKey: rowCard.entry.platform_key || "";label: rowCard.entry.platform || ""}
-                    Label { Layout.fillWidth:true;elide:Text.ElideRight;visible: !page.history && (!!rowCard.entry.release_date || !!rowCard.entry.comparison || (!!rowCard.entry.service && rowCard.entry.service !== rowCard.entry.platform)); text: rowCard.entry.release_date ? bridge.translate("Data de lançamento")+": "+rowCard.entry.release_date : (rowCard.entry.comparison || rowCard.entry.service || rowCard.entry.platform || ""); color: bridge.palette.muted }
+                    Label { Layout.fillWidth:true;elide:Text.ElideRight;visible: !page.history && (!!rowCard.entry.comparison || (!!rowCard.entry.service && rowCard.entry.service !== rowCard.entry.platform)); text: (rowCard.entry.comparison || rowCard.entry.service || rowCard.entry.platform || ""); color: bridge.palette.muted }
                     Flow { Layout.fillWidth: true; spacing: Math.round(10*bridge.spacing)
                         ActionButton { primary: true; text: bridge.translate(page.history ? "Abrir arquivo" : "Baixar agora"); onClicked: workspace.invoke(page.history ? (rowCard.entry.is_image ? "history_preview" : "open_file") : "catalog_download",page.history ? {path:rowCard.entry.path,id:rowCard.entry.id} : {model:page.catalog ? "catalog" : "playlists",index:rowCard.index}) }
                         ActionButton { visible: page.catalog; text: bridge.translate("Adicionar à fila"); onClicked: destinations.popup(); QueueDestinationMenu { id: destinations; recordIndex: rowCard.index } }

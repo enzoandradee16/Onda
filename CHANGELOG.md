@@ -1,7 +1,21 @@
 # Histórico de versões
 
-## 1.2.4 — 2026-10-27
+## 1.2.4 — 2026-10-28
 
+- PC: corrigidos volume do miniplayer, finalizações antigas de preparação e nova tentativa de capa após falha temporária; removido o miniplayer separado de Efeitos sem uso.
+- PC: miniplayer arredondado com fundo em alta resolução, Swirl, halo e efeitos opcionais; melhorias de expansão e rolagem, indicadores de preparação nas capas e painéis de fila redimensionáveis.
+
+- PC: troca rápida de faixas preserva a identidade após reorganizar a fila; mudanças de posição não são aplicadas a outra música durante a transição. Prévia da letra limitada ao card.
+- PC: menus suspensos padronizados, bordas arredondadas, espaçamento consistente e tamanho calculado apenas pelos itens visíveis; corrigida a sobra no menu do Histórico.
+- Cards de pesquisa, coleções, reprodução e downloads alinham lançamento ao lado do álbum, sem rótulo, nas duas versões.
+- Fonte Inter incluída offline como **ONDA Modern**, novo padrão no PC e Android; títulos de músicas semibold e seções bold. A tipografia anterior continua disponível como **ONDA Legacy**, em Aparência.
+- PC: visual compacto da fila com abas sublinhadas, capas pequenas, ações discretas e lupa para abrir/recolher a pesquisa; Escape fecha apenas a pesquisa.
+- PC: fila dividida entre música atual, adições manuais prioritárias e próximas da coleção; aba Tocado recentemente e retorno pelo Retroceder. Ordem original guardada ao embaralhar e restaurada ao desativar.
+- Configuração **Preparar próximas músicas**, em Áudio nas duas versões: 1, 2, 3 ou 5 faixas, padrão 2, mantendo um processamento por vez.
+- Proteção para coleções enormes nas telas respeita o limite configurado de playlists (até 5.000 faixas), com aviso de carga parcial, cancelamento entre páginas, adição em lote e preparação limitada à faixa atual e próximas.
+- Restauração da fila recupera as análises já preparadas pelo cache e corrige estados de preparação sem trabalhador ativo, evitando bloquear as próximas músicas.
+- Notificação Android tenta a capa do catálogo quando a prévia embutida é inválida, repete consultas temporariamente falhas e acompanha mudanças da faixa sem reaproveitar capa antiga.
+- Exportação evita herdar tags de outra gravação e prioriza o artista exibido na reprodução quando o registro da fila estiver desatualizado.
 - Exportação da reprodução unificada recupera nome **Artista - Música - Efeito**, metadados e capa a partir da faixa selecionada e aplica os parâmetros ativos, sem usar o nome genérico do cache.
 - Repetição controlada pelo botão da reprodução, com ícone **1** para repetir uma música; seletor removido da fila nas duas versões.
 - Reprodução unificada: Efeitos e Jukebox compartilham música, fila e player e podem ser usados juntos, com migração das filas anteriores sem iniciar áudio automaticamente.

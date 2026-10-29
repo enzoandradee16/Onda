@@ -7,6 +7,14 @@ DEFAULT_ORDER = ('catalog', 'downloads', 'queue', 'images', 'converter', 'playli
 
 
 REQUIRED_TABS = frozenset(('catalog', 'downloads', 'queue'))
+DEFAULT_GROUP_ORDER = ('library', 'tools')
+
+def normalize_group_order(value):
+    result=[]
+    if isinstance(value,(list,tuple)):
+        for key in value:
+            if key in DEFAULT_GROUP_ORDER and key not in result:result.append(key)
+    return result+[key for key in DEFAULT_GROUP_ORDER if key not in result]
 
 def normalize_hidden(value):
     if not isinstance(value, (list, tuple)):

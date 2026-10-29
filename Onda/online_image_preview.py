@@ -21,7 +21,7 @@ def check(cancelled):
 
 
 def candidates(url,session,cookies,cancelled):
-    from social_media import is_social,kwai_images,IMAGES
+    from social_media import is_social,kwai_images
     from engine import Logger
     from instagram_media import is_instagram,instagram_items
     from twitter_media import is_twitter,twitter_items

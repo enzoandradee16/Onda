@@ -11,7 +11,7 @@
     "history_view": "Compacto",
     "theme_mode": "Preto puro",
     "theme_accent": "Verde-Água",
-    "interface_font": "Padrão do sistema",
+    "interface_font": "ONDA Modern",
     "interface_font_size": "100%",
     "interface_spacing": "Padrão",
     "notice_duration": "Após 3 segundos",
@@ -33,6 +33,7 @@
       "metadata"
     ],
     "hidden_tabs": [],
+    "tab_group_order": ["library", "tools"],
     "playlist_mode": "Áudio · MP3 (320 kbps)",
     "playlist_height": "1080p",
     "playlist_fps": "Original",
@@ -83,8 +84,10 @@
     "jukebox_equalizer": "{}",
     "jukebox_gradual_transition": true,
     "jukebox_transition_seconds": 2,
+    "playback_prepare_ahead": 2,
     "playback_tab_order": "Efeitos primeiro",
     "qt_animations": true,
+    "translucent_effects": true,
     "remember_settings": true,
     "spotify_client_id": "",
     "spotify_client_secret": "",
@@ -93,6 +96,7 @@
     "notifications_enabled": true,
     "jukebox_background": true,
     "sidebar_width": 220,
+    "playback_queue_width": 470,
     "lyrics_animation": "Suave",
     "minimize_on_miniplayer": true,
     "automatic_cache_cleanup": true
@@ -224,7 +228,8 @@
       "label": "Fonte da interface",
       "kind": "select",
       "choices": [
-        "Padrão do sistema",
+        "ONDA Modern",
+        "ONDA Legacy",
         "Sem serifa",
         "Serifada",
         "Monoespaçada",
@@ -810,6 +815,14 @@
     },
     {
       "category": "Áudio",
+      "key": "playback_prepare_ahead",
+      "label": "Preparar próximas músicas",
+      "kind": "select",
+      "choices": [1, 2, 3, 5],
+      "hint": "Quantidade de próximas músicas preparadas antecipadamente. O processamento continua uma música por vez; valores maiores usam mais memória e cache."
+    },
+    {
+      "category": "Áudio",
       "key": "search_preview_duration",
       "label": "Músicas nas pesquisas",
       "kind": "select",
@@ -914,6 +927,13 @@
       "category": "Aparência",
       "key": "qt_animations",
       "label": "Animações da interface",
+      "kind": "bool",
+      "choices": []
+    },
+    {
+      "category": "Aparência",
+      "key": "translucent_effects",
+      "label": "Efeitos translúcidos e liquid glass",
       "kind": "bool",
       "choices": []
     },

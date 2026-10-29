@@ -30,20 +30,20 @@ def media_args():
     return {"creationflags": subprocess.CREATE_NO_WINDOW} if os.name == "nt" else {}
 
 
-def cover_png(url, folder=""):
+def cover_png(url, folder="", *, size=124):
     # Folder remains accepted for callers; thumbnail rendering needs no FFmpeg.
-    return cached_cover_png(url)
+    return cached_cover_png(url) if size==124 else cached_cover_png(url,size)
 
 
 @lru_cache(maxsize=48)
-def cached_cover_png(url):
+def cached_cover_png(url,size=124):
     from PIL import Image
     from tagging import fetch_cover
     cover = fetch_cover(url)
     if not cover:
         return None
     with Image.open(io.BytesIO(cover[0])) as image:
-        image.thumbnail((124, 124), Image.Resampling.LANCZOS)
+        image.thumbnail((size, size), Image.Resampling.LANCZOS)
         output = io.BytesIO()
         image.convert("RGBA").save(output, format="PNG")
         return output.getvalue()

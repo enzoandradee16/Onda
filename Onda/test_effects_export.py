@@ -15,6 +15,25 @@ class EffectsExportTests(unittest.TestCase):
         with wave.open(str(self.source),'wb') as out:out.setparams((2,2,44100,0,'NONE',''));out.writeframes(data.tobytes())
         self.record=dict(title='Midnight Pretenders',artists=['Tomoko Aran'],album='Fuyü-Kükan',release_date='1983-05-21',genre='City pop',track_number=3)
     def tearDown(self):self.temp.cleanup()
+    def test_displayed_artist_overrides_stale_queue_artist(self):
+        config=export_config(self.source,dict(self.record,artists=['Wrong artist'],media_artist='Tomoko Aran'))
+        self.assertEqual(config['record']['artists'],['Tomoko Aran'])
+        self.assertTrue(config['export_name'].startswith('Tomoko Aran - '))
+    def test_unrelated_native_tags_are_not_inherited(self):
+        from audio_library import write_audio,read_audio
+        from effects_export import apply_export_metadata
+        from mutagen.wave import WAVE
+        from mutagen.id3 import TPE2
+        write_audio(self.source,dict(title='Another song',artists=['Another artist'],album='Wrong album',genre='Wrong genre'))
+        audio=WAVE(self.source);audio.tags.add(TPE2(encoding=3,text=['Wrong album artist']));audio.save()
+        config=export_config(self.source,dict(title='Midnight Pretenders',media_artist='Tomoko Aran'),speed=85)
+        self.assertNotIn('album',config['record'])
+        apply_export_metadata(self.source,config)
+        result=read_audio(self.source)
+        self.assertEqual(result['title'],'Midnight Pretenders - Slowed')
+        self.assertEqual(result['artists'],['Tomoko Aran'])
+        self.assertEqual(result['album'],'');self.assertEqual(result['genre'],'')
+        self.assertFalse(WAVE(self.source).tags.getall('TPE2'))
     def test_names_and_disabled_effects_use_the_actual_parameters(self):
         for speed,reverb,suffix in ((85,0,'Slowed'),(100,25,'Reverb'),(85,25,'Slowed + Reverb'),(115,0,'Sped Up'),(115,25,'Sped Up + Reverb'),(100,0,'')):
             config=export_config(self.source,self.record,speed=speed,reverb=reverb)
@@ -22,6 +41,26 @@ class EffectsExportTests(unittest.TestCase):
         disabled=export_config(self.source,self.record,speed=85,reverb=25,enabled=False)
         self.assertEqual(disabled['speed'],100);self.assertEqual(disabled['reverb'],0)
         self.assertEqual(disabled['export_name'],'Tomoko Aran - Midnight Pretenders')
+    def test_real_exports_replace_unrelated_tags_and_cover_in_all_formats(self):
+        from effects_worker import render
+        from audio_library import read_audio,write_audio,cover_preview
+        from PIL import Image
+        tools=Path(os.environ.get('ONDA_FFMPEG',''))
+        if not (tools/'ffmpeg.exe').is_file():self.skipTest('FFmpeg required')
+        wrong=self.root/'wrong.png';Image.new('RGB',(32,32),'red').save(wrong)
+        write_audio(self.source,dict(title='Wrong title',artists=['Wrong artist'],album='Wrong album'),cover_path=str(wrong))
+        buffer=io.BytesIO();Image.new('RGB',(32,32),'navy').save(buffer,'PNG')
+        cover=base64.b64encode(buffer.getvalue()).decode()
+        for extension in ('mp3','m4a','flac','wav'):
+            with self.subTest(format=extension):
+                config=export_config(self.source,self.record,speed=85,reverb=25,cover_data=cover)
+                output=self.root/('correct.'+extension);config.update(output=str(output),ffmpeg=str(tools))
+                with patch('effects_worker.emit'):self.assertEqual(render(config),0)
+                tags=read_audio(output)
+                for key,value in self.record.items():
+                    self.assertEqual(tags[key],str(value) if key=='track_number' else value+' - Slowed + Reverb' if key=='title' else value)
+                image=Image.open(io.BytesIO(base64.b64decode(cover_preview(output))))
+                red,green,blue=image.convert('RGB').getpixel((0,0));self.assertGreater(blue,red+50)
     def test_real_exports_restore_metadata_artwork_and_effects_in_all_formats(self):
         from effects_worker import render
         from audio_library import read_audio,cover_preview

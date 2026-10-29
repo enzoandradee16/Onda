@@ -9,6 +9,34 @@ from PIL import Image
 
 
 class CoverOptimizationTests(unittest.TestCase):
+    def test_playback_artwork_keeps_resolution_without_changing_small_card_cache(self):
+        from catalog_ui import cached_cover_png,cover_png
+        raw=io.BytesIO();Image.new('RGB',(1200,1000),'blue').save(raw,format='JPEG')
+        cached_cover_png.cache_clear()
+        try:
+            with patch('tagging.fetch_cover',return_value=(raw.getvalue(),'image/jpeg')) as fetch:
+                small=cover_png('https://fixture.example/high.jpg')
+                large=cover_png('https://fixture.example/high.jpg',size=768)
+                self.assertEqual(large,cover_png('https://fixture.example/high.jpg',size=768))
+                self.assertEqual(fetch.call_count,2)
+            self.assertEqual(Image.open(io.BytesIO(small)).size,(124,103))
+            self.assertEqual(Image.open(io.BytesIO(large)).size,(768,640))
+        finally:cached_cover_png.cache_clear()
+
+    def test_local_playback_artwork_uses_original_embedded_image(self):
+        import base64,wave
+        from mutagen.wave import WAVE
+        from mutagen.id3 import APIC
+        from audio_library import cover_preview
+        with tempfile.TemporaryDirectory() as folder:
+            path=Path(folder)/'local.wav'
+            with wave.open(str(path),'wb') as audio:
+                audio.setparams((1,2,8000,0,'NONE',''));audio.writeframes(b'\0\0'*800)
+            raw=io.BytesIO();Image.new('RGB',(1200,1000),'blue').save(raw,format='JPEG')
+            tags=WAVE(path);tags.add_tags();tags.tags.add(APIC(mime='image/jpeg',type=3,data=raw.getvalue()));tags.save()
+            self.assertEqual(Image.open(io.BytesIO(base64.b64decode(cover_preview(path,size=768)))).size,(768,640))
+            self.assertEqual(Image.open(io.BytesIO(base64.b64decode(cover_preview(path)))).size,(240,200))
+
     def test_cover_preserves_proportions_caches_and_needs_no_ffmpeg(self):
         from catalog_ui import cached_cover_png, cover_png
         raw = io.BytesIO()

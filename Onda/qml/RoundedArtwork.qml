@@ -1,7 +1,10 @@
 import QtQuick
 Item {
     id: root
-    property alias source: image.source
+    property url source
+    property url fallbackSource
+    property bool primaryFailed: false
+    onSourceChanged: primaryFailed=false
     property alias sourceSize: image.sourceSize
     property alias fillMode: image.fillMode
     property alias asynchronous: image.asynchronous
@@ -11,13 +14,13 @@ Item {
     property real cornerRadius: Math.min(12,width*0.12,height*0.12)
     implicitWidth: image.implicitWidth
     implicitHeight: image.implicitHeight
-    Image { id: image; anchors.fill: parent; opacity: 0; onStatusChanged: painted.requestPaint() }
+    Image { id: image; anchors.fill: parent; opacity: 0; source: root.primaryFailed && root.fallbackSource.toString() ? root.fallbackSource : root.source; onStatusChanged: {if(status===Image.Error && !root.primaryFailed && root.fallbackSource.toString())root.primaryFailed=true;painted.requestPaint()} }
     Canvas {
         id: painted; anchors.fill: parent
         property string loadedSource: ""
         function reload() {
             if(loadedSource)unloadImage(loadedSource)
-            loadedSource=root.source.toString()
+            loadedSource=image.source.toString()
             if(loadedSource)loadImage(loadedSource)
             requestPaint()
         }
@@ -33,7 +36,7 @@ Item {
             var pw=image.paintedWidth,ph=image.paintedHeight
             if(pw>0 && ph>0)ctx.drawImage(loadedSource,(w-pw)/2,(h-ph)/2,pw,ph)
         }
-        Connections {target: root;function onSourceChanged(){painted.reload()} function onCornerRadiusChanged(){painted.requestPaint()}}
-        Connections {target: image;function onPaintedWidthChanged(){painted.requestPaint()} function onPaintedHeightChanged(){painted.requestPaint()}}
+        Connections {target: root;function onCornerRadiusChanged(){painted.requestPaint()}}
+        Connections {target: image;function onSourceChanged(){painted.reload()} function onPaintedWidthChanged(){painted.requestPaint()} function onPaintedHeightChanged(){painted.requestPaint()}}
     }
 }

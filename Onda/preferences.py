@@ -68,6 +68,9 @@ class PreferenceStore:
         if type(data.get('sidebar_width')) in (int,float):
             try:extras['sidebar_width']=max(160,min(420,int(data['sidebar_width'])))
             except (ValueError,OverflowError):pass
+        if type(data.get('playback_queue_width')) in (int,float):
+            try:extras['playback_queue_width']=max(360,min(900,int(data['playback_queue_width'])))
+            except (ValueError,OverflowError):pass
         from jukebox_equalizer import clean as clean_equalizer
         from shortcut_options import load_overrides
         result_shortcuts=json.dumps(load_overrides(data.get("shortcut_keys","{}")))
@@ -112,14 +115,18 @@ class PreferenceStore:
         if data.get("interface_font_size") in FONT_SIZES:
             result["interface_font_size"] = data["interface_font_size"]
         if valid_font(data.get('interface_font')):
-            result['interface_font'] = data['interface_font']
+            result['interface_font'] = 'ONDA Modern' if data['interface_font']=='Padrão do sistema' else data['interface_font']
         if type(data.get('notifications_enabled')) is bool:result['notifications_enabled']=data['notifications_enabled']
         if data.get('playback_tab_order') in ('Efeitos primeiro','Jukebox infinito primeiro'):result['playback_tab_order']=data['playback_tab_order']
         if 'jukebox_transition_seconds' in data:
             try:result['jukebox_transition_seconds']=max(1,min(10,int(data['jukebox_transition_seconds'])))
             except (TypeError,ValueError,OverflowError):pass
         if type(data.get('jukebox_gradual_transition')) is bool:result['jukebox_gradual_transition']=data['jukebox_gradual_transition']
+        if 'playback_prepare_ahead' in data:
+            from playback_preparation import preparation_ahead
+            result['playback_prepare_ahead']=preparation_ahead(data['playback_prepare_ahead'])
         if type(data.get('qt_animations')) is bool:result['qt_animations']=data['qt_animations']
+        if type(data.get('translucent_effects')) is bool:result['translucent_effects']=data['translucent_effects']
         if type(data.get('effects_keep_pitch')) is bool:
             result['effects_keep_pitch'] = data['effects_keep_pitch']
         from image_output import FORMATS, IMAGE_SIZES
@@ -139,6 +146,9 @@ class PreferenceStore:
         if isinstance(data.get('tab_order'), (list, tuple)):
             from tab_order import normalize_order
             result['tab_order'] = normalize_order(data['tab_order'])
+        if isinstance(data.get('tab_group_order'), (list, tuple)):
+            from tab_order import normalize_group_order
+            result['tab_group_order'] = normalize_group_order(data['tab_group_order'])
         for name, choices in (("playlist_mode", {key for key, value in MODES.items() if value not in ("photos", "social")}),
                               ("playlist_height", HEIGHTS), ("playlist_fps", FPS_OPTIONS),
                               ("playlist_mp3_quality", MP3_QUALITIES), ("playlist_m4a_quality", M4A_QUALITIES)):

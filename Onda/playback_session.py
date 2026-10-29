@@ -6,11 +6,25 @@ from pathlib import Path
 FIELDS = ('effectsQueue','effectsQueueIndex','effectsSource','effectsRecord','effectsCover',
           'position','duration','speed','reverb','keep_pitch','effectsVolume','effectsRepeat','effectsShuffle')
 
+def prepared_reference(model):
+    return {key:model[key] for key in ('cache','source','title','media_title','media_artist','album','cover_url') if key in model}
+
+def restored_prepared(reference):
+    if not isinstance(reference,dict):return None
+    try:
+        base=Path(reference['cache'])
+        if not (base/'audio.wav').is_file():return None
+        model=json.loads((base/'analysis.json').read_text(encoding='utf-8'))
+        from jukebox import validate_model
+        validate_model(model)
+        return dict(model,**reference,cached=True)
+    except (OSError,ValueError,TypeError,KeyError):return None
+
 def save(workspace,strict=False):
     bridge=workspace.bridge
     data={'version':1,'unified':True,'effectsEnabled':workspace.options.get('effectsEnabled',False),'effects':{key:workspace.options[key] for key in FIELDS},
-          'jukebox':{'queue':bridge.playlist,'index':bridge.queue_index,'model':bridge.model,
-                     'position':bridge.position,'phase':bridge.phase,'params':bridge._params,'repeat':bridge.queue_repeat,'shuffle':bridge.queue_shuffle}}
+          'jukebox':{'queue':[dict(row,prepared_cache=prepared_reference(bridge._prepared[row['id']])) if row.get('id') in bridge._prepared else row for row in bridge.playlist],'index':bridge.queue_index,'model':bridge.model,
+                     'position':bridge.position,'phase':bridge.phase,'params':bridge._params,'repeat':bridge.queue_repeat,'shuffle':bridge.queue_shuffle,'shuffle_order':bridge._shuffle_order,'recent':bridge._queue_history}}
     target=workspace.store.path.with_name('playback-session.json')
     try:
         raw=json.dumps(data,ensure_ascii=False,allow_nan=False)
@@ -45,6 +59,16 @@ def restore(workspace):
         old_queue=[row for row in jukebox.get('queue',[]) if isinstance(row,dict)]
         old_index=int(jukebox.get('index',-1));current_id=old_queue[old_index].get('id') if 0<=old_index<len(old_queue) else None
         bridge.playlist=[dict(row,analysis='pending') for row in old_queue if row.get('id') and (row.get('kind')=='catalog' and isinstance(row.get('record'),dict) or row.get('kind')=='file' and isinstance(row.get('source'),str) and Path(row['source']).is_file())]
+        bridge._prepared.clear()
+        restored_index=next((i for i,row in enumerate(bridge.playlist) if row['id']==current_id),0)
+        from playback_preparation import preparation_ahead
+        ahead=preparation_ahead(bridge.preferences.get('playback_prepare_ahead',2))
+        for entry in bridge.playlist[max(0,restored_index-1):restored_index+ahead+1]:
+            model=restored_prepared(entry.get('prepared_cache'))
+            if model:
+                model['_cover']=entry.get('cover','').partition(',')[2] if entry.get('cover','').startswith('data:') else ''
+                bridge._prepared[entry['id']]=bridge.retain_media_metadata(model,entry)
+                entry.update(analysis='ready',error='')
         legacy_records={row.get('source'):row.get('record') for row in effects.get('effectsQueue',[]) if isinstance(row,dict) and isinstance(row.get('record'),dict)}
         if source and effects.get('effectsRecord'):legacy_records[source]=effects['effectsRecord']
         for entry in bridge.playlist:
@@ -52,7 +76,9 @@ def restore(workspace):
                 entry['record']=dict(legacy_records[entry['source']]);bridge.queue_info(entry,entry['record'])
         bridge.queue_index=next((i for i,row in enumerate(bridge.playlist) if row['id']==current_id),-1)
         if not 0<=bridge.queue_index<len(bridge.playlist):bridge.queue_index=-1
-        bridge.setQueueRepeat(jukebox.get('repeat','Desativada'));bridge.setQueueShuffle(bool(jukebox.get('shuffle',False)))
+        bridge.setQueueRepeat(jukebox.get('repeat','Desativada'));bridge.queue_shuffle=bool(jukebox.get('shuffle',False))
+        bridge._shuffle_order=[identity for identity in jukebox.get('shuffle_order',[]) if isinstance(identity,str)]
+        bridge._queue_history=[identity for identity in jukebox.get('recent',[]) if isinstance(identity,str)][-200:]
         model=jukebox.get('model')
         if isinstance(model,dict) and (Path(model.get('cache',''))/'analysis.json').is_file():
             bridge.handle_event(bridge.revision,'result',model)
@@ -63,7 +89,8 @@ def restore(workspace):
             if isinstance(params,list) and len(params)==4 and all(isinstance(v,(int,float,bool)) and math.isfinite(v) for v in params):bridge._params=tuple(params)
             bridge.update_state(status=__import__('i18n').tr('Sessão restaurada. Toque em reproduzir.'),playing=False,paused=False)
             bridge.positionChanged.emit()
-            if bridge.queue_index>=0:bridge._prepared[bridge.playlist[bridge.queue_index]['id']]=model
+            if bridge.queue_index>=0:
+                entry=bridge.playlist[bridge.queue_index];bridge._prepared[entry['id']]=model;entry.update(analysis='ready',error='')
         workspace.options['effectsEnabled']=data.get('effectsEnabled',False) is True
         if not data.get('unified'):
             import uuid

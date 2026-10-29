@@ -109,7 +109,7 @@ def perform(action,config,cancel,emit):
                 from music_search import search_music
                 return search_music(value,config['query'],config.get('provider','Deezer'),account=config.get('_account'),automatic=config.get('auto_metadata',False),refresh=config.get('refresh',False),cancelled=cancel.is_set)
             if action=='collection':
-                from playlist_import import load_playlist
+                from playlist_import import load_interactive_playlist as load_playlist
                 from catalog_details import collection_artwork
                 return dict(collection_artwork(load_playlist(config['url'],value,limit=int(config.get('playlist_limit',1000)),account=config.get('_account'),cancelled=cancel.is_set)),_collection_url=config['url'])
             if action=='release_date':

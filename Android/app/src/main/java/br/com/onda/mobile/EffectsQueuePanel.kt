@@ -49,7 +49,7 @@ import androidx.compose.ui.text.input.ImeAction
             Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.details)) {
                 Text(record.optString("title").ifBlank {importedAudioName(source)},style=MaterialTheme.typography.titleMedium,maxLines=2)
                 Text(record.stringList("artists"),style=MaterialTheme.typography.bodyMedium)
-                Text(record.optString("album"),style=MaterialTheme.typography.bodySmall)
+                AlbumDateLabel(record)
                 Text(mediaClock(info.optDouble("duration").toLong()),style=MaterialTheme.typography.labelMedium)
                 action()
             }
@@ -67,7 +67,7 @@ import androidx.compose.ui.text.input.ImeAction
             Column(Modifier.weight(1f)) {
                 Text(record.optString("title"),maxLines=1,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis,color=if(current)MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
                 Text(record.stringList("artists"),style=MaterialTheme.typography.bodySmall,maxLines=1,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-                Text(record.cleanString("album"),style=MaterialTheme.typography.labelSmall,maxLines=1)
+                AlbumDateLabel(record)
                 if(preparation.isNotBlank())UiText(workflowLabel(preparation,true),modifier=Modifier.semantics {liveRegion=LiveRegionMode.Polite},style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
             }
             if(duration>0)Text(mediaClock(duration),style=MaterialTheme.typography.labelSmall)
@@ -143,8 +143,8 @@ import androidx.compose.ui.text.input.ImeAction
         Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(4.dp)) {
             Text(record.optString("title"),maxLines=2,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)
             Text(record.stringList("artists"),style=MaterialTheme.typography.bodySmall,maxLines=1,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-            Text(record.optString("album"),style=MaterialTheme.typography.bodySmall,maxLines=1,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-            ReleaseDateLabel(record)
+
+            AlbumDateLabel(record)
         }
     }
 }

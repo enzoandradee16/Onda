@@ -1,4 +1,9 @@
 {
+  "Efeitos translúcidos e liquid glass": "Efectos translúcidos y liquid glass",
+  "Operação em andamento": "Operación en curso",
+  "Ordem das categorias": "Orden de las categorías",
+  "Escolha qual categoria aparece primeiro na barra lateral.": "Elige qué categoría aparece primero en la barra lateral.",
+  "Alterar destino": "Cambiar destino",
   "Idioma": "Idioma",
   "Português (Brasil)": "Português (Brasil)",
   "English": "English",
@@ -2114,5 +2119,16 @@
   "A próxima música não pôde ser preparada. Confira a fila de reprodução.": "No se pudo preparar la siguiente canción. Revisa la cola de reproducción.",
   "Adicione músicas à fila de reprodução para ativar a troca automática.": "Añade canciones a la cola de reproducción para activar el cambio automático.",
   "Manter tom": "Mantener tono",
-  "Preparação cancelada.": "Preparación cancelada."
+  "Preparação cancelada.": "Preparación cancelada.",
+  "ONDA Modern": "ONDA Modern",
+  "ONDA Legacy": "ONDA Legacy",
+  "Não foi possível carregar a fonte Inter.": "No se pudo cargar la fuente Inter.",
+  "Tocado recentemente": "Reproducido recientemente",
+  "Limpar adições": "Borrar canciones añadidas",
+  "Próximas na fila": "Siguientes en la cola",
+  "Próximas de: {title}": "Siguientes de: {title}",
+  "Preparar próximas músicas": "Preparar próximas canciones",
+  "Quantidade de próximas músicas preparadas antecipadamente. O processamento continua uma música por vez; valores maiores usam mais memória e cache.": "Cantidad de próximas canciones preparadas con antelación. El procesamiento continúa una canción a la vez; los valores mayores usan más memoria y caché.",
+  "Limite de 5.000 músicas na fila de reprodução. Remova músicas antes de adicionar outras.": "La cola de reproducción está limitada a 5.000 canciones. Elimina canciones antes de añadir más.",
+  "Limite configurado: até {cap} faixas por carregamento. Ajuste o limite de playlists nas configurações se precisar carregar mais.": "Límite configurado: hasta {cap} canciones por carga. Ajusta el límite de listas en la configuración si necesitas cargar más."
 }

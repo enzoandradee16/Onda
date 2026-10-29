@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 Card {
+    objectName:"playbackEffectsCard"
     implicitHeight: Math.max(405,body.implicitHeight+40)
     ColumnLayout {
         id:body

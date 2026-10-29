@@ -246,11 +246,12 @@ private val LocalPageSwipeExclusions=staticCompositionLocalOf<MutableMap<Any,Lay
     }
 }
 
-@Composable internal fun MorePage(tabs:JSONArray,onNavigate:(String)->Unit,onYouTube:()->Unit,onLicenses:()->Unit,onFailures:()->Unit) {
+@Composable internal fun MorePage(tabs:JSONArray,groupOrder:List<String>,onNavigate:(String)->Unit,onYouTube:()->Unit,onLicenses:()->Unit,onFailures:()->Unit) {
     val visible=remember(tabs.toString()){(0 until tabs.length()).map {tabs.optString(it)}}
     LazyColumn(Modifier.fillMaxSize().testTag("more-list").padding(horizontal=24.dp),verticalArrangement=Arrangement.spacedBy(12.dp),contentPadding=PaddingValues(bottom=24.dp)) {
         item {PageTitle("Mais","Todas as ferramentas do ONDA")}
-        for((heading,keys) in listOf("Ferramentas" to listOf("Imagens","Conversor de vídeos","Metadados"),"Biblioteca" to listOf("Playlists / Álbuns","Histórico"))) {
+        for(groupKey in groupOrder) {
+            val (heading,keys)=moreGroups.getValue(groupKey)
             val shown=visible.filter {it in keys}
             if(shown.isNotEmpty())item {UiText(heading.uppercase(),style=MaterialTheme.typography.labelLarge,color=MaterialTheme.colorScheme.onSurfaceVariant,modifier=Modifier.padding(top=12.dp,bottom=4.dp))}
             items(shown,key={it}) {name->

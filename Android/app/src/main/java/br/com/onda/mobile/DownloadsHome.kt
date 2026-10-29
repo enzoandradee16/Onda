@@ -172,8 +172,8 @@ import org.json.JSONObject
             Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(5.dp)) {
                 Text(songCardTitle(info?.cleanString("title")?.ifBlank {item.title} ?: item.title,artists),fontWeight=FontWeight.Medium,maxLines=if(cardSize=="Pequeno")1 else 2,overflow=TextOverflow.Ellipsis,style=if(cardSize=="Pequeno")MaterialTheme.typography.bodyMedium else MaterialTheme.typography.titleSmall)
                 if(artists.isNotBlank())Text(artists,maxLines=1,overflow=TextOverflow.Ellipsis,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-                if(cardSize!="Pequeno" && !info?.cleanString("album").isNullOrBlank())Text(info!!.cleanString("album"),maxLines=1,overflow=TextOverflow.Ellipsis,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-                info?.let {ReleaseDateLabel(it)}
+                val albumDate=info?.let {albumReleaseText(it,cardSize!="Pequeno")}.orEmpty()
+                if(albumDate.isNotBlank())Text(albumDate,maxLines=1,overflow=TextOverflow.Ellipsis,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
                 MetadataPlatformBadge(info,source=item.config.optString("url"),imageMedia=imageMedia)
                 if(initialImage==null && canPreviewOnlineImages(item.config))OnlineImagePreviewButton(vm,item.config.optString("url"))
                 if(initialImage!=null)TextButton(onClick={imagePreview=true},modifier=Modifier.testTag("download-image-preview-${item.id}")){UiText("Ver imagens")}

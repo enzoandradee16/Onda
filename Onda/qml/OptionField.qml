@@ -60,6 +60,11 @@ ColumnLayout {
             }
         }
     }
-    OndaTextField { visible: root.field.kind !== "bool" && root.field.kind !== "select" && !root.timeField; Layout.fillWidth: true; Layout.minimumWidth: 0; text: root.current === undefined ? "" : String(root.current); echoMode: root.field.key === "spotify_client_secret" ? TextInput.Password : TextInput.Normal; onEditingFinished: root.save(text); selectByMouse: true; color: bridge.palette.text; background: Rectangle { radius: 14; color: bridge.palette.input; border.color: parent.activeFocus ? bridge.palette.accent : bridge.palette.line } }
+    RowLayout {
+        visible: root.field.kind !== "bool" && root.field.kind !== "select" && !root.timeField
+        Layout.fillWidth: true; spacing: Math.round(8*bridge.spacing)
+        OndaTextField { objectName: "settingInput_"+root.field.key; Layout.fillWidth: true; Layout.minimumWidth: 0; text: root.current === undefined ? "" : String(root.current); Accessible.name: bridge.translate(root.field.label); echoMode: root.field.key === "spotify_client_secret" ? TextInput.Password : TextInput.Normal; onEditingFinished: root.save(text); selectByMouse: true; color: bridge.palette.text; background: Rectangle { radius: 14; color: bridge.palette.input; border.color: parent.activeFocus ? bridge.palette.accent : bridge.palette.line } }
+        ActionButton { objectName: root.field.key === "folder" ? "changeDownloadDestination" : ""; visible: root.settings && root.field.key === "folder"; primary: true; text: bridge.translate("Alterar destino"); onClicked: workspace.invoke("pick",{kind:"folder"}) }
+    }
     Label { visible: !!root.field.hint; text: bridge.translate(root.field.hint || ""); color: bridge.palette.muted; wrapMode: Text.Wrap; Layout.fillWidth: true; Layout.minimumWidth: 0; font.pixelSize: Math.round(12*bridge.fontScale) }
 }

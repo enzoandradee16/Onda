@@ -121,7 +121,6 @@ def fetch_lyrics(source,record=None,cancel=None,session=None,alternatives=False)
             candidates.append(dict(id=str(row['id']),source_url=str(row['id']),title=str(row.get('trackName') or title)+' · '+str(row.get('artistName') or artist)+' · '+str(row.get('albumName') or '')+' · '+str(round(row.get('duration') or 0))+' s',lines=timed or [(0,plain)],synced=bool(timed),word_synced=word_sync,provider='Letras online'))
         return {'candidates':candidates}
     if result.get('instrumental'):raise ValueError('Esta gravação foi identificada como instrumental.')
-    synced=result.get('syncedLyrics') or ''
     rows,word_sync=timed_record(result)
     plain=result.get('plainLyrics') or ''
     if not rows and not plain:raise ValueError('Letra não encontrada para esta gravação.')

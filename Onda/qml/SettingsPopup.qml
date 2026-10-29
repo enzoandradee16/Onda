@@ -45,10 +45,23 @@ Popup {
                         }
                     }
                     ColumnLayout { visible: popup.category === "Aparência" && !popup.searching; Layout.fillWidth: true
+                        Label { text: bridge.translate("Ordem das categorias"); color: bridge.palette.text; font.pixelSize: Math.round(19*bridge.fontScale) }
+                        Label { text: bridge.translate("Escolha qual categoria aparece primeiro na barra lateral."); color: bridge.palette.muted; wrapMode: Text.Wrap; Layout.fillWidth: true }
+                        Repeater { model: workspace.navigation.filter(function(row){return !!row.group})
+                            RowLayout { required property var modelData; required property int index; Layout.fillWidth: true; spacing: 10
+                                Label { text: (index+1)+"."; color: bridge.palette.muted; Layout.preferredWidth: 22 }
+                                Label { Layout.fillWidth: true; text: bridge.translate(modelData.groupKey==="library" ? "Biblioteca" : "Ferramentas"); color: bridge.palette.text; font.weight: Font.DemiBold }
+                                PlaybackButton { objectName: "moveCategoryUp_"+modelData.groupKey; glyph: "up"; enabled: !!modelData.canMoveUp; Accessible.name: bridge.translate("Mover para cima")+": "+bridge.translate(modelData.group || ""); ToolTip.visible: hovered; ToolTip.text: Accessible.name; onClicked: workspace.invoke("tab_group_move",{key:modelData.groupKey,direction:-1}) }
+                                PlaybackButton { objectName: "moveCategoryDown_"+modelData.groupKey; glyph: "down"; enabled: !!modelData.canMoveDown; Accessible.name: bridge.translate("Mover para baixo")+": "+bridge.translate(modelData.group || ""); ToolTip.visible: hovered; ToolTip.text: Accessible.name; onClicked: workspace.invoke("tab_group_move",{key:modelData.groupKey,direction:1}) }
+                            }
+                        }
+                        Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; Layout.topMargin: 12; Layout.bottomMargin: 12; color: bridge.palette.line }
                         Label { text: bridge.translate("Ordem e visibilidade das abas"); color: bridge.palette.text; font.pixelSize: Math.round(19*bridge.fontScale) }
                         Repeater { model: workspace.navigation
                             ColumnLayout { required property var modelData; Layout.fillWidth: true; spacing: 6
-                                Label { objectName: "appearanceTabGroup"; visible: !!modelData.group; text: bridge.translate(modelData.group || ""); color: bridge.palette.muted; font.pixelSize: Math.round(13*bridge.fontScale); font.weight: Font.DemiBold; Layout.topMargin: 12; Layout.bottomMargin: 4 }
+                                RowLayout { visible: !!modelData.group; Layout.fillWidth: true; Layout.topMargin: 12; Layout.bottomMargin: 4
+                                    Label { objectName: "appearanceTabGroup"; Layout.fillWidth: true; text: modelData.group ? bridge.translate(modelData.groupKey==="library" ? "Biblioteca" : "Ferramentas") : ""; color: bridge.palette.muted; font.pixelSize: Math.round(13*bridge.fontScale); font.weight: Font.DemiBold }
+                                }
                                 RowLayout { visible: !!modelData.key; Layout.fillWidth: true
                                     CheckBox { checked: workspace.hiddenTabs.indexOf(modelData.key) < 0; enabled: ["catalog","downloads","queue"].indexOf(modelData.key) < 0; onToggled: workspace.invoke("toggle_tab",{key:modelData.key}) }
                                     Label { Layout.fillWidth: true; text: modelData.key ? workspace.pageLabel(modelData.key) : ""; color: bridge.palette.text }
@@ -58,9 +71,6 @@ Popup {
                             }
                         }
                         ActionButton { text: bridge.translate("Restaurar ordem das abas"); onClicked: workspace.invoke("reset_tab_order",{}) }
-                    }
-                    Flow { visible: popup.category === "Downloads" && !popup.searching; Layout.fillWidth: true; spacing: Math.round(8*bridge.spacing)
-                        ActionButton { text: bridge.translate("Escolher pasta"); onClicked: workspace.invoke("pick",{kind:"folder"}) }
                     }
                     Flow { visible: popup.category === "Contas" && !popup.searching; Layout.fillWidth: true; spacing: Math.round(8*bridge.spacing)
                         Repeater { model: [{name:"Remover credenciais",key:"forget_credentials"},{name:workspace.activity.spotify ? "Desconectar Spotify" : "Conectar Spotify",key:workspace.activity.spotify ? "spotify_disconnect" : "spotify_connect"},{name:"Abrir Spotify Developers",key:"spotify_developers"}].filter(function(action) { return action.key !== "forget_credentials" || workspace.activity.spotify })

@@ -32,6 +32,7 @@ Canvas {
         else if(g==="expand"){path([8,5,19,5,19,16]);line(19,5,5,19)}
         else if(g==="pin"){path([8,3,16,3,15,9,18,13,6,13,9,9],true);line(12,13,12,21)}
         else if(g==="queue"){for(var y=6;y<=18;y+=6){line(8,y,21,y);line(3,y,4,y)}}
+        else if(g==="more"){circle(5,12,1);circle(12,12,1);circle(19,12,1)}
         else if(g==="menu"){line(4,6,20,6);line(4,12,20,12);line(4,18,20,18)}
         else if(g==="back")path([15,5,8,12,15,19])
         else if(g==="volume"){path([3,9,7,9,12,5,12,19,7,15,3,15],true);c.beginPath();c.arc(12,12,6,-.8,.8);c.stroke();c.beginPath();c.arc(12,12,10,-.8,.8);c.stroke()}

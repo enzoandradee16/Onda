@@ -547,7 +547,7 @@ def perform(action, config):
         finally:
             value.close()
     if action == 'collection':
-        from playlist_import import load_playlist
+        from playlist_import import load_interactive_playlist as load_playlist
         value = client(config)
         try:
             from catalog_details import collection_artwork
@@ -719,7 +719,8 @@ def perform(action, config):
             native[name] = {'code': result.returncode, 'output': (result.stdout+result.stderr).decode(errors='replace')[:400]}
             if result.returncode:
                 raise ValueError('Falha na ferramenta ' + name + ': ' + native[name]['output'])
-        import PIL, gallery_dl, mutagen
+        from importlib import import_module
+        for module in ('PIL','gallery_dl','mutagen'):import_module(module)
         return {'yt_dlp': yt_dlp.version.__version__, 'native': native, 'filter': effects_filter(90,25,True), 'effect': effect_name(90,25), 'spotify_connected': account().connected}
     raise ValueError('Operação desconhecida: ' + action)
 

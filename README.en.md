@@ -6,11 +6,13 @@
 
 A free, open-source, **ad-free** app for Windows and Android. It brings together tools to download, organize and edit music, videos and images, with a Portuguese interface and Spanish and English support.
 
+**Developed with the assistance of artificial intelligence.**
+
 ONDA started as a personal project, initially made for me and my friends. I decided to share it with anyone who might find it useful to have these tools in one place, without ads and with options to customize the experience.
 
 The project is still in development. Suggestions, contributions and bug reports are welcome.
 
-**Version 1.2.3 for Windows 10 or later (x64) and Android 8 or later (ARM64 and x86_64).**
+**Version 1.2.4 for Windows 10 or later (x64) and Android 8 or later (ARM64 and x86_64).**
 
 ![ONDA Windows 1.2.0](docs/images/pc%20novo/pesquisa-musicas-preto-puro.png)
 
@@ -21,8 +23,8 @@ On PC, right-click lists or cards to open the actions available in that tab. Shi
 ## Application highlights
 
 - **Windows:** clicking Download now in search opens format and quality selection: MP3, M4A, FLAC or original audio. Saved preferences are preselected. Download immediately or add to the queue; cancelling starts nothing. The selection applies to that track.
-- **Desktop mini players:** Effects and Jukebox share the same design, each with its own artwork, album, transport, volume, lyrics and queue. They remain visible when ONDA is minimized. Appearance settings control whether ONDA minimizes when opening a mini player; drag the header, artwork or track information to move it.
-- **Android:** Search, Downloads, Playback and More navigation, with In progress / Completed and Effects / Jukebox using the same rounded selector as Saved / Import. Includes an expanded player, full-screen lyrics and independent playback queues.
+- **Desktop mini player:** unified Effects and Jukebox playback, with artwork, album, transport, volume, lyrics and queue. It remains visible when ONDA is minimized. Appearance settings control whether ONDA minimizes when opening the mini player; drag the header, artwork or track information to move it.
+- **Android:** Search, Downloads, Playback and More navigation. Effects and Jukebox can be applied together to the same track and queue, with an expanded player and full-screen lyrics.
 - **Custom installer:** “Your ONDA starts here.”, folder and shortcut selection, progress and completion. Choose Portuguese, Spanish or English from the opening screen, including uninstaller messages. This does not change the language saved in the app.
 - **Custom uninstaller:** the same design as the installer, with “Until the next ONDA.”, three languages and independent options to delete settings/queue/history and remove downloaded tools. Both start off. Downloads, external cookies and personal tools are preserved.
 
@@ -40,7 +42,7 @@ Download the official packages from [Releases](https://github.com/enzoandradee16
 
 - **Portable:** extract the entire ZIP and open `Onda.exe`. Keep the `Onda` and `_runtime` folders alongside it. You do not need to install Python. On first use, ONDA downloads FFmpeg directly from gyan.dev, with a progress bar and SHA-256 verification; this initial setup requires an internet connection.
 - **Installer:** run `Onda-…-Setup-Windows-x64.exe`. ONDA's own interface lets you choose the folder, create a shortcut and follow installation progress. Installation is per user, with an uninstaller and compatibility with earlier versions. FFmpeg is also prepared automatically on first use.
-- **Android:** the APK is signed with the production key and requires an ARM64 device running Android 8 or later. Source code for the rebuilt native tools is provided in the Fontes-nativos-Android package attached to the same release.
+- **Android:** Search, Downloads, Playback and More navigation. Effects and Jukebox can be applied together to the same track and queue, with an expanded player and full-screen lyrics.
 - **Source code:** see the [development instructions](Onda/README.md) (in Portuguese).
 
 The Windows executables are not digitally signed. Windows may show a reputation warning; check the source and file hashes before running them.

@@ -4,6 +4,17 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 internal val requiredTabs=setOf("Pesquisar","Links e fila","Fila")
+internal val moreGroups=linkedMapOf(
+    "tools" to ("Ferramentas" to listOf("Imagens","Conversor de vídeos","Metadados")),
+    "library" to ("Biblioteca" to listOf("Playlists / Álbuns","Histórico")))
+internal fun normalizeTabGroupOrder(saved:List<String>):List<String> {
+    val order=saved.filter {it in moreGroups}.distinct()
+    return order+moreGroups.keys.filter {it !in order}
+}
+internal fun tabGroupOrder(settings:JSONObject):List<String> {
+    val saved=settings.optJSONArray("tab_group_order") ?: JSONArray()
+    return normalizeTabGroupOrder((0 until saved.length()).map {saved.optString(it)})
+}
 internal fun hiddenTabs(settings:JSONObject):List<String> {
     val known=listOf("Imagens","Conversor de vídeos","Playlists / Álbuns","Histórico","Efeitos","Metadados")
     val saved=settings.optJSONArray("hidden_tabs") ?: JSONArray()

@@ -8,7 +8,7 @@ ScrollView {
     objectName: "jukeboxView"
     contentWidth: availableWidth
     clip: true
-    Menu {id:jukeboxActions;objectName:"jukeboxContextMenu"
+    OndaMenu {id:jukeboxActions;objectName:"jukeboxContextMenu"
         OndaMenuItem {text:bridge.translate("Abrir arquivo");onTriggered:fileDialog.open()}
         OndaMenuItem {text:bridge.translate("Fila de reprodução");onTriggered:workspace.setOption("jukeboxQueueOpen",true)}
         OndaMenuItem {text:bridge.translate("Reproduzir / Pausar");enabled:bridge.state.ready;onTriggered:bridge.playPause()}
@@ -52,7 +52,7 @@ ScrollView {
                     required property var modelData; required property int index
                         Component.onCompleted: workspace.invoke("request_card_details",{model:"jukeboxSearch",source:modelData.source_url || ""})
                         ListView.onReused: workspace.invoke("request_card_details",{model:"jukeboxSearch",source:modelData.source_url || ""})
-                        Menu {id:resultActions
+                        OndaMenu {id:resultActions
                             OndaMenuItem {text:bridge.translate("Reproduzir");onTriggered:bridge.selectResult(index)}
                             OndaMenuItem {text:bridge.translate("Adicionar à fila");onTriggered:bridge.enqueueResult(index)}
                             OndaMenuItem {text:bridge.translate("Ver no catálogo");onTriggered:workspace.invoke("open_url",{url:modelData.source_url})}
@@ -69,8 +69,7 @@ ScrollView {
                         ColumnLayout { Layout.fillWidth: true; Layout.minimumWidth: 0; spacing: 4
                             Label { Layout.fillWidth: true; text: modelData.title; color: bridge.palette.text; elide: Text.ElideRight }
                             Label { Layout.fillWidth: true; text: modelData.artist; color: bridge.palette.muted; elide: Text.ElideRight }
-                            Label { Layout.fillWidth: true; text: modelData.album || ""; color: bridge.palette.muted; elide: Text.ElideRight }
-                                Label {Layout.fillWidth:true;visible:!!modelData.release_date;text:bridge.translate("Data de lançamento")+": "+workspace.releaseDateText(modelData.release_date || "");color:bridge.palette.muted;elide:Text.ElideRight}
+                            Label { Layout.fillWidth: true; text: workspace.albumReleaseText(modelData); color: bridge.palette.muted; elide: Text.ElideRight }
                         }
                         ActionButton { text: bridge.translate("Adicionar à fila"); onClicked: {bridge.enqueueResult(index)} }
                     }
@@ -80,28 +79,30 @@ ScrollView {
         }
         OndaProgressBar { Layout.fillWidth: true; visible: bridge.state.busy; from: 0; to: 100; value: bridge.state.progress; indeterminate: bridge.state.progress===0 }
         Card {
-            Layout.fillWidth: true; implicitHeight: 166
+            objectName:"playbackTrackCard"
+            Layout.fillWidth: true; implicitHeight: 166;clip:true
             RowLayout {
                 anchors.fill: parent; anchors.margins: 10; spacing: Math.round(16*bridge.spacing)
                 Rectangle {
                     Layout.preferredWidth: 146; Layout.preferredHeight: 146; radius: 8; color: bridge.palette.input; clip: true
-                    RoundedArtwork { anchors.fill: parent; source: bridge.state.cover; sourceSize.width: 292; sourceSize.height: 292; fillMode: Image.PreserveAspectCrop; visible: source.toString().length>0 }
+                    RoundedArtwork { anchors.fill: parent; source: bridge.currentMetadata.cover_url || bridge.state.cover; fallbackSource: bridge.state.cover; sourceSize.width: 768; sourceSize.height: 768; fillMode: Image.PreserveAspectCrop; visible: source.toString().length>0 }
                     Text { anchors.centerIn: parent; visible: bridge.state.cover.length===0; text: "♪"; color: bridge.palette.muted; font.pixelSize: Math.round(38*bridge.fontScale) }
                 }
                 ColumnLayout {
                     Layout.fillWidth: true; spacing: Math.round(5*bridge.spacing)
                     Text { Layout.fillWidth: true; text: bridge.state.title; elide: Text.ElideRight; color: bridge.palette.text; font.pixelSize: Math.round(23*bridge.fontScale); font.weight: Font.DemiBold }
                     Text { Layout.fillWidth: true; text: bridge.state.artist; visible: text.length>0; elide: Text.ElideRight; color: bridge.palette.text; font.pixelSize: Math.round(17*bridge.fontScale) }
-                    Text { Layout.fillWidth: true; text: bridge.state.album; visible: text.length>0; elide: Text.ElideRight; color: bridge.palette.muted; font.pixelSize: Math.round(16*bridge.fontScale) }
+                    Text { Layout.fillWidth: true; text: workspace.albumReleaseText(bridge.currentMetadata); visible: text.length>0; elide: Text.ElideRight; color: bridge.palette.muted; font.pixelSize: Math.round(16*bridge.fontScale) }
                     Text { Layout.fillWidth: true; text: bridge.state.paused ? bridge.translate("Pausado.") : bridge.state.status; elide: Text.ElideRight; color: bridge.state.playing ? bridge.palette.accent : bridge.palette.muted; font.pixelSize: Math.round(14*bridge.fontScale) }
                 }
-                AnimatedLyric { Layout.fillWidth: true; Layout.preferredWidth: 300; lineKey: page.currentLine; text: page.currentLyric; textFormat: Text.RichText; visible: text.length>0 }
+                AnimatedLyric { Layout.fillWidth: true; Layout.preferredWidth: 300;Layout.maximumHeight:100;Layout.alignment:Qt.AlignVCenter;maximumLineCount:3;elide:Text.ElideRight;clip:true; lineKey: page.currentLine; text: page.currentLyric; textFormat: Text.RichText; visible: text.length>0 }
             }
         }
         GridLayout {
             Layout.fillWidth:true;columns:page.availableWidth>=1100?3:page.availableWidth>=700?2:1;columnSpacing:16;rowSpacing:16
             UnifiedEffectsCard {Layout.fillWidth:true;Layout.fillHeight:true;Layout.preferredWidth:330}
             Card {
+                objectName:"playbackJukeboxCard"
                 Layout.fillWidth:true;Layout.fillHeight:true;Layout.preferredWidth:330;implicitHeight:405
                 ColumnLayout {
                     anchors.fill:parent;anchors.margins:20;spacing:12

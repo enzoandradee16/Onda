@@ -5,7 +5,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 
 GROUPS = {'Geral': {'close_behavior':'Ao fechar o ONDA','clipboard_links':'Reconhecer links copiados automaticamente','language': 'Idioma', 'notice_duration': 'Duração dos avisos', 'notice_animation':'Animar avisos', 'remember_settings': 'Lembrar configurações'},
- 'Aparência': {'qt_animations':'Animações da interface','shortcut_keys':'Personalizar atalhos de teclado','interface_spacing': 'Espaçamento da interface',
+ 'Aparência': {'qt_animations':'Animações da interface','translucent_effects':'Efeitos translúcidos e liquid glass','shortcut_keys':'Personalizar atalhos de teclado','interface_spacing': 'Espaçamento da interface',
                'history_card_size': 'Tamanho dos cards do histórico',
                'pure_black_separators': 'Separações no Preto puro',
                'history_view': 'Exibição do histórico',
@@ -49,7 +49,7 @@ GROUPS = {'Geral': {'close_behavior':'Ao fechar o ONDA','clipboard_links':'Recon
              'image_width': 'Largura personalizada',
              'image_height': 'Altura personalizada',
              'image_keep_ratio': 'Manter proporção'},
- 'Áudio': {'jukebox_equalizer':'Equalizador do Jukebox','synced_lyrics':'Mostrar letra sincronizada (LRC)','effects_keep_pitch': 'Manter tom nos efeitos',
+ 'Áudio': {'playback_prepare_ahead':'Preparar próximas músicas','jukebox_equalizer':'Equalizador do Jukebox','synced_lyrics':'Mostrar letra sincronizada (LRC)','effects_keep_pitch': 'Manter tom nos efeitos',
            'background_preview': 'Continuar prévia em outras abas',
            'effects_preview_duration': 'Duração da prévia dos efeitos',
            'search_preview_duration': 'Duração da prévia nas pesquisas'},

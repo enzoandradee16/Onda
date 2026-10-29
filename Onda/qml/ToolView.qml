@@ -11,7 +11,7 @@ ScrollView {
     property bool audioOnly: workspace.values.converterSources.some(function(path) { return /\.(mp3|m4a|aac|flac|wav|ogg|opus)$/i.test(path) })
     clip: true
     contentWidth: availableWidth
-    Menu {id:toolActions;objectName:"toolContextMenu"
+    OndaMenu {id:toolActions;objectName:"toolContextMenu"
         OndaMenuItem {text:bridge.translate("Abrir arquivo");onTriggered:workspace.invoke("pick",{kind:page.mode==="images" ? "image" : page.mode})}
         OndaMenuItem {visible:page.mode==="effects";text:bridge.translate("Fila de reprodução");onTriggered:workspace.setOption("effectsQueueOpen",true)}
         OndaMenuItem {visible:page.mode==="effects";text:bridge.translate("Reproduzir / Pausar");enabled:!!workspace.values.effectsSource;onTriggered:workspace.invoke("effects_play_pause",{})}
@@ -64,7 +64,7 @@ ScrollView {
                         required property var modelData; required property int index
                         Component.onCompleted: workspace.invoke("request_card_details",{model:"effectsResults",source:modelData.source_url || ""})
                         ListView.onReused: workspace.invoke("request_card_details",{model:"effectsResults",source:modelData.source_url || ""})
-                        Menu {id:resultActions
+                        OndaMenu {id:resultActions
                             OndaMenuItem {text:bridge.translate("Reproduzir");onTriggered:workspace.invoke("effects_load",{index:index})}
                             OndaMenuItem {text:bridge.translate("Adicionar à fila");onTriggered:workspace.invoke("effects_enqueue_result",{index:index})}
                             OndaMenuItem {text:bridge.translate("Ver no catálogo");onTriggered:workspace.invoke("open_url",{url:modelData.source_url})}
@@ -81,8 +81,7 @@ ScrollView {
                             ColumnLayout { Layout.fillWidth: true; Layout.minimumWidth: 0; spacing: 4
                                 Label { Layout.fillWidth: true; text: modelData.title; color: bridge.palette.text; elide: Text.ElideRight }
                                 Label { Layout.fillWidth: true; text: (modelData.artists || []).join(", "); color: bridge.palette.muted; elide: Text.ElideRight }
-                                Label { Layout.fillWidth: true; text: modelData.album || ""; color: bridge.palette.muted; elide: Text.ElideRight }
-                                Label {Layout.fillWidth:true;visible:!!modelData.release_date;text:bridge.translate("Data de lançamento")+": "+workspace.releaseDateText(modelData.release_date || "");color:bridge.palette.muted;elide:Text.ElideRight}
+                                Label { Layout.fillWidth: true; text: workspace.albumReleaseText(modelData); color: bridge.palette.muted; elide: Text.ElideRight }
                             }
                             ActionButton { text: bridge.translate("Adicionar à fila"); enabled: workspace.activity.busy.indexOf("effects_load")<0; onClicked: {workspace.invoke("effects_enqueue_result",{index:index})} }
                         }

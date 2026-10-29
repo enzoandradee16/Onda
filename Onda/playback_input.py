@@ -45,8 +45,8 @@ def resolve_input(query,client,config=None,account=None,cancelled=lambda:False):
             else:raise MetadataError('Muitos redirecionamentos. Use o link completo da música, álbum ou playlist.')
     collection=collection_url(text)
     if collection:
-        from playlist_import import load_playlist
-        result=load_playlist(collection,client,limit=int(config.get('playlist_limit',2000)),account=account,cancelled=cancelled)
+        from playlist_import import load_interactive_playlist
+        result=load_interactive_playlist(collection,client,limit=int(config.get('playlist_limit',2000)),account=account,cancelled=cancelled,playback=True)
         from catalog_details import collection_artwork
         return dict(collection_artwork(result),is_collection=True)
     if text.startswith(('http://','https://')) and not is_streaming_link(text):

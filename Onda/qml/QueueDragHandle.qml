@@ -8,6 +8,8 @@ Item {
     property int targetIndex: -1
     property int itemCount: 0
     property bool dragging: false
+    property bool showIndicator: true
+    property bool doubleClickEnabled: false
     property real offsetY: 0
     property real pressY: 0
     property real pressContentY: 0
@@ -24,6 +26,7 @@ Item {
     }
     signal moved(int target)
     signal tapped()
+    signal doubleTapped()
     implicitWidth: 32; implicitHeight: 44
     activeFocusOnTab: true
     Accessible.role: Accessible.Button
@@ -69,14 +72,15 @@ Item {
         else if(!wasDragging)tapped()
     }
     function cancel(){if(listView && listView.activeDrag===handle)listView.activeDrag=null;dragging=false;offsetY=0;targetIndex=-1}
-    Rectangle {anchors.fill:parent;radius:6;color:handle.activeFocus || handle.dragging ? bridge.palette.hover : "transparent";border.color:handle.activeFocus ? bridge.palette.accent : "transparent"}
-    Label {anchors.centerIn:parent;text:"≡";font.pixelSize:24;color:handle.enabled ? bridge.palette.muted : bridge.palette.line}
+    Rectangle {visible:handle.showIndicator;anchors.fill:parent;radius:6;color:handle.activeFocus || handle.dragging ? bridge.palette.hover : "transparent";border.color:handle.activeFocus ? bridge.palette.accent : "transparent"}
+    Label {visible:handle.showIndicator;anchors.centerIn:parent;text:"≡";font.pixelSize:24;color:handle.enabled ? bridge.palette.muted : bridge.palette.line}
     MouseArea {
         id:area;anchors.fill:parent;preventStealing:true;hoverEnabled:true
         cursorShape:pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor
         onPressed:function(mouse){handle.begin(mapToGlobal(mouse.x,mouse.y))}
         onPositionChanged:function(mouse){if(pressed)handle.update(mapToGlobal(mouse.x,mouse.y))}
         onReleased:function(mouse){handle.finish(mapToGlobal(mouse.x,mouse.y))}
+        onDoubleClicked:function(mouse){if(handle.doubleClickEnabled)handle.doubleTapped();else mouse.accepted=false}
         onCanceled:handle.cancel()
     }
     MouseArea {
@@ -87,6 +91,7 @@ Item {
         onPressed:function(mouse){var point=mapToGlobal(mouse.x,mouse.y);if(handle.interactiveAt(handle.dragItem,point)){mouse.accepted=false;return}handle.begin(point)}
         onPositionChanged:function(mouse){if(pressed)handle.update(mapToGlobal(mouse.x,mouse.y))}
         onReleased:function(mouse){handle.finish(mapToGlobal(mouse.x,mouse.y))}
+        onDoubleClicked:function(mouse){if(handle.doubleClickEnabled)handle.doubleTapped();else mouse.accepted=false}
         onCanceled:handle.cancel()
     }
     Timer {interval:40;repeat:true;running:handle.dragging

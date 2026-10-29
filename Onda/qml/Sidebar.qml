@@ -39,19 +39,19 @@ Rectangle {
                     required property var modelData
                     readonly property bool active: modelData.key === workspace.currentPage || (modelData.key === "effects" && workspace.currentPage === "jukebox")
                     visible: !modelData.key || workspace.hiddenTabs.indexOf(modelData.key) < 0
-                    width: parent.width; height: !visible ? 0 : modelData.group ? (modelData.group === "FERRAMENTAS" ? 48 : 30) : 43; radius: 8
+                    width: parent.width; height: !visible ? 0 : modelData.group ? (modelData.canMoveUp ? 48 : 30) : 43; radius: 8
                     clip: true; color: nav.active ? bridge.palette.selected : "transparent"
                     Rectangle { visible: nav.active; width: 3; height: 24; radius: 2; color: bridge.palette.accent; anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter }
-                    Rectangle { visible: nav.modelData.group === "FERRAMENTAS"; width: parent.width-20; height: 1; anchors.top: parent.top; anchors.topMargin: 8; anchors.horizontalCenter: parent.horizontalCenter; color: bridge.palette.flat_black ? "#303945" : bridge.palette.line }
+                    Rectangle { visible: !!nav.modelData.group && !!nav.modelData.canMoveUp; width: parent.width-20; height: 1; anchors.top: parent.top; anchors.topMargin: 8; anchors.horizontalCenter: parent.horizontalCenter; color: bridge.palette.line }
                     Text {
                         visible: !!nav.modelData.group && !side.collapsed; text: bridge.translate(nav.modelData.group || "")
                         anchors.left: parent.left; anchors.leftMargin: 10; anchors.verticalCenter: parent.verticalCenter
-                        color: bridge.palette.muted; font.pixelSize: Math.round(10*bridge.fontScale); font.letterSpacing: 1
+                        color: bridge.palette.muted; font.pixelSize: Math.round(10*bridge.fontScale); font.weight: Font.Medium; font.letterSpacing: 1
                     }
                     Row {
                         visible: !nav.modelData.group; anchors.left: parent.left; anchors.leftMargin: side.collapsed ? 15 : 12; width: parent.width-(side.collapsed ? 30 : 24); height: parent.height; spacing: Math.round(12*bridge.spacing)
                         LineIcon { glyph: nav.modelData.key || ""; width: Math.round(20*bridge.fontScale); height: width; anchors.verticalCenter: parent.verticalCenter; ink: nav.active ? bridge.palette.accent : bridge.palette.muted }
-                        Text { text: bridge.translate(nav.modelData.name || ""); width: Math.max(0,parent.width-30); elide: Text.ElideRight; visible: !side.collapsed; font.pixelSize: Math.round(13*bridge.fontScale); font.weight: nav.active ? Font.DemiBold : Font.Normal; anchors.verticalCenter: parent.verticalCenter; color: nav.active ? bridge.palette.accent : bridge.palette.muted }
+                        Text { text: bridge.translate(nav.modelData.name || ""); width: Math.max(0,parent.width-30); elide: Text.ElideRight; visible: !side.collapsed; font.pixelSize: Math.round(13*bridge.fontScale); font.weight: nav.active ? Font.Bold : Font.DemiBold; anchors.verticalCenter: parent.verticalCenter; color: nav.active ? bridge.palette.accent : bridge.palette.muted }
                     }
                     MouseArea { id: navMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: nav.modelData.key ? Qt.PointingHandCursor : Qt.ArrowCursor; onClicked: if (nav.modelData.key) workspace.selectNavigationPage(nav.modelData.key) }
                     ToolTip.visible: navMouse.containsMouse && side.collapsed && !nav.modelData.group

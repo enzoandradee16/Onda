@@ -45,8 +45,10 @@ def self_test(target):
     """A non-network diagnostic, with isolated settings and no persistent changes."""
     report = {"ok": False, "python": sys.version, "prefix": sys.prefix}
     try:
-        import requests, mutagen, yt_dlp, gallery_dl, curl_cffi, PIL
-        import instagram_media, twitter_media, tiktok_media, kwai, media_picker
+        from importlib import import_module
+        for module in ('requests','mutagen','yt_dlp','instagram_media','twitter_media','tiktok_media','kwai','media_picker'):
+            import_module(module)
+        import gallery_dl, curl_cffi, PIL
         from yt_dlp.version import __version__
         report["yt_dlp"] = __version__
         report["gallery_dl"] = gallery_dl.version.__version__

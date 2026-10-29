@@ -21,6 +21,15 @@ class CrossfadeTests(unittest.TestCase):
     def setUp(self):
         FakeSession.instances=[];self.patch=patch('jukebox_stream.Session',FakeSession);self.patch.start()
     def tearDown(self):self.patch.stop()
+    def test_seek_from_previous_track_cannot_seek_incoming_song(self):
+        stream=Stream('old');stream.chunk();stream.switch('new',1)
+        try:
+            self.assertFalse(stream.seek(100,expected_cache='old'))
+            self.assertTrue(stream.transitioning)
+            self.assertEqual(stream.incoming.session.index,0)
+            self.assertTrue(stream.seek(3,expected_cache='new'))
+            self.assertFalse(stream.transitioning);self.assertEqual(stream.current.session.index,3)
+        finally:stream.close()
     def test_overlap_has_both_tracks_without_gap_and_keeps_incoming_position(self):
         stream=Stream('old');stream.chunk();stream.switch('new',1)
         parts=[]

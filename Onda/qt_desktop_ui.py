@@ -30,18 +30,25 @@ def create_application(*, complete=True):
     from PySide6.QtWidgets import QApplication
     if not _style_initialized:QQuickStyle.setStyle('Basic');_style_initialized=True
     app=QGuiApplication.instance() or QApplication(sys.argv[:1]);app.setApplicationName('ONDA · Qt');app.setOrganizationName('ONDA')
+    from interface_fonts import register_qt_fonts
+    register_qt_fonts()
     qmlRegisterType(BeatGraph,'Onda',1,0,'BeatGraph')
     from qt_workspace_ui import DesktopWorkspace
     from PySide6.QtCore import QTimer
     engine=QQmlApplicationEngine(parent=app)
     from qt_platform_icons_ui import PlatformIcons
     engine.addImageProvider("platform",PlatformIcons())
+    from qt_backdrop_ui import PlaybackBackdrop
+    engine.addImageProvider("backdrop",PlaybackBackdrop())
     bridge=JukeboxBridge(parent=engine);workspace=DesktopWorkspace(bridge,parent=engine);engine.workspace=workspace
     engine.rootContext().setContextProperty('bridge',bridge);engine.rootContext().setContextProperty('workspace',workspace)
     def refresh_icon():
         from window_icons import draw_icon
         from PySide6.QtGui import QFont
-        family=bridge.preferences.get('interface_font','Padrão do sistema');app.setFont(QFont('Segoe UI' if family=='Padrão do sistema' else family))
+        from interface_fonts import qt_font_family,DEFAULT_FONT
+        font=QFont(qt_font_family(bridge.preferences.get('interface_font',DEFAULT_FONT)))
+        if font.family()=='Inter':font.setHintingPreference(QFont.HintingPreference.PreferNoHinting)
+        app.setFont(font)
         picture=draw_icon('onda',64,bridge.palette);qimage=QImage(picture.tobytes('raw','RGBA'),64,64,QImage.Format.Format_RGBA8888).copy()
         icon=QIcon(QPixmap.fromImage(qimage))
         app.setWindowIcon(icon)
@@ -92,7 +99,7 @@ def packaged_self_test(target):
 
 def main():
     if len(sys.argv)==3 and sys.argv[1]=="--qt-self-test":return packaged_self_test(sys.argv[2])
-    from single_instance import SingleInstance,already_open_message
+    from single_instance import SingleInstance
     from PySide6.QtCore import QTimer
     with SingleInstance() as guard:
         if not guard.primary:

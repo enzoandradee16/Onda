@@ -7,6 +7,15 @@ import test_jukebox as fixtures
 
 class CombinedAudioTests(unittest.TestCase):
     setUp=fixtures.JukeboxTests.setUp;tearDown=fixtures.JukeboxTests.tearDown
+    def test_prepared_queue_reference_restores_without_decode_and_rejects_deleted_cache(self):
+        from playback_session import prepared_reference,restored_prepared
+        model=dict(self.model,cache=str(self.base),source=str(self.base/'audio.wav'),media_title='Track',media_artist='Artist')
+        reference=prepared_reference(model)
+        self.assertNotIn('beats',reference)
+        restored=restored_prepared(reference)
+        self.assertEqual(restored['beats'],model['beats']);self.assertEqual(restored['media_title'],'Track')
+        (self.base/'audio.wav').unlink()
+        self.assertIsNone(restored_prepared(reference))
     def test_normal_crossfade_cannot_run_past_outgoing_track_end(self):
         from jukebox_stream import Stream
         from jukebox import RATE
@@ -53,6 +62,26 @@ class CombinedAudioTests(unittest.TestCase):
 
 @unittest.skipUnless(os.environ.get('ONDA_QT_TESTS'),'Qt interface')
 class UnifiedDesktopTests(unittest.TestCase):
+    def test_stale_preparation_cannot_replace_current_worker_or_model(self):
+        import threading
+        old=threading.Event();old.set();current=threading.Event()
+        self.bridge.playlist=[dict(id='track',title='Track',analysis='preparing')]
+        self.bridge._queue_cancel['track']=current;self.bridge._queue_preparing=True
+        with patch.object(self.bridge,'prepare_next_queued') as prepare:
+            self.bridge.handle_event(0,'queue_prepared',dict(id='track',owner=old,error='old failure'))
+            self.assertIs(self.bridge._queue_cancel['track'],current)
+            self.assertTrue(self.bridge._queue_preparing)
+            self.assertEqual(self.bridge.playlist[0]['analysis'],'preparing');prepare.assert_not_called()
+
+    def test_cancelled_preparation_returns_to_pending_instead_of_recording_an_error(self):
+        import threading
+        owner=threading.Event();owner.set()
+        self.bridge.playlist=[dict(id='track',title='Track',analysis='preparing')]
+        self.bridge._queue_cancel['track']=owner;self.bridge._queue_preparing=True
+        with patch.object(self.bridge,'prepare_next_queued') as prepare:
+            self.bridge.handle_event(0,'queue_prepared',dict(id='track',owner=owner,error='cancelled'))
+            self.assertEqual(self.bridge.playlist[0]['analysis'],'pending')
+            self.assertFalse(self.bridge._queue_preparing);prepare.assert_called_once()
     from test_qt_workspace import NativeDesktopTests as Fixture
     setUpClass=classmethod(Fixture.setUpClass.__func__)
     setUp=Fixture.setUp;tearDown=Fixture.tearDown;settle=Fixture.settle
@@ -65,6 +94,55 @@ class UnifiedDesktopTests(unittest.TestCase):
         cancel.assert_called_once_with('playback_input')
         self.assertEqual(self.ws.options['jukeboxQueueResults'],[])
         self.assertTrue(self.ws.options['jukeboxQueueOpen']);self.assertEqual(len(self.bridge.playlist),1)
+    def test_played_song_leaves_upcoming_but_previous_and_recent_keep_it(self):
+        self.bridge.playlist=[dict(id=str(i),title=str(i),analysis='pending') for i in range(4)]
+        self.bridge.queue_index=0;self.bridge.remember_current();self.bridge.queue_index=1
+        self.assertEqual([r['id'] for r in self.bridge.upcomingTracks],['1','2','3'])
+        self.assertEqual([r['id'] for r in self.bridge.recentTracks],['0'])
+        with patch.object(self.bridge,'playQueued') as play:self.bridge.previousTrack()
+        play.assert_called_once_with(0)
+    def test_shuffle_restores_original_order_and_does_not_shuffle_again_on_restore(self):
+        from playback_session import save,restore
+        self.bridge.playlist=[dict(id=str(i),kind='catalog',record=dict(title=str(i)),title=str(i),analysis='pending') for i in range(8)]
+        self.bridge.queue_index=0
+        with patch.object(self.bridge,'prepare_next_queued'),patch('random.shuffle',side_effect=lambda rows:rows.reverse()) as shuffle:
+            self.bridge.setQueueShuffle(True)
+            self.assertEqual([r['id'] for r in self.bridge.playlist],['0','7','6','5','4','3','2','1'])
+            save(self.ws);restore(self.ws);self.assertEqual(shuffle.call_count,1)
+            self.bridge.setQueueShuffle(False)
+            self.assertEqual([r['id'] for r in self.bridge.playlist],list(map(str,range(8))))
+            self.assertEqual(self.bridge.queue_index,0)
+            self.bridge.setQueueShuffle(True);self.assertEqual(shuffle.call_count,2)
+    def test_manual_addition_takes_priority_without_deleting_playlist(self):
+        self.bridge.playlist=[dict(id='a',title='A'),dict(id='b',title='B')];self.bridge.queue_index=0
+        with patch.object(self.bridge,'prepare_next_queued'):
+            self.bridge.enqueueRecord(dict(title='Manual',artists=[],source_url='https://example.com/song'))
+        self.assertEqual([r['title'] for r in self.bridge.playlist],['A','Manual','B'])
+        with patch.object(self.bridge,'prepare_next_queued'):
+            self.bridge.clearManualQueue()
+        self.assertEqual([r['title'] for r in self.bridge.playlist],['A','B'])
+        self.assertEqual(self.bridge.queue_index,0)
+    def test_rapid_next_uses_pending_identity_after_queue_reorder(self):
+        models={}
+        for identity in ('a','b','c'):
+            cache=self.root/identity;cache.mkdir();(cache/'analysis.json').write_text('{}')
+            models[identity]=dict(cache=str(cache),source=str(cache/'audio.wav'),title=identity,media_title=identity,beats=[0,1,2],neighbors=[[],[]],duration=2,links=0)
+        self.bridge.playlist=[dict(id=i,title=i,kind='catalog',record={'title':i},analysis='ready') for i in models]
+        self.bridge._prepared=dict(models);self.bridge.model=models['a'];self.bridge.queue_index=0;self.bridge.update_state(playing=True)
+        with patch.object(self.bridge,'prepare_next_queued'):
+            self.bridge.nextTrack();self.assertEqual(self.bridge._switch_pending,'b')
+            self.bridge.nextTrack();self.assertEqual(self.bridge._switch_after,'c')
+            self.bridge.moveQueued(2,-2)
+            self.bridge.handle_event(self.bridge.revision,'track_started',models['b']['cache'])
+        self.assertEqual(self.bridge.playlist[self.bridge.queue_index]['id'],'b')
+        self.assertEqual(self.bridge._switch_pending,'c')
+    def test_rapid_next_advances_past_tracks_still_being_prepared(self):
+        self.bridge.playlist=[dict(id=i,title=i,analysis='pending') for i in ('a','b','c','d','e')]
+        self.bridge.queue_index=0;self.bridge._switch_pending='b'
+        with patch.object(self.bridge,'prepare_next_queued'):
+            self.bridge.nextTrack();self.assertEqual(self.bridge._autoplay_entry,'c')
+            self.bridge.nextTrack();self.assertEqual(self.bridge._autoplay_entry,'d')
+            self.bridge.nextTrack();self.assertEqual(self.bridge._autoplay_entry,'e')
     def test_manual_lyrics_offers_choices_while_automatic_keeps_best_match(self):
         self.bridge.model=dict(source='song.wav',media_title='Song',media_artist='Artist',duration=200)
         original=[(0,'Current lyric')];self.ws._jukebox_lyrics=list(original)
@@ -100,6 +178,32 @@ class UnifiedDesktopTests(unittest.TestCase):
         self.ws.setOption('effectsQueueOpen',True);self.assertTrue(self.ws.options['jukeboxQueueOpen'])
         self.ws.setOption('effectsEnabled',True);self.ws.setOption('speed',90)
         self.assertTrue(self.bridge._effects['enabled']);self.assertEqual(self.bridge._effects['speed'],90)
+    def test_large_collection_is_added_as_one_bounded_batch(self):
+        rows=[dict(title='Track',artists=['Artist'],source_url=f'https://example.com/{i}') for i in range(6000)]
+        with patch.object(self.bridge,'prepare_next_queued') as prepare,patch.object(self.bridge,'queueChanged') as changed:
+            self.assertEqual(self.bridge.enqueueRecords(rows),5000)
+            self.assertEqual(len(self.bridge.playlist),5000)
+            prepare.assert_called_once();changed.emit.assert_called_once()
+            self.assertEqual(self.bridge.enqueueRecords(rows),0)
+    def test_large_queue_keeps_only_nearby_analysis_in_memory(self):
+        self.bridge.playlist=[dict(id=str(i),title='Track',kind='file',source='track.wav',analysis='ready') for i in range(5000)]
+        self.bridge._prepared={str(i):dict(cache='cache/'+str(i),source='track.wav') for i in range(5000)}
+        self.bridge.queue_index=0
+        with patch.object(self.bridge,'start_worker') as worker:
+            self.bridge.prepare_next_queued()
+            worker.assert_not_called()
+        self.assertEqual(set(self.bridge._prepared),{'0','1','2'})
+        self.assertIn('prepared_cache',self.bridge.playlist[-1])
+    def test_preparation_setting_changes_the_live_window_without_starting_audio(self):
+        self.bridge.playlist=[dict(id=str(i),title='Track',kind='file',source='track.wav',analysis='ready') for i in range(10)]
+        self.bridge.queue_index=0
+        for ahead in (1,2,3,5):
+            self.bridge._prepared={str(i):dict(cache='cache/'+str(i),source='track.wav') for i in range(10)}
+            with patch.object(self.bridge,'start_worker') as worker,patch.object(self.bridge,'playPause') as play:
+                self.ws.setSetting('playback_prepare_ahead',ahead)
+                worker.assert_not_called();play.assert_not_called()
+            self.assertEqual(len(self.bridge._prepared),ahead+1)
+            self.assertEqual(self.ws.settings['playback_prepare_ahead'],ahead)
     def test_migration_is_once_and_never_starts_audio(self):
         from playback_session import save,restore
         source=self.root/'source.wav'
@@ -112,6 +216,22 @@ class UnifiedDesktopTests(unittest.TestCase):
             restore(self.ws);self.assertEqual(len(self.bridge.playlist),1);play.assert_not_called()
             save(self.ws);restore(self.ws);self.assertEqual(len(self.bridge.playlist),1)
         self.assertEqual(self.ws.options['position'],2)
+    def test_restore_keeps_prepared_tracks_ready_and_advances_interrupted_preparation(self):
+        from playback_session import save,restore
+        source=self.root/'queue-source.wav';fixtures.song(source)
+        cache=self.root/'prepared-cache';cache.mkdir();fixtures.song(cache/'audio.wav')
+        model=dict(version=1,duration=8,bpm=120,beats=[i*.25 for i in range(33)],neighbors=[[] for _ in range(32)],links=0,cache=str(cache),source=str(source),title='Prepared')
+        (cache/'analysis.json').write_text(json.dumps(model))
+        self.bridge.playlist=[dict(id='ready',kind='file',source=str(source),title='Prepared',analysis='ready'),dict(id='interrupted',kind='file',source=str(source),title='Next',analysis='preparing')]
+        self.bridge._prepared={'ready':model};save(self.ws)
+        self.bridge._prepared.clear();self.bridge.playlist=[]
+        with patch.object(self.bridge,'playPause') as play,patch.object(self.bridge,'start_worker') as worker:
+            restore(self.ws)
+            self.assertEqual([row['analysis'] for row in self.bridge.playlist],['ready','pending'])
+            self.bridge.prepare_next_queued()
+            self.assertEqual([row['analysis'] for row in self.bridge.playlist],['ready','preparing'])
+            self.assertEqual(set(self.bridge._queue_cancel),{'interrupted'})
+            worker.assert_called_once();play.assert_not_called()
     def test_unified_qml_loads_without_errors(self):
         from qt_desktop_ui import create_application,close_application
         from PySide6.QtGui import QFontDatabase

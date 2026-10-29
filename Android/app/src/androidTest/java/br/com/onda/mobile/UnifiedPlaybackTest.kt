@@ -23,6 +23,80 @@ import java.nio.ByteOrder
 class UnifiedPlaybackTest {
     @get:Rule val compose=createComposeRule()
     private val context get()=InstrumentationRegistry.getInstrumentation().targetContext
+    @Test fun categoryOrderIsNormalizedAndKeepsTabOrderAndVisibility() {
+        val settings=OndaStore.defaults().put("hidden_tabs",JSONArray(listOf("Imagens")))
+        val tabs=settings.getJSONArray("tab_order").toString()
+        assertEquals(listOf("tools","library"),tabGroupOrder(settings))
+        settings.put("tab_group_order",JSONArray(listOf("library","library","invalid")))
+        OndaStore.normalizeAppearance(settings)
+        assertEquals(listOf("library","tools"),tabGroupOrder(settings))
+        assertEquals(tabs,settings.getJSONArray("tab_order").toString())
+        assertEquals(listOf("Imagens"),hiddenTabs(settings))
+        assertEquals(listOf("library","tools"),tabGroupOrder(JSONObject(settings.toString())))
+        settings.put("tab_group_order",JSONArray())
+        assertEquals(listOf("tools","library"),tabGroupOrder(settings))
+    }
+    @Test fun albumAndReleaseDateUseOneLineWithoutEmptySeparators() {
+        val record=JSONObject().put("album","Discovery").put("release_date","2001-03-12")
+        assertEquals("Discovery · 12/03/2001",albumReleaseText(record))
+        assertEquals("12/03/2001",albumReleaseText(record,false))
+        assertEquals("2001",albumReleaseText(JSONObject().put("release_date","2001")))
+        assertEquals("Discovery",albumReleaseText(JSONObject().put("album","Discovery")))
+        assertEquals("",albumReleaseText(JSONObject()))
+    }
+    @Test fun modernFontIsBundledAndLegacyRemainsSelectable() {
+        assertEquals("ONDA Modern",OndaStore.defaults().getString("interface_font"))
+        assertEquals(DEFAULT_INTERFACE_FONT,normalizeInterfaceFont("Padrão do sistema"))
+        assertTrue(interfaceFonts.containsKey("ONDA Legacy"))
+        assertNotEquals(interfaceFonts[DEFAULT_INTERFACE_FONT],interfaceFonts["ONDA Legacy"])
+        context.resources.openRawResource(R.font.onda_modern).use {stream->assertEquals(0,stream.read());assertEquals(1,stream.read())}
+        val modern=interfaceTypography(DEFAULT_INTERFACE_FONT)
+        assertEquals(androidx.compose.ui.text.font.FontWeight.SemiBold,modern.titleMedium.fontWeight)
+        assertEquals(androidx.compose.ui.text.font.FontWeight.Bold,modern.headlineMedium.fontWeight)
+    }
+    @Test fun preparationPreferenceKeepsSupportedChoicesAndSafeDefault() {
+        assertEquals(2,preparationAhead(JSONObject()))
+        for(value in listOf(1,2,3,5)) {
+            val settings=JSONObject().put("playback_prepare_ahead",value)
+            OndaStore.normalizeAppearance(settings)
+            assertEquals(value,preparationAhead(settings))
+        }
+        for(value in listOf(0,4,5000,true,"invalid"))assertEquals(2,preparationAhead(JSONObject().put("playback_prepare_ahead",value)))
+    }
+    @Test fun hugePlaybackCollectionIsBoundedAndAddedWithoutStartingAudio() {
+        OndaStore.initialize(context)
+        val scope=CoroutineScope(SupervisorJob().apply {cancel()}+Dispatchers.Main.immediate)
+        val controller=JukeboxController(context,scope,{})
+        try {
+            controller.clearPlaybackQueue()
+            val rows=(0 until 6000).map {JSONObject().put("title","Track $it").put("source_url","https://example.com/$it")}
+            assertEquals(5000,controller.enqueueAll(rows));assertEquals(5000,controller.playbackQueue.value.size)
+            assertEquals(0,controller.enqueueAll(rows));assertFalse(controller.state.value.playing)
+        } finally {controller.clearPlaybackQueue();controller.close()}
+    }
+    @Test fun preparedQueueCacheSurvivesRestartWithoutKeepingRunningStatus() {
+        val folder=File(context.cacheDir,"prepared-queue-${System.nanoTime()}").apply {mkdirs()}
+        try {
+            File(folder,"audio.wav").writeBytes(byteArrayOf(1))
+            File(folder,"analysis.json").writeText("{\"beats\":[0,1],\"neighbors\":[[]]}")
+            val model=JSONObject().put("cache",folder.absolutePath).put("source",File(folder,"audio.wav").absolutePath).put("media_title","Track")
+            val row=JSONObject().put("_analysis","Analisando").put("_prepared_cache",preparedQueueReference(model))
+            val restored=restoreQueueModel(JSONObject(row.toString()))
+            assertEquals("Track",restored?.optString("media_title"));assertTrue(restored?.optBoolean("cached")==true)
+            File(folder,"analysis.json").delete();assertNull(restoreQueueModel(row))
+        } finally {folder.deleteRecursively()}
+    }
+    @Test fun mediaArtworkFallsBackFromInvalidEmbeddedPreview() {
+        val image=android.graphics.Bitmap.createBitmap(4,4,android.graphics.Bitmap.Config.ARGB_8888)
+        image.eraseColor(android.graphics.Color.CYAN)
+        val buffer=java.io.ByteArrayOutputStream();image.compress(android.graphics.Bitmap.CompressFormat.PNG,100,buffer);image.recycle()
+        var requests=0
+        val fallback=decodeMediaArtwork("not an image","https://example.com/cover.png") {requests++;buffer.toByteArray()}
+        assertNotNull(fallback);assertEquals(1,requests);fallback?.recycle()
+        val embedded="data:image/png;base64,"+Base64.encodeToString(buffer.toByteArray(),Base64.NO_WRAP)
+        val local=decodeMediaArtwork(embedded,"https://example.com/cover.png") {fail("Embedded cover should be used");null}
+        assertNotNull(local);local?.recycle()
+    }
     @Test fun exportFromUntaggedCacheKeepsSongNameEffectsAndArtwork()=runBlocking {
         OndaStore.initialize(context);MobileEngine.initialize(context)
         val folder=File(context.cacheDir,"export-test-${System.nanoTime()}").apply {mkdirs()}

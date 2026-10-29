@@ -166,7 +166,7 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
                     pages.SaveableStateProvider(tab) {when(tab) {
                         "Pesquisar"->SearchPage(vm,onConnectSpotify={settingsCategory="Contas";showSettings=true})
                         "Links e fila","Fila"->DownloadsHome(vm)
-                        "Mais"->MorePage(tabs,onNavigate={tab=it},onYouTube={youtubeSession=true},onLicenses={showLicenses=true},onFailures={OndaStore.failureSummary.value=OndaStore.items.value.filter {it.state=="Erro"}.map {it.id}.takeIf {it.isNotEmpty()}})
+                        "Mais"->MorePage(tabs,tabGroupOrder(settings),onNavigate={tab=it},onYouTube={youtubeSession=true},onLicenses={showLicenses=true},onFailures={OndaStore.failureSummary.value=OndaStore.items.value.filter {it.state=="Erro"}.map {it.id}.takeIf {it.isNotEmpty()}})
                         "Imagens"->ImagesPage(vm)
                         "Playlists / Álbuns"->CollectionsPage(vm)
                         "Histórico"->HistoryPage(vm,onEditMetadata={metadataUri=it.uri;tab="Metadados"})
@@ -411,17 +411,13 @@ internal fun displayReleaseDate(value:String):String {
                     DropdownMenuItem(text={UiText(if(thisPlaying)"Parar prévia" else "Ouvir prévia")},enabled=thisPlaying || url.isNotBlank(),onClick={actions=false;if(thisPlaying)vm.stopPreview() else vm.preview(url,OndaStore.settings.value.optInt("search_preview",25))})
                     DropdownMenuItem(text={UiText("Ver no catálogo")},onClick={actions=false;val source=record.cleanString("source_url");if(source.startsWith("https://"))OndaStore.context.startActivity(Intent(Intent.ACTION_VIEW,android.net.Uri.parse(source)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))})
                     if(onCompare!=null)DropdownMenuItem(text={UiText("Comparar resultados")},onClick={actions=false;onCompare()})
-                    if(record.cleanString("album").isNotBlank())DropdownMenuItem(text={Text(record.cleanString("album"))},enabled=false,onClick={})
+                    if(albumReleaseText(record).isNotBlank())DropdownMenuItem(text={Text(albumReleaseText(record))},enabled=false,onClick={})
                     DropdownMenuItem(text={MetadataPlatformBadge(record)},enabled=false,onClick={})
-                    if(releaseDate.isNotBlank())DropdownMenuItem(text={Text(translateUi("Data de lançamento")+": "+displayReleaseDate(releaseDate))},enabled=false,onClick={})
                 }
                     }
                 }
                 Text(record.stringList("artists"),style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant,maxLines=1,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-                record.cleanString("album").takeIf {it.isNotBlank()}?.let {album->
-                    Text(album,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant,maxLines=1,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-                }
-                if(releaseDate.isNotBlank())Text(translateUi("Data de lançamento")+": "+displayReleaseDate(releaseDate),style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                AlbumDateLabel(record)
                 MetadataPlatformBadge(record)
                 val duration=record.optLong("duration_ms")
                 val detail=translateUi("Música")+if(duration>0)" · "+mediaClock(duration/1000) else ""

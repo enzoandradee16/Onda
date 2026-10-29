@@ -1,4 +1,9 @@
 {
+  "Efeitos translúcidos e liquid glass": "Translucent effects and liquid glass",
+  "Operação em andamento": "Operation in progress",
+  "Ordem das categorias": "Category order",
+  "Escolha qual categoria aparece primeiro na barra lateral.": "Choose which category appears first in the sidebar.",
+  "Alterar destino": "Change destination",
   "Idioma": "Language",
   "Português (Brasil)": "Português (Brasil)",
   "English": "English",
@@ -2114,5 +2119,16 @@
   "A próxima música não pôde ser preparada. Confira a fila de reprodução.": "The next track could not be prepared. Check the playback queue.",
   "Adicione músicas à fila de reprodução para ativar a troca automática.": "Add tracks to the playback queue to enable automatic switching.",
   "Manter tom": "Keep pitch",
-  "Preparação cancelada.": "Preparation canceled."
+  "Preparação cancelada.": "Preparation canceled.",
+  "ONDA Modern": "ONDA Modern",
+  "ONDA Legacy": "ONDA Legacy",
+  "Não foi possível carregar a fonte Inter.": "Could not load the Inter font.",
+  "Tocado recentemente": "Recently played",
+  "Limpar adições": "Clear added tracks",
+  "Próximas na fila": "Next in queue",
+  "Próximas de: {title}": "Next from: {title}",
+  "Preparar próximas músicas": "Prepare upcoming tracks",
+  "Quantidade de próximas músicas preparadas antecipadamente. O processamento continua uma música por vez; valores maiores usam mais memória e cache.": "Number of upcoming tracks prepared in advance. Processing continues one track at a time; higher values use more memory and cache.",
+  "Limite de 5.000 músicas na fila de reprodução. Remova músicas antes de adicionar outras.": "The playback queue is limited to 5,000 tracks. Remove tracks before adding more.",
+  "Limite configurado: até {cap} faixas por carregamento. Ajuste o limite de playlists nas configurações se precisar carregar mais.": "Configured limit: up to {cap} tracks per load. Adjust the playlist limit in settings if you need to load more."
 }

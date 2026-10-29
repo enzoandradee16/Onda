@@ -23,6 +23,8 @@ class JukeboxBridge(QObject):
     changed=Signal()
     playbackRequested=Signal()
     queueChanged=Signal()
+    tracksAdded=Signal('QStringList')
+    preparationChanged=Signal()
     positionChanged=Signal()
     graphChanged=Signal()
     appearanceChanged=Signal()
@@ -36,8 +38,9 @@ class JukeboxBridge(QObject):
         except (ValueError,OSError):self.preferences={}
         set_language(self.store.load_language())
         self.closed=False;self.revision=0;self.cancelled=threading.Event();self.paused=threading.Event()
+        self._mini_active=False;self._visual_level=0.
         from playback_controls import SleepTimer
-        self.queue_repeat='Desativada';self.queue_shuffle=False
+        self.queue_repeat='Desativada';self.queue_shuffle=False;self._shuffle_order=[];self._queue_history=[];self._history_back=False
         self.sleep=SleepTimer();self.playlist=[];self.queue_index=-1;self.track_minutes=0;self.autoplay_revision=None;self.request_number=0;self.lookup_cancelled=threading.Event();self.task_is_lookup=False
         self.clock_timer=QTimer(self);self.clock_timer.setInterval(500);self.clock_timer.timeout.connect(self.tick_sleep)
         self.workers=[];self.seeks=queue.SimpleQueue();self.model=None;self.records=[]
@@ -52,6 +55,7 @@ class JukeboxBridge(QObject):
         self.save_timer=QTimer(self);self.save_timer.setSingleShot(True);self.save_timer.setInterval(400);self.save_timer.timeout.connect(self.save_preferences)
         self._prepared={};self._queue_cancel={};self._queue_preparing=False;self._autoplay_entry=None;self._beat_index=0;self._next_index=-1;self._jump_blend=0.;self._track_started=0.;self._timer_last=self.sleep.clock();self._switch_requests=queue.SimpleQueue();self._switch_pending=None;self._switch_models={};self._fade_initial=False
         self._pending={};self._event.connect(self.handle_event,Qt.ConnectionType.QueuedConnection)
+        self._switch_after=None
 
     @Property('QVariantMap',notify=changed)
     def state(self):
@@ -60,6 +64,32 @@ class JukeboxBridge(QObject):
         return state
     @Property('QVariantList',notify=queueChanged)
     def queuedTracks(self):return [dict(row,current=index==self.queue_index) for index,row in enumerate(self.playlist)]
+    @Property('QVariantMap',notify=preparationChanged)
+    def queuePreparation(self):return {row['id']:int(row.get('preparation_progress',0)) for row in self.playlist if row.get('analysis')=='preparing'}
+    @Property('QVariantMap',notify=changed)
+    def currentMetadata(self):
+        record=dict(self.playlist[self.queue_index].get('record') or {}) if 0<=self.queue_index<len(self.playlist) else dict(self.model or {})
+        record['album']=self._state.get('album') or record.get('album') or ''
+        record['cover_url']=record.get('cover_url') or (self.model or {}).get('cover_url') or ''
+        return record
+    @Property('QVariantList',notify=queueChanged)
+    def upcomingTracks(self):
+        rows=self.queuedTracks;result=[]
+        for index,row in enumerate(rows):
+            if index<self.queue_index:continue
+            if not row['current'] and row['id'] in self._queue_history and self.queue_repeat!='Todas':continue
+            label='Tocando agora' if row['current'] else 'Próximas na fila' if row.get('manual') else 'Próximas de: '+(row.get('collection') or 'Playlist')
+            result.append(dict(row,queueIndex=index,section=label if not result or result[-1]['group']!=label else '',group=label))
+        return result
+    @Property('QVariantList',notify=queueChanged)
+    def recentTracks(self):
+        rows={row['id']:dict(row,queueIndex=i) for i,row in enumerate(self.queuedTracks)}
+        return [rows[identity] for identity in dict.fromkeys(reversed(self._queue_history)) if identity in rows and not rows[identity]['current']]
+    def remember_current(self):
+        if not self._history_back and 0<=self.queue_index<len(self.playlist):
+            identity=self.playlist[self.queue_index]['id']
+            if not self._queue_history or self._queue_history[-1]!=identity:self._queue_history=(self._queue_history+[identity])[-200:]
+        self._history_back=False
     @Property('QVariantMap',notify=changed)
     def playback(self):
         return {'queue':self.queuedTracks,'current':self.queue_index,'trackMinutes':self.track_minutes,'sleepActive':self.sleep.deadline is not None,'remaining':math.ceil(self.sleep.remaining()),'switchRemaining':math.ceil(max(0,self.track_minutes*60-(self._elapsed-self._track_started))) if self.track_minutes else 0,'gradual':self.preferences.get('jukebox_gradual_transition',True)}
@@ -97,6 +127,7 @@ class JukeboxBridge(QObject):
     def normal_next_index(self):
         if self.queue_repeat=='Uma' and self.queue_index>=0:return self.queue_index
         target=self.queue_index+1
+        while target<len(self.playlist) and self.playlist[target]['id'] in self._queue_history and self.queue_repeat!='Todas':target+=1
         if target>=len(self.playlist) and self.queue_repeat=='Todas':target=0
         return target if 0<=target<len(self.playlist) else None
     def normal_transition(self):
@@ -131,47 +162,87 @@ class JukeboxBridge(QObject):
         added=[]
         for value in urls:
             url=QUrl(value)
-            if url.isLocalFile() and len(self.playlist)<500:
+            if url.isLocalFile() and len(self.playlist)<5000:
                 entry={'id':uuid.uuid4().hex,'title':Path(url.toLocalFile()).stem,'source':url.toLocalFile(),'kind':'file','artist':'','album':'','cover':'','duration':0}
                 self.playlist.append(entry);added.append(dict(entry))
         self.queueChanged.emit();self.changed.emit()
         for entry in self.playlist:
             entry.setdefault('analysis','pending')
-        if added:self.prepare_next_queued()
+        if added:self.prepare_next_queued();self.tracksAdded.emit([row['id'] for row in added])
     def prepare_local(self,source,config,cancel,progress):
         model=prepare(source,config.get('ffmpeg',''),cancel.is_set,progress)
         from audio_library import read_audio,cover_preview
-        model['_cover']=cover_preview(source) or ''
+        model['_cover']=cover_preview(source,size=768) or ''
         try:
             tags=read_audio(source);model['media_title']=tags.get('title','');model['media_artist']=', '.join(tags.get('artists',[]));model['album']=tags.get('album') or ''
         except (OSError,ValueError):pass
         return model
     def fetch_record(self,record,config,cancel,progress):
-        direct=record.get('_jukebox_direct');model=fetch_audio(dict(config,url=record['source_url']) if direct else config,None if direct else record,cancel.is_set,progress)
+        direct=record.get('_jukebox_direct')
+        def staged_progress(stage,percent):progress(round(min(100,max(0,percent))*(0.6 if stage=='download' else 0.39))+(0 if stage=='download' else 60))
+        model=fetch_audio(dict(config,url=record['source_url']) if direct else config,None if direct else record,cancel.is_set,lambda _:None,stage_progress=staged_progress)
         if model.get('cover_url') and not cancel.is_set():
             from catalog_ui import cover_png
-            try:model['_cover']=base64.b64encode(cover_png(model['cover_url']) or b'').decode()
+            try:model['_cover']=base64.b64encode(cover_png(model['cover_url'],size=768) or b'').decode()
             except (OSError,ValueError):pass
         return model
     def prepare_next_queued(self):
         if self.closed or self._queue_preparing:return
-        entry=next((row for row in self.playlist if row.get('analysis')=='pending'),None)
+        from playback_preparation import preparation_ahead
+        ahead=preparation_ahead(self.preferences.get('playback_prepare_ahead',2))
+        current=max(0,self.queue_index)
+        wanted={row['id'] for row in self.playlist[max(0,current-1):current+ahead+1]}
+        target=self.normal_next_index()
+        if target is not None:wanted.add(self.playlist[target]['id'])
+        wanted.update(identity for identity in (self._autoplay_entry,self._switch_pending,self._switch_after,getattr(self,'_queue_priority',None)) if identity)
+        wanted.update(value[0] for value in self._switch_models.values())
+        from playback_session import prepared_reference,restored_prepared
+        for row in self.playlist:
+            if row['id'] in self._prepared and row['id'] not in wanted:
+                row['prepared_cache']=prepared_reference(self._prepared.pop(row['id']))
+        # A persisted/transient status is not proof that a worker still exists.
+        for row in self.playlist:
+            if row['id'] not in wanted:continue
+            if row['id'] in self._prepared:row['analysis']='ready'
+            elif row.get('analysis') in ('preparing','ready'):row['analysis']='pending'
+        candidates=[row for row in self.playlist if row['id'] in wanted and row.get('analysis')=='pending']
+        entry=next((row for row in candidates if row['id']==self._autoplay_entry),next(iter(candidates),None))
         if entry is None:return
-        entry['analysis']='preparing';self._queue_preparing=True
+        entry['analysis']='preparing';entry['preparation_progress']=0;self._queue_preparing=True
         identity=entry['id'];cancel=threading.Event();self._queue_cancel[identity]=cancel;config=self.config();entry=dict(entry)
-        self.queueChanged.emit()
+        self.queueChanged.emit();self.preparationChanged.emit()
         def worker():
+            last_sent=[-1,0.]
+            def progress(value):
+                percent=max(0,min(99,int(value)));now=time.monotonic()
+                if not cancel.is_set() and percent!=last_sent[0] and (now-last_sent[1]>=0.1 or percent>=99):
+                    last_sent[:]=[percent,now]
+                    self.emit(0,'queue_progress',dict(id=identity,owner=cancel,progress=percent))
             try:
-                model=self.prepare_local(entry['source'],config,cancel,lambda _:None) if entry['kind']=='file' else self.fetch_record(entry['record'],config,cancel,lambda _:None)
-                self.emit(0,'queue_prepared',{'id':identity,'model':model})
-            except Exception as error:self.emit(0,'queue_prepared',{'id':identity,'error':str(error)})
+                model=restored_prepared(entry.get('prepared_cache'))
+                if model is None:model=self.prepare_local(entry['source'],config,cancel,progress) if entry['kind']=='file' else self.fetch_record(entry['record'],config,cancel,progress)
+                self.emit(0,'queue_prepared',{'id':identity,'owner':cancel,'model':model})
+            except Exception as error:self.emit(0,'queue_prepared',{'id':identity,'owner':cancel,'error':str(error)})
         self.start_worker(worker)
     @Slot(int)
     def retryQueued(self,index):
-        if 0<=index<len(self.playlist):self.playlist[index]['analysis']='pending';self.prepare_next_queued()
+        if 0<=index<len(self.playlist):self._queue_priority=self.playlist[index]['id'];self.playlist[index]['analysis']='pending';self.prepare_next_queued()
     def enqueueRecord(self,record):
-        if len(self.playlist)>=500:return
-        entry={'id':uuid.uuid4().hex,'title':record['title'],'record':dict(record),'kind':'catalog','analysis':'pending'};self.queue_info(entry,record);self.playlist.append(entry);self.queueChanged.emit();self.changed.emit();self.prepare_next_queued()
+        return self.enqueueRecords([record])
+    def enqueueRecords(self,records):
+        accepted=records[:max(0,5000-len(self.playlist))]
+        added=[]
+        for record in accepted:
+            entry={'id':uuid.uuid4().hex,'title':record['title'],'record':dict(record),'kind':'catalog','analysis':'pending','manual':not bool(record.get('_queue_collection')),'collection':record.get('_queue_collection','')};self.queue_info(entry,record)
+            if entry['manual'] and self.queue_index>=0:
+                insertion=self.queue_index+1
+                while insertion<len(self.playlist) and self.playlist[insertion].get('manual'):insertion+=1
+                self.playlist.insert(insertion,entry)
+            else:self.playlist.append(entry)
+            added.append(entry['id'])
+        if accepted:self.queueChanged.emit();self.changed.emit();self.prepare_next_queued();self.tracksAdded.emit(added)
+        if len(accepted)<len(records):self.update_state(status=tr('Limite de 5.000 músicas na fila de reprodução. Remova músicas antes de adicionar outras.'))
+        return len(accepted)
     @Slot(int)
     def enqueueResult(self,index):
         if 0<=index<len(self.records):self.enqueueRecord(self.records[index])
@@ -190,38 +261,55 @@ class JukeboxBridge(QObject):
         target=index+direction
         if not 0<=index<len(self.playlist) or not 0<=target<len(self.playlist):return
         current=self.playlist[self.queue_index]['id'] if self.queue_index>=0 else None
-        self.playlist.insert(target,self.playlist.pop(index));self.queue_index=next((i for i,row in enumerate(self.playlist) if row['id']==current),-1);self.queueChanged.emit();self.changed.emit()
+        self.playlist.insert(target,self.playlist.pop(index));self.queue_index=next((i for i,row in enumerate(self.playlist) if row['id']==current),-1);self.queueChanged.emit();self.changed.emit();self.prepare_next_queued()
     @Slot()
     def clearPlaybackQueue(self):
+        self._queue_history=[];self._shuffle_order=[]
         if self._state['busy'] and self.autoplay_revision is not None:self.cancelOperation()
         for cancel in self._queue_cancel.values():cancel.set()
         self._prepared.clear();self.playlist=[];self.queue_index=-1;self._autoplay_entry=None;self.queueChanged.emit();self.changed.emit()
+    @Slot()
+    def clearManualQueue(self):
+        current=self.playlist[self.queue_index]['id'] if 0<=self.queue_index<len(self.playlist) else None
+        removed={row['id'] for i,row in enumerate(self.playlist) if i>self.queue_index and row.get('manual')}
+        self.playlist=[row for row in self.playlist if row['id'] not in removed]
+        for identity in removed:
+            self._prepared.pop(identity,None)
+            if identity in self._queue_cancel:self._queue_cancel[identity].set()
+        if self._autoplay_entry in removed:self._autoplay_entry=None
+        self.queue_index=next((i for i,row in enumerate(self.playlist) if row['id']==current),-1)
+        self.queueChanged.emit();self.changed.emit();self.prepare_next_queued()
     @Slot(int)
     def playQueued(self,index):
         if not 0<=index<len(self.playlist):return
         entry=self.playlist[index];model=self._prepared.get(entry['id'])
         if model is None:
+            if self._switch_pending is not None:self._switch_after=entry['id']
             self._autoplay_entry=entry['id']
             if entry.get('analysis')=='error':self.retryQueued(index)
             self.prepare_next_queued();return
         if not (Path(model['cache'])/'analysis.json').is_file():
             self._prepared.pop(entry['id'],None);entry['analysis']='pending';self._autoplay_entry=entry['id'];self.prepare_next_queued();return
         if self._state['playing'] and not self.paused.is_set():
-            if self._switch_pending is not None:return
+            if self._switch_pending is not None:self._switch_after=entry['id'];self._autoplay_entry=None;return
             self._switch_pending=entry['id'];self._switch_models[str(model['cache'])]=(entry['id'],model)
             seconds=self.transitionSeconds if self.preferences.get('jukebox_gradual_transition',True) else 0
             self._switch_requests.put((str(model['cache']),seconds))
             self.update_state(status=tr('Transição para a próxima música…'));return
         self.activate_queued(index,model)
     def activate_queued(self,index,model):
-        self.stop(reset_timer=False);self.queue_index=index
+        self.remember_current();self.stop(reset_timer=False);self.queue_index=index
         self.handle_event(self.revision,'result',model)
         restored=self.playlist[index].pop('restore_seconds',0)
         if restored:self.seekSeconds(restored)
-        self.playPause();self.queueChanged.emit();self.changed.emit()
+        self.playPause();self.queueChanged.emit();self.changed.emit();self.prepare_next_queued()
     @Slot()
     def previousTrack(self):
-        if self.queue_index>0:self.playQueued(self.queue_index-1)
+        while self._queue_history:
+            identity=self._queue_history.pop()
+            target=next((i for i,row in enumerate(self.playlist) if row['id']==identity),-1)
+            if target>=0 and target!=self.queue_index:self._history_back=True;self.playQueued(target);return
+        if self.queue_index>0:self._history_back=True;self.playQueued(self.queue_index-1)
         elif self.model:self.seek(0)
     @Property(str,notify=queueChanged)
     def queueRepeat(self):return self.queue_repeat
@@ -231,24 +319,42 @@ class JukeboxBridge(QObject):
     def setQueueRepeat(self,value):
         if value in ('Desativada','Todas','Uma'):self.queue_repeat=value;self.queueChanged.emit()
     @Slot(bool)
-    def setQueueShuffle(self,value):self.queue_shuffle=value;self.queueChanged.emit()
+    def setQueueShuffle(self,value):
+        value=bool(value)
+        if value==self.queue_shuffle:return
+        current=self.playlist[self.queue_index]['id'] if 0<=self.queue_index<len(self.playlist) else None
+        if value:
+            import random
+            self._shuffle_order=[row['id'] for row in self.playlist]
+            start=self.queue_index+1 if current else 0
+            manual=[row for row in self.playlist[start:] if row.get('manual')]
+            upcoming=[row for row in self.playlist[start:] if not row.get('manual')];random.shuffle(upcoming);self.playlist[start:]=manual+upcoming
+        else:
+            order={identity:index for index,identity in enumerate(self._shuffle_order)}
+            self.playlist.sort(key=lambda row:order.get(row['id'],len(order)))
+            manual=[row for row in self.playlist if row.get('manual') and row['id']!=current and row['id'] not in self._queue_history]
+            manual_ids={row['id'] for row in manual}
+            self.playlist=[row for row in self.playlist if row['id'] not in manual_ids]
+            insertion=next((i+1 for i,row in enumerate(self.playlist) if row['id']==current),0)
+            self.playlist[insertion:insertion]=manual
+            self._shuffle_order=[]
+        self.queue_shuffle=value
+        self.queue_index=next((i for i,row in enumerate(self.playlist) if row['id']==current),-1)
+        self.queueChanged.emit();self.changed.emit();self.prepare_next_queued()
     @Slot()
     def nextTrack(self):
-        if self._autoplay_entry is not None or self._switch_pending is not None:return
-        import random
-        target=self.queue_index+1
+        anchor=self._autoplay_entry or self._switch_after or self._switch_pending
+        target=next((i+1 for i,row in enumerate(self.playlist) if row['id']==anchor),self.queue_index+1)
+        while target<len(self.playlist) and self.playlist[target]['id'] in self._queue_history and self.queue_repeat!='Todas':target+=1
         if target>=len(self.playlist) and self.queue_repeat=='Todas':target=0
         if target<len(self.playlist):
-            if self.queue_shuffle:
-                current=self.playlist[self.queue_index]['id'] if self.queue_index>=0 else None
-                choices=[i for i in range(target,len(self.playlist)) if i!=self.queue_index]
-                chosen=random.choice(choices) if choices else target;self.playlist[target],self.playlist[chosen]=self.playlist[chosen],self.playlist[target]
-                self.queue_index=next((i for i,row in enumerate(self.playlist) if row['id']==current),-1);self.queueChanged.emit()
             self.playQueued(target)
         else:self.setTrackMinutes(0);self.update_state(status=tr('Fim da fila de reprodução. A música atual continua.'))
 
     @Property(float,notify=positionChanged)
     def position(self):return self._position
+    @Property(float,notify=positionChanged)
+    def audioLevel(self):return self._visual_level if self._state['playing'] and not self._state['paused'] else 0.
     @Property(float,notify=positionChanged)
     def sourcePosition(self):
         beats=(self.model or {}).get('beats',[]);index=min(int(self._position),len(beats)-2)
@@ -321,6 +427,10 @@ class JukeboxBridge(QObject):
     @Property(str,notify=appearanceChanged)
     def theme(self):return self.preferences.get('theme_mode','Preto puro')
     @Property(str,notify=appearanceChanged)
+    def interfaceFamily(self):
+        from interface_fonts import qt_font_family,DEFAULT_FONT
+        return qt_font_family(self.preferences.get('interface_font',DEFAULT_FONT))
+    @Property(str,notify=appearanceChanged)
     def accent(self):return self.preferences.get('theme_accent','Verde-Água')
     @Property('QVariantMap',notify=equalizerChanged)
     def equalizer(self):return self._equalizer
@@ -373,7 +483,9 @@ class JukeboxBridge(QObject):
     def prewarm_effects(self):
         if not self._effects.get('enabled') or self.closed:return
         cancel=threading.Event();self._effect_prepare_cancel=cancel;effects=dict(self._effects)
-        models=([self.model] if self.model else [])+[self._prepared[row['id']] for row in self.playlist[max(0,self.queue_index+1):self.queue_index+3] if row['id'] in self._prepared]
+        from playback_preparation import preparation_ahead
+        ahead=preparation_ahead(self.preferences.get('playback_prepare_ahead',2))
+        models=([self.model] if self.model else [])+[self._prepared[row['id']] for row in self.playlist[max(0,self.queue_index+1):self.queue_index+ahead+1] if row['id'] in self._prepared]
         def worker():
             from playback_effects import prepare as prepare_effects
             for model in models:
@@ -459,13 +571,28 @@ class JukeboxBridge(QObject):
     @Slot(int,str,object)
     def handle_event(self,revision,kind,value):
         if self.closed:return
+        if kind=='queue_progress':
+            owner=value['owner']
+            entry=next((row for row in self.playlist if row['id']==value['id']),None)
+            if entry is not None and self._queue_cancel.get(value['id']) is owner and not owner.is_set() and entry.get('analysis')=='preparing':
+                entry['preparation_progress']=value['progress'];self.preparationChanged.emit()
+            return
         if kind=='queue_prepared':
+            owner=value.get('owner')
+            if owner is not None and self._queue_cancel.get(value['id']) is not owner:return
             self._queue_preparing=False;self._queue_cancel.pop(value['id'],None)
+            if owner is not None and owner.is_set():
+                entry=next((row for row in self.playlist if row['id']==value['id']),None)
+                if entry is not None:entry.update(analysis='pending',preparation_progress=0,error='')
+                self.queueChanged.emit();self.preparationChanged.emit();self.prepare_next_queued();return
+            if getattr(self,'_queue_priority',None)==value['id']:self._queue_priority=None
             entry=next((row for row in self.playlist if row['id']==value['id']),None)
             if entry is not None:
-                entry['analysis']='error' if 'error' in value else 'ready';entry['error']=value.get('error','')
+                entry['analysis']='error' if 'error' in value else 'ready';entry['error']=value.get('error','');entry['preparation_progress']=0 if 'error' in value else 100
                 if 'model' in value:
                     model=self.retain_media_metadata(value['model'],entry);self._prepared[value['id']]=model
+                    from playback_session import prepared_reference
+                    entry['prepared_cache']=prepared_reference(model)
                     self.effect_prepare_timer.start()
                     cover=model.get('_cover','');cover=base64.b64encode(cover).decode() if isinstance(cover,bytes) else cover
                     entry.update(title=model.get('media_title') or model.get('title') or entry['title'],artist=model.get('media_artist') or entry.get('artist',''),album=model.get('album') or '',cover=('data:image/png;base64,'+cover) if cover else model.get('cover_url',''),duration=int(model.get('duration') or 0))
@@ -473,7 +600,7 @@ class JukeboxBridge(QObject):
                     if self._autoplay_entry==entry['id']:
                         self._autoplay_entry=None;self.playQueued(self.playlist.index(entry))
                 elif self._autoplay_entry==entry['id']:self._autoplay_entry=None;self.update_state(status=entry['error'],status_error=True)
-            self.queueChanged.emit();self.changed.emit();self.prepare_next_queued();return
+            self.queueChanged.emit();self.preparationChanged.emit();self.changed.emit();self.prepare_next_queued();return
         if kind=='queue_info':
             entry=next((row for row in self.playlist if row['id']==value['id']),None)
             if entry is not None:self.queue_info(entry,value['record'],value['cover']);self.queueChanged.emit()
@@ -483,15 +610,16 @@ class JukeboxBridge(QObject):
         elif kind=='result':
             if 'tracks' in value:
                 if value.get('is_collection'):
-                    for row in value['tracks']:self.enqueueRecord(row)
-                    self.records=[];self.update_state(results=[],status=value.get('coverage_summary') or tr('{count} músicas adicionadas à fila.').replace('{count}',str(len(value['tracks']))));return
+                    for row in value['tracks']:row['_queue_collection']=value.get('title') or 'Playlist'
+                    count=self.enqueueRecords(value['tracks'])
+                    self.records=[];self.update_state(results=[],status=tr('{count} músicas adicionadas à fila.').replace('{count}',str(count))+' '+(value.get('coverage_summary') or '')+(' '+tr('Limite de 5.000 músicas na fila de reprodução. Remova músicas antes de adicionar outras.') if count<len(value['tracks']) else ''));return
                 self.records=value['tracks'];self.refreshSearchResults();self.update_state(status=tr('Escolha uma música nos resultados.') if self.records else tr('Nenhuma música encontrada.'))
             else:
                 if 0<=self.queue_index<len(self.playlist):value=self.retain_media_metadata(value,self.playlist[self.queue_index])
                 self.model=value;self.flow=[];self.used_edges=set();self._position=0;self._phase=0;self._beat_index=0;self._next_index=-1;self._jump_blend=0.
                 cover=value.get('_cover','');cover=base64.b64encode(cover).decode() if isinstance(cover,bytes) else cover
                 self.update_state(title=value.get('media_title') or value['title'],artist=value.get('media_artist') or '',album=value.get('album') or '',cover=('data:image/png;base64,'+cover) if cover else value.get('cover_url',''),ready=True,results=[],status=tr('Análise concluída.' if value['links'] else 'Sem saltos compatíveis: a faixa será repetida normalmente.'))
-                if self.queue_index<0 and len(self.playlist)<500:
+                if self.queue_index<0 and len(self.playlist)<5000:
                     record=getattr(self,'_selected_record',None)
                     entry=dict(id=uuid.uuid4().hex,title=self._state['title'],artist=self._state['artist'],album=self._state['album'],cover=self._state['cover'],duration=int(value.get('duration') or 0),analysis='ready')
                     if record:entry.update(kind='catalog',record=record)
@@ -512,9 +640,13 @@ class JukeboxBridge(QObject):
             entry_model=self._switch_models.pop(value,None)
             if entry_model is not None:
                 identity,model=entry_model;self._switch_pending=None;self._fade_initial=False
-                self.queue_index=next((i for i,row in enumerate(self.playlist) if row['id']==identity),-1)
-                self.handle_event(revision,'result',model);self._track_started=0.;self.queueChanged.emit()
+                self.remember_current();self.queue_index=next((i for i,row in enumerate(self.playlist) if row['id']==identity),-1)
+                self.handle_event(revision,'result',model);self._track_started=0.;self.queueChanged.emit();self.prepare_next_queued()
+                following=self._switch_after;self._switch_after=None
+                target=next((i for i,row in enumerate(self.playlist) if row['id']==following),-1)
+                if target>=0:self.playQueued(target)
         elif kind=='position':
+            self._visual_level=max(0.,min(1.,float(value.get('level',0.))))
             self._position=value['index']+value['phase'];self._phase=value['phase'];self._elapsed=value['elapsed'];self._jumps=value['jumps']
             self._beat_index=value['index'];self._next_index=value.get('next',-1);self._jump_blend=value.get('blend',0.)
             if value['edges']:
@@ -566,24 +698,26 @@ class JukeboxBridge(QObject):
             session=output=None
             try:
                 from jukebox_audio import PcmOutput
-                session=Stream(cache);session.seek(initial);timeline=deque();submitted=0;heard_jumps=0;track_base=0
+                session=Stream(cache);session.seek(initial);timeline=deque();submitted=0;heard_jumps=0;track_base=0;cursor_initial=initial;elapsed_offset=0.
                 def progress(played):
-                    nonlocal heard_jumps,track_base
-                    edges=[];index=initial;phase=0.;next_index=-1;blend=0.
+                    nonlocal heard_jumps
+                    edges=[];index=cursor_initial;phase=0.;next_index=-1;blend=0.;level=0.
                     def announce(end,part):
-                        nonlocal track_base
+                        nonlocal track_base,elapsed_offset
                         if part.get('track_changed'):
-                            track_base=end-part['frames'];self.emit(revision,'track_started',part.pop('track_changed'))
+                            track_base=end-part['frames'];elapsed_offset=0.;self.emit(revision,'track_started',part.pop('track_changed'))
                     while timeline and timeline[0][0]<=played:
                         end,part=timeline.popleft();announce(end,part)
                         if part.get('edge_completed',True):edges.append((part['index'],part['next']))
                         heard_jumps=part['jumps'];index=part['next'] if part.get('edge_completed',True) else part['index']
+                        level=(part.get('visual_levels') or [0.])[-1]
                     if timeline:
                         end,part=timeline[0];announce(end,part);index=part['index'];frames=part['frames'];local=max(0.,min(1.,(played-end+frames)/max(1,frames)))
                         phase=part.get('phase_start',0)+(part.get('phase_end',1)-part.get('phase_start',0))*local
+                        levels=part.get('visual_levels') or [0.];level=levels[min(len(levels)-1,int(local*len(levels)))]
                         next_index=part['next'];portion=part.get('transition',0)/max(.0001,part.get('beat_seconds',frames/RATE))
                         if portion>0:blend=max(0.,min(1.,(phase-1+portion)/portion))
-                    self.emit(revision,'position',dict(index=index,phase=phase,edges=edges,elapsed=max(0,played-track_base)/RATE,jumps=heard_jumps,next=next_index,blend=blend))
+                    self.emit(revision,'position',dict(index=index,phase=phase,edges=edges,elapsed=elapsed_offset+max(0,played-track_base)/RATE,jumps=heard_jumps,next=next_index,blend=blend,level=level))
                 output=PcmOutput(progress=progress);output.gain=self.playback_gain
                 if self.preferences.get('jukebox_gradual_transition',True):output.last_gain=0.
                 while not cancel.is_set():
@@ -593,8 +727,16 @@ class JukeboxBridge(QObject):
                         except Exception as error:self.emit(revision,'switch_error',dict(cache=target_cache,error=str(error)))
                     target=None
                     while not seeks.empty():target=seeks.get()
-                    if target is not None:session.seek(target)
+                    if target is not None:
+                        expected,index=target if isinstance(target,tuple) else (None,target)
+                        if session.seek(index,expected_cache=expected):
+                            elapsed_offset+=max(0,getattr(output,'last_frame',0)-track_base)/RATE
+                            gain=output.last_gain;output.close();timeline.clear();submitted=0;track_base=0;heard_jumps=0;cursor_initial=index
+                            output=PcmOutput(progress=progress);output.gain=self.playback_gain;output.last_gain=gain
                     part=session.chunk(*self._params,equalizer=self._equalizer,effects=self._effects);frames=len(part['pcm'])//4;submitted+=frames
+                    if self._mini_active and self.preferences.get('translucent_effects',True) and self.preferences.get('qt_animations',True):
+                        from mini_player_effects import pcm_envelope
+                        part['visual_levels']=pcm_envelope(part['pcm'],RATE)
                     status=(part.get('effects_pending',False),part.get('effects_error',''))
                     if status!=self._effects_status:self._effects_status=status;self.emit(revision,'effects_status',status)
                     metadata=dict(part);metadata.pop('pcm');metadata['frames']=frames;metadata['transition']=part.get('transition_seconds',0);timeline.append((submitted,metadata))
@@ -621,6 +763,7 @@ class JukeboxBridge(QObject):
         else:self.stop()
     @Slot()
     def stop(self,reset_timer=True):
+        self._switch_after=None
         if reset_timer:self.sleep.cancel();self.track_minutes=0;self.clock_timer.stop()
         self._switch_requests=queue.SimpleQueue();self._switch_pending=None;self._switch_models.clear();self._fade_initial=False
         self.autoplay_revision=None;self._autoplay_entry=None;self.lookup_cancelled.set();self.request_number+=1
@@ -630,7 +773,7 @@ class JukeboxBridge(QObject):
     @Slot(int)
     def seek(self,index):
         if self.model and 0<=index<len(self.model['neighbors']):
-            self.seeks.put(index);self._position=float(index);self._phase=0.;self.flow=[];self.used_edges=set();self.update_graph();self.positionChanged.emit()
+            self.seeks.put((str(self.model['cache']),index));self._position=float(index);self._phase=0.;self.flow=[];self.used_edges=set();self.update_graph();self.positionChanged.emit()
     def media_state(self):
         state=self.media_state_provider() if self.media_state_provider else None
         return state or dict(self._state,owner='jukebox',previous=bool(self.model),next=bool(self.playlist) and (self.queue_repeat=='Todas' or self.queue_index+1<len(self.playlist)))

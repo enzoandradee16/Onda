@@ -4,6 +4,7 @@ Copyright (c) 2026 Enzo Andrade para o código próprio do ONDA, licenciado sob 
 
 | Componente | Licença / localização no pacote |
 | --- | --- |
+| Inter | SIL Open Font License 1.1; `Onda/assets/fonts/OFL-Inter.txt`; no Android, `assets/licenses/OFL-Inter.txt` |
 | gallery-dl | GPL-2.0-only; `_runtime/python/Lib/site-packages/gallery_dl-*.dist-info/licenses/LICENSE` |
 | Mutagen | GPL-2.0-or-later; licença na pasta `.dist-info/licenses` correspondente |
 | yt-dlp e dependências | Licenças individuais nas pastas `.dist-info`; consulte os arquivos originais |

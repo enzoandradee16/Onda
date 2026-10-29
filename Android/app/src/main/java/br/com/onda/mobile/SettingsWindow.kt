@@ -25,10 +25,10 @@ import org.json.JSONObject
 
 val categories=linkedMapOf(
     "Geral" to listOf("remember","language","clipboard_links","notice_duration","notice_animation"),
-    "Aparência" to listOf("simple_download_ui","queue_card_size","catalog_card_size","history_card_size","pure_black_separators","history_view","theme","accent","playback_tab_order","bottom_bar_order","tab_order","hidden_tabs","interface_font","interface_font_size","interface_spacing"),
+    "Aparência" to listOf("simple_download_ui","queue_card_size","catalog_card_size","history_card_size","pure_black_separators","history_view","theme","accent","playback_tab_order","bottom_bar_order","tab_order","tab_group_order","hidden_tabs","interface_font","interface_font_size","interface_spacing"),
     "Downloads" to listOf("wifi_only","wifi_loss","finish_action","notification_controls","auto_select_media","social_best_quality","detect_duplicates","filename_template","concurrent_downloads","resume_downloads","resume_queue","normalize_volume","schedule_enabled","schedule_start","schedule_stop","mode","audio_quality","height","fps","playlist_limit","link_playlist","organization","duplicate_policy","output_uri","auto_metadata","auto_match","review_metadata"),
     "Imagens" to listOf("image_format","image_size","image_width","image_height","keep_ratio"),
-    "Áudio" to listOf("search_preview","synced_lyrics","jukebox_equalizer","jukebox_gradual_transition","jukebox_transition_seconds"),
+    "Áudio" to listOf("search_preview","synced_lyrics","jukebox_equalizer","jukebox_gradual_transition","jukebox_transition_seconds","playback_prepare_ahead"),
     "Contas" to listOf("spotify_client_id","cookies_file","youtube_cookies_file"),
     "Desempenho" to listOf("automatic_cache_cleanup"),
     "Ferramentas" to listOf("check_updates"))
@@ -181,9 +181,17 @@ val categories=linkedMapOf(
                             put("hidden_tabs",JSONArray(if(shown)hidden.filter {it!="Efeitos"} else hidden+"Efeitos"))
                         }
                         val order=settings.getJSONArray("tab_order").let {a->(0 until a.length()).map {a.getString(it)}}
-                        for((heading,keys) in listOf("Ferramentas no menu Mais" to listOf("Imagens","Conversor de vídeos","Metadados"),"Biblioteca no menu Mais" to listOf("Playlists / Álbuns","Histórico"))) {
+                        val groupOrder=tabGroupOrder(settings)
+                        groupOrder.forEachIndexed {groupIndex,groupKey->
+                            val (_,keys)=moreGroups.getValue(groupKey)
+                            val heading=if(groupKey=="tools")"Ferramentas no menu Mais" else "Biblioteca no menu Mais"
                             SettingsDivider()
-                            UiText(heading,style=MaterialTheme.typography.titleSmall)
+                            Row(verticalAlignment=androidx.compose.ui.Alignment.CenterVertically) {
+                                UiText(heading,Modifier.weight(1f),style=MaterialTheme.typography.titleSmall)
+                                fun moveGroup(delta:Int) {val copy=groupOrder.toMutableList();java.util.Collections.swap(copy,groupIndex,groupIndex+delta);put("tab_group_order",JSONArray(copy))}
+                                TextButton(enabled=groupIndex>0,onClick={moveGroup(-1)},modifier=Modifier.testTag("category-up-$groupKey")){AccessibleSymbol("↑","Mover para cima")}
+                                TextButton(enabled=groupIndex<groupOrder.lastIndex,onClick={moveGroup(1)},modifier=Modifier.testTag("category-down-$groupKey")){AccessibleSymbol("↓","Mover para baixo")}
+                            }
                             val group=order.filter {it in keys}
                             group.forEachIndexed {index,name->Row(verticalAlignment=androidx.compose.ui.Alignment.CenterVertically) {
                                 Box(Modifier.weight(1f)) {Toggle(tabLabel(name),name !in hidden) {shown->put("hidden_tabs",JSONArray(if(shown)hidden.filter {it!=name} else hidden+name))}}
@@ -192,7 +200,7 @@ val categories=linkedMapOf(
                                 TextButton(enabled=index<group.lastIndex,onClick={move(1)}){AccessibleSymbol("↓","Mover ${translateUi(tabLabel(name),LocalUiLanguage.current)} para baixo")}
                             }}
                         }
-                        TextButton(onClick={put("tab_order",OndaStore.defaults().getJSONArray("tab_order"))}){UiText("Restaurar ordem do menu Mais")}
+                        TextButton(onClick={OndaStore.saveSettings(JSONObject(settings.toString()).put("tab_order",OndaStore.defaults().getJSONArray("tab_order")).put("tab_group_order",JSONArray(moreGroups.keys.toList())))}){UiText("Restaurar ordem do menu Mais")}
 
                     }
                     "Downloads"->{
@@ -235,6 +243,8 @@ val categories=linkedMapOf(
                     "Imagens"->ImageOptions(settings,OndaStore::saveSettings,separated=true)
                     "Áudio"->{
                         UiText("Reprodução e prévias",style=MaterialTheme.typography.titleMedium)
+                        Select("Preparar próximas músicas",preparationAhead(settings).toString(),listOf("1","2","3","5")){put("playback_prepare_ahead",it.toInt())}
+                        UiText("Quantidade de próximas músicas preparadas antecipadamente. O processamento continua uma música por vez; valores maiores usam mais memória e cache.",style=MaterialTheme.typography.bodySmall)
                         Select("Animação da letra",settings.optString("lyrics_animation","Suave"),listOf("Desativada","Suave","Deslizar","Zoom")){put("lyrics_animation",it)}
                         Toggle("Mostrar letra sincronizada (LRC)",settings.optBoolean("synced_lyrics")){put("synced_lyrics",it)}
                         SettingsDivider()

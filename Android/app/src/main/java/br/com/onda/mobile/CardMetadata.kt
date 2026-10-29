@@ -19,9 +19,10 @@ internal const val PLAYBACK_INPUT_HINT="Música, artista ou link de música, ál
     }
     return value
 }
-@Composable internal fun ReleaseDateLabel(record:JSONObject) {
-    val date=record.cleanString("release_date")
-    if(date.isNotBlank())UiText("${translateUi("Data de lançamento")}: ${displayReleaseDate(date)}",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant,maxLines=1,overflow=TextOverflow.Ellipsis)
+internal fun albumReleaseText(record:JSONObject,showAlbum:Boolean=true):String=listOf(if(showAlbum)record.cleanString("album") else "",record.cleanString("release_date").let {if(it.isBlank())"" else displayReleaseDate(it)}).filter {it.isNotBlank()}.joinToString(" · ")
+@Composable internal fun AlbumDateLabel(record:JSONObject) {
+    val text=albumReleaseText(record)
+    if(text.isNotBlank())UiText(text,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant,maxLines=1,overflow=TextOverflow.Ellipsis)
 }
 
 internal fun openRecordLink(record:JSONObject) {

@@ -283,7 +283,6 @@ def prepare(source,folder='',cancelled=lambda:False,progress=lambda _:None):
                 model=json.loads(graph.read_text());validate_model(model)
                 if model.get('phrase_version')!=PHRASE_VERSION:
                     # Reuse decoded PCM; no network or second source decode.
-                    from audio_tools import executable
                     mono=base/(uuid.uuid4().hex+'-phrase.wav')
                     try:
                         _run([executable('ffmpeg',folder),'-y','-v','error','-i',str(pcm),'-ar','8000','-ac','1',str(mono)],cancelled)
@@ -506,7 +505,7 @@ class SearchLog:
     def warning(self,message):check(self.cancelled)
     def error(self,message):check(self.cancelled)
 
-def fetch_audio(config,record=None,cancelled=lambda:False,progress=lambda _:None,*,analyze=True):
+def fetch_audio(config,record=None,cancelled=lambda:False,progress=lambda _:None,*,analyze=True,stage_progress=None):
     """Reuse catalog matching and the existing bounded download recovery; cache only."""
     from engine import build_options,download_with_recovery,validate_url
     from metadata import is_streaming_link
@@ -537,7 +536,9 @@ def fetch_audio(config,record=None,cancelled=lambda:False,progress=lambda _:None
     def hook(data):
         check(cancelled)
         total=data.get('total_bytes') or data.get('total_bytes_estimate') or 0
-        progress(int(data.get('downloaded_bytes',0)/total*100) if total else 0)
+        percent=int(data.get('downloaded_bytes',0)/total*100) if total else 0
+        progress(percent)
+        if stage_progress:stage_progress('download',percent)
     # Never write a cache download to the user's music folders, history or queue.
     with tempfile.TemporaryDirectory(prefix='jukebox-download-',dir=root) as temporary:
         options.update(outtmpl=str(Path(temporary)/'audio.%(ext)s'),noplaylist=True,playlistend=1,max_filesize=128*1024*1024,logger=logger,progress_hooks=[hook],match_filter=lambda info,**_: 'Use uma faixa de até 20 minutos.' if info.get('is_live') or (info.get('duration') or 0)>MAX_SECONDS else None)
@@ -565,7 +566,11 @@ def fetch_audio(config,record=None,cancelled=lambda:False,progress=lambda _:None
             # Cache audio bytes only: Android SELinux may deny copying security xattrs.
             shutil.copyfile(saved[0],source)
             return {'source':str(source),'record':record or {}}
-        model=prepare(saved[0],config.get('ffmpeg',''),cancelled,progress)
+        def analysis_progress(percent):
+            progress(percent)
+            if stage_progress:stage_progress('analysis',percent)
+        if stage_progress:stage_progress('analysis',0)
+        model=prepare(saved[0],config.get('ffmpeg',''),cancelled,analysis_progress)
     model['source']=str(Path(model['cache'])/'audio.wav')
     if record:
         model['title']=' — '.join(filter(None,[', '.join(record.get('artists',[])),record.get('title')]))
