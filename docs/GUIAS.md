@@ -8,6 +8,7 @@ Referências de uso revisadas para **1.2.4**, em 27/10/2026.
 | --- | --- |
 | [Inventário completo](INVENTARIO-FUNCIONALIDADES.md) | Funcionalidades, diferenças PC/Android, limitações, configurações e índice técnico |
 | [Reprodução unificada](REPRODUCAO-UNIFICADA.md) | Efeitos e Jukebox na mesma tela, fila, processamento e migração de sessões |
+| [Reprodução remota — teste](CONTROLE-REMOTO.md) | Player, fila e notificação Android para controlar o ONDA PC na rede local |
 | [Recursos avançados](../RECURSOS-AVANCADOS.md) | Downloads, retomada, edição, letras, agendamento, cache e atualização |
 | [Configurações](CONFIGURACOES.md) | Categorias, busca, aparência, persistência e opções específicas |
 | [Ferramentas e clareza dos estados](CLAREZA-DE-ESTADOS.md) | Verificação de ferramentas, cobertura de coleções e falhas de preparação por faixa |
@@ -18,6 +19,10 @@ Referências de uso revisadas para **1.2.4**, em 27/10/2026.
 | [Uso e desenvolvimento PC](../Onda/README.md) | Ambiente, execução, ferramentas e empacotamento |
 | [Manual Android](../Android/README.md) | Instalação, navegação, armazenamento, compilação e atualização |
 | [Funcionalidades Android](../Android/FUNCIONALIDADES.md) | Recursos atuais por área |
+
+## Planejamento
+
+- [Ideias futuras](IDEIAS-FUTURAS.md): controle entre PC e Android, Spotify e MusicBrainz + AcoustID. Propostas ainda não implementadas.
 
 ## Relatórios históricos e validações
 

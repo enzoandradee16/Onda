@@ -3,6 +3,15 @@ package br.com.onda.mobile
 import androidx.compose.material3.ColorScheme
 import androidx.compose.ui.graphics.Color
 
+internal fun pureLightSurfaces(base:ColorScheme):ColorScheme = base.copy(
+    background=Color.White,surface=Color.White,surfaceTint=Color.Transparent,
+    surfaceDim=Color.White,surfaceBright=Color.White,
+    surfaceContainerLowest=Color.White,surfaceContainerLow=Color.White,surfaceContainer=Color.White,
+    surfaceContainerHigh=Color.White,surfaceContainerHighest=Color.White,surfaceVariant=Color.White,
+    onBackground=Color(0xFF181818),onSurface=Color(0xFF181818),onSurfaceVariant=Color(0xFF595959),
+    outline=Color(0xFF777777),outlineVariant=Color(0xFFD0D0D0)
+)
+
 internal fun pureBlackSurfaces(base:ColorScheme,separators:Boolean):ColorScheme {
     if(separators)return base
     return base.copy(

@@ -15,6 +15,7 @@
         android:icon="@mipmap/ic_onda_launcher_system_aqua" android:allowBackup="false"
         android:usesCleartextTraffic="true" android:supportsRtl="true">
         <service android:name="androidx.work.impl.foreground.SystemForegroundService" android:foregroundServiceType="dataSync" tools:node="merge" />
+        <service android:name=".RemotePlaybackService" android:exported="false" android:foregroundServiceType="mediaPlayback" />
         <activity android:name=".RestartActivity" android:process=":restart" android:exported="false" android:excludeFromRecents="true" android:theme="@android:style/Theme.Material.NoActionBar" />
         <activity android:name=".MainActivity" android:exported="true" android:launchMode="singleTask">
             <intent-filter>
@@ -231,5 +232,173 @@
             android:exported="false" android:grantUriPermissions="true">
             <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_paths" />
         </provider>
+        <activity-alias android:name=".LauncherSystemMint" android:targetActivity=".MainActivity" android:label="ONDA" android:icon="@mipmap/ic_onda_launcher_system_mint" android:enabled="false" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+    <activity-alias android:name=".LauncherSystemEmerald" android:targetActivity=".MainActivity" android:label="ONDA" android:icon="@mipmap/ic_onda_launcher_system_emerald" android:enabled="false" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+    <activity-alias android:name=".LauncherSystemSky" android:targetActivity=".MainActivity" android:label="ONDA" android:icon="@mipmap/ic_onda_launcher_system_sky" android:enabled="false" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+    <activity-alias android:name=".LauncherSystemPetrol" android:targetActivity=".MainActivity" android:label="ONDA" android:icon="@mipmap/ic_onda_launcher_system_petrol" android:enabled="false" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+    <activity-alias android:name=".LauncherSystemMagenta" android:targetActivity=".MainActivity" android:label="ONDA" android:icon="@mipmap/ic_onda_launcher_system_magenta" android:enabled="false" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+    <activity-alias android:name=".LauncherSystemWine" android:targetActivity=".MainActivity" android:label="ONDA" android:icon="@mipmap/ic_onda_launcher_system_wine" android:enabled="false" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+    <activity-alias android:name=".LauncherSystemPeach" android:targetActivity=".MainActivity" android:label="ONDA" android:icon="@mipmap/ic_onda_launcher_system_peach" android:enabled="false" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+    <activity-alias android:name=".LauncherSystemBrown" android:targetActivity=".MainActivity" android:label="ONDA" android:icon="@mipmap/ic_onda_launcher_system_brown" android:enabled="false" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+    <activity-alias android:name=".LauncherDarkMint" android:targetActivity=".MainActivity" android:label="ONDA" android:icon="@mipmap/ic_onda_launcher_dark_mint" android:enabled="false" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+    <activity-alias android:name=".LauncherDarkEmerald" android:targetActivity=".MainActivity" android:label="ONDA" android:icon="@mipmap/ic_onda_launcher_dark_emerald" android:enabled="false" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+    <activity-alias android:name=".LauncherDarkSky" android:targetActivity=".MainActivity" android:label="ONDA" android:icon="@mipmap/ic_onda_launcher_dark_sky" android:enabled="false" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+    <activity-alias android:name=".LauncherDarkPetrol" android:targetActivity=".MainActivity" android:label="ONDA" android:icon="@mipmap/ic_onda_launcher_dark_petrol" android:enabled="false" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+    <activity-alias android:name=".LauncherDarkMagenta" android:targetActivity=".MainActivity" android:label="ONDA" android:icon="@mipmap/ic_onda_launcher_dark_magenta" android:enabled="false" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+    <activity-alias android:name=".LauncherDarkWine" android:targetActivity=".MainActivity" android:label="ONDA" android:icon="@mipmap/ic_onda_launcher_dark_wine" android:enabled="false" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+    <activity-alias android:name=".LauncherDarkPeach" android:targetActivity=".MainActivity" android:label="ONDA" android:icon="@mipmap/ic_onda_launcher_dark_peach" android:enabled="false" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+    <activity-alias android:name=".LauncherDarkBrown" android:targetActivity=".MainActivity" android:label="ONDA" android:icon="@mipmap/ic_onda_launcher_dark_brown" android:enabled="false" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+    <activity-alias android:name=".LauncherLightMint" android:targetActivity=".MainActivity" android:label="ONDA" android:icon="@mipmap/ic_onda_launcher_light_mint" android:enabled="false" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+    <activity-alias android:name=".LauncherLightEmerald" android:targetActivity=".MainActivity" android:label="ONDA" android:icon="@mipmap/ic_onda_launcher_light_emerald" android:enabled="false" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+    <activity-alias android:name=".LauncherLightSky" android:targetActivity=".MainActivity" android:label="ONDA" android:icon="@mipmap/ic_onda_launcher_light_sky" android:enabled="false" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+    <activity-alias android:name=".LauncherLightPetrol" android:targetActivity=".MainActivity" android:label="ONDA" android:icon="@mipmap/ic_onda_launcher_light_petrol" android:enabled="false" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+    <activity-alias android:name=".LauncherLightMagenta" android:targetActivity=".MainActivity" android:label="ONDA" android:icon="@mipmap/ic_onda_launcher_light_magenta" android:enabled="false" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+    <activity-alias android:name=".LauncherLightWine" android:targetActivity=".MainActivity" android:label="ONDA" android:icon="@mipmap/ic_onda_launcher_light_wine" android:enabled="false" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+    <activity-alias android:name=".LauncherLightPeach" android:targetActivity=".MainActivity" android:label="ONDA" android:icon="@mipmap/ic_onda_launcher_light_peach" android:enabled="false" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+    <activity-alias android:name=".LauncherLightBrown" android:targetActivity=".MainActivity" android:label="ONDA" android:icon="@mipmap/ic_onda_launcher_light_brown" android:enabled="false" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+    <activity-alias android:name=".LauncherBlackMint" android:targetActivity=".MainActivity" android:label="ONDA" android:icon="@mipmap/ic_onda_launcher_black_mint" android:enabled="false" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+    <activity-alias android:name=".LauncherBlackEmerald" android:targetActivity=".MainActivity" android:label="ONDA" android:icon="@mipmap/ic_onda_launcher_black_emerald" android:enabled="false" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+    <activity-alias android:name=".LauncherBlackSky" android:targetActivity=".MainActivity" android:label="ONDA" android:icon="@mipmap/ic_onda_launcher_black_sky" android:enabled="false" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+    <activity-alias android:name=".LauncherBlackPetrol" android:targetActivity=".MainActivity" android:label="ONDA" android:icon="@mipmap/ic_onda_launcher_black_petrol" android:enabled="false" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+    <activity-alias android:name=".LauncherBlackMagenta" android:targetActivity=".MainActivity" android:label="ONDA" android:icon="@mipmap/ic_onda_launcher_black_magenta" android:enabled="false" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+    <activity-alias android:name=".LauncherBlackWine" android:targetActivity=".MainActivity" android:label="ONDA" android:icon="@mipmap/ic_onda_launcher_black_wine" android:enabled="false" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+    <activity-alias android:name=".LauncherBlackPeach" android:targetActivity=".MainActivity" android:label="ONDA" android:icon="@mipmap/ic_onda_launcher_black_peach" android:enabled="false" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+    <activity-alias android:name=".LauncherBlackBrown" android:targetActivity=".MainActivity" android:label="ONDA" android:icon="@mipmap/ic_onda_launcher_black_brown" android:enabled="false" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+    <activity-alias android:name=".LauncherWhiteAqua" android:targetActivity=".MainActivity" android:label="ONDA" android:icon="@mipmap/ic_onda_launcher_white_aqua" android:enabled="false" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+    <activity-alias android:name=".LauncherWhiteBlue" android:targetActivity=".MainActivity" android:label="ONDA" android:icon="@mipmap/ic_onda_launcher_white_blue" android:enabled="false" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+    <activity-alias android:name=".LauncherWhitePurple" android:targetActivity=".MainActivity" android:label="ONDA" android:icon="@mipmap/ic_onda_launcher_white_purple" android:enabled="false" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+    <activity-alias android:name=".LauncherWhitePink" android:targetActivity=".MainActivity" android:label="ONDA" android:icon="@mipmap/ic_onda_launcher_white_pink" android:enabled="false" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+    <activity-alias android:name=".LauncherWhiteOrange" android:targetActivity=".MainActivity" android:label="ONDA" android:icon="@mipmap/ic_onda_launcher_white_orange" android:enabled="false" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+    <activity-alias android:name=".LauncherWhiteRed" android:targetActivity=".MainActivity" android:label="ONDA" android:icon="@mipmap/ic_onda_launcher_white_red" android:enabled="false" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+    <activity-alias android:name=".LauncherWhiteGreen" android:targetActivity=".MainActivity" android:label="ONDA" android:icon="@mipmap/ic_onda_launcher_white_green" android:enabled="false" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+    <activity-alias android:name=".LauncherWhiteLime" android:targetActivity=".MainActivity" android:label="ONDA" android:icon="@mipmap/ic_onda_launcher_white_lime" android:enabled="false" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+    <activity-alias android:name=".LauncherWhiteYellow" android:targetActivity=".MainActivity" android:label="ONDA" android:icon="@mipmap/ic_onda_launcher_white_yellow" android:enabled="false" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+    <activity-alias android:name=".LauncherWhiteGold" android:targetActivity=".MainActivity" android:label="ONDA" android:icon="@mipmap/ic_onda_launcher_white_gold" android:enabled="false" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+    <activity-alias android:name=".LauncherWhiteCyan" android:targetActivity=".MainActivity" android:label="ONDA" android:icon="@mipmap/ic_onda_launcher_white_cyan" android:enabled="false" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+    <activity-alias android:name=".LauncherWhiteTurquoise" android:targetActivity=".MainActivity" android:label="ONDA" android:icon="@mipmap/ic_onda_launcher_white_turquoise" android:enabled="false" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+    <activity-alias android:name=".LauncherWhiteIndigo" android:targetActivity=".MainActivity" android:label="ONDA" android:icon="@mipmap/ic_onda_launcher_white_indigo" android:enabled="false" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+    <activity-alias android:name=".LauncherWhiteLilac" android:targetActivity=".MainActivity" android:label="ONDA" android:icon="@mipmap/ic_onda_launcher_white_lilac" android:enabled="false" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+    <activity-alias android:name=".LauncherWhiteCoral" android:targetActivity=".MainActivity" android:label="ONDA" android:icon="@mipmap/ic_onda_launcher_white_coral" android:enabled="false" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+    <activity-alias android:name=".LauncherWhiteGray" android:targetActivity=".MainActivity" android:label="ONDA" android:icon="@mipmap/ic_onda_launcher_white_gray" android:enabled="false" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+    <activity-alias android:name=".LauncherWhiteMint" android:targetActivity=".MainActivity" android:label="ONDA" android:icon="@mipmap/ic_onda_launcher_white_mint" android:enabled="false" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+    <activity-alias android:name=".LauncherWhiteEmerald" android:targetActivity=".MainActivity" android:label="ONDA" android:icon="@mipmap/ic_onda_launcher_white_emerald" android:enabled="false" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+    <activity-alias android:name=".LauncherWhiteSky" android:targetActivity=".MainActivity" android:label="ONDA" android:icon="@mipmap/ic_onda_launcher_white_sky" android:enabled="false" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+    <activity-alias android:name=".LauncherWhitePetrol" android:targetActivity=".MainActivity" android:label="ONDA" android:icon="@mipmap/ic_onda_launcher_white_petrol" android:enabled="false" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+    <activity-alias android:name=".LauncherWhiteMagenta" android:targetActivity=".MainActivity" android:label="ONDA" android:icon="@mipmap/ic_onda_launcher_white_magenta" android:enabled="false" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+    <activity-alias android:name=".LauncherWhiteWine" android:targetActivity=".MainActivity" android:label="ONDA" android:icon="@mipmap/ic_onda_launcher_white_wine" android:enabled="false" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+    <activity-alias android:name=".LauncherWhitePeach" android:targetActivity=".MainActivity" android:label="ONDA" android:icon="@mipmap/ic_onda_launcher_white_peach" android:enabled="false" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+    <activity-alias android:name=".LauncherWhiteBrown" android:targetActivity=".MainActivity" android:label="ONDA" android:icon="@mipmap/ic_onda_launcher_white_brown" android:enabled="false" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
     </application>
 </manifest>

@@ -53,6 +53,10 @@ import androidx.compose.ui.graphics.drawscope.rotate
         fun line(x:Float,y:Float,a:Float,b:Float)=drawLine(tint,Offset(x*u,y*v),Offset(a*u,b*v),stroke,StrokeCap.Round)
         fun path(vararg points:Pair<Float,Float>,close:Boolean=false) {drawPath(Path().apply {points.forEachIndexed {i,p->if(i==0)moveTo(p.first*u,p.second*v) else lineTo(p.first*u,p.second*v)};if(close)close()},tint,style=Stroke(stroke,cap=StrokeCap.Round))}
         when(name) {
+            "computer"->{path(4f to 3f,20f to 3f,20f to 16f,4f to 16f,close=true);line(12f,16f,12f,21f);line(7f,21f,17f,21f)}
+            "phone"->{path(7f to 2f,17f to 2f,17f to 22f,7f to 22f,close=true);line(11f,18f,13f,18f)}
+            "volume"->{path(3f to 9f,7f to 9f,12f to 4f,12f to 20f,7f to 15f,3f to 15f,close=true);path(16f to 8f,18f to 12f,16f to 16f);path(19f to 4f,22f to 12f,19f to 20f)}
+            "bluetooth"->{path(7f to 7f,17f to 17f,12f to 22f,12f to 2f,17f to 7f,7f to 17f)}
             "close"->{line(6f,6f,18f,18f);line(18f,6f,6f,18f)}
             "shuffle"->{path(3f to 6f,7f to 6f,17f to 18f,21f to 18f);path(3f to 18f,7f to 18f,17f to 6f,21f to 6f);path(18f to 3f,21f to 6f,18f to 9f);path(18f to 15f,21f to 18f,18f to 21f)}
             "repeat","repeat-one"->{path(4f to 10f,4f to 6f,20f to 6f,17f to 3f);path(20f to 14f,20f to 18f,4f to 18f,7f to 21f);path(17f to 9f,20f to 6f);path(7f to 15f,4f to 18f);if(name=="repeat-one"){path(10f to 10f,12f to 9f,12f to 15f);path(10f to 15f,14f to 15f)}}
@@ -249,7 +253,7 @@ private val LocalPageSwipeExclusions=staticCompositionLocalOf<MutableMap<Any,Lay
     }
 }
 
-@Composable internal fun MorePage(tabs:JSONArray,groupOrder:List<String>,onNavigate:(String)->Unit,onYouTube:()->Unit,onLicenses:()->Unit,onFailures:()->Unit) {
+@Composable internal fun MorePage(tabs:JSONArray,groupOrder:List<String>,onNavigate:(String)->Unit,onYouTube:()->Unit,onLicenses:()->Unit,onFailures:()->Unit,onRemote:()->Unit={}) {
     val visible=remember(tabs.toString()){(0 until tabs.length()).map {tabs.optString(it)}}
     LazyColumn(Modifier.fillMaxSize().testTag("more-list").padding(horizontal=24.dp),verticalArrangement=Arrangement.spacedBy(12.dp),contentPadding=PaddingValues(bottom=24.dp)) {
         item {PageTitle("Mais","Todas as ferramentas do ONDA")}
@@ -264,6 +268,7 @@ private val LocalPageSwipeExclusions=staticCompositionLocalOf<MutableMap<Any,Lay
         }
         item {UiText("Aplicativo",style=MaterialTheme.typography.labelLarge,color=MaterialTheme.colorScheme.onSurfaceVariant,modifier=Modifier.padding(top=12.dp))}
         item {MoreRow("Sessão do YouTube","","play",onYouTube)}
+        item {MoreRow("Controlar ONDA no PC","Mesma rede Wi-Fi · teste","play",onRemote)}
         item {MoreRow("Falhas da fila","","download",onFailures)}
         item {MoreRow("Licenças e fontes","","more",onLicenses)}
         item {UiText("ONDA Android ${BuildConfig.VERSION_NAME}",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)}

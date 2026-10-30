@@ -54,34 +54,95 @@ class MainActivity : ComponentActivity() {
         receive(intent)
         setContent { OndaApp(model) }
     }
-    override fun onStop() {model.savePlaybackSession();model.jukebox.savePlaybackSession(synchronous=true);super.onStop()}
+    override fun onStop() {
+        super.onStop()
+        // A storage failure must not terminate background audio; lifecycle saves use async disk I/O.
+        runCatching {model.savePlaybackSession()}.onFailure {android.util.Log.w("ONDA","Could not save effects session on background",it)}
+        runCatching {model.jukebox.savePlaybackSession()}.onFailure {android.util.Log.w("ONDA","Could not save playback session on background",it)}
+    }
     override fun onResume() {super.onResume();model.restartReturned()}
     override fun onNewIntent(intent: Intent) { super.onNewIntent(intent); setIntent(intent); receive(intent) }
     // Public Activity override; AndroidX's bridge carries an internal annotation.
     @android.annotation.SuppressLint("RestrictedApi")
     override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {
+        if(RemotePlaybackRuntime.state.value.connected && event.keyCode in listOf(android.view.KeyEvent.KEYCODE_VOLUME_UP,android.view.KeyEvent.KEYCODE_VOLUME_DOWN)) {
+            if(event.action==android.view.KeyEvent.ACTION_DOWN)RemotePlaybackRuntime.setVolume(RemotePlaybackRuntime.state.value.volume+if(event.keyCode==android.view.KeyEvent.KEYCODE_VOLUME_UP)5 else -5)
+            return true
+        }
         if(event.action==android.view.KeyEvent.ACTION_DOWN && event.isAltPressed && event.keyCode==android.view.KeyEvent.KEYCODE_A) {
             OndaStore.selectAll.tryEmit(Unit);return true
         }
         return super.dispatchKeyEvent(event)
     }
     private fun receive(intent: Intent?) {
+        if(intent?.getBooleanExtra("open_remote",false)==true){RemotePlaybackRuntime.expandedRequested.value=true;intent.removeExtra("open_remote")}
         if(intent?.getBooleanExtra("open_effects",false)==true) {model.playbackMode.value=0;model.effectsNavigation.value=true;intent.removeExtra("open_effects")}
         if(intent?.getBooleanExtra("open_queue",false)==true) {model.queueNavigation.value=true;intent.removeExtra("open_queue")}
         if(intent?.action==Intent.ACTION_SEND) OndaStore.sharedLink.value=intent.getStringExtra(Intent.EXTRA_TEXT) ?: ""
     }
 }
 
-val accents=linkedMapOf("Verde-Água" to 0xFF79E2C4,"Azul" to 0xFF8DBBFF,"Roxo" to 0xFFC0A4FF,
-    "Rosa" to 0xFFF5A4CD,"Laranja" to 0xFFFFBD85,"Vermelho" to 0xFFFFA2A2,"Verde" to 0xFF94DFA8,
-    "Verde-limão" to 0xFFC8ED83,"Amarelo" to 0xFFF6E58D,"Dourado" to 0xFFE9CA82,"Ciano" to 0xFF8DE1ED,
-    "Turquesa" to 0xFF71D8D8,"Índigo" to 0xFFA5AFFF,"Lilás" to 0xFFDEC1FF,"Coral" to 0xFFFFAE9B,"Cinza" to 0xFFBCC5D3)
+internal val appearanceModes=listOf("Seguir o sistema","Escuro","Preto puro","Claro","Claro puro","Alto contraste")
+
+val accents=linkedMapOf(
+    "Verde-Água" to 0xFF79E2C4,
+    "Azul" to 0xFF8DBBFF,
+    "Roxo" to 0xFFC0A4FF,
+    "Rosa" to 0xFFF5A4CD,
+    "Laranja" to 0xFFFFBD85,
+    "Vermelho" to 0xFFFFA2A2,
+    "Verde" to 0xFF94DFA8,
+    "Verde-limão" to 0xFFC8ED83,
+    "Amarelo" to 0xFFF6E58D,
+    "Dourado" to 0xFFE9CA82,
+    "Ciano" to 0xFF8DE1ED,
+    "Turquesa" to 0xFF71D8D8,
+    "Índigo" to 0xFFA5AFFF,
+    "Lilás" to 0xFFDEC1FF,
+    "Coral" to 0xFFFFAE9B,
+    "Cinza" to 0xFFBCC5D3,
+    "Menta" to 0xFFA3EFD0,
+    "Esmeralda" to 0xFF65DDB2,
+    "Azul-céu" to 0xFF81D4FA,
+    "Azul-petróleo" to 0xFF80CBC4,
+    "Magenta" to 0xFFF39EE8,
+    "Vinho" to 0xFFE7A1B2,
+    "Pêssego" to 0xFFFFCCAB,
+    "Marrom" to 0xFFD6B49A
+)
 
 
-val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" to 0xFF7544B8,"Rosa" to 0xFFAF286D,"Laranja" to 0xFFA6500B,"Vermelho" to 0xFFB42F3B,"Verde" to 0xFF257342,"Verde-limão" to 0xFF537512,"Amarelo" to 0xFF806600,"Dourado" to 0xFF8C650F,"Ciano" to 0xFF07758A,"Turquesa" to 0xFF087575,"Índigo" to 0xFF4856B9,"Lilás" to 0xFF865098,"Coral" to 0xFFB34332,"Cinza" to 0xFF576475)
+val lightAccents=mapOf(
+    "Verde-Água" to 0xFF087E69,
+    "Azul" to 0xFF245FBE,
+    "Roxo" to 0xFF7544B8,
+    "Rosa" to 0xFFAF286D,
+    "Laranja" to 0xFFA6500B,
+    "Vermelho" to 0xFFB42F3B,
+    "Verde" to 0xFF257342,
+    "Verde-limão" to 0xFF537512,
+    "Amarelo" to 0xFF806600,
+    "Dourado" to 0xFF8C650F,
+    "Ciano" to 0xFF07758A,
+    "Turquesa" to 0xFF087575,
+    "Índigo" to 0xFF4856B9,
+    "Lilás" to 0xFF865098,
+    "Coral" to 0xFFB34332,
+    "Cinza" to 0xFF576475,
+    "Menta" to 0xFF0E7355,
+    "Esmeralda" to 0xFF006B4C,
+    "Azul-céu" to 0xFF096B9A,
+    "Azul-petróleo" to 0xFF176B67,
+    "Magenta" to 0xFFA32391,
+    "Vinho" to 0xFF8D2948,
+    "Pêssego" to 0xFF9A4B24,
+    "Marrom" to 0xFF78533C
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable fun OndaApp(vm: OndaViewModel) {
+    val remotePlayback by RemotePlaybackRuntime.state.collectAsStateWithLifecycle()
+    LaunchedEffect(remotePlayback.connected){if(remotePlayback.connected)vm.playbackQueueOpen.value=false}
     val settings by OndaStore.settings.collectAsStateWithLifecycle()
     val question by OndaStore.question.collectAsStateWithLifecycle()
     val busy by vm.busy.collectAsStateWithLifecycle()
@@ -93,10 +154,11 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
     val playbackMode by vm.playbackMode.collectAsStateWithLifecycle()
     val shared by OndaStore.sharedLink.collectAsStateWithLifecycle()
     val pureBlack=settings.optString("theme")=="Preto puro"
-    val dark=when(settings.optString("theme")) { "Claro"->false; "Escuro","Preto puro","Alto contraste"->true; else->isSystemInDarkTheme() }
-    val palette=if(dark) accents else lightAccents
-    val accent=Color(palette[settings.optString("accent")] ?: palette.getValue("Verde-Água"))
-    val baseScheme=if(dark) darkColorScheme(primary=accent,background=Color(0xFF0E131B),surface=Color(0xFF161E29),onPrimary=Color(0xFF10171F),surfaceContainerLowest=Color(0xFF0B1016),surfaceContainerLow=Color(0xFF18212B),surfaceContainer=Color(0xFF1C2631),surfaceContainerHigh=Color(0xFF242F3B),surfaceContainerHighest=Color(0xFF2B3744),onBackground=Color(0xFFE9EEF5),onSurface=Color(0xFFE9EEF5),onSurfaceVariant=Color(0xFFAFBBC9),surfaceVariant=Color(0xFF25303D),secondaryContainer=Color(0xFF25303D),outline=Color(0xFF425161),outlineVariant=Color(0xFF303C49)) else lightColorScheme(primary=accent)
+    val dark=when(settings.optString("theme")) { "Claro","Claro puro"->false; "Escuro","Preto puro","Alto contraste"->true; else->isSystemInDarkTheme() }
+    val accentValue=settings.optString("accent")
+    val accent=remember(accentValue,dark){resolvedAccent(accentValue,dark)}
+    val onAccent=if(normalizeAccent(accentValue)!=null)accentInk(accent) else if(dark)Color(0xFF10171F) else Color.White
+    val baseScheme=if(dark) darkColorScheme(primary=accent,background=Color(0xFF0E131B),surface=Color(0xFF161E29),onPrimary=onAccent,surfaceContainerLowest=Color(0xFF0B1016),surfaceContainerLow=Color(0xFF18212B),surfaceContainer=Color(0xFF1C2631),surfaceContainerHigh=Color(0xFF242F3B),surfaceContainerHighest=Color(0xFF2B3744),onBackground=Color(0xFFE9EEF5),onSurface=Color(0xFFE9EEF5),onSurfaceVariant=Color(0xFFAFBBC9),surfaceVariant=Color(0xFF25303D),secondaryContainer=Color(0xFF25303D),outline=Color(0xFF425161),outlineVariant=Color(0xFF303C49)) else lightColorScheme(primary=accent,onPrimary=onAccent)
     val tabs=visibleTabs(settings)
     val blackScheme=if(pureBlack) baseScheme.copy(
         background=Color.Black,surface=Color.Black,surfaceTint=Color.Transparent,
@@ -105,7 +167,7 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
         surfaceContainerHigh=Color(0xFF101010),surfaceContainerHighest=Color(0xFF181818),
         surfaceVariant=Color(0xFF181818),outlineVariant=Color(0xFF303030)
     ) else baseScheme
-    val scheme=if(settings.optString("theme")=="Alto contraste") highContrastScheme() else if(pureBlack) pureBlackSurfaces(blackScheme,settings.optBoolean("pure_black_separators",false)) else blackScheme
+    val scheme=if(settings.optString("theme")=="Alto contraste") highContrastScheme() else if(pureBlack) pureBlackSurfaces(blackScheme,settings.optBoolean("pure_black_separators",false)) else if(settings.optString("theme")=="Claro puro")pureLightSurfaces(baseScheme) else blackScheme
     val iconActivity=androidx.activity.compose.LocalActivity.current
     LaunchedEffect(settings.optString("theme"),settings.optString("accent"),dark,iconActivity) {
         LauncherIcons.sync(OndaStore.context,settings)
@@ -128,6 +190,7 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
     var settingsCategory by rememberSaveable { mutableStateOf("Geral") }
     var youtubeSession by rememberSaveable {mutableStateOf(false)}
     var showLicenses by rememberSaveable {mutableStateOf(false)}
+    var showRemote by rememberSaveable {mutableStateOf(false)}
     val pages=rememberSaveableStateHolder()
     var showLinks by rememberSaveable {mutableStateOf(false)}
     val preferences=OndaStore.context.getSharedPreferences("preferences",0)
@@ -170,8 +233,8 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
                     pages.SaveableStateProvider(tab) {when(tab) {
                         "Pesquisar"->SearchPage(vm,onConnectSpotify={settingsCategory="Contas";showSettings=true})
                         "Links e fila","Fila"->DownloadsHome(vm)
-                        "Mais"->MorePage(tabs,tabGroupOrder(settings),onNavigate={tab=it},onYouTube={youtubeSession=true},onLicenses={showLicenses=true},onFailures={OndaStore.failureSummary.value=OndaStore.items.value.filter {it.state=="Erro"}.map {it.id}.takeIf {it.isNotEmpty()}})
-                        "Efeitos"->PlaybackPage(vm)
+                        "Mais"->MorePage(tabs,tabGroupOrder(settings),onNavigate={tab=it},onYouTube={youtubeSession=true},onLicenses={showLicenses=true},onFailures={OndaStore.failureSummary.value=OndaStore.items.value.filter {it.state=="Erro"}.map {it.id}.takeIf {it.isNotEmpty()}},onRemote={showRemote=true})
+                        "Efeitos"->if(remotePlayback.connected)RemotePlaybackPage(vm) else PlaybackPage(vm)
                         "Imagens"->ImagesPage(vm)
                         "Playlists / Álbuns"->CollectionsPage(vm)
                         "Histórico"->HistoryPage(vm,onEditMetadata={metadataUri=it.uri;tab="Metadados"})
@@ -183,6 +246,7 @@ val lightAccents=mapOf("Verde-Água" to 0xFF087E69,"Azul" to 0xFF245FBE,"Roxo" t
                 }
             }
         }
+        if(showRemote)PlaybackDevicesSheet(onDismiss={showRemote=false})
         if(showLinks)ModalBottomSheet(onDismissRequest={showLinks=false},sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true)) {
             Box(Modifier.fillMaxWidth().fillMaxHeight(.88f).imePadding()) {LinksPage(vm,onAdded={showLinks=false;tab="Fila"})}
         }
@@ -586,7 +650,7 @@ fun mediaClock(seconds:Long):String {val value=seconds.coerceAtLeast(0);return "
                 val id=OndaStore.enqueue(source,output.name,extra=config)
                 DownloadService.start(OndaStore.context,id)
                 vm.status.value="Exportação adicionada à fila. Acompanhe na aba Fila."
-            },enabled=source.isNotBlank(),modifier=Modifier.fillMaxWidth()){UiText("Exportar música")}
+            },enabled=source.isNotBlank(),modifier=Modifier.fillMaxWidth()){OndaIcon("download",modifier=Modifier.size(18.dp));Spacer(Modifier.width(8.dp));UiText("Exportar música")}
         }
         if(lyricSettings.optBoolean("synced_lyrics")) {
             val lines=lyricCache[source].orEmpty()

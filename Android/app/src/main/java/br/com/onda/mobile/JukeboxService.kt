@@ -17,6 +17,7 @@ import java.net.URL
 /** Application-owned audio survives activity recreation; the service owns its media session. */
 internal object JukeboxRuntime {
     private var controller:JukeboxController?=null
+    fun hasActivePlayback():Boolean=controller?.state?.value?.let {it.playing || it.busy}==true
     @Synchronized fun get(context:Context):JukeboxController = controller ?: JukeboxController(context.applicationContext,CoroutineScope(SupervisorJob()+Dispatchers.Main.immediate),{}).also {controller=it}
 }
 
@@ -29,6 +30,8 @@ class JukeboxService:Service() {
     private var artworkKey:List<String>?=null
     private var artworkTask:Job?=null
     private var selfStopped=false
+    private val idleStop=PlaybackIdleStop()
+    private var idleStopTask:Job?=null
     override fun onBind(intent:Intent?)=null
     override fun onCreate() {
         super.onCreate();controller=JukeboxRuntime.get(this)
@@ -52,12 +55,21 @@ class JukeboxService:Service() {
                 listOf(state.playing.toString(),state.paused.toString(),model?.optString("source").orEmpty(),
                     model?.optString("media_title").orEmpty(),model?.optString("media_artist").orEmpty(),
                     model?.optString("media_cover").orEmpty().ifBlank {model?.optString("_cover").orEmpty()}.ifBlank {row?.optString("_cover").orEmpty()},
-                    model?.optString("cover_url").orEmpty().ifBlank {row?.optString("cover_url").orEmpty()})
+                    model?.optString("cover_url").orEmpty().ifBlank {row?.optString("cover_url").orEmpty()},state.busy.toString())
             }.distinctUntilChanged().collect {state->
-                if(state[0]!="true"){selfStopped=true;stopSelf();return@collect}
+                val stopRequest=idleStop.changed()
+                idleStopTask?.cancel()
+                if(state[0]!="true"){
+                    idleStopTask=launch {
+                        delay(350)
+                        val latest=controller.state.value
+                        if(idleStop.canStop(stopRequest,latest.playing,latest.busy)){selfStopped=true;stopSelf()}
+                    }
+                    return@collect
+                }
                 if(state[1]=="true"){if(wake.isHeld)wake.release()}else if(!wake.isHeld)wake.acquire()
                 session.isActive=true
-                val key=state.drop(2)
+                val key=state.subList(2,7)
                 if(artworkKey!=key) {
                     artworkKey=key;artwork=null;artworkTask?.cancel()
                     artworkTask=launch {
@@ -118,6 +130,12 @@ class JukeboxService:Service() {
         val restart=selfStopped && controller.state.value.playing
         if(!selfStopped)controller.stopPreservingPosition()
         scope.cancel();if(wake.isHeld)wake.release();session.isActive=false;session.release();stopForeground(STOP_FOREGROUND_REMOVE);super.onDestroy()
-        if(restart)androidx.core.content.ContextCompat.startForegroundService(applicationContext,Intent(applicationContext,JukeboxService::class.java))
+        if(restart)try {
+            androidx.core.content.ContextCompat.startForegroundService(applicationContext,Intent(applicationContext,JukeboxService::class.java))
+        } catch(error:RuntimeException) {
+            // Android may reject a foreground-service restart after the task leaves the screen.
+            controller.stopPreservingPosition()
+            android.util.Log.w("ONDA","Background playback service restart rejected",error)
+        }
     }
 }

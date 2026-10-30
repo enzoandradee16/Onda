@@ -32,6 +32,7 @@ build/
 
 # Ferramentas locais de empacotamento
 /empacotamento/*
+!/empacotamento/generate_android_palette.py
 !/empacotamento/sync_version.py
 !/empacotamento/InstallerText.cs
 !/empacotamento/InstallerStrings.xml

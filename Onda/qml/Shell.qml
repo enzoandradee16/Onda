@@ -219,7 +219,7 @@ Pane {
             ChoiceBox { Layout.fillWidth: true; model: bridge.themes; currentIndex: model.indexOf(bridge.theme); displayText: bridge.translate(bridge.theme); onActivated: bridge.setAppearance(model[index],bridge.accent,bridge.animations) }
             OndaSwitch { objectName:"appearanceBlackSeparators"; visible:bridge.theme==="Preto puro"; Layout.fillWidth:true; text:bridge.translate("Mostrar bordas e separações no Preto puro"); checked:workspace.preferences.pure_black_separators===true; onToggled:workspace.setSetting("pure_black_separators",checked) }
             Label { text: bridge.translate("Cor de destaque"); color: bridge.palette.muted }
-            ChoiceBox { Layout.fillWidth: true; model: bridge.accents; currentIndex: model.indexOf(bridge.accent); displayText: bridge.translate(bridge.accent); onActivated: bridge.setAppearance(bridge.theme,model[index],bridge.animations) }
+            AccentSelector { Layout.fillWidth: true; value: bridge.accent; onSelected: function(color) {bridge.setAppearance(bridge.theme,color,bridge.animations)} }
             OndaSwitch { text: bridge.translate("Animações da interface"); checked: bridge.animations; onToggled: bridge.setAppearance(bridge.theme,bridge.accent,checked) }
             OndaSwitch { objectName:"appearanceGlassToggle"; text: bridge.translate("Efeitos translúcidos e liquid glass"); checked: workspace.preferences.translucent_effects !== false; onToggled: workspace.setSetting("translucent_effects",checked) }
             ActionButton { Layout.alignment: Qt.AlignRight; primary: true; text: bridge.translate("Pronto"); onClicked: appearance.close() }

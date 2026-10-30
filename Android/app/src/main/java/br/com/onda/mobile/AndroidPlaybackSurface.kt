@@ -24,6 +24,8 @@ import coil.compose.AsyncImage
 
 /** One compact player across navigation; expanding never transfers audio between tabs. */
 @Composable internal fun AndroidPlaybackSurface(vm:OndaViewModel,queueIsVisible:Boolean=false) {
+    val remote by RemotePlaybackRuntime.state.collectAsStateWithLifecycle()
+    if(remote.connected){RemotePlaybackSurface(remote,vm,queueIsVisible);return}
     val mode by vm.playbackMode.collectAsStateWithLifecycle()
     val fxSource by vm.effectsSource.collectAsStateWithLifecycle()
     val infos by vm.effectsInfo.collectAsStateWithLifecycle()
@@ -36,6 +38,7 @@ import coil.compose.AsyncImage
     val jukeQueue by vm.jukebox.playbackQueue.collectAsStateWithLifecycle()
     var expanded by rememberSaveable {mutableStateOf(false)}
     var expandedQueue by rememberSaveable {mutableStateOf(false)}
+    var devices by remember {mutableStateOf(false)}
     LaunchedEffect(expanded){if(!expanded)expandedQueue=false}
     var expandedJukebox by rememberSaveable {mutableStateOf(false)}
     var lastJukebox by rememberSaveable(mode,fxSource,juke.model?.optString("source")) {mutableStateOf(mode==1&&juke.model!=null)}
@@ -49,6 +52,10 @@ import coil.compose.AsyncImage
     SideEffect {vm.compactPlaybackMode.value=if(source.isBlank())null else if(useJukebox)1 else 0}
     DisposableEffect(vm){onDispose {vm.compactPlaybackMode.value=null}}
     if(source.isBlank())return
+    val localExpandedRequested by RemotePlaybackRuntime.localExpandedRequested.collectAsStateWithLifecycle()
+    LaunchedEffect(localExpandedRequested) {
+        if(localExpandedRequested){expanded=true;RemotePlaybackRuntime.localExpandedRequested.value=false}
+    }
     val info=infos[fxSource]
     val record=info?.optJSONObject("record")
     val title=if(useJukebox)juke.title else record?.optString("title")?.ifBlank {importedAudioName(source)} ?: importedAudioName(source)
@@ -124,7 +131,7 @@ import coil.compose.AsyncImage
                 Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),verticalArrangement=Arrangement.spacedBy(16.dp)) {
                     Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
                         IconButton(onClick={expanded=false}){OndaIcon("down","Recolher reprodução",Modifier.size(26.dp))}
-                        Column(Modifier.weight(1f),horizontalAlignment=Alignment.CenterHorizontally){UiText("Reproduzindo",style=MaterialTheme.typography.labelSmall);UiText("Reprodução",style=MaterialTheme.typography.titleSmall)}
+                        Spacer(Modifier.weight(1f))
                         ShufflePlaybackButton(if(useJukebox)jukeShuffle else fxShuffle,{if(useJukebox)vm.jukebox.queueShuffle.value=it else vm.effectsShuffle.value=it})
                         RepeatPlaybackButton(jukeRepeat,{vm.jukebox.queueRepeat.value=it})
                         Box {
@@ -156,12 +163,14 @@ import coil.compose.AsyncImage
                         IconButton(onClick=::next,enabled=hasNext,modifier=Modifier.testTag("expanded-player-next")){OndaIcon("next","Avançar",Modifier.size(32.dp))}
                         IconButton(onClick=::openQueue,modifier=Modifier.testTag("expanded-player-queue")){OndaIcon("queue","Fila",Modifier.size(26.dp))}
                     }
+                    PlaybackDeviceButton(onClick={devices=true})
                     LyricsPreviewCard(vm,source,title,artist,position,duration,playing,::seek,::toggle)
                 }
             }
         }
         // The sheet belongs to this dialog so it stays above the expanded player.
         if(useJukebox && expandedQueue)PlaybackQueueSheet(vm){expandedQueue=false}
+        if(devices)PlaybackDevicesSheet {devices=false}
         if(!useJukebox)EffectsQueueDrawer(vm)
     }
     if(!expanded || useJukebox)EffectsQueueDrawer(vm)

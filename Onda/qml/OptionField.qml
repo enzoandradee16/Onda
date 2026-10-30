@@ -33,7 +33,8 @@ ColumnLayout {
         OndaSlider { id: transitionSlider; Layout.fillWidth: true; from: 1; to: 10; stepSize: 1; snapMode: Slider.SnapAlways; value: Number(root.current || 2); onMoved: root.save(Math.round(value)); Accessible.name: bridge.translate(root.field.label) }
         Label { text: Math.round(transitionSlider.value) + " s"; color: bridge.palette.text }
     }
-    ChoiceBox { visible: root.field.kind === "select" && !root.transitionDuration; Layout.fillWidth: true; Layout.minimumWidth: 0; model: root.field.choices || []; currentIndex: Math.max(0,model.indexOf(root.current)); displayText: bridge.translate(currentText).replace(" (320 kbps)",""); onActivated: root.save(model[index]) }
+    ChoiceBox { visible: root.field.kind === "select" && !root.transitionDuration && root.field.key !== "theme_accent"; Layout.fillWidth: true; Layout.minimumWidth: 0; model: root.field.choices || []; currentIndex: Math.max(0,model.indexOf(root.current)); displayText: bridge.translate(currentText).replace(" (320 kbps)",""); onActivated: root.save(model[index]) }
+    Loader { active: root.field.key === "theme_accent"; visible: active; Layout.fillWidth: true; sourceComponent: Component { AccentSelector { value: String(root.current || "Verde-Água"); onSelected: function(color) {root.save(color)} } } }
     OndaTextField {
         id: scheduleTime
         visible: root.timeField; Layout.fillWidth: true

@@ -7,6 +7,11 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class AlbumGlassTest {
+    @Test fun albumColorsDoNotChangeBetweenLightAndDarkThemes() {
+        for(cover in listOf(Color.Red,Color.Blue,Color.Yellow,Color.White,Color.Black)) {
+            assertEquals(albumGlassColors(cover,true,false),albumGlassColors(cover,false,false))
+        }
+    }
     private fun contrast(a:Color,b:Color):Float {
         val x=a.luminance();val y=b.luminance()
         return (maxOf(x,y)+.05f)/(minOf(x,y)+.05f)

@@ -40,11 +40,14 @@ internal fun albumDominantColor(pixels:IntArray):Color? {
 }
 
 internal data class AlbumGlassColors(val base:Color,val top:Color,val bottom:Color,val ink:Color,val secondary:Color,val highContrast:Boolean)
+@Suppress("UNUSED_PARAMETER")
 internal fun albumGlassColors(accent:Color,dark:Boolean,highContrast:Boolean):AlbumGlassColors {
-    val anchor=if(dark)Color.Black else Color.White
-    val base=lerp(accent.copy(alpha=1f),anchor,if(highContrast).90f else if(dark).76f else .86f)
-    val ink=if(dark)Color.White else Color.Black
-    return AlbumGlassColors(base,lerp(base,Color.White,if(highContrast).02f else .08f),lerp(base,anchor,.05f),ink,if(highContrast)ink else lerp(base,ink,.86f),highContrast)
+    var base=lerp(accent.copy(alpha=1f),Color.Black,if(highContrast).90f else .22f)
+    val lightCover=!highContrast && base.luminance()>.30f
+    if(lightCover)while(base.luminance()<.32f)base=lerp(base,Color.White,.05f)
+    else while(base.luminance()>.09f)base=lerp(base,Color.Black,.07f)
+    val ink=if(lightCover)Color.Black else Color.White
+    return AlbumGlassColors(base,lerp(base,Color.White,if(highContrast).02f else .03f),lerp(base,Color.Black,.04f),ink,if(highContrast)ink else lerp(base,ink,.90f),highContrast)
 }
 
 /** Album-tinted glass: blurred artwork under a translucent lens and a specular rim. */
@@ -54,7 +57,7 @@ internal fun albumGlassColors(accent:Color,dark:Boolean,highContrast:Boolean):Al
     val scheme=MaterialTheme.colorScheme
     val dark=scheme.surface.luminance()<.5f
     val highContrast=settings.optString("theme")=="Alto contraste"
-    val fallback=scheme.primary
+    val fallback=Color(0xFF34404D)
     val tint=rememberAlbumAccent(artwork)
     val colors=remember(tint,fallback,dark,highContrast){albumGlassColors(tint ?: fallback,dark,highContrast)}
     val shape=RoundedCornerShape(16.dp)
@@ -66,7 +69,9 @@ internal fun albumGlassColors(accent:Color,dark:Boolean,highContrast:Boolean):Al
                 val sheen=Brush.verticalGradient(listOf(Color.White.copy(alpha=if(highContrast).01f else .045f),Color.Transparent),endY=size.height*.55f)
                 onDrawBehind {drawRect(sheen)}
             })
-            content(colors)
+            MaterialTheme(colorScheme=scheme.copy(primary=colors.ink,onPrimary=colors.base,onSurface=colors.ink,onSurfaceVariant=colors.secondary)) {
+                content(colors)
+            }
         }
     }
 }

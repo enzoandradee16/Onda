@@ -8,6 +8,14 @@ from preferences import PreferenceStore
 
 
 class PaletteTests(unittest.TestCase):
+    def test_pure_light_uses_white_surfaces_and_light_accent_variants(self):
+        for accent in ACCENTS:
+            colors = palette('Claro puro', accent)
+            for key in ('bg', 'surface', 'input'):
+                self.assertEqual(colors[key], '#ffffff')
+            self.assertEqual(colors['accent'], palette('Claro', accent)['accent'])
+            self.assertEqual(colors['accent_text'], '#ffffff')
+
     def test_pure_black_has_no_surface_separations_unless_enabled(self):
         flat = palette('Preto puro')
         for key in ('bg', 'surface', 'input', 'line', 'hover', 'selected'):
@@ -34,7 +42,7 @@ class PaletteTests(unittest.TestCase):
             values = sorted((luminance(first), luminance(second)))
             return (values[1] + 0.05) / (values[0] + 0.05)
 
-        for mode in ('Claro', 'Escuro'):
+        for mode in ('Claro', 'Claro puro', 'Escuro'):
             for accent in ACCENTS:
                 c = palette(mode, accent)
                 self.assertGreaterEqual(

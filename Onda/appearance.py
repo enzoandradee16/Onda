@@ -6,7 +6,14 @@ from tkinter import ttk
 import tkinter.font as tkfont
 from interface_fonts import font_family, DEFAULT_FONT, font_scale
 
-THEME_MODES = ('Seguir o sistema', 'Escuro', 'Preto puro', 'Claro', 'Alto contraste')
+THEME_MODES = (
+    'Seguir o sistema',
+    'Escuro',
+    'Preto puro',
+    'Claro',
+    'Claro puro',
+    'Alto contraste',
+)
 ACCENTS = {
     'Verde-Água': ('#79e2c4', '#087e69'),
     'Azul': ('#8dbbff', '#245fbe'),
@@ -24,6 +31,14 @@ ACCENTS = {
     'Lilás': ('#dec1ff', '#865098'),
     'Coral': ('#ffae9b', '#b34332'),
     'Cinza': ('#bcc5d3', '#576475'),
+    'Menta': ('#a3efd0', '#0e7355'),
+    'Esmeralda': ('#65ddb2', '#006b4c'),
+    'Azul-céu': ('#81d4fa', '#096b9a'),
+    'Azul-petróleo': ('#80cbc4', '#176b67'),
+    'Magenta': ('#f39ee8', '#a32391'),
+    'Vinho': ('#e7a1b2', '#8d2948'),
+    'Pêssego': ('#ffccab', '#9a4b24'),
+    'Marrom': ('#d6b49a', '#78533c'),
 }
 
 
@@ -59,7 +74,7 @@ def blend(first, second, amount):
 
 def palette(mode='Seguir o sistema', accent='Verde-Água', separators=False):
     mode = system_mode() if mode == 'Seguir o sistema' else mode
-    light = mode == 'Claro'
+    light = mode in ('Claro', 'Claro puro')
     colors = dict(
         zip(
             ('bg', 'surface', 'input', 'text', 'muted', 'line'),
@@ -72,10 +87,28 @@ def palette(mode='Seguir o sistema', accent='Verde-Água', separators=False):
     )
     if mode == 'Preto puro':
         colors.update(bg='#000000', surface='#000000', input='#101010', line='#303030')
+    if mode == 'Claro puro':
+        colors.update(
+            bg='#ffffff',
+            surface='#ffffff',
+            input='#ffffff',
+            line='#d0d0d0',
+            text='#181818',
+            muted='#595959',
+        )
     colors['accent'] = ACCENTS.get(accent, ACCENTS['Verde-Água'])[int(light)]
+    from custom_accent import normalize_color, readable_accent, accent_ink
+
+    custom = normalize_color(accent)
+    if custom:
+        colors['accent'] = readable_accent(custom, not light)
     colors.update(
         mode=mode,
-        accent_text='#ffffff' if light else '#101419',
+        accent_text=(
+            accent_ink(colors['accent'])
+            if custom
+            else '#ffffff' if light else '#101419'
+        ),
         error='#b12c3c' if light else '#f2a198',
     )
     colors['hover'] = blend(colors['input'], colors['text'], 0.08)

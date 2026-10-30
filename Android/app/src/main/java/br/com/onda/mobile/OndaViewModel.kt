@@ -198,7 +198,7 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
                 status.value="Reiniciando ONDA…"
                 context.startActivity(android.content.Intent(context,RestartActivity::class.java)
                     .putExtra("parent_pid",android.os.Process.myPid()).putExtra("message",translateUi("Reiniciando ONDA…"))
-                    .putExtra("dark",OndaStore.settings.value.optString("theme")!="Claro").addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+                    .putExtra("dark",OndaStore.settings.value.optString("theme") !in listOf("Claro","Claro puro")).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
             } catch(e:Exception){showNotice("Reiniciar ONDA",uiExceptionMessage(e,"Não foi possível reiniciar o ONDA."),true);restartRequested=false;busy.value=false}
         }
     }

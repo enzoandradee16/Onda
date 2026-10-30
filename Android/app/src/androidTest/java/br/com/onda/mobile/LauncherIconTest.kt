@@ -28,7 +28,7 @@ class LauncherIconTest {
     @Test fun allAccentAndThemeCombinationsResolveExactlyOneLauncher() {
         val before=JSONObject(OndaStore.settings.value.toString())
         try {
-            for(theme in listOf("Escuro","Claro","Preto puro","Seguir o sistema","Alto contraste")) {
+            for(theme in appearanceModes) {
                 for(accent in accents.keys) {
                     val settings=JSONObject(before.toString()).put("theme",theme).put("accent",accent)
                     LauncherIcons.sync(context,settings)
@@ -50,11 +50,11 @@ class LauncherIconTest {
                 uiMode=(uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or if(dark)Configuration.UI_MODE_NIGHT_YES else Configuration.UI_MODE_NIGHT_NO
             }
             val configured=context.createConfigurationContext(config)
-            for(theme in listOf("Escuro","Claro","Preto puro","Seguir o sistema","Alto contraste")) {
+            for(theme in appearanceModes) {
                 for(accent in accents.keys) {
                     val settings=JSONObject(before.toString()).put("theme",theme).put("accent",accent)
                     val icon=LauncherIcons.drawable(configured,settings)
-                    val isDark=when(theme){"Claro"->false;"Escuro","Preto puro","Alto contraste"->true;else->dark}
+                    val isDark=when(theme){"Claro","Claro puro"->false;"Escuro","Preto puro","Alto contraste"->true;else->dark}
                     val expected=if(theme=="Alto contraste")Color.Yellow.toArgb() else Color((if(isDark)accents else lightAccents).getValue(accent)).toArgb()
                     val bitmap=Bitmap.createBitmap(108,108,Bitmap.Config.ARGB_8888)
                     icon.foreground.setBounds(0,0,108,108);icon.foreground.draw(Canvas(bitmap))
@@ -63,7 +63,7 @@ class LauncherIconTest {
                     assertTrue("Safe adaptive mask bounds",pixels.withIndex().filter {android.graphics.Color.alpha(it.value)>0}.all {it.index%108 in 24..84 && it.index/108 in 24..84})
                     if(android.os.Build.VERSION.SDK_INT>=33)assertNotNull(icon.monochrome)
                     bitmap.recycle()
-                    val expectedBackground=when {theme in listOf("Preto puro","Alto contraste")->android.graphics.Color.BLACK;isDark->0xFF161E29.toInt();else->lightColorScheme().surface.toArgb()}
+                    val expectedBackground=when {theme in listOf("Preto puro","Alto contraste")->android.graphics.Color.BLACK;theme=="Claro puro"->android.graphics.Color.WHITE;isDark->0xFF161E29.toInt();else->lightColorScheme().surface.toArgb()}
                     assertEquals("background $theme / dark=$dark",expectedBackground,(icon.background as ColorDrawable).color)
                 }
             }

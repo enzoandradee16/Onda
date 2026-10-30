@@ -5,6 +5,7 @@ import QtQuick.Dialogs
 import Onda 1.0
 ScrollView {
     id: page
+    RemoteControlPopup {id:remotePopup}
     objectName: "jukeboxView"
     contentWidth: availableWidth
     clip: true
@@ -35,6 +36,7 @@ ScrollView {
             }
             ActionButton { primary: true; text: bridge.translate(bridge.state.busy ? "Cancelar" : "Pesquisar"); enabled: bridge.state.busy || query.text.trim().length>0; onClicked: if (bridge.state.busy) bridge.cancelOperation(); else bridge.search(query.text) }
             ActionButton { text: bridge.translate("Abrir arquivo"); enabled: !bridge.state.busy; onClicked: fileDialog.open() }
+            ActionButton {text:bridge.translate("Controle remoto");onClicked:remotePopup.open()}
         }
         Card {
             Layout.fillWidth: true
@@ -129,5 +131,4 @@ ScrollView {
     }
     property real volume: 80
     function updateParams() { bridge.setParams(variation.value,smooth.value,volume,bridge.playbackParams.normal) }
-    onVolumeChanged: updateParams()
 }

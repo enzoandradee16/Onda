@@ -139,6 +139,7 @@ class PreferenceStore:
         if data.get("interface_spacing") in SPACING_MODES:
             result["interface_spacing"] = data["interface_spacing"]
         from appearance import THEME_MODES, ACCENTS
+        from custom_accent import normalize_color
 
         for name, choices in (('theme_mode', THEME_MODES), ('theme_accent', ACCENTS)):
             value = data.get(name)
@@ -146,6 +147,8 @@ class PreferenceStore:
                 value = 'Verde-Água'
             if isinstance(value, str) and value in choices:
                 result[name] = value
+            elif name == 'theme_accent' and normalize_color(value):
+                result[name] = normalize_color(value)
         if type(data.get("pure_black_separators")) is bool:
             result["pure_black_separators"] = data["pure_black_separators"]
         for name in ("catalog_card_size", "playlist_card_size"):

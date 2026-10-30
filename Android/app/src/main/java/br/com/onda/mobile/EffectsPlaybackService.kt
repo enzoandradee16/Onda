@@ -37,6 +37,8 @@ class EffectsPlaybackService:Service() {
     private lateinit var session:MediaSession
     private lateinit var wake:PowerManager.WakeLock
     private var selfStopped=false
+    private val idleStop=PlaybackIdleStop()
+    private var idleStopTask:Job?=null
     private var artworkKey=""
     private var artwork:Bitmap?=null
     private fun resumePlayback() {
@@ -62,7 +64,15 @@ class EffectsPlaybackService:Service() {
         if(Build.VERSION.SDK_INT>=29)startForeground(14,notification,ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK) else startForeground(14,notification)
         scope.launch {
             EffectsPlaybackRuntime.state.collect {state->
-                if(state==null){selfStopped=true;stopSelf();return@collect}
+                val stopRequest=idleStop.changed()
+                idleStopTask?.cancel()
+                if(state==null){
+                    idleStopTask=launch {
+                        delay(350)
+                        if(idleStop.canStop(stopRequest,EffectsPlaybackRuntime.state.value!=null)){selfStopped=true;stopSelf()}
+                    }
+                    return@collect
+                }
                 if(state.playing){if(!wake.isHeld)wake.acquire()}else if(wake.isHeld)wake.release()
                 if(state.cover!=artworkKey){artworkKey=state.cover;artwork=withContext(Dispatchers.IO){runCatching {val bytes=Base64.decode(state.cover,Base64.DEFAULT);BitmapFactory.decodeByteArray(bytes,0,bytes.size)}.getOrNull()}}
                 session.isActive=true
@@ -94,6 +104,9 @@ class EffectsPlaybackService:Service() {
         if(!selfStopped)EffectsPlaybackRuntime.owner?.stopEffectsPlayback()
         scope.cancel();if(wake.isHeld)wake.release();session.isActive=false;session.release()
         stopForeground(STOP_FOREGROUND_REMOVE);super.onDestroy()
-        if(selfStopped&&EffectsPlaybackRuntime.state.value!=null)start(this)
+        if(selfStopped&&EffectsPlaybackRuntime.state.value!=null)try {start(this)} catch(error:RuntimeException) {
+            EffectsPlaybackRuntime.owner?.stopEffectsPlayback()
+            android.util.Log.w("ONDA","Background effects service restart rejected",error)
+        }
     }
 }

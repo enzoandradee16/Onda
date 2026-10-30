@@ -1015,13 +1015,15 @@ class JukeboxBridge(QObject):
 
     @Property('QStringList', constant=True)
     def themes(self):
-        return ['Claro', 'Escuro', 'Preto puro', 'Seguir o sistema', 'Alto contraste']
+        from appearance import THEME_MODES
+
+        return list(THEME_MODES)
 
     @Property('QStringList', constant=True)
     def accents(self):
         from appearance import ACCENTS
 
-        return list(ACCENTS)
+        return list(ACCENTS) + ['Cor personalizada']
 
     @Property(str, notify=appearanceChanged)
     def theme(self):
@@ -1036,6 +1038,32 @@ class JukeboxBridge(QObject):
     @Property(str, notify=appearanceChanged)
     def accent(self):
         return self.preferences.get('theme_accent', 'Verde-Água')
+
+    @Property(str, notify=appearanceChanged)
+    def accentHex(self):
+        from custom_accent import normalize_color
+
+        return normalize_color(self.accent) or self.palette['accent']
+
+    @Slot(str, result='QVariantMap')
+    def previewAccent(self, value):
+        import colorsys
+        from custom_accent import normalize_color
+        from appearance import palette
+
+        color = normalize_color(value)
+        if not color:
+            return {'valid': False}
+        rgb = [int(color[i : i + 2], 16) / 255 for i in (1, 3, 5)]
+        h, s, v = colorsys.rgb_to_hsv(*rgb)
+        return dict(
+            palette(self.theme, color),
+            valid=True,
+            hex=color,
+            hue=h * 360,
+            saturation=s,
+            value=v,
+        )
 
     @Property('QVariantMap', notify=equalizerChanged)
     def equalizer(self):
@@ -1106,7 +1134,14 @@ class JukeboxBridge(QObject):
 
     @Slot(str, str, bool)
     def setAppearance(self, theme, accent, animations):
-        if theme not in self.themes or accent not in self.accents:
+        from custom_accent import normalize_color
+
+        accent = normalize_color(accent) or accent
+        if (
+            theme not in self.themes
+            or accent == 'Cor personalizada'
+            or (accent not in self.accents and not normalize_color(accent))
+        ):
             return
         self.persist(
             {'theme_mode': theme, 'theme_accent': accent, 'qt_animations': animations}

@@ -82,6 +82,7 @@ def create_application(*, complete=True):
     engine.workspace = workspace
     engine.rootContext().setContextProperty('bridge', bridge)
     engine.rootContext().setContextProperty('workspace', workspace)
+    engine.rootContext().setContextProperty('remoteControl', workspace.remote_control)
 
     def refresh_icon():
         from window_icons import draw_icon

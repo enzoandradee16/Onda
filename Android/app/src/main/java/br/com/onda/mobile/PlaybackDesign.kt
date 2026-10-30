@@ -23,11 +23,11 @@ import androidx.compose.ui.unit.dp
     }
 }
 
-@Composable internal fun PlaybackSectionToggle(title:String,checked:Boolean,changed:(Boolean)->Unit) {
+@Composable internal fun PlaybackSectionToggle(title:String,checked:Boolean,enabled:Boolean=true,changed:(Boolean)->Unit) {
     val colors=MaterialTheme.colorScheme
-    Row(Modifier.fillMaxWidth().heightIn(min=48.dp).toggleable(checked,role=Role.Switch,onValueChange=changed),verticalAlignment=Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth().heightIn(min=48.dp).toggleable(checked,enabled=enabled,role=Role.Switch,onValueChange=changed),verticalAlignment=Alignment.CenterVertically) {
         UiText(title,Modifier.weight(1f),style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.SemiBold)
-        Switch(checked,onCheckedChange=null,modifier=Modifier.testTag("switch-indicator-$title"),colors=SwitchDefaults.colors(
+        Switch(checked,onCheckedChange=null,enabled=enabled,modifier=Modifier.testTag("switch-indicator-$title"),colors=SwitchDefaults.colors(
             checkedThumbColor=colors.onPrimary,checkedTrackColor=colors.primary,checkedBorderColor=colors.primary,
             uncheckedThumbColor=colors.onSurface,
             uncheckedTrackColor=colors.onSurface.copy(alpha=.20f).compositeOver(colors.surface),

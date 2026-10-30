@@ -284,6 +284,9 @@ class DesktopWorkspace(QObject):
         self.session_timer.setInterval(5000)
         self.session_timer.timeout.connect(self.save_playback_session)
         self.session_timer.start()
+        from qt_remote_ui import RemoteControl
+
+        self.remote_control = RemoteControl(self)
 
     def save_playback_session(self, strict=False):
         from playback_session import save
@@ -4071,6 +4074,7 @@ class DesktopWorkspace(QObject):
     def shutdown(self):
         if self.closed:
             return
+        self.remote_control.stop()
         self.save_playback_session()
         self.session_timer.stop()
         for tail in self.effects_tails:

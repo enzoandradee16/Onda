@@ -48,8 +48,11 @@ import org.json.JSONObject
 /** Playback queue is a page inside the shell: one header, player and navigation bar. */
 @Composable internal fun PlaybackQueuePage(vm:OndaViewModel,onClose:()->Unit={vm.playbackQueueOpen.value=false}) {
     val controller=vm.jukebox
-    val queue by controller.playbackQueue.collectAsStateWithLifecycle()
-    val current by controller.currentQueueId.collectAsStateWithLifecycle()
+    val localQueue by controller.playbackQueue.collectAsStateWithLifecycle()
+    val localCurrent by controller.currentQueueId.collectAsStateWithLifecycle()
+    val remote by RemotePlaybackRuntime.state.collectAsStateWithLifecycle()
+    val queue=remember(remote.connected,remote.queue,localQueue){if(remote.connected)remote.queue.map {it.queueRecord()} else localQueue}
+    val current=if(remote.connected)remote.trackId else localCurrent
     val summaryFlow=remember(controller){controller.state.map {it.model to it.title}.distinctUntilChanged()}
     val summary by summaryFlow.collectAsStateWithLifecycle(initialValue=controller.state.value.let {it.model to it.title})
     var recent by rememberSaveable {mutableStateOf(false)}
@@ -67,10 +70,15 @@ import org.json.JSONObject
     val files=rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) {uris->
         vm.importConversionBatch(uris){paths->paths.forEach {path->controller.enqueue(JSONObject().put("title",importedAudioName(path).substringBeforeLast('.')).put("_local_source",path))}}
     }
-    val active=(controller.nextQueueIndex-1).coerceIn(-1,queue.lastIndex.coerceAtLeast(-1))
-    val played=queue.take(active.coerceAtLeast(0)).asReversed()
-    val upcoming=queue.drop((active+1).coerceAtLeast(0))
-    val currentRow=queue.firstOrNull {it.optString("_queue_id")==current} ?: summary.first?.let {model->
+    val active=if(remote.connected)queue.indexOfFirst {it.optString("_queue_id")==current} else (controller.nextQueueIndex-1).coerceIn(-1,queue.lastIndex.coerceAtLeast(-1))
+    LaunchedEffect(remote.connected,remote.trackId,remote.queue.size) {
+        if(remote.connected && remote.online && active<0 && remote.queue.size<remote.queueTotal)RemotePlaybackRuntime.loadMore()
+    }
+    val played=if(remote.connected)queue.filter {it.optInt("_recent_rank",-1)>=0 && it.optString("_queue_id")!=current}.sortedBy {it.optInt("_recent_rank")} else queue.take(active.coerceAtLeast(0)).asReversed()
+    val upcoming=queue.drop((active+1).coerceAtLeast(0)).filter { !remote.connected || remote.repeat=="Todas" || it.optInt("_recent_rank",-1)<0 }
+    val currentRow=queue.firstOrNull {it.optString("_queue_id")==current} ?: if(remote.connected) {
+        if(remote.trackId.isNotBlank())RemoteQueueTrack(remote.trackId,remote.title,remote.artist,remote.duration).queueRecord() else null
+    } else summary.first?.let {model->
         JSONObject().put("title",summary.second).put("artists",org.json.JSONArray(listOf(model.optString("media_artist"))))
             .put("cover_url",model.optString("cover_url")).put("_cover",model.optString("media_cover")).put("duration_ms",(model.optDouble("duration")*1000).toLong())
     }
@@ -99,8 +107,8 @@ import org.json.JSONObject
                 Box {
                     IconButton(onClick={actions=true},modifier=Modifier.testTag("queue-page-actions")){OndaIcon("more","Mais ações",Modifier.size(22.dp))}
                     DropdownMenu(actions,{actions=false}) {
-                        DropdownMenuItem(text={UiText("Adicionar arquivos")},onClick={actions=false;files.launch(arrayOf("audio/*"))})
-                        DropdownMenuItem(text={UiText("Limpar fila")},enabled=queue.isNotEmpty(),onClick={actions=false;controller.clearPlaybackQueue()})
+                        if(!remote.connected)DropdownMenuItem(text={UiText("Adicionar arquivos")},onClick={actions=false;files.launch(arrayOf("audio/*"))})
+                        DropdownMenuItem(text={UiText("Limpar fila")},enabled=queue.isNotEmpty() && (!remote.connected || remote.online),onClick={actions=false;if(remote.connected)RemotePlaybackRuntime.command("queue_clear") else controller.clearPlaybackQueue()})
                         DropdownMenuItem(text={UiText("Fechar fila")},onClick={actions=false;onClose()})
                     }
                 }
@@ -130,6 +138,13 @@ import org.json.JSONObject
                     items(shown.size,key={shown[it].optString("_queue_id")}) {index->
                         val record=shown[index]
                         fun move(from:Int,to:Int) {
+                            if(remote.connected) {
+                                val rows=remote.queue
+                                val a=rows.indexOfFirst {it.id==shown[from].optString("_queue_id")}
+                                val b=rows.indexOfFirst {it.id==shown[to].optString("_queue_id")}
+                                if(a>=0 && b>=0 && a!=b)RemotePlaybackRuntime.moveQueue(rows[a].id,b-a)
+                                return
+                            }
                             val rows=controller.playbackQueue.value
                             val fromIndex=rows.indexOfFirst {it.optString("_queue_id")==shown[from].optString("_queue_id")}
                             val toIndex=rows.indexOfFirst {it.optString("_queue_id")==shown[to].optString("_queue_id")}
@@ -137,18 +152,25 @@ import org.json.JSONObject
                         }
                         DraggableQueueCard(tabListState,index,shown.size,enabled=!visibleRecent,move=::move) {
                             SwipeRemoveQueueTrack(record.optString("_queue_id"),onRemove={
+                                if(remote.connected)RemotePlaybackRuntime.command("queue_remove",trackId=record.optString("_queue_id")) else {
                                 val actual=controller.playbackQueue.value.indexOfFirst {it.optString("_queue_id")==record.optString("_queue_id")}
                                 if(actual>=0)controller.removeQueued(actual)
+                                }
                             }) {
                             PlaybackQueueTrack(record,vm,false,visibleRecent,{
+                                if(remote.connected)RemotePlaybackRuntime.command("queue_play",trackId=record.optString("_queue_id")) else {
                                 val actual=controller.playbackQueue.value.indexOfFirst {it.optString("_queue_id")==record.optString("_queue_id")}
                                 if(actual>=0){if(record.optString("_analysis")=="Erro")controller.retryQueued(actual) else controller.playQueued(actual)}
+                                }
                             },Modifier.testTag("queue-track-"+record.optString("_queue_id"))) {
                                 QueueDragHandle(tabListState,index,shown.size,enabled=!visibleRecent,itemLabel=record.optString("title"),icon="drag-lines",move=::move)
                             }
                             }
                         }
                         HorizontalDivider(color=MaterialTheme.colorScheme.outlineVariant.copy(alpha=.45f))
+                    }
+                    if(remote.connected && remote.queue.size<remote.queueTotal)item {
+                        TextButton(onClick=RemotePlaybackRuntime::loadMore,enabled=remote.online && !remote.queueLoading){UiText("Carregar mais")}
                     }
                 }
                 }
@@ -197,20 +219,23 @@ import org.json.JSONObject
 
 @Composable private fun PlaybackQueueTrack(record:JSONObject,vm:OndaViewModel,current:Boolean,recent:Boolean,play:()->Unit,modifier:Modifier=Modifier,drag:@Composable ()->Unit={}) {
     val controller=vm.jukebox
+    val remote by RemotePlaybackRuntime.state.collectAsStateWithLifecycle()
     var actions by remember {mutableStateOf(false)}
-    fun index()=controller.playbackQueue.value.indexOfFirst {it.optString("_queue_id")==record.optString("_queue_id")}
-    val state=if(current)controller.state.collectAsStateWithLifecycle().value else JukeboxState()
-    val model=if(current)state.model else null
+    fun index()=if(remote.connected)remote.queue.indexOfFirst {it.id==record.optString("_queue_id")} else controller.playbackQueue.value.indexOfFirst {it.optString("_queue_id")==record.optString("_queue_id")}
+    fun move(delta:Int){if(remote.connected)RemotePlaybackRuntime.moveQueue(record.optString("_queue_id"),delta) else controller.moveQueued(index(),delta)}
+    val state=if(current && !remote.connected)controller.state.collectAsStateWithLifecycle().value else JukeboxState()
+    val model=if(current && !remote.connected)state.model else null
     val artist=record.stringList("artists").ifBlank {model?.optString("media_artist").orEmpty()}
     val cover=record.optString("_cover").ifBlank {model?.optString("media_cover").orEmpty()}
-    val duration=record.optLong("duration_ms").takeIf {it>0}?.div(1000) ?: model?.optDouble("duration")?.toLong() ?: 0L
+    val duration=if(current && remote.connected)remote.duration.toLong() else record.optLong("duration_ms").takeIf {it>0}?.div(1000) ?: model?.optDouble("duration")?.toLong() ?: 0L
     val colors=MaterialTheme.colorScheme
     Row(modifier.fillMaxWidth().clickable(enabled=!current,onClick=play).padding(vertical=8.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
         Column(Modifier.width(56.dp),verticalArrangement=Arrangement.spacedBy(6.dp)) {
-            EffectsArtwork(JSONObject().put("record",record).put("cover",cover),Modifier.size(56.dp))
-            if(current && model!=null) {
-                val beats=model.optJSONArray("beats");val a=beats?.optDouble(state.index,0.0) ?: 0.0;val b=beats?.optDouble(state.index+1,a) ?: a
-                val progress=if(duration>0)((a+(b-a)*state.phase)/duration).toFloat().coerceIn(0f,1f) else 0f
+            if(current && remote.connected)RemoteCover(remote,Modifier.size(56.dp)) else EffectsArtwork(JSONObject().put("record",record).put("cover",cover),Modifier.size(56.dp))
+            if(current && (model!=null || remote.connected)) {
+                val remotePosition=if(remote.connected)remotePosition(remote) else 0.0
+                val beats=model?.optJSONArray("beats");val a=beats?.optDouble(state.index,0.0) ?: 0.0;val b=beats?.optDouble(state.index+1,a) ?: a
+                val progress=if(duration>0)((if(remote.connected)remotePosition else a+(b-a)*state.phase)/duration).toFloat().coerceIn(0f,1f) else 0f
                 Canvas(Modifier.fillMaxWidth().padding(horizontal=3.dp).height(3.dp).testTag("queue-current-cover-progress")) {
                     val start=Offset(0f,center.y);val end=Offset(size.width,center.y)
                     drawLine(colors.primary.copy(alpha=.2f),start,end,size.height,StrokeCap.Round)
@@ -232,11 +257,11 @@ import org.json.JSONObject
             DropdownMenu(actions,{actions=false}) {
                 if(!current)DropdownMenuItem(text={UiText(if(record.optString("_analysis")=="Erro")"Tentar novamente" else "Reproduzir")},onClick={actions=false;play()})
                 if(!recent && !current) {
-                    DropdownMenuItem(text={UiText("Mover para cima")},enabled=index()>controller.nextQueueIndex,onClick={actions=false;controller.moveQueued(index(),-1)})
-                    DropdownMenuItem(text={UiText("Mover para baixo")},enabled=index()>=0 && index()<controller.playbackQueue.value.lastIndex,onClick={actions=false;controller.moveQueued(index(),1)})
+                    DropdownMenuItem(text={UiText("Mover para cima")},enabled=if(remote.connected)index()>remote.queue.indexOfFirst {it.id==remote.trackId}+1 else index()>controller.nextQueueIndex,onClick={actions=false;move(-1)})
+                    DropdownMenuItem(text={UiText("Mover para baixo")},enabled=index()>=0 && index()<(if(remote.connected)remote.queueTotal-1 else controller.playbackQueue.value.lastIndex),onClick={actions=false;move(1)})
                 }
                 if(record.optString("_error").isNotBlank())DropdownMenuItem(text={UiText(translateError(record.optString("_error")))},onClick={actions=false;vm.showNotice("Erro",failureAdvice(record.optString("_error")).first,true)})
-                DropdownMenuItem(text={UiText("Remover")},enabled=index()>=0,onClick={actions=false;controller.removeQueued(index())})
+                DropdownMenuItem(text={UiText("Remover")},enabled=index()>=0,onClick={actions=false;if(remote.connected)RemotePlaybackRuntime.command("queue_remove",trackId=record.optString("_queue_id")) else controller.removeQueued(index())})
             }
         }
     }

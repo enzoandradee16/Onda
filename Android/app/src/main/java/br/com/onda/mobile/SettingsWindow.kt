@@ -140,8 +140,8 @@ val categories=linkedMapOf(
                     "Aparência"->{
                         UiText("Tema e cores",style=MaterialTheme.typography.titleMedium)
                         SettingsDivider()
-                        Select("Modo de aparência",settings.optString("theme"),listOf("Seguir o sistema","Escuro","Preto puro","Claro","Alto contraste")){put("theme",it)}
-                        Select("Cor de destaque",settings.optString("accent"),accents.keys.toList()){put("accent",it)}
+                        Select("Modo de aparência",settings.optString("theme"),appearanceModes){put("theme",it)}
+                        AccentPreference(settings.optString("accent")){put("accent",it)}
                         SettingsDivider()
                         if(settings.optString("theme")=="Preto puro") Toggle("Mostrar bordas e separações no Preto puro",settings.optBoolean("pure_black_separators",false)){put("pure_black_separators",it)}
                         SettingsDivider()

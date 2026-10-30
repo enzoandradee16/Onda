@@ -448,6 +448,7 @@ internal class JukeboxController(private val context:Context,private val scope:C
     fun pauseForRestart(){autoplayQueueId="";pause()}
     fun pause() {if(state.value.playing){state.update {it.copy(paused=true)};runCatching {track?.pause()}}}
     fun playPause() {
+        if(RemotePlaybackRuntime.state.value.connected)RemotePlaybackRuntime.disconnect()
         if(state.value.playing) {
             if(state.value.paused){if(audio.requestAudioFocus(focus)!=AudioManager.AUDIOFOCUS_REQUEST_GRANTED)return;stopOtherAudio();runCatching {track?.play()};state.update {it.copy(paused=false)}} else pause()
             return
@@ -578,7 +579,7 @@ internal class JukeboxController(private val context:Context,private val scope:C
         val snapshot=state.value
         stop()
         state.value=state.value.copy(index=snapshot.index,phase=snapshot.phase)
-        savePlaybackSession(synchronous=true)
+        runCatching {savePlaybackSession()}.onFailure {android.util.Log.w("ONDA","Could not save stopped playback session",it)}
     }
     fun close(){stopPreservingPosition();effectPreparation?.cancel();if(effectPreparationId.isNotBlank())MobileEngine.cancel(effectPreparationId);queueWorker?.cancel();if(queuePreparing.isNotBlank())MobileEngine.cancel("jukebox-preload-$queuePreparing");preparedModels.clear()}
 }
