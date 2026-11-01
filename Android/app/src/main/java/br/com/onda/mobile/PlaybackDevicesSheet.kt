@@ -36,7 +36,7 @@ import kotlinx.coroutines.launch
     val remote by RemotePlaybackRuntime.state.collectAsStateWithLifecycle()
     val context = OndaStore.context
     val juke = remember { JukeboxRuntime.get(context) }
-    val local by juke.state.collectAsStateWithLifecycle()
+    val local by juke.presentationState.collectAsStateWithLifecycle()
     val preferences = remember { context.getSharedPreferences("remote_control", 0) }
     var saved by remember { mutableStateOf(preferences.getString("address", "").orEmpty()) }
     var found by remember { mutableStateOf(emptyList<PlaybackDevice>()) }

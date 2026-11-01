@@ -14,16 +14,16 @@ ScrollView {
     OndaMenu {id:jukeboxActions;objectName:"jukeboxContextMenu"
         OndaMenuItem {text:bridge.translate("Abrir arquivo");onTriggered:fileDialog.open()}
         OndaMenuItem {text:bridge.translate("Fila de reprodução");onTriggered:workspace.setOption("jukeboxQueueOpen",true)}
-        OndaMenuItem {text:bridge.translate("Reproduzir / Pausar");enabled:bridge.state.ready;onTriggered:bridge.playPause()}
-        OndaMenuItem {text:bridge.translate("Buscar letra online");enabled:bridge.state.ready;onTriggered:workspace.invoke("lyrics_online",{jukebox:true})}
+        OndaMenuItem {text:bridge.translate("Reproduzir / Pausar");enabled:bridge.stateValue(bridge.stateRevision,"ready");onTriggered:bridge.playPause()}
+        OndaMenuItem {text:bridge.translate("Buscar letra online");enabled:bridge.stateValue(bridge.stateRevision,"ready");onTriggered:workspace.invoke("lyrics_online",{jukebox:true})}
         OndaMenuItem {text:bridge.translate("Equalizador");onTriggered:equalizer.open()}
     }
-    TapHandler {enabled:!bridge.state.results.length;acceptedButtons:Qt.RightButton;onTapped:jukeboxActions.popup()}
+    TapHandler {enabled:!bridge.stateValue(bridge.stateRevision,"results").length;acceptedButtons:Qt.RightButton;onTapped:jukeboxActions.popup()}
 
     FileDialog { id: fileDialog; title: bridge.translate("Abrir arquivo"); nameFilters: [bridge.translate("Áudio")+" (*.mp3 *.m4a *.flac *.wav *.ogg *.opus *.aac *.webm)",bridge.translate("Todos os arquivos")+" (*)"]; onAccepted: bridge.openFile(selectedFile) }
     property string currentLyric: ""
     property string currentLine: ""
-    Timer { interval: 100; running: page.visible; repeat: true; onTriggered: {var frame=workspace.lyricsFrame();page.currentLyric=frame.text;page.currentLine=String(frame.active)} }
+    Timer { interval: 100; running: page.visible; repeat: true; onTriggered: {var frame=workspace.lyricsClock(true);page.currentLyric=frame.text;page.currentLine=String(frame.active)} }
     EqualizerPopup { id: equalizer }
     TimerPopup { id: timerPopup }
     ColumnLayout {
@@ -34,15 +34,15 @@ ScrollView {
                 id: query; Layout.fillWidth: true; implicitHeight: 44; placeholderText: bridge.translate("Música, artista ou link de música, álbum ou playlist"); selectByMouse: true
                 color: bridge.palette.text; placeholderTextColor: bridge.palette.muted; font.pixelSize: Math.round(14*bridge.fontScale)
                 background: Rectangle { radius: 8; color: bridge.palette.surface; border.color: query.activeFocus ? bridge.palette.accent : bridge.palette.line; border.width: query.activeFocus ? 2 : 1 }
-                onAccepted: if (!bridge.state.busy) bridge.search(text)
+                onAccepted: if (!bridge.stateValue(bridge.stateRevision,"busy")) bridge.search(text)
             }
-            ActionButton { primary: true; text: bridge.translate(bridge.state.busy ? "Cancelar" : "Pesquisar"); enabled: true; onClicked: if (bridge.state.busy) bridge.cancelOperation(); else bridge.search(query.text) }
-            ActionButton { text: bridge.translate("Abrir arquivo"); enabled: !bridge.state.busy; onClicked: fileDialog.open() }
+            ActionButton { primary: true; text: bridge.translate(bridge.stateValue(bridge.stateRevision,"busy") ? "Cancelar" : "Pesquisar"); enabled: true; onClicked: if (bridge.stateValue(bridge.stateRevision,"busy")) bridge.cancelOperation(); else bridge.search(query.text) }
+            ActionButton { text: bridge.translate("Abrir arquivo"); enabled: !bridge.stateValue(bridge.stateRevision,"busy"); onClicked: fileDialog.open() }
             ActionButton {text:bridge.translate("Controle remoto");onClicked:remotePopup.open()}
         }
         Card {
             Layout.fillWidth: true
-            implicitHeight: bridge.state.results.length ? Math.min(282,resultList.contentHeight+58) : 0
+            implicitHeight: bridge.stateValue(bridge.stateRevision,"results").length ? Math.min(282,resultList.contentHeight+58) : 0
             visible: implicitHeight>0; clip: true
             Behavior on implicitHeight { NumberAnimation { duration: bridge.animations ? 160 : 0; easing.type: Easing.OutCubic } }
             RowLayout {
@@ -51,7 +51,7 @@ ScrollView {
                 PlaybackButton { objectName: "closeJukeboxSearch"; glyph: "close"; Accessible.name: bridge.translate("Fechar pesquisa"); ToolTip.visible: hovered; ToolTip.text: Accessible.name; onClicked: bridge.closeSearch() }
             }
             ListView {
-                id: resultList; anchors.fill: parent; anchors.margins: 6; anchors.topMargin: 56; clip: true; model: bridge.state.results
+                id: resultList; anchors.fill: parent; anchors.margins: 6; anchors.topMargin: 56; clip: true; model: bridge.stateValue(bridge.stateRevision,"results")
                 delegate: ItemDelegate {
                     required property var modelData; required property int index
                         Component.onCompleted: workspace.invoke("request_card_details",{model:"jukeboxSearch",source:modelData.source_url || ""})
@@ -81,7 +81,7 @@ ScrollView {
                 }
             }
         }
-        OndaProgressBar { Layout.fillWidth: true; visible: bridge.state.busy; from: 0; to: 100; value: bridge.state.progress; indeterminate: bridge.state.progress===0 }
+        OndaProgressBar { Layout.fillWidth: true; visible: bridge.stateValue(bridge.stateRevision,"busy"); from: 0; to: 100; value: bridge.stateValue(bridge.stateRevision,"progress"); indeterminate: bridge.stateValue(bridge.stateRevision,"progress")===0 }
         Card {
             objectName:"playbackTrackCard"
             Layout.fillWidth: true; implicitHeight: 166;clip:true
@@ -89,15 +89,15 @@ ScrollView {
                 anchors.fill: parent; anchors.margins: 10; spacing: Math.round(16*bridge.spacing)
                 Rectangle {
                     Layout.preferredWidth: 146; Layout.preferredHeight: 146; radius: 8; color: bridge.palette.input; clip: true
-                    RoundedArtwork { anchors.fill: parent; source: bridge.currentMetadata.cover_url || bridge.state.cover; fallbackSource: bridge.state.cover; sourceSize.width: 768; sourceSize.height: 768; fillMode: Image.PreserveAspectCrop; visible: source.toString().length>0 }
-                    Text { anchors.centerIn: parent; visible: bridge.state.cover.length===0; text: "♪"; color: bridge.palette.muted; font.pixelSize: Math.round(38*bridge.fontScale) }
+                    RoundedArtwork { anchors.fill: parent; source: bridge.currentMetadata.cover_url || bridge.stateValue(bridge.stateRevision,"cover"); fallbackSource: bridge.stateValue(bridge.stateRevision,"cover"); sourceSize.width: 768; sourceSize.height: 768; fillMode: Image.PreserveAspectCrop; visible: source.toString().length>0 }
+                    Text { anchors.centerIn: parent; visible: bridge.stateValue(bridge.stateRevision,"cover").length===0; text: "♪"; color: bridge.palette.muted; font.pixelSize: Math.round(38*bridge.fontScale) }
                 }
                 ColumnLayout {
                     Layout.fillWidth: true; spacing: Math.round(5*bridge.spacing)
-                    Text { Layout.fillWidth: true; text: bridge.state.title; elide: Text.ElideRight; color: bridge.palette.text; font.pixelSize: Math.round(23*bridge.fontScale); font.weight: Font.DemiBold }
-                    Text { Layout.fillWidth: true; text: bridge.state.artist; visible: text.length>0; elide: Text.ElideRight; color: bridge.palette.text; font.pixelSize: Math.round(17*bridge.fontScale) }
+                    Text { Layout.fillWidth: true; text: bridge.stateValue(bridge.stateRevision,"title"); elide: Text.ElideRight; color: bridge.palette.text; font.pixelSize: Math.round(23*bridge.fontScale); font.weight: Font.DemiBold }
+                    Text { Layout.fillWidth: true; text: bridge.stateValue(bridge.stateRevision,"artist"); visible: text.length>0; elide: Text.ElideRight; color: bridge.palette.text; font.pixelSize: Math.round(17*bridge.fontScale) }
                     Text { Layout.fillWidth: true; text: workspace.albumReleaseText(bridge.currentMetadata); visible: text.length>0; elide: Text.ElideRight; color: bridge.palette.muted; font.pixelSize: Math.round(16*bridge.fontScale) }
-                    Text { Layout.fillWidth: true; text: bridge.state.paused ? bridge.translate("Pausado.") : bridge.state.status; elide: Text.ElideRight; color: bridge.state.playing ? bridge.palette.accent : bridge.palette.muted; font.pixelSize: Math.round(14*bridge.fontScale) }
+                    Text { Layout.fillWidth: true; text: bridge.stateValue(bridge.stateRevision,"paused") ? bridge.translate("Pausado.") : bridge.stateValue(bridge.stateRevision,"status"); elide: Text.ElideRight; color: bridge.stateValue(bridge.stateRevision,"playing") ? bridge.palette.accent : bridge.palette.muted; font.pixelSize: Math.round(14*bridge.fontScale) }
                 }
                 AnimatedLyric { Layout.fillWidth: true; Layout.preferredWidth: 300;Layout.maximumHeight:100;Layout.alignment:Qt.AlignVCenter;maximumLineCount:3;elide:Text.ElideRight;clip:true; lineKey: page.currentLine; text: page.currentLyric; textFormat: Text.RichText; visible: text.length>0 }
             }
@@ -119,7 +119,7 @@ ScrollView {
                             x:sharedGraph.width/2+bridge.cursor.x*radiusOrbit-width/2;y:sharedGraph.height/2+bridge.cursor.y*radiusOrbit-height/2
                             width:12;height:12;radius:6;color:bridge.palette.accent
                         }
-                        MouseArea {anchors.fill:parent;enabled:bridge.state.ready;onClicked:function(mouse){const dx=mouse.x-width/2,dy=mouse.y-height/2,r=Math.min(width,height)*.42;if(Math.abs(Math.sqrt(dx*dx+dy*dy)-r)<22)bridge.seek(Math.round(((Math.atan2(dy,dx)+Math.PI/2+2*Math.PI)%(2*Math.PI))/(2*Math.PI)*bridge.graph.count)%bridge.graph.count)}}
+                        MouseArea {anchors.fill:parent;enabled:bridge.stateValue(bridge.stateRevision,"ready");onClicked:function(mouse){const dx=mouse.x-width/2,dy=mouse.y-height/2,r=Math.min(width,height)*.42;if(Math.abs(Math.sqrt(dx*dx+dy*dy)-r)<22)bridge.seek(Math.round(((Math.atan2(dy,dx)+Math.PI/2+2*Math.PI)%(2*Math.PI))/(2*Math.PI)*bridge.graph.count)%bridge.graph.count)}}
                     }
                     Label {text:bridge.translate("Variação")+" · "+Math.round(variation.value)+"%";color:bridge.palette.text}
                     OndaSlider {id:variation;Layout.fillWidth:true;value:bridge.playbackParams.variation;enabled:!bridge.playbackParams.normal;Accessible.name:bridge.translate("Variação");onMoved:if(!pressed)page.updateParams();onPressedChanged:if(!pressed)page.updateParams()}

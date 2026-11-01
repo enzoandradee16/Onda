@@ -49,7 +49,7 @@ class JukeboxService:Service() {
         val notification=notification()
         if(Build.VERSION.SDK_INT>=29)startForeground(13,notification,ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK) else startForeground(13,notification)
         scope.launch {
-            combine(controller.state,controller.playbackQueue,controller.currentQueueId) {state,rows,id->
+            combine(controller.presentationState,controller.playbackQueue,controller.currentQueueId) {state,rows,id->
                 val row=rows.firstOrNull {it.optString("_queue_id")==id}
                 val model=state.model
                 listOf(state.playing.toString(),state.paused.toString(),model?.optString("source").orEmpty(),

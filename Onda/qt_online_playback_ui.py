@@ -3,7 +3,7 @@
 import threading
 
 from jukebox import RATE, Cancelled
-from online_audio import NetworkAudio
+from online_audio import NetworkAudio, ReadAheadAudio
 
 
 class OnlinePlayback:
@@ -41,7 +41,7 @@ class OnlinePlayback:
                 from jukebox_audio import PcmOutput
                 from jukebox_equalizer import Equalizer
 
-                reader = NetworkAudio(descriptor, folder, start)
+                reader = ReadAheadAudio(NetworkAudio(descriptor, folder, start))
                 with self.lock:
                     if cancel.is_set():
                         return

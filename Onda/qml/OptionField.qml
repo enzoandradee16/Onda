@@ -10,7 +10,7 @@ ColumnLayout {
     signal categoryRequested(string category)
     readonly property bool timeField: field.key === "schedule_start" || field.key === "schedule_stop"
     readonly property bool transitionDuration: field.key === "jukebox_transition_seconds"
-    readonly property var current: settings ? workspace.preferences[field.key] : workspace.values[field.key]
+    readonly property var current: settings ? workspace.preferences[field.key] : workspace.optionValue(workspace.optionsRevision,field.key)
     function save(value) { if (settings) workspace.setSetting(field.key,value); else workspace.setOption(field.key,value) }
     implicitWidth: 220
     Layout.minimumWidth: 0
@@ -39,7 +39,7 @@ ColumnLayout {
         visible: root.settings && root.field.key === "language" && workspace.languageRestartRequired
         text: bridge.translate("Reiniciar")
         primary: true
-        enabled: workspace.activity.active === 0 && workspace.activity.busy.length === 0 && !bridge.state.busy
+        enabled: workspace.activity.active === 0 && workspace.activity.busy.length === 0 && !bridge.stateValue(bridge.stateRevision,"busy")
         onClicked: workspace.invoke("restart_language", {})
     }
     Loader { active: root.field.key === "theme_accent"; visible: active; Layout.fillWidth: true; sourceComponent: Component { AccentSelector { value: String(root.current || "Verde-Água"); onSelected: function(color) {root.save(color)} } } }

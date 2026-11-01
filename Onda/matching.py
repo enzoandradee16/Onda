@@ -5,15 +5,9 @@ import unicodedata
 
 
 def words(value):
-    text = unicodedata.normalize("NFKD", value or "")
-    text = ''.join(c for c in text if unicodedata.category(c) != 'Cf')
-    text = re.sub(r"(?<=\w)[’'ʼ](?=\w)", "", text)
-    return set(
-        re.findall(
-            r"[^\W_]+",
-            "".join(c for c in text.casefold() if not unicodedata.combining(c)),
-        )
-    )
+    from text_search import tokens
+
+    return set(tokens(value or ''))
 
 
 def without_guest_credit(value):
@@ -50,6 +44,41 @@ VERSIONS = {
     "loop",
     "looped",
     "reverb",
+}
+
+
+from text_search import normalize as _normalize_text
+
+_LOCALIZED_VERSIONS = {
+    'ライブ': 'live',
+    'カバー': 'cover',
+    'カヴァー': 'cover',
+    '歌ってみた': 'cover',
+    'インスト': 'instrumental',
+    'オフボーカル': 'instrumental',
+    'リマスター': 'remaster',
+    'リマスタリング': 'remaster',
+    '커버': 'cover',
+    '어쿠스틱': 'acoustic',
+    '伴奏': 'instrumental',
+    'リミックス': 'remix',
+    'カラオケ': 'karaoke',
+    'インストゥルメンタル': 'instrumental',
+    'アコースティック': 'acoustic',
+    'ライヴ': 'live',
+    '라이브': 'live',
+    '리믹스': 'remix',
+    'ремикс': 'remix',
+    'акустическая': 'acoustic',
+    '混音': 'remix',
+    '現場': 'live',
+    '现场': 'live',
+    'acoustique': 'acoustic',
+    'akustik': 'acoustic',
+}
+
+_LOCALIZED_VERSIONS = {
+    _normalize_text(key): value for key, value in _LOCALIZED_VERSIONS.items()
 }
 
 
@@ -168,6 +197,7 @@ def matching_tokens(value):
             or re.search(r"(?<!\w)" + re.escape(phrase) + r"(?!\w)", phrase_text)
         ):
             tokens = (tokens - parts) | {canonical}
+    tokens = {_LOCALIZED_VERSIONS.get(token, token) for token in tokens}
     return tokens
 
 

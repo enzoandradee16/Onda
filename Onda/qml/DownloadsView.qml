@@ -42,7 +42,7 @@ ColumnLayout {
         ColumnLayout { id: addControls; anchors.fill: parent; anchors.margins: 16; spacing: Math.round(14*bridge.spacing)
             Label { text: bridge.translate("Cole links para baixar vídeos, músicas e fotos."); font.pixelSize: Math.round(18*bridge.fontScale); color: bridge.palette.text }
             ScrollView { Layout.fillWidth: true; implicitHeight: 108
-                OndaTextArea { text: workspace.values.links; placeholderText: bridge.translate("Um link por linha"); onTextChanged: if (activeFocus) workspace.setOption("links",text); wrapMode: Text.Wrap; selectByMouse: true; color: bridge.palette.text }
+                OndaTextArea { text: workspace.optionValue(workspace.optionsRevision,"links"); placeholderText: bridge.translate("Um link por linha"); onTextChanged: if (activeFocus) workspace.setOption("links",text); wrapMode: Text.Wrap; selectByMouse: true; color: bridge.palette.text }
             }
             GridLayout { visible: !workspace.preferences.simple_download_ui; Layout.fillWidth: true; columns: width > 850 ? 3 : 2; columnSpacing: 12; rowSpacing: 12
                 OptionField { visible: !workspace.preferences.simple_download_ui; Layout.fillWidth: true; settings: true; field: ({key:"mode",label:"Formato",kind:"select",choices:["Vídeo · melhor qualidade (MKV)","Vídeo · MP4","Áudio · original, sem recodificar","Áudio · MP3 (320 kbps)","Áudio · M4A (AAC)","Áudio · FLAC","Fotos · todas do carrossel","Publicação · fotos e vídeos originais"]}) }
@@ -53,18 +53,18 @@ ColumnLayout {
             }
             RowLayout { Layout.fillWidth: true
                 Item { Layout.fillWidth: true }
-                TaskButton {objectName:"previewLinksImages";visible:workspace.canPreviewImages(workspace.values.links,workspace.preferences.mode || "");idleText:bridge.translate("Prévia de imagens");operation:"preview_images";taskNames:workspace.values.imageGalleryPendingSource===workspace.values.links ? ["image_gallery_manifest"] : [];enabled:taskRunning || !!workspace.values.links.trim()}
-                ActionButton { objectName: "addLinksButton"; enabled: workspace.values.links.trim().length > 0; text: bridge.translate("Adicionar à fila"); onClicked: workspace.invoke("add_links",{}) }
-                ActionButton { objectName: "downloadLinksNowButton"; primary: true; enabled: workspace.values.links.trim().length > 0; text: bridge.translate("Baixar agora"); onClicked: workspace.invoke("add_links",{start:true}) }
+                TaskButton {objectName:"previewLinksImages";visible:workspace.canPreviewImages(workspace.optionValue(workspace.optionsRevision,"links"),workspace.preferences.mode || "");idleText:bridge.translate("Prévia de imagens");operation:"preview_images";taskNames:workspace.optionValue(workspace.optionsRevision,"imageGalleryPendingSource")===workspace.optionValue(workspace.optionsRevision,"links") ? ["image_gallery_manifest"] : [];enabled:taskRunning || !!workspace.optionValue(workspace.optionsRevision,"links").trim()}
+                ActionButton { objectName: "addLinksButton"; enabled: workspace.optionValue(workspace.optionsRevision,"links").trim().length > 0; text: bridge.translate("Adicionar à fila"); onClicked: workspace.invoke("add_links",{}) }
+                ActionButton { objectName: "downloadLinksNowButton"; primary: true; enabled: workspace.optionValue(workspace.optionsRevision,"links").trim().length > 0; text: bridge.translate("Baixar agora"); onClicked: workspace.invoke("add_links",{start:true}) }
             }
         }
     }
     Card {
         objectName: "linksQueueNotice"
-        visible: !page.queuePage && workspace.linksModel.count===0 && !!workspace.values.linksNotice
+        visible: !page.queuePage && workspace.linksModel.count===0 && !!workspace.optionValue(workspace.optionsRevision,"linksNotice")
         Layout.fillWidth: true; implicitHeight: linksNoticeRow.implicitHeight+24
         RowLayout { id: linksNoticeRow; anchors.fill: parent; anchors.margins: 12; spacing: 16
-            Label { text: workspace.values.linksNotice || ""; Layout.fillWidth: true; wrapMode: Text.Wrap; color: bridge.palette.text }
+            Label { text: workspace.optionValue(workspace.optionsRevision,"linksNotice") || ""; Layout.fillWidth: true; wrapMode: Text.Wrap; color: bridge.palette.text }
             ActionButton { objectName: "viewDownloadQueueButton"; text: bridge.translate("Ver fila"); onClicked: workspace.selectPage("queue") }
         }
     }
@@ -72,7 +72,7 @@ ColumnLayout {
         visible: !page.queuePage && workspace.linksModel.count===0; Layout.fillWidth: true; Layout.fillHeight: true
         ColumnLayout {
             objectName: "linksEmptyState"
-            visible: !workspace.values.links.trim() && !workspace.values.linksNotice
+            visible: !workspace.optionValue(workspace.optionsRevision,"links").trim() && !workspace.optionValue(workspace.optionsRevision,"linksNotice")
             anchors.centerIn: parent; width: Math.max(0,parent.width-32); spacing: 8
             Label { text: bridge.translate("Cole um link para começar"); color: bridge.palette.text; font.pixelSize: Math.round(20*bridge.fontScale); font.bold: true; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.Wrap }
             Label { text: bridge.translate("Baixe vídeos, músicas e fotos. Cole um link por linha e escolha Baixar agora ou Adicionar à fila."); color: bridge.palette.muted; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.Wrap }
@@ -83,7 +83,7 @@ ColumnLayout {
         ActionButton {text:bridge.translate("Retomar interrompidos");onClicked:workspace.invoke("resume_interrupted",{})}
     }
     RowLayout { objectName: "downloadQueueFilters"; visible: page.queuePage; Layout.fillWidth: true
-        OndaTextField { Layout.fillWidth: true; placeholderText: bridge.translate("Buscar na fila"); text: workspace.values.queueQuery; onTextEdited: workspace.setOption("queueQuery",text) }
+        OndaTextField { Layout.fillWidth: true; placeholderText: bridge.translate("Buscar na fila"); text: workspace.optionValue(workspace.optionsRevision,"queueQuery"); onTextEdited: workspace.setOption("queueQuery",text) }
         ChoiceBox {model:["Todos","Pendentes","Em andamento","Pausados","Concluídos","Com falha","Cancelados"];onActivated:workspace.setOption("queueState",["Todos","Na fila","Em andamento","Pausado","Concluído","Falhou","Cancelado"][currentIndex])}
         ActionButton { primary: true; text: bridge.translate(workspace.activity.running ? "Cancelar" : "Baixar fila"); onClicked: workspace.invoke(workspace.activity.running ? "stop_queue" : "start_queue",{}) }
     }
@@ -114,7 +114,7 @@ ColumnLayout {
             }
         }
     }
-    RowLayout { visible: page.queuePage; Layout.fillWidth: true; Label { Layout.fillWidth: true; text: workspace.queueModel.count+" · "+(workspace.values.queueStorage || ""); color: bridge.palette.muted; wrapMode: Text.Wrap } Label { text: bridge.translate("Tempo decorrido")+": "+workspace.clock(workspace.activity.elapsed); color: bridge.palette.muted } }
+    RowLayout { visible: page.queuePage; Layout.fillWidth: true; Label { Layout.fillWidth: true; text: workspace.queueModel.count+" · "+(workspace.optionValue(workspace.optionsRevision,"queueStorage") || ""); color: bridge.palette.muted; wrapMode: Text.Wrap } Label { text: bridge.translate("Tempo decorrido")+": "+workspace.clock(workspace.activity.elapsed); color: bridge.palette.muted } }
     RowLayout {visible:!page.queuePage && workspace.linksModel.count>0;Layout.fillWidth:true
         Label {text:bridge.translate("Downloads");color:bridge.palette.text;Layout.fillWidth:true;font.bold:true}
         ActionButton {text:bridge.translate("Ver fila");onClicked:workspace.selectPage("queue")}
@@ -151,7 +151,7 @@ ColumnLayout {
                     Label { visible: !!card.entry.track_artist; text: card.entry.track_artist; color: bridge.palette.muted; Layout.fillWidth: true; elide: Text.ElideRight }
                     Label { visible: (!page.smallCards && !!card.entry.track_album) || !!card.entry.track_release_date; text: [page.smallCards ? "" : (card.entry.track_album || ""),card.entry.track_release_date || ""].filter(Boolean).join(" · "); color: bridge.palette.muted; Layout.fillWidth: true; elide: Text.ElideRight }
                     Label { visible: !page.smallCards && card.entry.track_duration > 0; text: workspace.clock(card.entry.track_duration); color: bridge.palette.muted }
-                    TaskButton {objectName:"previewPendingImages";compact:true;visible:!card.entry.has_images && !!card.entry.can_preview_images;idleText:bridge.translate("Prévia de imagens");operation:"preview_images";parameters:({url:card.entry.url});taskNames:workspace.values.imageGalleryPendingSource===card.entry.url ? ["image_gallery_manifest"] : []}
+                    TaskButton {objectName:"previewPendingImages";compact:true;visible:!card.entry.has_images && !!card.entry.can_preview_images;idleText:bridge.translate("Prévia de imagens");operation:"preview_images";parameters:({url:card.entry.url});taskNames:workspace.optionValue(workspace.optionsRevision,"imageGalleryPendingSource")===card.entry.url ? ["image_gallery_manifest"] : []}
                     ActionButton {objectName:"downloadImagePreview";compact:true;visible:!!card.entry.has_images;text:bridge.translate("Ver imagens");onClicked:workspace.invoke("download_preview",{id:card.entry.id})}
                     PlatformBadge {imageMedia:!!card.entry.is_image;platformKey:card.entry.platform_key || "";label:card.entry.platform || ""}
                     Label { text: workspace.workflowLabel(card.entry.state)+" · "+String(card.entry.mode).toUpperCase(); color: bridge.palette.muted }
@@ -165,6 +165,6 @@ ColumnLayout {
                 PlaybackButton { glyph: "close"; Accessible.name: bridge.translate("Remover"); onClicked: workspace.invoke("queue_action",{name:"remove",id:card.entry.id}) }
             }
         }
-        EmptyState { anchors.fill: parent; visible:page.queuePage && workspace.queueModel.count === 0; heading: bridge.translate("Nenhum item na fila"); description: bridge.translate(workspace.values.queueQuery || workspace.values.queueState !== "Todos" ? "Nenhum item corresponde à busca ou ao filtro selecionado." : "Adicione links ou músicas para organizar seus próximos downloads.") }
+        EmptyState { anchors.fill: parent; visible:page.queuePage && workspace.queueModel.count === 0; heading: bridge.translate("Nenhum item na fila"); description: bridge.translate(workspace.optionValue(workspace.optionsRevision,"queueQuery") || workspace.optionValue(workspace.optionsRevision,"queueState") !== "Todos" ? "Nenhum item corresponde à busca ou ao filtro selecionado." : "Adicione links ou músicas para organizar seus próximos downloads.") }
     }
 }

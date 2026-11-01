@@ -37,6 +37,8 @@ class JukeboxBridge(QObject):
 
     def __init__(self, store=None, parent=None):
         super().__init__(parent)
+        self._state_revision = 0
+        self.changed.connect(self._advance_state_revision)
         self.store = store or PreferenceStore()
         try:
             self.preferences = self.store.load() or {}
@@ -58,6 +60,8 @@ class JukeboxBridge(QObject):
         self._history_back = False
         self.sleep = SleepTimer()
         self.playlist = []
+        self._visible_queue_cache = {}
+        self.queueChanged.connect(self._invalidate_visible_queue)
         self.queue_index = -1
         self.track_minutes = 0
         self.autoplay_revision = None
@@ -139,6 +143,28 @@ class JukeboxBridge(QObject):
         self._event.connect(self.handle_event, Qt.ConnectionType.QueuedConnection)
         self._switch_after = None
 
+    def _advance_state_revision(self):
+        self._state_revision += 1
+
+    @Property(int, notify=changed)
+    def stateRevision(self):
+        return self._state_revision
+
+    @Slot(int, str, result='QVariant')
+    def stateValue(self, revision, key):
+        if key == 'cover':
+            from qt_queue_rows_ui import artwork_reference
+
+            source = self._state.get('cover') or ''
+            if source != getattr(self, '_display_artwork_source', None):
+                self._display_artwork_source = source
+                self._display_artwork_url = artwork_reference(source)
+            return self._display_artwork_url
+        if key == 'status':
+            value = self._state.get('status', '')
+            return error_text(value) if self._state.get('status_error') else tr(value)
+        return self._state.get(key)
+
     @Property('QVariantMap', notify=changed)
     def state(self):
         state = dict(self._state)
@@ -155,6 +181,46 @@ class JukeboxBridge(QObject):
             dict(row, current=index == self.queue_index)
             for index, row in enumerate(self.playlist)
         ]
+
+    @Property(int, notify=queueChanged)
+    def queueCount(self):
+        return len(self.playlist)
+
+    def _invalidate_visible_queue(self):
+        self._visible_queue_cache.clear()
+
+    def _visible_tracks(self, kind):
+        from qt_queue_rows_ui import presentation_rows
+
+        signature = (id(self.playlist), len(self.playlist), self.queue_index)
+        if signature != getattr(self, '_visible_queue_signature', None):
+            self._visible_queue_cache.clear()
+            self._visible_queue_signature = signature
+        key = kind
+        if key not in self._visible_queue_cache:
+            rows = {
+                'queue': lambda: self.queuedTracks,
+                'upcoming': lambda: self.upcomingTracks,
+                'recent': lambda: self.recentTracks,
+            }[kind]()
+            self._visible_queue_cache[key] = presentation_rows(rows)
+        return self._visible_queue_cache[key]
+
+    @Property('QVariantList', notify=queueChanged)
+    def visibleQueuedTracks(self):
+        return self._visible_tracks('queue')
+
+    @Property('QVariantList', notify=queueChanged)
+    def visibleUpcomingTracks(self):
+        return self._visible_tracks('upcoming')
+
+    @Property('QVariantList', notify=queueChanged)
+    def visibleRecentTracks(self):
+        return self._visible_tracks('recent')
+
+    @Property('QVariantMap', notify=changed)
+    def playbackControls(self):
+        return self._playback_state()
 
     @Property('QVariantMap', notify=preparationChanged)
     def queuePreparation(self):
@@ -230,8 +296,10 @@ class JukeboxBridge(QObject):
 
     @Property('QVariantMap', notify=changed)
     def playback(self):
+        return dict(self._playback_state(), queue=self.queuedTracks)
+
+    def _playback_state(self):
         return {
-            'queue': self.queuedTracks,
             'current': self.queue_index,
             'trackMinutes': self.track_minutes,
             'sleepActive': self.sleep.deadline is not None,
@@ -1229,6 +1297,8 @@ class JukeboxBridge(QObject):
         self.effect_prepare_timer.start()
 
     def prewarm_effects(self):
+        # Queue preparation can restart prewarming without a slider change.
+        self._effect_prepare_cancel.set()
         if (
             not self._effects.get('enabled')
             or self.closed

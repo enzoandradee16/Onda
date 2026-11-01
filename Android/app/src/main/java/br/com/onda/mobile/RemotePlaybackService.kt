@@ -21,6 +21,8 @@ class RemotePlaybackService: Service() {
     private var artwork: Bitmap? = null
     private var artworkId = ""
     private var ownGeneration = 0L
+    private var metadataKey: List<Any?>? = null
+    private var notificationKey: List<Any?>? = null
 
     override fun onBind(intent: Intent?) = null
 
@@ -76,12 +78,20 @@ class RemotePlaybackService: Service() {
                     when { !state.online -> PlaybackState.STATE_CONNECTING; state.busy -> PlaybackState.STATE_BUFFERING; state.playing -> PlaybackState.STATE_PLAYING; else -> PlaybackState.STATE_PAUSED },
                     (state.positionAt(now) * 1000).toLong(), if (state.online && state.playing) state.speed else 0f, now
                 ).build())
-                session.setMetadata(MediaMetadata.Builder().putString(MediaMetadata.METADATA_KEY_TITLE, state.title)
-                    .putString(MediaMetadata.METADATA_KEY_ARTIST, state.artist).putString(MediaMetadata.METADATA_KEY_ALBUM, state.album)
-                    .putString(MediaMetadata.METADATA_KEY_DISPLAY_SUBTITLE, translateUi("Reproduzindo no computador"))
-                    .putLong(MediaMetadata.METADATA_KEY_DURATION, (state.duration * 1000).toLong())
-                    .putBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART, artwork).putBitmap(MediaMetadata.METADATA_KEY_ART, artwork).build())
-                getSystemService(NotificationManager::class.java).notify(16, notification(state))
+                val nextMetadata = state.metadataSignature(artwork)
+                if (metadataKey != nextMetadata) {
+                    metadataKey = nextMetadata
+                    session.setMetadata(MediaMetadata.Builder().putString(MediaMetadata.METADATA_KEY_TITLE, state.title)
+                        .putString(MediaMetadata.METADATA_KEY_ARTIST, state.artist).putString(MediaMetadata.METADATA_KEY_ALBUM, state.album)
+                        .putString(MediaMetadata.METADATA_KEY_DISPLAY_SUBTITLE, translateUi("Reproduzindo no computador"))
+                        .putLong(MediaMetadata.METADATA_KEY_DURATION, (state.duration * 1000).toLong())
+                        .putBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART, artwork).putBitmap(MediaMetadata.METADATA_KEY_ART, artwork).build())
+                }
+                val nextNotification = state.notificationSignature(artwork)
+                if (notificationKey != nextNotification) {
+                    notificationKey = nextNotification
+                    getSystemService(NotificationManager::class.java).notify(16, notification(state))
+                }
             }
         }
     }

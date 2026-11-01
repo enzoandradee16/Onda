@@ -15,6 +15,8 @@ Item {
         property string pendingSource: ""
         property string previousSource: ""
         property real blend: 1
+        property var albumColors: []
+        property string sampledSource: ""
         function clearArtwork(){coverFade.stop();releasePrevious();if(loadedSource)unloadImage(loadedSource);loadedSource="";pendingSource="";blend=1;requestPaint()}
         onBlendChanged: requestPaint()
         function reload() {
@@ -59,10 +61,17 @@ Item {
             }
             if(previousSource && isImageLoaded(previousSource))drawCover(previousSource,1)
             drawCover(loadedSource,previousSource ? blend : 1);ctx.globalAlpha=1
-            var colors=[]
+            // Sampling pixels forces a canvas readback. Only do it when the
+            // artwork changes or its crossfade finishes, not on every frame.
+            var sampleKey=loadedSource+(blend<1 ? ":fade" : ":ready")
+            var colors=albumColors
+            if(sampledSource!==sampleKey){
+            colors=[]
             for(var c=0;c<3;++c){
                 var pixel=ctx.getImageData(Math.max(0,Math.min(w-1,Math.round(w*(0.2+c*0.3)))),Math.max(0,Math.min(h-1,Math.round(h*(c===1?0.7:0.3)))),1,1).data
                 colors.push([pixel[0],pixel[1],pixel[2]])
+            }
+            albumColors=colors;sampledSource=sampleKey
             }
             // Album-colored aurora. Broad gradients keep the movement soft.
             for(var i=0;i<3;++i){

@@ -9,12 +9,12 @@ Popup {
     width: Math.min(1000,parent.width-40); height: parent.height-40
     modal: true; focus: true; padding: 20
     background: Rectangle {radius:14;color:bridge.palette.surface;border.color:bridge.palette.line}
-    property var images: workspace.values.imageGallery || []
-    property int index: workspace.values.imageGalleryIndex || 0
+    property var images: workspace.optionValue(workspace.optionsRevision,"imageGallery") || []
+    property int index: workspace.optionValue(workspace.optionsRevision,"imageGalleryIndex") || 0
     property var current: images[index] || ({})
-    visible: images.length>0 && !workspace.values.imageGalleryEmbedded
-    onClosed: if(!workspace.values.imageGalleryEmbedded)workspace.invoke("image_gallery_close",{})
-    readonly property bool online: !!workspace.values.imageGalleryToken
+    visible: images.length>0 && !workspace.optionValue(workspace.optionsRevision,"imageGalleryEmbedded")
+    onClosed: if(!workspace.optionValue(workspace.optionsRevision,"imageGalleryEmbedded"))workspace.invoke("image_gallery_close",{})
+    readonly property bool online: !!workspace.optionValue(workspace.optionsRevision,"imageGalleryToken")
     function navigate(delta) {
         var target=index+delta
         if(target>=0 && target<images.length)workspace.setOption("imageGalleryIndex",target)
@@ -46,7 +46,7 @@ Popup {
             ActionButton {objectName:"galleryPrevious";text:bridge.translate("Anterior"); enabled:gallery.index>0; onClicked:workspace.setOption("imageGalleryIndex",gallery.index-1)}
             Label {text:(gallery.index+1)+" / "+gallery.images.length;color:bridge.palette.text}
             ActionButton {objectName:"galleryNext";text:bridge.translate("Próxima"); enabled:gallery.index+1<gallery.images.length; onClicked:workspace.setOption("imageGalleryIndex",gallery.index+1)}
-            ActionButton {objectName:"galleryShare";text:bridge.translate(gallery.online ? "Copiar link" : "Copiar para compartilhar"); onClicked:gallery.online ? workspace.invoke("copy_link",{url:workspace.values.imageGallerySource}) : workspace.invoke("share_image",{path:gallery.current.path})}
+            ActionButton {objectName:"galleryShare";text:bridge.translate(gallery.online ? "Copiar link" : "Copiar para compartilhar"); onClicked:gallery.online ? workspace.invoke("copy_link",{url:workspace.optionValue(workspace.optionsRevision,"imageGallerySource")}) : workspace.invoke("share_image",{path:gallery.current.path})}
             ActionButton {objectName:"downloadPreviewImages";visible:gallery.online;primary:true;text:bridge.translate("Baixar imagens");onClicked:{workspace.invoke("image_gallery_download",{});gallery.close()}}
             ActionButton {objectName:"galleryClose";text:bridge.translate("Fechar"); onClicked:gallery.close()}
         }

@@ -29,3 +29,21 @@ class HistoryCacheTests(unittest.TestCase):
                 self.assertEqual(read.call_count, 2)
                 path.unlink()
                 self.assertIn("removido", history_details(path)["note"])
+
+    def test_provenance_changes_invalidate_cached_details_without_audio_changes(self):
+        import json
+
+        _cached_details.cache_clear()
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / 'track.mp3'
+            path.write_bytes(b'fixture')
+            sidecar = Path(str(path) + '.metadata.json')
+            with (
+                patch('history_details.read_audio', return_value={'title': 'Track'}),
+                patch('history_details.cover_preview', return_value=''),
+            ):
+                self.assertEqual(history_details(path)['platform'], '')
+                sidecar.write_text(json.dumps({'catalog': {'platform': 'Deezer'}}))
+                self.assertEqual(history_details(path)['platform'], 'Deezer')
+                sidecar.unlink()
+                self.assertEqual(history_details(path)['platform'], '')

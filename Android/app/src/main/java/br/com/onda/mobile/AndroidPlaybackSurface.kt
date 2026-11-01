@@ -34,7 +34,7 @@ import coil.compose.AsyncImage
     val fxPreparing by vm.effectsPreparing.collectAsStateWithLifecycle()
     val fxEnabled by vm.effectsPreviewEnabled.collectAsStateWithLifecycle()
     val fxQueue by vm.effectsPlaylist.collectAsStateWithLifecycle()
-    val juke by vm.jukebox.state.collectAsStateWithLifecycle()
+    val juke by vm.jukebox.presentationState.collectAsStateWithLifecycle()
     val jukeQueue by vm.jukebox.playbackQueue.collectAsStateWithLifecycle()
     var expanded by rememberSaveable {mutableStateOf(false)}
     var expandedQueue by rememberSaveable {mutableStateOf(false)}
@@ -67,9 +67,10 @@ import coil.compose.AsyncImage
         else coverUrl?.takeIf {it.isNotBlank()}
     }
     val beats=model?.optJSONArray("beats")
-    val beatStart=beats?.optDouble(juke.index,0.0) ?: 0.0
-    val beatEnd=beats?.optDouble(juke.index+1,beatStart) ?: beatStart
-    val position=if(useJukebox)beatStart+(beatEnd-beatStart)*juke.phase else fxPosition
+    fun livePosition():Double {
+        val current=vm.jukebox.state.value
+        return vm.jukebox.sessionSeconds(current.model,current.index,current.phase.toDouble())
+    }
     val duration=(if(useJukebox)model?.optDouble("duration",0.0) ?: 0.0 else info?.optDouble("duration",0.0) ?: fxMedia?.duration ?: 0.0).coerceAtLeast(0.0)
     val preparing=if(useJukebox)juke.busy else fxPreparing
     val playing=if(useJukebox)juke.playing&&!juke.paused else fxEnabled
@@ -81,7 +82,6 @@ import coil.compose.AsyncImage
     var menu by remember {mutableStateOf(false)}
     var timer by remember {mutableStateOf(false)}
     var equalizer by remember {mutableStateOf(false)}
-    var dragged by remember(source) {mutableStateOf<Float?>(null)}
     fun toggle(){if(useJukebox)vm.jukebox.playPause() else vm.mediaToggleEffects()}
     fun previous(){if(useJukebox)vm.jukebox.previousTrack() else vm.mediaPreviousEffects()}
     fun next(){if(useJukebox)vm.jukebox.nextTrack() else vm.mediaNextEffects()}
@@ -110,18 +110,20 @@ import coil.compose.AsyncImage
                     Text(title,maxLines=1,overflow=TextOverflow.Ellipsis,style=MaterialTheme.typography.labelLarge)
                     Text(artist,maxLines=1,overflow=TextOverflow.Ellipsis,style=MaterialTheme.typography.bodySmall,color=glass.secondary)
                 }
-                LyricsButton(vm,source,{position},duration,::seek,::toggle,isPlaying={playing},title=title,artist=artist)
+                LyricsButton(vm,source,{livePosition()},duration,::seek,::toggle,isPlaying={playing},title=title,artist=artist)
                 IconButton(onClick=::openQueue,modifier=Modifier.testTag("compact-player-queue"),colors=IconButtonDefaults.iconButtonColors(contentColor=if(queueIsVisible)MaterialTheme.colorScheme.primary else glass.ink)){OndaIcon("queue",if(queueIsVisible)"Fechar fila" else "Fila",Modifier.size(24.dp))}
                 OutlinedIconButton(onClick=::toggle,enabled=duration>0,modifier=Modifier.testTag("compact-player-toggle"),border=BorderStroke(1.dp,MaterialTheme.colorScheme.primary),colors=IconButtonDefaults.outlinedIconButtonColors(contentColor=glass.ink,disabledContentColor=glass.ink.copy(alpha=if(glass.highContrast)1f else .38f))) {
                     if(preparing)CircularProgressIndicator(Modifier.size(23.dp),strokeWidth=2.dp,color=glass.ink)
                     else OndaIcon(if(playing)"pause" else "play",if(playing)"Pausar" else "Reproduzir",Modifier.size(26.dp))
                 }
             }
+            PlaybackClock(vm.jukebox) {position ->
             Row(Modifier.fillMaxWidth().padding(horizontal=10.dp,vertical=3.dp).testTag("compact-player-times"),horizontalArrangement=Arrangement.SpaceBetween) {
                 Text(mediaClock(position.toLong()),style=MaterialTheme.typography.labelSmall,color=glass.secondary)
                 Text(mediaClock(duration.toLong()),style=MaterialTheme.typography.labelSmall,color=glass.secondary)
             }
             LinearProgressIndicator(progress={if(duration>0)(position/duration).toFloat().coerceIn(0f,1f) else 0f},modifier=Modifier.fillMaxWidth().height(if(glass.highContrast)3.dp else 2.dp).testTag("compact-player-progress"),color=MaterialTheme.colorScheme.primary,trackColor=glass.ink.copy(alpha=if(glass.highContrast).4f else .18f))
+            }
         }
     }
     if(expanded)Dialog(onDismissRequest={expanded=false},properties=DialogProperties(usePlatformDefaultWidth=false)) {
@@ -149,12 +151,15 @@ import coil.compose.AsyncImage
                     }
                     cover(Modifier.size(artworkSize).align(Alignment.CenterHorizontally).testTag("expanded-album-cover"))
                     Column {Text(title,style=MaterialTheme.typography.headlineSmall);Text(artist,style=MaterialTheme.typography.bodyLarge,color=MaterialTheme.colorScheme.onSurfaceVariant)}
+                    PlaybackClock(vm.jukebox) {position ->
+                    var dragged by remember(source) {mutableStateOf<Float?>(null)}
                     Column {
                         RoundSlider(dragged ?: position.toFloat().coerceIn(0f,duration.toFloat().coerceAtLeast(1f)),{dragged=it},valueRange=0f..duration.toFloat().coerceAtLeast(1f),enabled=duration>0,onValueChangeFinished={dragged?.let {seek(it.toDouble())};dragged=null},modifier=Modifier.fillMaxWidth().testTag("expanded-player-timeline").a11yLabel("Posição na música"),slim=true)
                         Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){UiText(mediaClock((dragged?.toDouble() ?: position).toLong()),style=MaterialTheme.typography.labelSmall);UiText(mediaClock(duration.toLong()),style=MaterialTheme.typography.labelSmall)}
                     }
+                    }
                     Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceEvenly) {
-                        LyricsButton(vm,source,{position},duration,::seek,::toggle,isPlaying={playing},title=title,artist=artist)
+                        LyricsButton(vm,source,{livePosition()},duration,::seek,::toggle,isPlaying={playing},title=title,artist=artist)
                         IconButton(onClick=::previous){OndaIcon("previous","Retroceder",Modifier.size(32.dp))}
                         FilledIconButton(onClick=::toggle,enabled=duration>0,modifier=Modifier.size(72.dp).testTag("expanded-player-toggle")) {
                             if(preparing)CircularProgressIndicator(Modifier.size(30.dp),strokeWidth=3.dp,color=MaterialTheme.colorScheme.onPrimary)
@@ -164,7 +169,7 @@ import coil.compose.AsyncImage
                         IconButton(onClick=::openQueue,modifier=Modifier.testTag("expanded-player-queue")){OndaIcon("queue","Fila",Modifier.size(26.dp))}
                     }
                     PlaybackDeviceButton(onClick={devices=true})
-                    LyricsPreviewCard(vm,source,title,artist,position,duration,playing,::seek,::toggle)
+                    PlaybackClock(vm.jukebox) {position -> LyricsPreviewCard(vm,source,title,artist,position,duration,playing,::seek,::toggle)}
                 }
             }
         }
@@ -176,4 +181,10 @@ import coil.compose.AsyncImage
     if(!expanded || useJukebox)EffectsQueueDrawer(vm)
     if(timer)JukeboxTimerDialog(vm.jukebox){timer=false}
     if(equalizer)JukeboxEqualizerDialog {equalizer=false}
+}
+
+
+@Composable private fun PlaybackClock(controller:JukeboxController,content:@Composable (Double)->Unit) {
+    val clock by controller.state.collectAsStateWithLifecycle()
+    content(controller.sessionSeconds(clock.model,clock.index,clock.phase.toDouble()))
 }

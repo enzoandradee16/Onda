@@ -15,7 +15,7 @@ internal val playbackEffectPresets=linkedMapOf("Original" to (100 to 0),"Slowed 
 /** Effects and infinite navigation operate on the same source and PCM output. */
 @Composable internal fun UnifiedEffectsControls(controller:JukeboxController,vm:OndaViewModel) {
     val effects by controller.effects.collectAsStateWithLifecycle()
-    val state by controller.state.collectAsStateWithLifecycle()
+    val state by controller.presentationState.collectAsStateWithLifecycle()
     val presets=playbackEffectPresets
     val preset=presets.entries.firstOrNull {it.value.first==effects.optInt("speed",85)&&it.value.second==effects.optInt("reverb",25)}?.key ?: "Personalizado"
     var export by rememberSaveable {mutableStateOf(false)}

@@ -57,6 +57,8 @@ class DesktopWorkspace(QObject):
     def __init__(self, bridge, parent=None):
         super().__init__(parent)
         self.bridge = bridge
+        self._options_revision = 0
+        self.optionsChanged.connect(self._advance_options_revision)
         bridge.messageRequested.connect(self.message.emit)
         self.window = None
         self.prepare_tools = False
@@ -148,6 +150,12 @@ class DesktopWorkspace(QObject):
         self.card_timer.setSingleShot(True)
         self.card_timer.setInterval(120)
         self.card_timer.timeout.connect(self.flush_card_details)
+        self.history_requests = {}
+        self.history_requested = set()
+        self.history_timer = QTimer(self)
+        self.history_timer.setSingleShot(True)
+        self.history_timer.setInterval(120)
+        self.history_timer.timeout.connect(self.flush_history_details)
         self.memory_waiting = False
         self.queue_scope = None
         self.queue_attempted = set()
@@ -161,6 +169,10 @@ class DesktopWorkspace(QObject):
         self.preview_timer.setInterval(150)
         self.preview_timer.timeout.connect(self.play_effects_preview)
         self.options = {
+            'spotifyPlaylists': [],
+            'spotifyPlaylistsNext': -1,
+            'spotifyPlaylistsLoaded': False,
+            'spotifyPlaylistsVisible': False,
             'effectsRepeat': 'Desativada',
             'effectsShuffle': False,
             'effectsStopMinutes': 0,
@@ -280,6 +292,7 @@ class DesktopWorkspace(QObject):
 
         self.options['effectsEnabled'] = False
         restore(self)
+        self.bridge.queueChanged.connect(self.invalidate_session_queue)
         self._page = 'jukebox' if self._page in ('effects', 'jukebox') else self._page
         self.sync_unified_effects()
         self.media_owner = 'jukebox'
@@ -287,16 +300,21 @@ class DesktopWorkspace(QObject):
         self.bridge.media_command_handler = self.media_command
         self.session_timer = QTimer(self)
         self.session_timer.setInterval(5000)
-        self.session_timer.timeout.connect(self.save_playback_session)
+        self.session_timer.timeout.connect(
+            lambda: self.save_playback_session(background=True)
+        )
         self.session_timer.start()
         from qt_remote_ui import RemoteControl
 
         self.remote_control = RemoteControl(self)
 
-    def save_playback_session(self, strict=False):
+    def invalidate_session_queue(self):
+        self._session_queue_snapshot = None
+
+    def save_playback_session(self, strict=False, background=False):
         from playback_session import save
 
-        save(self, strict=strict)
+        save(self, strict=strict, background=background)
 
     @Property(str, notify=changed)
     def currentPage(self):
@@ -323,6 +341,18 @@ class DesktopWorkspace(QObject):
             if getattr(self, "_status_error", False)
             else tr(self._status)
         )
+
+    def _advance_options_revision(self):
+        self._options_revision += 1
+
+    @Property(int, notify=optionsChanged)
+    def optionsRevision(self):
+        return self._options_revision
+
+    @Slot(int, str, result='QVariant')
+    def optionValue(self, revision, key):
+        # A binding reads one option, not all queues, search results and images.
+        return self.options.get(key)
 
     @Property('QVariantMap', notify=optionsChanged)
     def values(self):
@@ -358,6 +388,7 @@ class DesktopWorkspace(QObject):
                 self.settings.get('spotify_client_id', '')
                 or self.settings.get('spotify_client_secret', '')
             ),
+            'spotifyConnected': self.account.connected,
             'spotifySearchReady': self.account.connected
             or bool(
                 self.settings.get('spotify_client_id', '').strip()
@@ -852,10 +883,45 @@ class DesktopWorkspace(QObject):
                 self.pause_background_jukebox()
             if self.preview_kind != 'effects':
                 self.stop_preview()
+        if self._page == 'history' and key != 'history':
+            self.cancel_task('history_details')
+            self.history_timer.stop()
+            self.history_requests.clear()
+            self.history_requested.clear()
         self._page = key
         self.changed.emit()
         if key == 'history':
             self.refresh_history()
+        if (
+            key == 'playlists'
+            and self.account.connected
+            and not self.options['spotifyPlaylistsLoaded']
+            and 'spotify_playlists' not in self.tasks
+        ):
+            self.load_spotify_playlists()
+
+    def load_spotify_playlists(self, more=False):
+        if not self.account.connected:
+            self.settingsCategoryRequested.emit('Contas')
+            self.notify('Conecte sua conta Spotify primeiro.')
+            return
+        offset = self.options['spotifyPlaylistsNext'] if more else 0
+        if offset < 0:
+            return
+        self.setOption('spotifyPlaylistsVisible', True)
+
+        def loaded(result):
+            rows = (self.options['spotifyPlaylists'] if more else []) + result.get(
+                'playlists', []
+            )
+            self.options.update(
+                spotifyPlaylists=list({row['id']: row for row in rows}.values()),
+                spotifyPlaylistsNext=result.get('next_offset', -1),
+                spotifyPlaylistsLoaded=True,
+            )
+            self.optionsChanged.emit()
+
+        self.run_task('spotify_playlists', {'offset': offset}, loaded)
 
     @Slot()
     def showSettings(self):
@@ -1137,6 +1203,8 @@ class DesktopWorkspace(QObject):
                     overrides={'mode': 'photos', 'playlist': False},
                     start=True,
                 )
+        elif action == 'request_history_details':
+            self.request_history_details(p.get('id'))
         elif action == 'request_card_details':
             key = p.get('model', 'catalog')
             source = p.get('source', '')
@@ -1997,13 +2065,90 @@ class DesktopWorkspace(QObject):
             self.statusChanged.emit()
         elif action == 'spotify_developers':
             QDesktopServices.openUrl(QUrl('https://developer.spotify.com/dashboard'))
+        elif action == 'spotify_playlists':
+            self.load_spotify_playlists(bool(p.get('more')))
+        elif action in (
+            'spotify_playlist_open',
+            'spotify_playlist_playback',
+            'spotify_playlist_download',
+            'spotify_playlist_add',
+        ):
+            row = next(
+                (
+                    row
+                    for row in self.options['spotifyPlaylists']
+                    if row['id'] == p.get('id')
+                ),
+                None,
+            )
+            if row is None:
+                return
+            url = row['source_url']
+            self.setOption('playlistUrl', url)
+
+            def loaded(result):
+                self.collection_loaded(result)
+                self.setOption('spotifyPlaylistsVisible', False)
+                tracks = result.get('tracks', [])
+                if action == 'spotify_playlist_playback':
+                    start = len(self.bridge.playlist)
+                    added = self.bridge.enqueueRecords(
+                        [
+                            dict(
+                                track,
+                                _queue_collection=result.get(
+                                    'title', 'Playlist Spotify'
+                                ),
+                            )
+                            for track in tracks
+                        ]
+                    )
+                    if added:
+                        self.bridge.playQueued(start)
+                    self.selectPage('jukebox')
+                elif action in ('spotify_playlist_download', 'spotify_playlist_add'):
+                    self.enqueue_tracks(
+                        tracks, start=action == 'spotify_playlist_download'
+                    )
+
+            self.run_task('collection', {'url': url}, loaded)
+        elif action == 'playlist_playback':
+            tracks = [
+                dict(row) for row in self.models['playlists'].rows if row.get('checked')
+            ]
+            start = len(self.bridge.playlist)
+            added = self.bridge.enqueueRecords(
+                [
+                    dict(
+                        track,
+                        _queue_collection=self.options.get('playlistTitle', 'Playlist'),
+                    )
+                    for track in tracks
+                ]
+            )
+            if added:
+                self.bridge.playQueued(start)
+            self.selectPage('jukebox')
         elif action == 'spotify_connect':
             if not self.settings.get('spotify_client_id', '').strip():
                 self.notify('Informe o Client ID do Spotify.')
                 return
-            self.run_task(action, {}, self.show_result)
+
+            def connected(result):
+                self.show_result(result)
+                if self.account.connected and self._page == 'playlists':
+                    self.load_spotify_playlists()
+
+            self.run_task(action, {}, connected)
         elif action == 'spotify_disconnect':
+            self.cancel_task('spotify_playlists')
             self.account.disconnect()
+            self.options.update(
+                spotifyPlaylists=[],
+                spotifyPlaylistsLoaded=False,
+                spotifyPlaylistsNext=-1,
+            )
+            self.optionsChanged.emit()
             self.statusChanged.emit()
         elif action == 'logs':
             self.message.emit(
@@ -2135,6 +2280,7 @@ class DesktopWorkspace(QObject):
             'image_preview': 'Prévia da imagem',
             'image_export': 'Exportação da imagem',
             'spotify_connect': 'Conexão com Spotify',
+            'spotify_playlists': 'Playlists do Spotify',
             'prepare_tools': 'Preparação das ferramentas',
             'verify_tools': 'Verificação das ferramentas',
             'app_update': 'Verificação de atualização',
@@ -2375,6 +2521,9 @@ class DesktopWorkspace(QObject):
             row['id'] for row in self.models['history'].rows if row.get('checked')
         }
         self.cancel_task('history_details')
+        self.history_requests.clear()
+        self.history_requested.clear()
+        self.history_timer.stop()
         rows = self.library.history(
             self.options.get('historyQuery', ''),
             self.options.get('historyKind', 'Todos'),
@@ -2399,19 +2548,42 @@ class DesktopWorkspace(QObject):
             except (ValueError, TypeError):
                 row['date_display'] = row['date']
         self.models['history'].replace(rows)
-        if rows:
-            self.run_task(
-                'history_details',
-                {'rows': rows},
-                self.history_details_loaded,
-                background=True,
-            )
+
+    def request_history_details(self, identity):
+        if self.currentPage != 'history' or identity in self.history_requested:
+            return
+        model = self.models['history']
+        index = model.index_for_id(identity)
+        row = model.rows[index] if index >= 0 else None
+        if row is None or row.get('_details_checked'):
+            return
+        from audio_library import AUDIO_TYPES
+
+        if Path(row['path']).suffix.lower() not in AUDIO_TYPES:
+            return
+        self.history_requested.add(identity)
+        self.history_requests[identity] = dict(row)
+        self.history_timer.start()
+
+    def flush_history_details(self):
+        if self.closed or 'history_details' in self.tasks or not self.history_requests:
+            return
+        batch = [
+            self.history_requests.pop(key) for key in list(self.history_requests)[:16]
+        ]
+        self.run_task(
+            'history_details',
+            {'rows': batch},
+            self.history_details_loaded,
+            background=True,
+        )
 
     def history_details_loaded(self, rows):
-        details = {row['id']: row for row in rows}
-        for index, row in enumerate(self.models['history'].rows):
-            if row['id'] in details:
-                self.models['history'].update(index, **details[row['id']])
+        model = self.models['history']
+        for row in rows:
+            index = model.index_for_id(row['id'])
+            if index >= 0:
+                model.update(index, **row, _details_checked=True)
 
     def expire_history_undo(self):
         self.history_undo_timer.stop()
@@ -2525,7 +2697,20 @@ class DesktopWorkspace(QObject):
             if notify:
                 self.statusChanged.emit()
 
+    def job_by_id(self, identity):
+        if getattr(self, '_jobs_index_source', None) is not self.jobs or getattr(
+            self, '_jobs_index_count', -1
+        ) != len(self.jobs):
+            self._index_jobs()
+        return self._jobs_index.get(identity)
+
+    def _index_jobs(self):
+        self._jobs_index = {job['id']: job for job in self.jobs}
+        self._jobs_index_source = self.jobs
+        self._jobs_index_count = len(self.jobs)
+
     def refresh_queue(self):
+        self._index_jobs()
         query = self.options.get('queueQuery', '').casefold()
         state = self.options.get('queueState', 'Todos')
         rows = [
@@ -2641,23 +2826,34 @@ class DesktopWorkspace(QObject):
 
     def enqueue_tracks(self, records, start=False):
         added = []
-        for record in records:
-            added.extend(
-                self.enqueue(
-                    [record['source_url']],
-                    overrides=dict(
-                        self.music_overrides(record),
-                        playlist_title=self.options['playlistTitle'],
-                    ),
-                    start=start,
-                    defer_start=True,
+        batch = {}
+        try:
+            for record in records:
+                added.extend(
+                    self.enqueue(
+                        [record['source_url']],
+                        overrides=dict(
+                            self.music_overrides(record),
+                            playlist_title=self.options['playlistTitle'],
+                        ),
+                        start=start,
+                        defer_start=True,
+                        batch=batch,
+                    )
                 )
-            )
+        finally:
+            # One visual/database update for a playlist, including partial failure.
+            if added:
+                self.refresh_queue()
+                self.save_queue()
+                self.notify(str(len(added)) + ' ' + tr('itens adicionados à fila'))
         if start:
             self.start_queue({job['id'] for job in added})
         return added
 
-    def enqueue(self, urls, overrides=None, start=False, *, defer_start=False):
+    def enqueue(
+        self, urls, overrides=None, start=False, *, defer_start=False, batch=None
+    ):
         from engine import validate_url
         from metadata import is_streaming_link
         from download_defaults import effective_download
@@ -2671,19 +2867,28 @@ class DesktopWorkspace(QObject):
                 continue
             streaming = is_streaming_link(url)
             validated.append((url if streaming else validate_url(url), streaming))
-        config = self.config()
+        if batch is not None and 'config' in batch:
+            config = batch['config']
+        else:
+            config = self.config()
+            if batch is not None:
+                batch['config'] = config
         config.pop('_account', None)
         config.pop('_root', None)
         added = []
-        duplicate_keys = (
-            {
-                queue_duplicate_key(job)
-                for job in self.jobs
-                if job['state'] in ('Na fila', 'Em andamento', 'Concluído')
-            }
-            if config.get('detect_duplicates')
-            else set()
-        )
+        duplicate_keys = batch.get('duplicate_keys') if batch is not None else None
+        if duplicate_keys is None:
+            duplicate_keys = (
+                {
+                    queue_duplicate_key(job)
+                    for job in self.jobs
+                    if job['state'] in ('Na fila', 'Em andamento', 'Concluído')
+                }
+                if config.get('detect_duplicates')
+                else set()
+            )
+            if batch is not None:
+                batch['duplicate_keys'] = duplicate_keys
         for url, streaming in validated:
             job = dict(config, **(overrides or {}))
             job.update(
@@ -2732,10 +2937,11 @@ class DesktopWorkspace(QObject):
                     ),
                     config.get('cookies_file', ''),
                 )
-        self.refresh_queue()
-        self.save_queue()
-        if added:
-            self.notify(str(len(added)) + ' ' + tr('itens adicionados à fila'))
+        if batch is None:
+            self.refresh_queue()
+            self.save_queue()
+            if added:
+                self.notify(str(len(added)) + ' ' + tr('itens adicionados à fila'))
         if start and added and not defer_start:
             self.start_queue({job['id'] for job in added})
         return added
@@ -3182,6 +3388,8 @@ class DesktopWorkspace(QObject):
                 self.statusChanged.emit()
                 if action == 'card_details':
                     self.card_timer.start()
+                if action == 'history_details':
+                    self.history_timer.start()
                 if action == 'image_gallery_manifest':
                     self.options['imageGalleryPendingSource'] = ''
                     self.optionsChanged.emit()
@@ -3228,7 +3436,7 @@ class DesktopWorkspace(QObject):
             if self.closing and not self.active:
                 self.requestClose()
             return
-        job = next((job for job in self.jobs if job['id'] == identity), None)
+        job = self.job_by_id(identity)
         kind = event.get('type')
         if kind == 'queue_title' and job:
             job['display_name'] = event.get('title', job['url'])
@@ -3267,14 +3475,12 @@ class DesktopWorkspace(QObject):
             )
             self.refresh_history()
         if job:
+            updates = {}
             if kind in ('progress', 'stage', 'processing', 'file', 'done'):
                 from download_feedback import download_detail
 
                 job['download_detail'] = download_detail(event)
-                for model in (self.models['queue'], self.models['links']):
-                    for index, row in enumerate(model.rows):
-                        if row['id'] == identity:
-                            model.update(index, download_detail=job['download_detail'])
+                updates['download_detail'] = job['download_detail']
             if kind == 'progress':
                 total = (
                     event.get('total')
@@ -3292,13 +3498,18 @@ class DesktopWorkspace(QObject):
                     if total
                     else float(event.get('percent', 0) or 0)
                 )
+                updates['percent'] = job['percent']
+            if updates:
                 for model in (self.models['queue'], self.models['links']):
-                    for index, row in enumerate(model.rows):
-                        if row['id'] == identity:
-                            model.update(index, percent=job['percent'])
-                if time.monotonic() - getattr(self, '_last_checkpoint', 0) > 5:
-                    self._last_checkpoint = time.monotonic()
-                    self.save_queue()
+                    index = model.index_for_id(identity)
+                    if index >= 0:
+                        model.update(index, **updates)
+            if (
+                kind == 'progress'
+                and time.monotonic() - getattr(self, '_last_checkpoint', 0) > 5
+            ):
+                self._last_checkpoint = time.monotonic()
+                self.save_queue()
             if kind == 'error':
                 job['last_error'] = event.get('message', '')
         if kind in ('error', 'log', 'stage'):
@@ -4193,9 +4404,11 @@ class DesktopWorkspace(QObject):
             self.tray.show()
             self.window.hide()
             return
-        if self.tasks:
+        if set(self.tasks) - self.background_tasks:
             self.notify('Cancele ou aguarde as operações antes de fechar o ONDA.')
             return
+        for action in list(self.background_tasks):
+            self.cancel_task(action)
         if self.active:
             self.closing = True
             self.stop_queue()
@@ -4211,6 +4424,8 @@ class DesktopWorkspace(QObject):
         self.remote_control.stop()
         self.save_playback_session()
         self.session_timer.stop()
+        if getattr(self, '_session_writer', None):
+            self._session_writer.close()
         for tail in self.effects_tails:
             tail.close()
         self.save_window_layout()
@@ -4219,6 +4434,9 @@ class DesktopWorkspace(QObject):
         self.closed = True
         self.card_timer.stop()
         self.card_requests.clear()
+        self.history_timer.stop()
+        self.history_requests.clear()
+        self.history_requested.clear()
         self.shutdown_timer.stop()
         self.title_lookup.shutdown()
         self.preview_timer.stop()
@@ -4414,7 +4632,15 @@ class DesktopWorkspace(QObject):
 
     @Slot(result='QVariantMap')
     @Slot(bool, result='QVariantMap')
-    def lyricsFrame(self, jukebox=None):
+    def lyricsClock(self, jukebox=True):
+        return self.lyricsFrame(jukebox, include_lines=False)
+
+    @Slot(result='QVariantList')
+    def lyricsDocument(self):
+        return getattr(self, '_lyrics_display_lines', [])
+
+    @Slot(bool, result='QVariantMap')
+    def lyricsFrame(self, jukebox=None, include_lines=True):
         from synced_lyrics import karaoke_at
 
         if jukebox is None:
@@ -4472,13 +4698,15 @@ class DesktopWorkspace(QObject):
         display_key = (key, tuple(rows))
         if display_key != getattr(self, '_lyrics_display_key', None):
             self._lyrics_display_key = display_key
+            self._lyrics_revision = getattr(self, '_lyrics_revision', 0) + 1
             self._lyrics_display_lines = [
                 dict(time=row[0], text=re.sub(r'<[^>]+>', '', row[1])) for row in rows
             ]
         lines = self._lyrics_display_lines
         return dict(
             text=karaoke_at(rows, position),
-            lines=lines,
+            **({'lines': lines} if include_lines else {}),
+            revision=getattr(self, '_lyrics_revision', 0),
             active=active,
             position=position,
             duration=duration,

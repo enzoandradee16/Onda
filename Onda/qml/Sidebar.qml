@@ -7,8 +7,9 @@ Rectangle {
     signal settingsRequested()
     property bool collapsed: false
     property bool resizing: false
+    property real resizeWidth: 220
     clip: true
-    property real panelWidth: collapsed ? 76 : (workspace.preferences.sidebar_width || 220)
+    property real panelWidth: collapsed ? 76 : (resizing ? resizeWidth : (workspace.preferences.sidebar_width || 220))
     Layout.preferredWidth: panelWidth
     Layout.fillHeight: true
     color: bridge.palette.bg

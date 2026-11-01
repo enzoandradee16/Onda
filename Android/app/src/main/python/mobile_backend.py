@@ -579,7 +579,8 @@ def jukebox_action(action, config):
             config.get('equalizer'),
             effects=config.get('effects'),
         )
-        part['pcm'] = base64.b64encode(part['pcm']).decode('ascii')
+        if not getattr(_local, 'raw_pcm', False):
+            part['pcm'] = base64.b64encode(part['pcm']).decode('ascii')
         return part
 
 
@@ -1093,6 +1094,10 @@ def perform(action, config):
         if result.returncode:
             raise ValueError('Não foi possível ler o áudio.')
         return json.loads(result.stdout)
+    if action == 'spotify_playlists':
+        return account().playlists(
+            offset=int(config.get('offset', 0)), cancelled=_local.state['cancel'].is_set
+        )
     if action == 'spotify_status':
         return {'connected': account().connected}
     if action == 'spotify_connect':
@@ -1217,7 +1222,7 @@ def perform(action, config):
     raise ValueError('Operação desconhecida: ' + action)
 
 
-def run(identity, action, payload, callback):
+def run(identity, action, payload, callback, raw_pcm=False):
     state = {
         'cancel': threading.Event(),
         'replies': queue.Queue(),
@@ -1229,7 +1234,11 @@ def run(identity, action, payload, callback):
     _local.state = state
     try:
         state['config'] = json.loads(payload)
+        _local.raw_pcm = raw_pcm
         result = perform(action, state['config'])
+        if raw_pcm:
+            pcm = result.pop('pcm', b'')
+            return json.dumps(result, ensure_ascii=False), pcm
         return json.dumps(result, ensure_ascii=False)
     except Exception as exc:
         if action == 'update':
@@ -1237,13 +1246,19 @@ def run(identity, action, payload, callback):
 
             updated(_root, False)
         # Errors stay in the UI; credentials, cookie contents and OAuth codes are never dumped.
-        return json.dumps(
+        error = json.dumps(
             {'error': readable_error(exc), 'cancelled': state['cancel'].is_set()},
             ensure_ascii=False,
         )
+        return (error, b'') if raw_pcm else error
     finally:
         for imported in state.get('flac_imports', []):
             imported.unlink(missing_ok=True)
         with _lock:
             _jobs.pop(identity, None)
         _local.state = None
+        _local.raw_pcm = False
+
+
+def pcm_chunk(identity, payload):
+    return run(identity, 'jukebox_chunk', payload, None, raw_pcm=True)

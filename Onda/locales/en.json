@@ -2217,5 +2217,13 @@
   "Use uma faixa de até 20 minutos com duração conhecida.": "Use a track up to 20 minutes long with a known duration.",
   "Não foi possível reproduzir o áudio online. Tente abrir a música novamente.": "Could not play the online audio. Try opening the track again.",
   "Cache limpo. Espaço liberado: {size} MB.": "Cache cleared. Space freed: {size} MB.",
-  "Alguns arquivos não puderam ser removidos. Tente novamente depois de fechar as operações em andamento.": "Some files could not be removed. Try again after closing ongoing operations."
+  "Alguns arquivos não puderam ser removidos. Tente novamente depois de fechar as operações em andamento.": "Some files could not be removed. Try again after closing ongoing operations.",
+  "Playlists do Spotify": "Spotify playlists",
+  "Conecte sua conta Spotify para ver suas playlists.": "Connect your Spotify account to see your playlists.",
+  "Carregando playlists…": "Loading playlists…",
+  "Nenhuma playlist encontrada": "No playlists found",
+  "As playlists da conta conectada aparecerão aqui.": "Playlists from the connected account will appear here.",
+  "Página de playlists Spotify inválida.": "Invalid Spotify playlist page.",
+  "Não foi possível listar as playlists do Spotify.": "Could not list Spotify playlists.",
+  "Não foi possível listar as playlists do Spotify. Reconecte sua conta e autorize o acesso às playlists.": "Could not list Spotify playlists. Reconnect your account and grant access to playlists."
 }

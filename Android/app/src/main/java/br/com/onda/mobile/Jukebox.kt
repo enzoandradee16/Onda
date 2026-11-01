@@ -44,6 +44,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
@@ -55,6 +56,8 @@ internal data class JukeboxState(val title:String="Escolha suas músicas.",val m
 
 internal class JukeboxController(private val context:Context,private val scope:CoroutineScope,var stopOtherAudio:()->Unit,private val callOverride:(suspend (String,JSONObject,String)->JSONObject)?=null) {
     val state=MutableStateFlow(JukeboxState())
+    val presentationState=state.map {it.copy(index=0,phase=0f,flow=emptyList(),used=emptySet(),elapsed=0.0,jumps=0,nextIndex=-1,jumpBlend=0f)}
+        .distinctUntilChanged().stateIn(scope,kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5000),state.value)
     val playbackQueue=MutableStateFlow<List<JSONObject>>(emptyList())
     val timerMinutes=MutableStateFlow(0)
     val timerRemaining=MutableStateFlow(0)
@@ -164,7 +167,7 @@ internal class JukeboxController(private val context:Context,private val scope:C
         removed.forEach {preparedModels.remove(it);updateQueue(it,"Pendente")}
     }
     private fun updateQueue(id:String,status:String,error:String="") {
-        playbackQueue.update {rows->rows.map {if(it.optString("_queue_id")==id && (it.optString("_analysis")!=status || it.optString("_error")!=error))JSONObject(it.toString()).put("_analysis",status).put("_error",error) else it}}
+        playbackQueue.update {rows->rows.map {if(it.optString("_queue_id")==id && (it.optString("_analysis")!=status || it.optString("_error")!=error))copyJsonObject(it).put("_analysis",status).put("_error",error) else it}}
     }
     private fun prepareConfig(source:String,record:JSONObject?,url:String=""):JSONObject {
         val direct=record?.optBoolean("_jukebox_direct")==true
@@ -175,8 +178,8 @@ internal class JukeboxController(private val context:Context,private val scope:C
         playbackQueue.update {rows->rows.map {row->
             val id=row.optString("_queue_id")
             when {
-                preparedModels.containsKey(id)->if(row.optString("_analysis")=="Pronta" && row.optString("_error").isBlank())row else JSONObject(row.toString()).put("_analysis","Pronta").put("_error","")
-                row.optString("_analysis") in listOf("Analisando","Preparando","Pronta")->JSONObject(row.toString()).put("_analysis","Pendente")
+                preparedModels.containsKey(id)->if(row.optString("_analysis")=="Pronta" && row.optString("_error").isBlank())row else copyJsonObject(row).put("_analysis","Pronta").put("_error","")
+                row.optString("_analysis") in listOf("Analisando","Preparando","Pronta")->copyJsonObject(row).put("_analysis","Pendente")
                 else->row
             }
         }}
@@ -194,7 +197,7 @@ internal class JukeboxController(private val context:Context,private val scope:C
                     if(playbackQueue.value.any {it.optString("_queue_id")==id}) {
                         preparedModels[id]=model
                         playbackQueue.update {rows->rows.map {entry->
-                            if(entry.optString("_queue_id")!=id)entry else JSONObject(entry.toString()).apply {
+                            if(entry.optString("_queue_id")!=id)entry else copyJsonObject(entry).apply {
                                 put("_cover",model.optString("media_cover"))
                                 put("_prepared_cache",preparedQueueReference(model))
                                 put("duration_ms",model.optDouble("duration",0.0)*1000)
@@ -219,7 +222,7 @@ internal class JukeboxController(private val context:Context,private val scope:C
         enqueueAll(listOf(record))
     }
     internal fun enqueueAll(records:List<JSONObject>):Int {
-        val accepted=records.take((5000-playbackQueue.value.size).coerceAtLeast(0)).map {record->JSONObject(record.toString()).put("_queue_id",UUID.randomUUID().toString()).put("_analysis","Pendente")}
+        val accepted=records.take((5000-playbackQueue.value.size).coerceAtLeast(0)).map {record->copyJsonObject(record).put("_queue_id",UUID.randomUUID().toString()).put("_analysis","Pendente")}
         if(accepted.isNotEmpty()){playbackQueue.update {it+accepted};startQueuePreparation()}
         if(accepted.size<records.size)state.update {it.copy(message="Limite de 5.000 músicas na fila de reprodução. Remova músicas antes de adicionar outras.")}
         return accepted.size
@@ -352,17 +355,24 @@ internal class JukeboxController(private val context:Context,private val scope:C
     val searching=MutableStateFlow(false)
     private var searchTask:Job?=null
     private var searchIdentity=""
-    private fun sessionSeconds(model:JSONObject?,index:Int,phase:Double):Double {
+    internal fun sessionSeconds(model:JSONObject?,index:Int,phase:Double):Double {
         val beats=model?.optJSONArray("beats") ?: return 0.0
         if(beats.length()<2)return 0.0
         val i=index.coerceIn(0,beats.length()-2)
         return (beats.optDouble(i)+(beats.optDouble(i+1)-beats.optDouble(i))*phase.coerceIn(0.0,1.0)).takeIf {it.isFinite()}?.coerceAtLeast(0.0) ?: 0.0
     }
+    private var savedQueueSource:List<JSONObject>?=null
+    private var savedQueueSnapshot:org.json.JSONArray?=null
     internal fun savePlaybackSession(synchronous:Boolean=false) {
         val current=state.value
         val seconds=if(current.model!=null)sessionSeconds(current.model,current.index,current.phase.toDouble()) else playbackQueue.value.firstOrNull {it.optString("_queue_id")==currentQueueId.value}?.optDouble("_restore_seconds",0.0) ?: 0.0
-        PlaybackSessions.save(context,"jukebox",JSONObject().put("queue",org.json.JSONArray(playbackQueue.value)).put("current",currentQueueId.value)
-            .put("model",current.model).put("seconds",seconds).put("index",current.index).put("phase",current.phase.takeIf {it.isFinite()} ?: 0f).put("normal",normal).put("variation",variation.takeIf {it.isFinite()} ?: 45f).put("smooth",smooth.takeIf {it.isFinite()} ?: 35f).put("repeat",queueRepeat.value).put("shuffle",queueShuffle.value).put("effects",effects.value).put("unified",unifiedMigrated),synchronous)
+        val queue=playbackQueue.value
+        if(savedQueueSource!==queue) {
+            savedQueueSource=queue
+            savedQueueSnapshot=org.json.JSONArray(queue.map {copyJsonObject(it)})
+        }
+        PlaybackSessions.save(context,"jukebox",JSONObject().put("queue",savedQueueSnapshot).put("current",currentQueueId.value)
+            .put("model",current.model?.let(::preparedQueueReference)).put("seconds",seconds).put("index",current.index).put("phase",current.phase.takeIf {it.isFinite()} ?: 0f).put("normal",normal).put("variation",variation.takeIf {it.isFinite()} ?: 45f).put("smooth",smooth.takeIf {it.isFinite()} ?: 35f).put("repeat",queueRepeat.value).put("shuffle",queueShuffle.value).put("effects",effects.value).put("unified",unifiedMigrated),synchronous)
     }
     private var unifiedMigrated=false
     fun migrateEffectsSession(data:JSONObject?) {
@@ -396,15 +406,19 @@ internal class JukeboxController(private val context:Context,private val scope:C
     init {
         PlaybackSessions.load(context,"jukebox")?.let {data->
             unifiedMigrated=data.optBoolean("unified")
-            data.optJSONObject("effects")?.let {effects.value=JSONObject(it.toString())}
-            playbackQueue.value=data.optJSONArray("queue")?.objects()?.map {JSONObject(it.toString()).put("_analysis","Pendente")} ?: emptyList()
+            data.optJSONObject("effects")?.let {effects.value=copyJsonObject(it)}
+            playbackQueue.value=data.optJSONArray("queue")?.objects()?.map {copyJsonObject(it).put("_analysis","Pendente")} ?: emptyList()
             currentQueueId.value=data.optString("current");queueCursor=playbackQueue.value.indexOfFirst {it.optString("_queue_id")==currentQueueId.value}
             playbackQueue.value.filter {it.optString("_queue_id") in preparationWindow()}.forEach {row->restoreQueueModel(row)?.let {model->
                 preparedModels[row.getString("_queue_id")]=model;row.put("_analysis","Pronta").put("_error","")
             }}
             queueRepeat.value=data.optString("repeat").takeIf {it in listOf("Desativada","Todas","Uma")} ?: "Desativada";queueShuffle.value=data.optBoolean("shuffle")
             normal=data.optBoolean("normal");variation=data.optDouble("variation",45.0).takeIf {it.isFinite()}?.coerceIn(0.0,100.0)?.toFloat() ?: 45f;smooth=data.optDouble("smooth",35.0).takeIf {it.isFinite()}?.coerceIn(0.0,100.0)?.toFloat() ?: 35f
-            val savedModel=data.optJSONObject("model")
+            val savedReference=data.optJSONObject("model")
+            val savedModel=if(savedReference?.has("beats")==true)savedReference else savedReference?.let {
+                preparedModels[currentQueueId.value] ?: restoreQueueModel(JSONObject().put("_prepared_cache",it)
+                    .put("_cover",playbackQueue.value.firstOrNull {row->row.optString("_queue_id")==currentQueueId.value}?.optString("_cover").orEmpty()))
+            }
             val seconds=data.optDouble("seconds",sessionSeconds(savedModel,data.optInt("index"),data.optDouble("phase",0.0))).takeIf {it.isFinite()}?.coerceAtLeast(0.0) ?: 0.0
             playbackQueue.value.firstOrNull {it.optString("_queue_id")==currentQueueId.value}?.put("_restore_seconds",seconds)
             savedModel?.takeIf {java.io.File(it.optString("cache"),"analysis.json").isFile}?.let {model->
@@ -511,7 +525,7 @@ internal class JukeboxController(private val context:Context,private val scope:C
                     state.update {current->if(own==revision)current.copy(
                         index=part?.second?.optInt("index") ?: heard.lastOrNull()?.let {it.optInt(if(it.optBoolean("edge_completed",true))"next" else "index")} ?: current.index,phase=phase,
                         nextIndex=outgoing?.optInt("next",-1) ?: -1,jumpBlend=blend,
-                        used=current.used+heard.filter {it.optBoolean("edge_completed",true)}.map {it.optInt("index") to it.optInt("next")},
+                        used=if(heard.isEmpty())current.used else current.used+heard.filter {it.optBoolean("edge_completed",true)}.map {it.optInt("index") to it.optInt("next")},
                         flow=if(heard.isEmpty())current.flow else (current.flow+heard.filter {it.optBoolean("edge_completed",true)}.map {it.optInt("index") to it.optInt("next")}).takeLast(24),
                         jumps=heard.lastOrNull()?.optInt("jumps") ?: current.jumps,elapsed=(played-trackBase).coerceAtLeast(0)/44100.0) else current}
                     scope.launch(Dispatchers.Main.immediate) {if(own==revision)normalTransition()}
@@ -529,10 +543,15 @@ internal class JukeboxController(private val context:Context,private val scope:C
                     val config=JSONObject().put("equalizer",OndaStore.settings.value.optJSONObject("jukebox_equalizer")).put("session",id).put("variation",variation).put("smooth",smooth).put("volume",100).put("normal",normal).put("effects",effects.value)
                     val seek=pendingSeek.getAndSet(-1)
                     if(seek>=0){output.pause();output.flush();submitted=0L;trackBase=0L;timeline.clear();output.play();config.put("seek",seek).put("seek_phase",pendingSeekPhase.getAndSet(0f))}
-                    val part=call("jukebox_chunk",config,id)
+                    val packet=if(callOverride!=null) {
+                        val metadata=call("jukebox_chunk",config,id)
+                        val pcm=Base64.decode(metadata.getString("pcm"),Base64.NO_WRAP)
+                        metadata.remove("pcm");metadata to pcm
+                    } else withContext(Dispatchers.IO){MobileEngine.pcmChunk(context,id,config)}
+                    val part=packet.first
                     state.update {it.copy(effectsPending=part.optBoolean("effects_pending"),effectsError=part.optString("effects_error"))}
                     transitioning=part.optBoolean("crossfade_active",false)
-                    val data=Base64.decode(part.getString("pcm"),Base64.NO_WRAP);part.remove("pcm");var offset=0
+                    val data=packet.second;var offset=0
                     submitted+=data.size/4;timeline.addLast(submitted to part)
                     while(offset<data.size && isActive && own==revision) {
                         if(state.value.paused)state.first {!it.paused}
@@ -600,7 +619,7 @@ internal class JukeboxController(private val context:Context,private val scope:C
 
 @Composable private fun JukeboxPage(vm:OndaViewModel) {
     val controller=vm.jukebox
-    val state by controller.state.collectAsStateWithLifecycle()
+    val state by controller.presentationState.collectAsStateWithLifecycle()
     val searching by controller.searching.collectAsStateWithLifecycle()
     val queuedTracks by controller.playbackQueue.collectAsStateWithLifecycle()
     val currentQueueId by controller.currentQueueId.collectAsStateWithLifecycle()
@@ -667,7 +686,7 @@ internal class JukeboxController(private val context:Context,private val scope:C
                     PlaybackAdjustment(translateUi("Transição suave")+" · ${smooth.toInt()}%",smooth,0f..100f,"jukebox-transition",!normal){smooth=it;controller.smooth=it}
                 }
                 Box(Modifier.size(104.dp).testTag("playback-jukebox-graph")) {
-                    JukeboxGraph(state.model,state.index,state.phase,state.playing,state.flow,state.used,variation,smooth,normal,controller::seek,height=104.dp,nextIndex=state.nextIndex,jumpBlend=state.jumpBlend)
+                    LiveJukeboxGraph(controller,variation,smooth,normal)
                     if(state.model==null)OndaIcon("music",modifier=Modifier.size(26.dp).align(androidx.compose.ui.Alignment.Center),tint=MaterialTheme.colorScheme.primary)
                 }
             }
@@ -698,6 +717,11 @@ internal class JukeboxController(private val context:Context,private val scope:C
         if(switchMinutes>0)UiText(translateUi("Próxima música em")+": "+mediaClock(switchRemaining.toLong()))
         if(stopMinutes>0)UiText(translateUi("Parar em")+": "+mediaClock(stopRemaining.toLong()))
     }},confirmButton={TextButton(enabled=value!=null && value in 1..180 && (!nextSong || queue.isNotEmpty()),onClick={controller.setTimer(value!!,nextSong);close()}){UiText("Ativar")}},dismissButton={TextButton(onClick={controller.setTimer(0,nextSong);close()}){UiText("Desligar este timer")}})
+}
+
+@Composable private fun LiveJukeboxGraph(controller:JukeboxController,variation:Float,smooth:Float,normal:Boolean) {
+    val state by controller.state.collectAsStateWithLifecycle()
+    JukeboxGraph(state.model,state.index,state.phase,state.playing,state.flow,state.used,variation,smooth,normal,controller::seek,height=104.dp,nextIndex=state.nextIndex,jumpBlend=state.jumpBlend)
 }
 
 @Composable private fun JukeboxGraph(model:JSONObject?,current:Int,phase:Float,playing:Boolean,flow:List<Pair<Int,Int>>,used:Set<Pair<Int,Int>>,variation:Float,smooth:Float,normal:Boolean,onSeek:(Int)->Unit,height:Dp=230.dp,nextIndex:Int=-1,jumpBlend:Float=0f) {

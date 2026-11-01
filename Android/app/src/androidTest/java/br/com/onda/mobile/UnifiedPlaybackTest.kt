@@ -196,8 +196,10 @@ class UnifiedPlaybackTest {
             compose.runOnIdle {assertFalse(vm.jukebox.normal);assertTrue(vm.jukebox.effects.value.optBoolean("enabled"));assertFalse(vm.jukebox.state.value.playing)}
             compose.onNodeWithTag("unified-open-queue").performClick()
             compose.runOnIdle {assertTrue(vm.playbackQueueOpen.value)}
+            if(InstrumentationRegistry.getArguments().getString("skip_screenshots")!="true") {
             val image=InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
             File(context.getExternalFilesDir(null),"unified-android-queue.png").outputStream().use {image.compress(android.graphics.Bitmap.CompressFormat.PNG,100,it)};image.recycle()
+            }
         } finally {compose.runOnUiThread {vm.jukebox.stop();store.clear()}}
     }
 

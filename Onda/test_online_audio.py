@@ -225,6 +225,27 @@ class OnlineControlsTests(unittest.TestCase):
         ticks = []
         timer.timeout.connect(lambda: ticks.append(time.monotonic()))
         timer.start(16)
+        from qt_models_ui import QueueRowsModel
+        from qt_queue_rows_ui import presentation_rows
+        import base64
+
+        # Exercise both queue views while native HTTP audio and effects run.
+        cover = 'data:image/png;base64,' + base64.b64encode(b'x' * 4096).decode()
+        rows = [
+            dict(id=str(i), title='Track', cover=cover, record=dict(cover_url=cover))
+            for i in range(994)
+        ]
+        queue_models = [QueueRowsModel(), QueueRowsModel()]
+        queue_updates = QTimer()
+
+        def update_queues():
+            rows.append(rows.pop(0))
+            projected = presentation_rows(rows)
+            for queue_model in queue_models:
+                queue_model.setRows(projected)
+
+        queue_updates.timeout.connect(update_queues)
+        queue_updates.start(100)
         try:
             model = self.streamed_model()
             model['_stream'] = dict(
@@ -258,6 +279,7 @@ class OnlineControlsTests(unittest.TestCase):
             )
         finally:
             timer.stop()
+            queue_updates.stop()
             bridge.stop()
             server.shutdown()
             server.server_close()

@@ -82,11 +82,11 @@ Popup {
                         ActionButton { text: bridge.translate(workspace.preferences.social_cookies ? "Remover cookies.txt" : "Importar cookies.txt"); onClicked: { if (workspace.preferences.social_cookies) workspace.setSetting("social_cookies",""); else workspace.invoke("pick",{kind:"social_cookies"}) } }
                     }
                     ColumnLayout { visible: popup.category === "Ferramentas" && !popup.searching; Layout.fillWidth: true; spacing: Math.round(12*bridge.spacing)
-                        ColumnLayout {visible:!!workspace.values.appUpdate && !!workspace.values.appUpdate.available;Layout.fillWidth:true
-                            Label {text:workspace.values.appUpdate ? workspace.values.appUpdate.message : "";color:bridge.palette.text;wrapMode:Text.Wrap;Layout.fillWidth:true}
-                            Label {text:workspace.values.appUpdate ? workspace.values.appUpdate.notes || "" : "";color:bridge.palette.muted;wrapMode:Text.Wrap;Layout.fillWidth:true;maximumLineCount:8;elide:Text.ElideRight}
-                            Label {visible:!!workspace.values.appUpdate && workspace.values.appUpdate.size>0;text:workspace.values.appUpdate ? (workspace.values.appUpdate.size/1048576).toFixed(1)+" MB" : "";color:bridge.palette.muted}
-                            ActionButton {text:bridge.translate("Baixar nova versão");onClicked:workspace.invoke("open_url",{url:workspace.values.appUpdate.url})}
+                        ColumnLayout {visible:!!workspace.optionValue(workspace.optionsRevision,"appUpdate") && !!workspace.optionValue(workspace.optionsRevision,"appUpdate").available;Layout.fillWidth:true
+                            Label {text:workspace.optionValue(workspace.optionsRevision,"appUpdate") ? workspace.optionValue(workspace.optionsRevision,"appUpdate").message : "";color:bridge.palette.text;wrapMode:Text.Wrap;Layout.fillWidth:true}
+                            Label {text:workspace.optionValue(workspace.optionsRevision,"appUpdate") ? workspace.optionValue(workspace.optionsRevision,"appUpdate").notes || "" : "";color:bridge.palette.muted;wrapMode:Text.Wrap;Layout.fillWidth:true;maximumLineCount:8;elide:Text.ElideRight}
+                            Label {visible:!!workspace.optionValue(workspace.optionsRevision,"appUpdate") && workspace.optionValue(workspace.optionsRevision,"appUpdate").size>0;text:workspace.optionValue(workspace.optionsRevision,"appUpdate") ? (workspace.optionValue(workspace.optionsRevision,"appUpdate").size/1048576).toFixed(1)+" MB" : "";color:bridge.palette.muted}
+                            ActionButton {text:bridge.translate("Baixar nova versão");onClicked:workspace.invoke("open_url",{url:workspace.optionValue(workspace.optionsRevision,"appUpdate").url})}
                         }
                         ToolStatusPanel {Layout.fillWidth:true}
                         Flow {Layout.fillWidth:true;spacing:Math.round(8*bridge.spacing)

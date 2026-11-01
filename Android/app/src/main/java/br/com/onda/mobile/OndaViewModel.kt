@@ -89,6 +89,38 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
     val collectionComparison=MutableStateFlow<JSONObject?>(null)
     private var collectionSyncJob:Job?=null
     val spotifyConnected=MutableStateFlow(false)
+    val spotifyPlaylists=MutableStateFlow<List<JSONObject>>(emptyList())
+    val spotifyPlaylistsNext=MutableStateFlow(-1)
+    val spotifyPlaylistsLoaded=MutableStateFlow(false)
+    fun loadSpotifyPlaylists(more:Boolean=false) {
+        if(!spotifyConnected.value){showNotice("Spotify","Conecte sua conta Spotify primeiro.");return}
+        val offset=if(more)spotifyPlaylistsNext.value else 0
+        if(offset<0)return
+        operation("spotify_playlists",JSONObject().put("offset",offset)) {result->
+            val rows=result.optJSONArray("playlists")?.objects().orEmpty()
+            spotifyPlaylists.value=((if(more)spotifyPlaylists.value else emptyList())+rows).distinctBy {it.optString("id")}
+            spotifyPlaylistsNext.value=result.optInt("next_offset",-1)
+            spotifyPlaylistsLoaded.value=true
+        }
+    }
+    fun collectionToPlayback(records:List<JSONObject>) {
+        val start=jukebox.playbackQueue.value.size
+        if(jukebox.enqueueAll(records)>0){jukebox.playQueued(start);effectsNavigation.value=true}
+    }
+    fun openSpotifyPlaylist(identity:String,options:JSONObject,action:String="open") {
+        val row=spotifyPlaylists.value.firstOrNull {it.optString("id")==identity} ?: return
+        val url=row.optString("source_url")
+        operation("collection",OndaStore.config(options).put("url",url)) {result->
+            collectionComparison.value=null
+            collection.value=result.put("_collection_url",url)
+            val tracks=result.optJSONArray("tracks")?.objects().orEmpty()
+            when(action) {
+                "playback"->collectionToPlayback(tracks)
+                "download"->queueCollection(tracks,options,result.optString("title","Playlist Spotify"),true)
+                "add"->queueCollection(tracks,options,result.optString("title","Playlist Spotify"),false)
+            }
+        }
+    }
 
     val busy=MutableStateFlow(false)
     val status=MutableStateFlow("")
@@ -265,7 +297,7 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
-    fun appendEffectsFiles(sources:List<String>){sources.forEach {path->jukebox.enqueue(JSONObject().put("_local_source",path).put("title",importedAudioName(path)))}}
+    fun appendEffectsFiles(sources:List<String>){jukebox.enqueueAll(sources.map {path->JSONObject().put("_local_source",path).put("title",importedAudioName(path))})}
     fun moveEffectsTrack(index:Int,direction:Int){val rows=effectsPlaylist.value;if(index !in rows.indices||index+direction !in rows.indices)return;effectsCursor=playbackCursorAfterMove(effectsQueueIndex(effectsSource.value),index,index+direction);effectsPlaylist.value=movePlaybackEntry(rows,index,direction)}
     fun removeEffectsTrack(index:Int){if(index !in effectsPlaylist.value.indices)return;effectsCursor=effectsQueueIndex(effectsSource.value);if(index<=effectsCursor)effectsCursor--;effectsPlaylist.value=effectsPlaylist.value.filterIndexed {i,_->i!=index}}
     fun clearEffectsQueue(){effectsPlaylist.value=emptyList();effectsCursor=-1}
@@ -330,7 +362,7 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
         }
         playEffectsQueueTrack(target)
     }
-    fun addPlaybackCollection(records:List<JSONObject>,jukeboxTarget:Boolean) {records.forEach {jukebox.enqueue(it)}}
+    fun addPlaybackCollection(records:List<JSONObject>,jukeboxTarget:Boolean) {jukebox.enqueueAll(records)}
     internal fun mediaPauseEffects(){pauseEffectsPlayback()}
     fun stopTransientPreview(){if(!effectFullTrack)stopPreview(false)}
     fun playEffectsQueueTrack(index:Int) {
@@ -601,7 +633,10 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 if(result.has("error")) report(result.optString("error"),true) else {
                     report(operationResultMessage(result))
-                    if(result.has("connected"))spotifyConnected.value=result.optBoolean("connected")
+                    if(result.has("connected")) {
+                        spotifyConnected.value=result.optBoolean("connected")
+                        if(!spotifyConnected.value){spotifyPlaylists.value=emptyList();spotifyPlaylistsLoaded.value=false;spotifyPlaylistsNext.value=-1}
+                    }
                     finished(result)
                 }
             } catch(error: Exception) { report(uiExceptionMessage(error,"Erro na operação"),true) }

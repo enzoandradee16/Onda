@@ -33,12 +33,14 @@ Pane {
         opacity: 0
         Component.onCompleted: opacity=1
         Behavior on opacity { NumberAnimation { duration: bridge.animations ? 220 : 0; easing.type: Easing.OutCubic } }
-        Sidebar { id: sidebar; resizing: resizeMouse.pressed; onSettingsRequested: workspace.showSettings() }
+        Sidebar { id: sidebar; resizing: resizeMouse.pressed; resizeWidth: resizeMouse.draftWidth; onSettingsRequested: workspace.showSettings() }
         Rectangle {
             Layout.preferredWidth: 6; Layout.fillHeight: true; color: resizeMouse.containsMouse ? bridge.palette.accent : bridge.palette.line
-            MouseArea { id: resizeMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.SplitHCursor; property real initialX; property real initialWidth
-                onPressed: function(mouse) { initialX=mapToGlobal(mouse.x,mouse.y).x;initialWidth=sidebar.width }
-                onPositionChanged: function(mouse) { if(pressed) { var requested=initialWidth+mapToGlobal(mouse.x,mouse.y).x-initialX;sidebar.collapsed=requested<160;if(!sidebar.collapsed)workspace.setSetting("sidebar_width",Math.max(160,Math.min(420,requested))) } }
+            MouseArea { id: resizeMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.SplitHCursor; property real initialX; property real initialWidth; property real draftWidth: 220
+                onPressed: function(mouse) { initialX=mapToGlobal(mouse.x,mouse.y).x;initialWidth=sidebar.width;draftWidth=initialWidth }
+                onReleased: workspace.setSetting("sidebar_width",draftWidth)
+                onCanceled: workspace.setSetting("sidebar_width",draftWidth)
+                onPositionChanged: function(mouse) { if(pressed) { var requested=initialWidth+mapToGlobal(mouse.x,mouse.y).x-initialX;sidebar.collapsed=requested<160;if(!sidebar.collapsed){draftWidth=Math.max(160,Math.min(420,requested));} } }
             }
         }
         ColumnLayout {
@@ -77,7 +79,7 @@ Pane {
             JukeboxView { id: jukebox; visible: workspace.currentPage === "jukebox"; Layout.fillWidth: true; Layout.fillHeight: true; Layout.leftMargin: 24; Layout.rightMargin: 24 }
             Card {
                 objectName: "jukeboxMiniPlayer"
-                visible: workspace.currentPage !== "jukebox" && bridge.state.playing
+                visible: workspace.currentPage !== "jukebox" && bridge.stateValue(bridge.stateRevision,"playing")
                 Layout.fillWidth: true; Layout.leftMargin: 24; Layout.rightMargin: 24; Layout.bottomMargin: 20
                 implicitHeight: 76
                 MouseArea {
@@ -90,20 +92,20 @@ Pane {
                 RowLayout {
                     anchors.fill: parent; anchors.margins: 10; spacing: 12
                     Rectangle { Layout.preferredWidth: 54; Layout.preferredHeight: 54; radius: 6; color: bridge.palette.input; clip: true
-                        RoundedArtwork { id: miniCover; anchors.fill: parent; source: bridge.state.cover; fillMode: Image.PreserveAspectCrop; asynchronous: true }
+                        RoundedArtwork { id: miniCover; anchors.fill: parent; source: bridge.stateValue(bridge.stateRevision,"cover"); fillMode: Image.PreserveAspectCrop; asynchronous: true }
                         Label { anchors.centerIn: parent; visible: miniCover.status !== Image.Ready; text: "♪"; color: bridge.palette.muted; font.pixelSize: 25 }
                     }
                     ColumnLayout {
                         Layout.fillWidth: true; spacing: 3
-                        Label { Layout.fillWidth: true; text: bridge.state.title; color: bridge.palette.text; elide: Text.ElideRight; font.bold: true }
-                        Label { Layout.fillWidth: true; text: [bridge.state.artist,bridge.state.album].filter(Boolean).join(" · "); color: bridge.palette.muted; elide: Text.ElideRight }
+                        Label { Layout.fillWidth: true; text: bridge.stateValue(bridge.stateRevision,"title"); color: bridge.palette.text; elide: Text.ElideRight; font.bold: true }
+                        Label { Layout.fillWidth: true; text: [bridge.stateValue(bridge.stateRevision,"artist"),bridge.stateValue(bridge.stateRevision,"album")].filter(Boolean).join(" · "); color: bridge.palette.muted; elide: Text.ElideRight }
                     }
                     PlaybackButton {
-                        glyph: bridge.state.paused ? "play" : "pause"
-                        Accessible.name: bridge.translate(bridge.state.paused ? "Retomar" : "Pausar")
+                        glyph: bridge.stateValue(bridge.stateRevision,"paused") ? "play" : "pause"
+                        Accessible.name: bridge.translate(bridge.stateValue(bridge.stateRevision,"paused") ? "Retomar" : "Pausar")
                         onClicked: bridge.playPause()
                     }
-                    PlaybackButton { glyph: "next"; Accessible.name: bridge.translate("Próxima música"); ToolTip.visible: hovered; ToolTip.text: Accessible.name; enabled: bridge.queuedTracks.length>0 && (bridge.queueRepeat==="Todas" || bridge.playback.current+1<bridge.queuedTracks.length); onClicked: bridge.nextTrack() }
+                    PlaybackButton { glyph: "next"; Accessible.name: bridge.translate("Próxima música"); ToolTip.visible: hovered; ToolTip.text: Accessible.name; enabled: bridge.queueCount>0 && (bridge.queueRepeat==="Todas" || bridge.playbackControls.current+1<bridge.queueCount); onClicked: bridge.nextTrack() }
                     PlaybackButton { glyph: "stop"; Accessible.name: bridge.translate("Parar"); ToolTip.visible: hovered; ToolTip.text: Accessible.name; onClicked: bridge.stop() }
                     ActionButton {
                         implicitWidth: 44; Accessible.name: bridge.translate("Equalizador")
@@ -144,11 +146,11 @@ Pane {
                     RowLayout {
                         anchors.left: parent.left; anchors.leftMargin: 24; anchors.verticalCenter: parent.verticalCenter; spacing: Math.round(12*bridge.spacing)
                     Rectangle {Layout.preferredWidth:48;Layout.preferredHeight:48;radius:6;color:bridge.palette.input
-                        RoundedArtwork {anchors.fill:parent;source:bridge.state.cover;fillMode:Image.PreserveAspectCrop}
+                        RoundedArtwork {anchors.fill:parent;source:bridge.stateValue(bridge.stateRevision,"cover");fillMode:Image.PreserveAspectCrop}
                     }
                     ColumnLayout {Layout.maximumWidth:Math.max(80,Math.min(190,jukeboxTransport.x-110))
-                        Label {Layout.fillWidth:true;text:bridge.state.title;color:bridge.palette.text;elide:Text.ElideRight}
-                        Label {Layout.fillWidth:true;text:bridge.state.artist;color:bridge.palette.muted;elide:Text.ElideRight}
+                        Label {Layout.fillWidth:true;text:bridge.stateValue(bridge.stateRevision,"title");color:bridge.palette.text;elide:Text.ElideRight}
+                        Label {Layout.fillWidth:true;text:bridge.stateValue(bridge.stateRevision,"artist");color:bridge.palette.muted;elide:Text.ElideRight}
                     }
                     }
                     RowLayout {
@@ -156,15 +158,15 @@ Pane {
                         objectName: "jukeboxPlaybackControlsTransport"
                         anchors.centerIn: parent; spacing: Math.round((sharedPlaybackBar.compact?6:12)*bridge.spacing)
                     PlaybackButton {implicitWidth:sharedPlaybackBar.compact?32:44;glyph:"shuffle";primary:bridge.queueShuffle;Accessible.name:bridge.translate("Reprodução aleatória");onClicked:bridge.setQueueShuffle(!bridge.queueShuffle)}
-                    PlaybackButton {implicitWidth:sharedPlaybackBar.compact?32:44; glyph: "previous"; Accessible.name: bridge.translate("Retroceder"); enabled: bridge.state.ready; onClicked: bridge.previousTrack() }
+                    PlaybackButton {implicitWidth:sharedPlaybackBar.compact?32:44; glyph: "previous"; Accessible.name: bridge.translate("Retroceder"); enabled: bridge.stateValue(bridge.stateRevision,"ready"); onClicked: bridge.previousTrack() }
                     PlaybackButton {implicitWidth:sharedPlaybackBar.compact?32:44;
                         primary: true
-                        glyph: bridge.state.playing && !bridge.state.paused ? "pause" : "play"
-                        Accessible.name: bridge.translate(bridge.state.playing ? (bridge.state.paused ? "Retomar" : "Pausar") : "Reproduzir")
-                        enabled: (bridge.state.ready || bridge.queuedTracks.length>0) && (!bridge.state.busy || bridge.state.playing)
+                        glyph: bridge.stateValue(bridge.stateRevision,"playing") && !bridge.stateValue(bridge.stateRevision,"paused") ? "pause" : "play"
+                        Accessible.name: bridge.translate(bridge.stateValue(bridge.stateRevision,"playing") ? (bridge.stateValue(bridge.stateRevision,"paused") ? "Retomar" : "Pausar") : "Reproduzir")
+                        enabled: (bridge.stateValue(bridge.stateRevision,"ready") || bridge.queueCount>0) && (!bridge.stateValue(bridge.stateRevision,"busy") || bridge.stateValue(bridge.stateRevision,"playing"))
                         onClicked: bridge.playPause()
                     }
-                    PlaybackButton {implicitWidth:sharedPlaybackBar.compact?32:44; glyph: "next"; Accessible.name: bridge.translate("Avançar"); enabled: bridge.queuedTracks.length>0 && (bridge.queueRepeat==="Todas" || bridge.playback.current+1<bridge.queuedTracks.length); onClicked: bridge.nextTrack() }
+                    PlaybackButton {implicitWidth:sharedPlaybackBar.compact?32:44; glyph: "next"; Accessible.name: bridge.translate("Avançar"); enabled: bridge.queueCount>0 && (bridge.queueRepeat==="Todas" || bridge.playbackControls.current+1<bridge.queueCount); onClicked: bridge.nextTrack() }
                     PlaybackButton {objectName:"playbackRepeatButton";implicitWidth:sharedPlaybackBar.compact?32:44;glyph:bridge.queueRepeat==="Uma"?"repeat-one":"repeat";primary:bridge.queueRepeat!=="Desativada";Accessible.name:bridge.translate("Repetição")+": "+bridge.translate(bridge.queueRepeat);ToolTip.visible:hovered;ToolTip.text:Accessible.name;onClicked:bridge.setQueueRepeat(bridge.queueRepeat==="Desativada"?"Todas":bridge.queueRepeat==="Todas"?"Uma":"Desativada")}
                     }
                     RowLayout {
@@ -183,7 +185,7 @@ Pane {
                 RowLayout {
                     anchors.left:parent.left;anchors.right:parent.right;anchors.bottom:parent.bottom;anchors.leftMargin:24;anchors.rightMargin:24;anchors.bottomMargin:10;height:28;spacing:12
                     Label {text:workspace.clock(bridge.sourcePosition);color:bridge.palette.muted}
-                    OndaSlider {Layout.fillWidth:true;from:0;to:Math.max(1,bridge.sourceDuration);value:bridge.sourcePosition;enabled:bridge.state.ready;Accessible.name:bridge.translate("Posição na música");onMoved:bridge.seekSeconds(value)}
+                    OndaSlider {Layout.fillWidth:true;from:0;to:Math.max(1,bridge.sourceDuration);value:bridge.sourcePosition;enabled:bridge.stateValue(bridge.stateRevision,"ready");Accessible.name:bridge.translate("Posição na música");onMoved:bridge.seekSeconds(value)}
                     Label {text:workspace.clock(bridge.sourceDuration);color:bridge.palette.muted}
                 }
             }

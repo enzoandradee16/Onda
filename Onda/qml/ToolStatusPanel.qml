@@ -5,7 +5,7 @@ import QtQuick.Layouts
 ColumnLayout {
     id: panel
     objectName: "toolStatusReport"
-    property var report: workspace.values.toolReport || ({})
+    property var report: workspace.optionValue(workspace.optionsRevision,"toolReport") || ({})
     property bool expanded: false
     readonly property var tools: report.tools || []
     spacing: 10
@@ -47,5 +47,5 @@ ColumnLayout {
     }
     ActionButton {objectName:"toolTechnicalDetails";visible:panel.tools.length>0;text:bridge.translate(panel.expanded ? "Ocultar detalhes técnicos" : "Detalhes técnicos");onClicked:panel.expanded=!panel.expanded}
     Label {objectName:"toolRawDetails";visible:panel.expanded;Layout.fillWidth:true;wrapMode:Text.WrapAnywhere;text:bridge.translate(panel.report.details || "");textFormat:Text.PlainText;color:bridge.palette.muted;font.pixelSize:Math.round(12*bridge.fontScale)}
-    ActionButton {objectName:"restartAfterToolsCheck";visible:!!panel.report.can_restart;text:bridge.translate("Reiniciar ONDA");enabled:workspace.activity.active===0 && workspace.activity.busy.length===0 && !bridge.state.busy;onClicked:workspace.invoke("restart_app",{})}
+    ActionButton {objectName:"restartAfterToolsCheck";visible:!!panel.report.can_restart;text:bridge.translate("Reiniciar ONDA");enabled:workspace.activity.active===0 && workspace.activity.busy.length===0 && !bridge.stateValue(bridge.stateRevision,"busy");onClicked:workspace.invoke("restart_app",{})}
 }

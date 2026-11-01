@@ -62,7 +62,7 @@ import org.json.JSONObject
     val finished=queue.count {it.state=="Concluído"}
     val timing=remember(queue,running,tick){OndaStore.queueTiming.snapshot(queue.size-finished,queue.isNotEmpty())}
     val remaining=timing.remaining?.let {if(it==0L)"00:00" else "≈ "+queueDuration(it)} ?: if(running)translateUi("Calculando…") else "—"
-    val metadataUris=history.filter {record->historyKind(record.mode,record.title)=="Áudio" && queue.any {item->item.id in selected && item.state=="Concluído" && jobSource(item.config).isNotBlank() && jobSource(item.config)==record.source && item.config.optString("mode").equals(record.mode,true)}}.map {it.uri}.distinct()
+    val metadataUris=remember(queue,selected,history){downloadMetadataUris(queue,selected,history)}
     metadataBatch?.let {sources->
         if(sources.size>1)BatchMetadataEditor(vm,sources){metadataBatch=null}
         else Dialog(onDismissRequest={metadataBatch=null}) {Surface(shape=MaterialTheme.shapes.large){Column(Modifier.fillMaxWidth().fillMaxHeight(.9f)){

@@ -11,7 +11,7 @@ Card {
         NumberAnimation {target:queueList;property:"opacity";from:0.6;to:1;duration:200;easing.type:Easing.OutCubic}
         NumberAnimation {target:tabSlide;property:"x";from:queuePanel.recent?queueList.width:-queueList.width;to:0;duration:240;easing.type:Easing.OutCubic}
     }
-    readonly property var rows:recent ? bridge.recentTracks : bridge.upcomingTracks
+    readonly property var rows:recent ? bridge.visibleRecentTracks : bridge.visibleUpcomingTracks
     StableQueueModel { id: stableTracks; rows: queuePanel.rows }
     function original(i){return rows[i].queueIndex}
     function move(i,target){bridge.moveQueued(original(i),original(target)-original(i))}

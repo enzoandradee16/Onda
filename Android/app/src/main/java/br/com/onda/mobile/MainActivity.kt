@@ -236,7 +236,7 @@ val lightAccents=mapOf(
                         "Mais"->MorePage(tabs,tabGroupOrder(settings),onNavigate={tab=it},onYouTube={youtubeSession=true},onLicenses={showLicenses=true},onFailures={OndaStore.failureSummary.value=OndaStore.items.value.filter {it.state=="Erro"}.map {it.id}.takeIf {it.isNotEmpty()}},onRemote={showRemote=true})
                         "Efeitos"->if(remotePlayback.connected)RemotePlaybackPage(vm) else PlaybackPage(vm)
                         "Imagens"->ImagesPage(vm)
-                        "Playlists / Álbuns"->CollectionsPage(vm)
+                        "Playlists / Álbuns"->CollectionsPage(vm,onConnectSpotify={settingsCategory="Contas";showSettings=true})
                         "Histórico"->HistoryPage(vm,onEditMetadata={metadataUri=it.uri;tab="Metadados"})
                         "Metadados"->MetadataPage(vm,metadataUri){metadataUri=null}
                         "Conversor de vídeos"->VideoConverterPage(vm)

@@ -4,6 +4,7 @@ import threading
 import os, tempfile, time, unittest
 from pathlib import Path
 from unittest.mock import patch
+from playback_controls import volume_gain
 
 ROOT = Path(__file__).resolve().parent
 TOOLS = Path(
@@ -84,7 +85,7 @@ class QtJukeboxTests(unittest.TestCase):
         graph = QSignalSpy(bridge.graphChanged)
         params = QSignalSpy(bridge.playbackParamsChanged)
         bridge.setParams(45, 35, 50, False)
-        self.assertEqual(bridge.playback_gain(), 0.25)
+        self.assertAlmostEqual(bridge.playback_gain(), 0.08838834764831845)
         bridge.setParams(45, 35, 0, False)
         self.assertEqual(bridge.playback_gain(), 0)
         self.assertEqual(params.count(), 2)
@@ -721,7 +722,10 @@ class QtJukeboxTests(unittest.TestCase):
             self.assertTrue(bridge.playback['sleepActive'])
             self.assertEqual(bridge.track_minutes, 5)
             self.assertAlmostEqual(
-                bridge.playback_gain(), (bridge.playbackParams["volume"] / 100) ** 2
+                bridge.playback_gain(),
+                volume_gain(
+                    bridge.playbackParams["volume"]
+                ),
             )
         self.assertEqual(
             self.store.clean({'jukebox_transition_seconds': '4'})[

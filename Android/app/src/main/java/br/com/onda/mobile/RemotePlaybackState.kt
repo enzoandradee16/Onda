@@ -30,3 +30,10 @@ internal data class RemotePlaybackState(
         return (position + elapsed.coerceAtMost(3.0)).coerceIn(0.0, duration.coerceAtLeast(0.0))
     }
 }
+
+
+// Progress and queue loading must not resend album bitmaps through Android IPC.
+internal fun RemotePlaybackState.metadataSignature(artwork:Any?):List<Any?> =
+    listOf(trackId,title,artist,album,duration,artwork)
+internal fun RemotePlaybackState.notificationSignature(artwork:Any?):List<Any?> =
+    listOf(title,artist,online,playing,artwork)

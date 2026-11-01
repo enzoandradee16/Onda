@@ -25,7 +25,7 @@ import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
 
-@Composable fun CollectionsPage(vm: OndaViewModel) {
+@Composable fun CollectionsPage(vm: OndaViewModel,onConnectSpotify:()->Unit={}) {
     val collection by vm.collection.collectAsStateWithLifecycle()
     var referenceResult by remember {mutableStateOf("")}
     val compareFile=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) {uri->if(uri!=null)vm.importLocal(uri,"collection-reference") {file->
@@ -34,13 +34,18 @@ import org.json.JSONObject
     LaunchedEffect(collection){referenceResult=""}
     val comparison by vm.collectionComparison.collectAsStateWithLifecycle()
     val busy by vm.busy.collectAsStateWithLifecycle()
-    var libraryTab by rememberSaveable {mutableIntStateOf(if(collection.optString("title").isNotBlank())1 else 0)}
+    val spotifyConnected by vm.spotifyConnected.collectAsStateWithLifecycle()
+    val spotifyPlaylists by vm.spotifyPlaylists.collectAsStateWithLifecycle()
+    val spotifyNext by vm.spotifyPlaylistsNext.collectAsStateWithLifecycle()
+    val spotifyLoaded by vm.spotifyPlaylistsLoaded.collectAsStateWithLifecycle()
+    var libraryTab by rememberSaveable {mutableIntStateOf(if(collection.optString("title").isNotBlank())1 else if(vm.spotifyConnected.value)2 else 0)}
     var advanced by rememberSaveable {mutableStateOf(false)}
     var moreActions by remember {mutableStateOf(false)}
     var saved by remember {mutableStateOf<List<JSONObject>>(emptyList())}
     val libraryScope=rememberCoroutineScope()
     val listState=rememberLazyListState()
     LaunchedEffect(libraryTab){listState.scrollToItem(0)}
+    LaunchedEffect(libraryTab,spotifyConnected){if(libraryTab==2 && spotifyConnected && !spotifyLoaded)vm.loadSpotifyPlaylists()}
     LaunchedEffect(Unit){saved=CollectionsLibrary.read()}
     var syncReload by remember {mutableStateOf(false)}
     val settings by OndaStore.settings.collectAsStateWithLifecycle()
@@ -89,6 +94,7 @@ import org.json.JSONObject
         Row(Modifier.horizontalScroll(rememberScrollState())) {
             Button(onClick={enqueue(true)},enabled=chosen().isNotEmpty() && !adding){UiText("Baixar agora")}
             TextButton(onClick={enqueue(false)},enabled=chosen().isNotEmpty() && !adding){UiText("Adicionar à fila")}
+            TextButton(onClick={vm.collectionToPlayback(chosen())},enabled=chosen().isNotEmpty()&&!busy){UiText("Usar em reprodução")}
         }
 
     }
@@ -98,8 +104,46 @@ import org.json.JSONObject
             OutlinedTextField(url,{url=it},label={UiText("Link da playlist ou álbum")},singleLine=true,modifier=Modifier.fillMaxWidth(),keyboardOptions=androidx.compose.foundation.text.KeyboardOptions(imeAction=androidx.compose.ui.text.input.ImeAction.Go),keyboardActions=androidx.compose.foundation.text.KeyboardActions(onGo={if(!busy&&url.isNotBlank()){libraryTab=1;vm.loadCollection(url,options)}}))
             Button(onClick={if(busy)vm.cancel() else {libraryTab=1;vm.loadCollection(url,options)}},enabled=busy||url.isNotBlank()) {UiText(if(busy)"Cancelar" else if(tracks.isNotEmpty()&&collection.optString("_collection_url")==url)"Atualizar" else "Carregar")}
         }
-        item {ToolTabs(listOf("Salvos","Importar"),libraryTab){libraryTab=it}}
-        if(libraryTab==0) {
+        item {ToolTabs(listOf("Salvos","Importar","Spotify"),libraryTab){libraryTab=it}}
+        if(libraryTab==2) {
+            item {
+                Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+                    UiText("Playlists do Spotify",Modifier.weight(1f),style=MaterialTheme.typography.titleMedium)
+                    TextButton(enabled=!busy,onClick={if(spotifyConnected)vm.loadSpotifyPlaylists() else onConnectSpotify()}) {UiText(if(spotifyConnected)"Atualizar" else "Conectar")}
+                }
+                if(!spotifyConnected)UiText("Conecte sua conta Spotify para ver suas playlists.")
+                if(busy)LinearProgressIndicator(Modifier.fillMaxWidth())
+            }
+            if(spotifyPlaylists.isEmpty() && spotifyConnected && !busy)item {ToolEmpty("album","Nenhuma playlist encontrada","As playlists da conta conectada aparecerão aqui.")}
+            items(spotifyPlaylists,key={it.optString("id")},contentType={"spotify_playlist"}) {row->
+                ToolCard(Modifier.testTag("spotify-playlist-"+row.optString("id"))) {
+                    Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+                        Surface(Modifier.size(72.dp),shape=RoundedCornerShape(10.dp),color=MaterialTheme.colorScheme.surfaceVariant) {
+                            if(row.optString("cover_url").isNotBlank())AsyncImage(row.optString("cover_url"),translateUi("Capa do álbum"),Modifier.fillMaxSize())
+                            else Box(contentAlignment=Alignment.Center){OndaIcon("album")}
+                        }
+                        Column(Modifier.weight(1f)) {
+                            Text(row.optString("title"),style=MaterialTheme.typography.titleMedium,maxLines=2)
+                            Text(row.optString("owner"),style=MaterialTheme.typography.bodySmall)
+                            if(!row.isNull("count"))UiText("${row.optInt("count")} faixas",style=MaterialTheme.typography.bodySmall)
+                        }
+                        var menu by remember {mutableStateOf(false)}
+                        Box {
+                            IconButton(onClick={menu=true},enabled=!busy){OndaIcon("more-vertical","Mais ações")}
+                            DropdownMenu(menu,{menu=false}) {
+                                DropdownMenuItem(text={UiText("Baixar agora")},onClick={menu=false;vm.openSpotifyPlaylist(row.optString("id"),options,"download");libraryTab=1;url=row.optString("source_url")})
+                                DropdownMenuItem(text={UiText("Adicionar à fila")},onClick={menu=false;vm.openSpotifyPlaylist(row.optString("id"),options,"add");libraryTab=1;url=row.optString("source_url")})
+                            }
+                        }
+                    }
+                    Row(Modifier.horizontalScroll(rememberScrollState())) {
+                        TextButton(enabled=!busy,onClick={vm.openSpotifyPlaylist(row.optString("id"),options);libraryTab=1;url=row.optString("source_url")}){UiText("Abrir coleção")}
+                        TextButton(enabled=!busy,onClick={vm.openSpotifyPlaylist(row.optString("id"),options,"playback")}){UiText("Usar em reprodução")}
+                    }
+                }
+            }
+            if(spotifyNext>=0)item {OutlinedButton(enabled=!busy,onClick={vm.loadSpotifyPlaylists(true)},modifier=Modifier.fillMaxWidth()){UiText("Carregar mais")}}
+        } else         if(libraryTab==0) {
             if(saved.isEmpty())item {ToolEmpty("album","Suas coleções ficam aqui","Importe um álbum ou playlist e salve para acessar depois.")}
             items(saved,key={CollectionsLibrary.identity(it)},contentType={"saved_collection"}) {row->
                 ToolCard(Modifier.clickable {vm.collection.value=JSONObject(row.toString());vm.collectionComparison.value=null;url=row.optString("_collection_url");selected=emptySet();filter="";libraryTab=1}) {
@@ -180,6 +224,7 @@ import org.json.JSONObject
                 DropdownMenu(actions,{actions=false}) {
                     DropdownMenuItem(text={UiText("Baixar agora")},onClick={actions=false;vm.queueCollection(listOf(record),options,collection.optString("title","Playlist"),true)})
                     DropdownMenuItem(text={UiText("Adicionar à fila")},onClick={actions=false;vm.queueCollection(listOf(record),options,collection.optString("title","Playlist"),false)})
+                    DropdownMenuItem(text={UiText("Usar em reprodução")},onClick={actions=false;vm.collectionToPlayback(listOf(record))})
                     DropdownMenuItem(text={UiText("Ver no catálogo")},onClick={actions=false;openRecordLink(record)})
                     DropdownMenuItem(text={UiText("Copiar link")},onClick={actions=false;copyRecordLink(record)})
                 }

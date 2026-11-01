@@ -68,14 +68,22 @@ import org.json.JSONObject
     }
     BackHandler(searching){searching=false}
     val files=rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) {uris->
-        vm.importConversionBatch(uris){paths->paths.forEach {path->controller.enqueue(JSONObject().put("title",importedAudioName(path).substringBeforeLast('.')).put("_local_source",path))}}
+        vm.importConversionBatch(uris){paths->controller.enqueueAll(paths.map {path->JSONObject().put("title",importedAudioName(path).substringBeforeLast('.')).put("_local_source",path)})}
     }
-    val active=if(remote.connected)queue.indexOfFirst {it.optString("_queue_id")==current} else (controller.nextQueueIndex-1).coerceIn(-1,queue.lastIndex.coerceAtLeast(-1))
+    val active=remember(queue,current,remote.connected,controller.nextQueueIndex) {
+        if(remote.connected)queue.indexOfFirst {it.optString("_queue_id")==current}
+        else (controller.nextQueueIndex-1).coerceIn(-1,queue.lastIndex.coerceAtLeast(-1))
+    }
     LaunchedEffect(remote.connected,remote.trackId,remote.queue.size) {
         if(remote.connected && remote.online && active<0 && remote.queue.size<remote.queueTotal)RemotePlaybackRuntime.loadMore()
     }
-    val played=if(remote.connected)queue.filter {it.optInt("_recent_rank",-1)>=0 && it.optString("_queue_id")!=current}.sortedBy {it.optInt("_recent_rank")} else queue.take(active.coerceAtLeast(0)).asReversed()
-    val upcoming=queue.drop((active+1).coerceAtLeast(0)).filter { !remote.connected || remote.repeat=="Todas" || it.optInt("_recent_rank",-1)<0 }
+    val played=remember(queue,current,remote.connected,active) {
+        if(remote.connected)queue.filter {it.optInt("_recent_rank",-1)>=0 && it.optString("_queue_id")!=current}.sortedBy {it.optInt("_recent_rank")}
+        else queue.take(active.coerceAtLeast(0)).asReversed()
+    }
+    val upcoming=remember(queue,active,remote.connected,remote.repeat) {
+        queue.drop((active+1).coerceAtLeast(0)).filter { !remote.connected || remote.repeat=="Todas" || it.optInt("_recent_rank",-1)<0 }
+    }
     val currentRow=queue.firstOrNull {it.optString("_queue_id")==current} ?: if(remote.connected) {
         if(remote.trackId.isNotBlank())RemoteQueueTrack(remote.trackId,remote.title,remote.artist,remote.duration).queueRecord() else null
     } else summary.first?.let {model->

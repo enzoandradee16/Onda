@@ -105,7 +105,7 @@ internal fun albumLyricsColors(accent:Color,highContrast:Boolean):Pair<Color,Col
 
 @Composable internal fun rememberLyricsColors(vm:OndaViewModel,source:String):Pair<Color,Color> {
     val info by vm.effectsInfo.collectAsStateWithLifecycle()
-    val juke by vm.jukebox.state.collectAsStateWithLifecycle()
+    val juke by vm.jukebox.presentationState.collectAsStateWithLifecycle()
     val settings by OndaStore.settings.collectAsStateWithLifecycle()
     val model=juke.model?.takeIf {it.optString("source")==source}
     val details=info[source]

@@ -98,6 +98,13 @@ object MobileEngine {
             if(action=="update")toolsState.value=toolsState.value.copy(running=false)
         }
     }
+    fun pcmChunk(context:Context,identity:String,config:org.json.JSONObject):Pair<org.json.JSONObject,ByteArray> {
+        initialize(context)
+        val packet=Python.getInstance().getModule("mobile_backend").callAttr("pcm_chunk",identity,config.toString()).asList()
+        val metadata=org.json.JSONObject(packet[0].toString())
+        require(!metadata.has("error")){metadata.optString("error")}
+        return metadata to packet[1].toJava(ByteArray::class.java)
+    }
     fun reply(identity: String, value: org.json.JSONObject) {
         if (ready) Python.getInstance().getModule("mobile_backend").callAttr("reply",identity,value.toString())
     }

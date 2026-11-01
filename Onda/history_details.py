@@ -10,11 +10,17 @@ def history_details(path):
     if not source.is_file():
         return {'note': 'Arquivo movido ou removido.', 'cover': ''}
     stat = source.stat()
-    return _cached_details(str(source), stat.st_mtime_ns, stat.st_size)
+    sidecar = Path(str(source) + '.metadata.json')
+    try:
+        provenance = sidecar.stat()
+        provenance = (provenance.st_mtime_ns, provenance.st_size)
+    except OSError:
+        provenance = None
+    return _cached_details(str(source), stat.st_mtime_ns, stat.st_size, provenance)
 
 
 @lru_cache(maxsize=64)
-def _cached_details(path, modified, size):
+def _cached_details(path, modified, size, provenance=None):
     source = Path(path)
     result = {'size': size, 'cover': ''}
     result['platform'] = history_platform(path)

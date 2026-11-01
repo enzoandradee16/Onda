@@ -5,11 +5,11 @@ from array import array
 
 
 def volume_gain(value):
-    """Perceptual slider curve with a continuous response down to silence."""
+    """Desktop listening curve: quiet midrange and a reduced, continuous ceiling."""
     value = float(value)
     if not math.isfinite(value):
         return 0.0
-    return (max(0.0, min(100.0, value)) / 100.0) ** 2
+    return 0.5 * (max(0.0, min(100.0, value)) / 100.0) ** 2.5
 
 
 class SleepTimer:

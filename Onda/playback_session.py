@@ -55,27 +55,44 @@ def restored_prepared(reference):
         return None
 
 
-def save(workspace, strict=False):
+def save(workspace, strict=False, background=False):
     bridge = workspace.bridge
-    data = {
-        'version': 1,
-        'unified': True,
-        'effectsEnabled': workspace.options.get('effectsEnabled', False),
-        'effects': {key: workspace.options[key] for key in FIELDS},
-        'jukebox': {
-            'queue': [
-                (
+    if (
+        getattr(workspace, '_session_queue_snapshot', None) is None
+        or getattr(workspace, '_session_queue_source', None) is not bridge.playlist
+        or len(workspace._session_queue_snapshot) != len(bridge.playlist)
+    ):
+        workspace._session_queue_source = bridge.playlist
+        from copy import deepcopy
+
+        workspace._session_queue_snapshot = [
+            (
+                deepcopy(
                     dict(
                         row,
                         prepared_cache=prepared_reference(bridge._prepared[row['id']]),
                     )
-                    if row.get('id') in bridge._prepared
-                    else row
                 )
-                for row in bridge.playlist
-            ],
+                if row.get('id') in bridge._prepared
+                else deepcopy(row)
+            )
+            for row in bridge.playlist
+        ]
+    data = {
+        'version': 1,
+        'unified': True,
+        'effectsEnabled': workspace.options.get('effectsEnabled', False),
+        'effects': __import__('copy').deepcopy(
+            {key: workspace.options[key] for key in FIELDS}
+        ),
+        'jukebox': {
+            'queue': workspace._session_queue_snapshot,
             'index': bridge.queue_index,
-            'model': None if (bridge.model or {}).get('_stream') else bridge.model,
+            'model': (
+                prepared_reference(bridge.model)
+                if bridge.model and not bridge.model.get('_stream')
+                else None
+            ),
             'seconds': (
                 bridge.sourcePosition
                 if bridge.model
@@ -93,24 +110,25 @@ def save(workspace, strict=False):
             'params': bridge._params,
             'repeat': bridge.queue_repeat,
             'shuffle': bridge.queue_shuffle,
-            'shuffle_order': bridge._shuffle_order,
-            'recent': bridge._queue_history,
+            'shuffle_order': list(bridge._shuffle_order),
+            'recent': list(bridge._queue_history),
         },
     }
     target = workspace.store.path.with_name('playback-session.json')
-    try:
-        raw = json.dumps(data, ensure_ascii=False, allow_nan=False)
-        if not strict and raw == getattr(workspace, '_saved_playback', None):
-            return
-        temporary = target.with_suffix('.tmp')
-        temporary.write_text(raw, encoding='utf-8')
-        temporary.replace(target)
-        workspace._saved_playback = raw
-    except (OSError, TypeError, ValueError) as error:
-        if strict:
-            raise ValueError(
-                'Não foi possível salvar a sessão antes de reiniciar.'
-            ) from error
+    from session_writer import SessionWriter
+
+    writer = getattr(workspace, '_session_writer', None)
+    if writer is None:
+        writer = workspace._session_writer = SessionWriter(target)
+    future = writer.submit(data)
+    if not background or strict:
+        try:
+            future.result()
+        except (OSError, TypeError, ValueError) as error:
+            if strict:
+                raise ValueError(
+                    'Não foi possível salvar a sessão antes de reiniciar.'
+                ) from error
 
 
 def restore(workspace):
@@ -240,6 +258,8 @@ def restore(workspace):
             if isinstance(identity, str)
         ][-200:]
         model = jukebox.get('model')
+        if isinstance(model, dict) and 'beats' not in model:
+            model = restored_prepared(model)
         seconds = jukebox.get('seconds')
         if seconds is None and isinstance(model, dict):
             beats = model.get('beats', [])

@@ -330,6 +330,7 @@ class SpotifyAccount:
 
     def get(self, path, params=None):
         searching = path == "search"
+        listing = path == "me/playlists"
         for attempt in range(2):
             token = self.token(force=bool(attempt))
             try:
@@ -343,6 +344,10 @@ class SpotifyAccount:
                     if response.status_code == 401 and not attempt:
                         continue
                     if response.status_code == 403:
+                        if listing:
+                            raise MetadataError(
+                                'Não foi possível listar as playlists do Spotify. Reconecte sua conta e autorize o acesso às playlists.'
+                            )
                         if searching:
                             raise MetadataError(
                                 'Spotify negou acesso à pesquisa. Confira o aplicativo no Spotify Developers e o usuário autorizado, ou reconecte sua conta.'
@@ -370,6 +375,69 @@ class SpotifyAccount:
                 raise MetadataError(
                     "Falha de conexão com o Spotify. Tente novamente."
                 ) from None
+
+    def playlists(self, offset=0, limit=50, cancelled=lambda: False):
+        """One page of account playlists, without eagerly loading their tracks."""
+        if (
+            type(offset) is not int
+            or not 0 <= offset <= 100000
+            or type(limit) is not int
+            or not 1 <= limit <= 50
+        ):
+            raise MetadataError('Página de playlists Spotify inválida.')
+        if cancelled():
+            raise MetadataError('Carregamento cancelado.')
+        data = self.get('me/playlists', {'offset': offset, 'limit': limit})
+        if cancelled():
+            raise MetadataError('Carregamento cancelado.')
+        page = data.get('items') or []
+        if not isinstance(page, list):
+            raise MetadataError('Não foi possível listar as playlists do Spotify.')
+        rows, seen = [], set()
+        for row in page:
+            if not isinstance(row, dict):
+                continue
+            identity = row.get('id', '')
+            if (
+                not isinstance(identity, str)
+                or not re.fullmatch(r'[A-Za-z0-9]{22}', identity)
+                or identity in seen
+            ):
+                continue
+            seen.add(identity)
+            owner = row.get('owner') if isinstance(row.get('owner'), dict) else {}
+            details = row.get('items') or row.get('tracks') or {}
+            total = details.get('total') if isinstance(details, dict) else None
+            images = row.get('images') if isinstance(row.get('images'), list) else []
+            rows.append(
+                dict(
+                    id=identity,
+                    title=row.get('name') or 'Playlist Spotify',
+                    owner=owner.get('display_name') or owner.get('id') or '',
+                    count=total if type(total) is int and total >= 0 else None,
+                    source_url='https://open.spotify.com/playlist/' + identity,
+                    cover_url=next(
+                        (
+                            item['url']
+                            for item in images
+                            if isinstance(item, dict)
+                            and isinstance(item.get('url'), str)
+                            and item['url'].startswith('https://')
+                        ),
+                        '',
+                    ),
+                    collaborative=bool(row.get('collaborative')),
+                )
+            )
+        next_offset = offset + len(page)
+        return dict(
+            playlists=rows,
+            next_offset=(
+                next_offset
+                if page and data.get('next') and next_offset <= 100000
+                else -1
+            ),
+        )
 
     def playlist(
         self, playlist_id, limit=DEFAULT_PLAYLIST_LIMIT, cancelled=lambda: False

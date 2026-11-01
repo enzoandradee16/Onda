@@ -11,11 +11,13 @@ class PlaybackControlTests(unittest.TestCase):
 
         levels = [volume_gain(n) for n in range(101)]
         self.assertEqual(levels[0], 0)
-        self.assertEqual(levels[-1], 1)
+        self.assertEqual(levels[-1], 0.5)
         self.assertTrue(all(a < b for a, b in zip(levels, levels[1:])))
         self.assertLess(max(b - a for a, b in zip(levels, levels[1:])), 0.02)
         self.assertEqual(volume_gain(-10), 0)
-        self.assertEqual(volume_gain(200), 1)
+        self.assertEqual(volume_gain(200), 0.5)
+        self.assertLess(levels[50], 0.1)
+        self.assertLess(levels[80], 0.3)
 
     def test_steady_volume_keeps_pcm_shape_and_matches_gain_within_one_sample(self):
         data = array('h', [-32768, -12345, 0, 12345, 32767, 5]).tobytes()

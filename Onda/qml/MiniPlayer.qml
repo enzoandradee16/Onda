@@ -36,18 +36,20 @@ ApplicationWindow {
     color: "transparent"
     property var mainWindow
     transientParent: null
-    readonly property string artwork: bridge.state.cover || ""
-    readonly property string trackTitle: bridge.state.title || "ONDA"
-    readonly property string trackArtist: bridge.state.artist || ""
-    readonly property string trackAlbum: bridge.state.album || ""
-    readonly property bool playing: bridge.state.playing && !bridge.state.paused
-    readonly property bool ready: bridge.state.ready
-    readonly property bool hasNext: bridge.playback.current+1<bridge.queuedTracks.length || bridge.queueRepeat==="Todas" && bridge.queuedTracks.length>0
+    readonly property string artwork: bridge.stateValue(bridge.stateRevision,"cover") || ""
+    readonly property string trackTitle: bridge.stateValue(bridge.stateRevision,"title") || "ONDA"
+    readonly property string trackArtist: bridge.stateValue(bridge.stateRevision,"artist") || ""
+    readonly property string trackAlbum: bridge.stateValue(bridge.stateRevision,"album") || ""
+    readonly property bool playing: bridge.stateValue(bridge.stateRevision,"playing") && !bridge.stateValue(bridge.stateRevision,"paused")
+    readonly property bool ready: bridge.stateValue(bridge.stateRevision,"ready")
+    readonly property bool hasNext: bridge.playbackControls.current+1<bridge.queueCount || bridge.queueRepeat==="Todas" && bridge.queueCount>0
     property real volumeValue: 80
+    StableQueueModel { id: miniQueueRows; rows: mini.visible && mini.queueVisible ? bridge.visibleQueuedTracks : [] }
     property bool queueVisible: false
     property bool lyricsVisible: false
     property bool pinned: false
     property var lyricLines: []
+    property int lyricRevision: -1
     flags: Qt.Window | Qt.FramelessWindowHint
     readonly property bool glassEnabled: workspace.preferences.translucent_effects !== false && bridge.palette.mode !== "Alto contraste"
     readonly property bool darkGlass: ["Escuro","Preto puro"].indexOf(bridge.palette.mode)>=0
@@ -73,7 +75,7 @@ ApplicationWindow {
     onClosing: function(close) {close.accepted=false;restoreMain()}
     Timer {id:scrollPause;interval:250}
     Timer {id:manualLyricsPause;interval:5000}
-    Timer { interval: 100; running: mini.visible; repeat: true; onTriggered: {var next=workspace.lyricsFrame(true);if(JSON.stringify(next.lines)!==JSON.stringify(mini.lyricLines))mini.lyricLines=next.lines;mini.frame=next} }
+    Timer { interval: 100; running: mini.visible; repeat: true; onTriggered: {var next=workspace.lyricsClock(true);if(next.revision!==mini.lyricRevision){mini.lyricLines=workspace.lyricsDocument();mini.lyricRevision=next.revision;}mini.frame=next} }
     background: Rectangle {
         radius: 20; border.width: 1; border.color: mini.darkGlass ? "#35ffffff" : bridge.palette.line
         color: bridge.palette.surface
@@ -136,7 +138,7 @@ ApplicationWindow {
             MiniControl {objectName: "miniStop"; glyph: "stop"; Accessible.name: bridge.translate("Parar"); onClicked: bridge.stop()}
             Item {Layout.fillWidth: true}
             MicrophoneButton { implicitHeight: 34; background: Rectangle {radius: 9;color: parent.primary ? bridge.palette.accent : parent.hovered ? bridge.palette.hover : "transparent"} primary: mini.lyricsVisible; onClicked: {mini.lyricsVisible=!mini.lyricsVisible;if(mini.lyricsVisible)mini.queueVisible=false} }
-            MiniControl {glyph: "queue"; primary: mini.queueVisible; Accessible.name: bridge.translate("Fila de reprodução"); onClicked: {mini.queueVisible=!mini.queueVisible;if(mini.queueVisible)mini.lyricsVisible=false}}
+            MiniControl {objectName:"miniQueueToggle";glyph: "queue"; primary: mini.queueVisible; Accessible.name: bridge.translate("Fila de reprodução"); onClicked: {mini.queueVisible=!mini.queueVisible;if(mini.queueVisible)mini.lyricsVisible=false}}
         }
         RowLayout {
             Layout.fillWidth: true
@@ -173,7 +175,7 @@ ApplicationWindow {
             spacing:4;reuseItems:true;cacheBuffer:300;pixelAligned:true;boundsBehavior:Flickable.StopAtBounds;maximumFlickVelocity:3500;flickDeceleration:1800
             onMovementEnded:scrollPause.restart()
             WheelHandler {target:null;onWheel:function(event){mini.scrollList(miniQueue,event)}}
-            model: bridge.queuedTracks
+            model: miniQueueRows
             ScrollBar.vertical: ScrollBar {}
             delegate: ItemDelegate {
                 id:miniQueueTrack

@@ -143,7 +143,9 @@ def accepts(record, parsed):
                 if field == 'artists'
                 else record.get(field)
             )
-            if not words(filters[key]) <= words(value):
+            from text_search import contains_terms
+
+            if not contains_terms(filters[key], value):
                 return False
     if filters.get('version'):
         expected = version_signature(filters['version'])
@@ -187,12 +189,11 @@ def accepts(record, parsed):
         + ' '
         + ' '.join(record.get('artists') or [])
     )
-    normalized = ' ' + ' '.join(re.findall(r'[^\W_]+', text.casefold())) + ' '
+    from text_search import tokens as script_tokens
+
+    normalized = ' ' + ' '.join(script_tokens(text)) + ' '
     for phrase in parsed['phrases']:
-        if (
-            ' ' + ' '.join(re.findall(r'[^\W_]+', phrase.casefold())) + ' '
-            not in normalized
-        ):
+        if ' ' + ' '.join(script_tokens(phrase)) + ' ' not in normalized:
             return False
     if filters.get('exact', '').lower() in ('true', 'sim', '1'):
         title = filters.get('title') or parsed['free'].strip('"')
@@ -220,7 +221,20 @@ def _rank(records, parsed, limit):
             | words(' '.join(row.get('artists') or []))
             | words(row.get('album'))
         )
-        score = len(query_tokens & identity) / max(1, len(query_tokens))
+        from text_search import contains_terms
+
+        score = sum(
+            (
+                1
+                if term in identity
+                else 0.85 if contains_terms(term, ' '.join(identity)) else 0
+            )
+            for term in query_tokens
+        ) / max(1, len(query_tokens))
+        from text_search import equivalent
+
+        if equivalent(parsed['free'].strip(chr(34)), row.get('title', '')):
+            score = max(score, 1.0)
         ranked.append(dict(row, search_score=round(score, 4)))
     ranked.sort(key=lambda row: row['search_score'], reverse=True)
     grouped = []
@@ -404,6 +418,22 @@ def search_music(
             if rows:
                 warnings.append('A busca foi ampliada para outro catálogo ou região.')
         ranked = _rank(rows, parsed, limit)
+        if (
+            not ranked or ranked[0]['search_score'] < 0.75
+        ) and time.monotonic() - started < deadline_seconds:
+            from text_search import variants
+
+            spellings = variants(parsed['query'])[1:]
+            japanese = bool(re.search(r'[\u3040-\u30ff\u3400-\u9fff]', parsed['query']))
+            specs = [
+                (providers[0], 'jp' if japanese else country, text)
+                for text in spellings[:2]
+            ]
+            if japanese:
+                specs.insert(0, ('Apple / iTunes', 'jp', variants(parsed['query'])[0]))
+            if specs:
+                collect(list(dict.fromkeys(specs))[:3])
+                ranked = _rank(rows, parsed, limit)
         suggestions = []
         if not ranked or ranked[0]['search_score'] < 0.75:
             vocabulary = {token for row in rows for token in words(row.get('title'))}

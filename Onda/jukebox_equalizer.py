@@ -77,6 +77,21 @@ def preset_name(value):
     return 'Personalizado'
 
 
+@lru_cache(maxsize=8)
+def gain_table(gain):
+    """Exact signed-16-bit rounding, bounded to 1 MiB across recent gains."""
+    return array(
+        'h',
+        (
+            max(
+                -32768,
+                min(32767, round((value if value < 32768 else value - 65536) * gain)),
+            )
+            for value in range(65536)
+        ),
+    )
+
+
 class Equalizer:
     def __init__(self, rate=44100):
         self.rate = rate
@@ -157,6 +172,12 @@ class Equalizer:
         data.frombytes(pcm)
         if sys.byteorder != 'little':
             data.byteswap()
+        if not self.filters:
+            table = gain_table(self.gain)
+            out = array('h', map(table.__getitem__, data))
+            if sys.byteorder != 'little':
+                out.byteswap()
+            return out.tobytes()
         samples = [x * self.gain for x in data]
         for (b0, b1, b2, a1, a2), state in zip(self.filters, self.states):
             l1, l2, r1, r2 = state

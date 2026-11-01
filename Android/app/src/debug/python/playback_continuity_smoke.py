@@ -73,6 +73,7 @@ def verify():
             )
             return json.dumps(
                 dict(
+                    cache=str(model["cache"]),
                     ok=True,
                     pending_keeps_original=True,
                     disabled_is_bit_exact=True,
@@ -82,3 +83,15 @@ def verify():
         finally:
             gate.set()
             player.close()
+
+
+def verify_equalizer_gain():
+    from array import array
+    from jukebox_equalizer import Equalizer
+
+    samples = array('h', range(-32768, 32768))
+    player = Equalizer()
+    player.gain = 10 ** (-6 / 20)
+    expected = array('h', (max(-32768, min(32767, round(x * player.gain))) for x in samples))
+    assert player.process(samples.tobytes()) == expected.tobytes()
+    return json.dumps(dict(ok=True, samples=len(samples), bit_exact=True))

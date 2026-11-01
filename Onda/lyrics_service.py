@@ -90,19 +90,27 @@ def best_recording(rows, title, artist, album='', duration=0):
     import re, unicodedata, math
     from difflib import SequenceMatcher
 
+    from text_search import normalize as fold, tokens, equivalent
+    from matching import version_signature
+
     def normalize(value):
-        return ' '.join(
-            re.findall(
-                r'[^\W_]+',
-                ''.join(
-                    c
-                    for c in unicodedata.normalize('NFKD', str(value)).casefold()
-                    if not unicodedata.combining(c)
-                ),
-            )
-        )
+        return ' '.join(tokens(str(value or '')))
 
     def similarity(a, b):
+        if equivalent(a, b):
+            return 1.0
+        # A missing dakuten is not an alternate spelling of the same title.
+        left, right = fold(a or ''), fold(b or '')
+
+        def unvoiced(value):
+            return ''.join(
+                c
+                for c in unicodedata.normalize('NFD', value)
+                if c not in ('\u3099', '\u309a')
+            )
+
+        if left != right and unvoiced(left) == unvoiced(right):
+            return 0.0
         return SequenceMatcher(None, normalize(a), normalize(b)).ratio()
 
     ranked = []
@@ -119,6 +127,8 @@ def best_recording(rows, title, artist, album='', duration=0):
             continue
         # A live/remix/radio version is a different recording, even at a similar length.
         versions = {'live', 'remix', 'acoustic', 'instrumental', 'radio', 'extended'}
+        if version_signature(title) != version_signature(row.get('trackName', '')):
+            continue
         if (set(normalize(title).split()) & versions) != (
             set(normalize(row.get('trackName', '')).split()) & versions
         ):
@@ -179,13 +189,24 @@ def fetch_lyrics(source, record=None, cancel=None, session=None, alternatives=Fa
     if duration and not alternatives:
         params['duration'] = round(float(duration))
     client = session or requests
+    import time
+
+    deadline = time.monotonic() + 35
+    request_count = 0
 
     def request(endpoint, query):
+        nonlocal request_count
+        if cancel.is_set():
+            raise ValueError('Busca de letra cancelada.')
+        remaining = deadline - time.monotonic()
+        if request_count >= 6 or remaining <= 0:
+            return None
+        request_count += 1
         with client.get(
             'https://lrclib.net/api/' + endpoint,
             params=query,
             headers={'User-Agent': 'ONDA/1.2 (https://github.com/enzoandradee16/Onda)'},
-            timeout=(10, 20),
+            timeout=(min(5, remaining), min(15, remaining)),
             stream=True,
         ) as response:
             if response.status_code == 404:
@@ -195,12 +216,16 @@ def fetch_lyrics(source, record=None, cancel=None, session=None, alternatives=Fa
             for block in response.iter_content(16384):
                 if cancel.is_set():
                     raise ValueError('Busca de letra cancelada.')
+                if time.monotonic() > deadline:
+                    raise ValueError('Letra não encontrada para esta gravação.')
                 data.extend(block)
                 if len(data) > 1024 * 1024:
                     raise ValueError('Resposta de letra muito grande.')
         return json.loads(data)
 
     result = request('search' if alternatives else 'get', params)
+    if not alternatives and not isinstance(result, dict):
+        result = None
     if not alternatives and (
         result is None
         or isinstance(result, dict)
@@ -217,6 +242,78 @@ def fetch_lyrics(source, record=None, cancel=None, session=None, alternatives=Fa
             record.get('album', ''),
             float(duration or 0),
         )
+    if result is None or alternatives and not result:
+        from text_search import variants
+
+        # Bounded spelling retries, preserving all recording checks on automatic picks.
+        spellings = list(
+            dict.fromkeys(
+                [(name, artist) for name in variants(title)[1:]]
+                + [(title, name) for name in variants(artist)[1:]]
+            )
+        )[:3]
+        for alternate_title, alternate_artist in spellings:
+            if cancel.is_set():
+                raise ValueError('Busca de letra cancelada.')
+            matches = request(
+                'search',
+                (
+                    {'q': alternate_title}
+                    if alternate_title != title
+                    else {'track_name': title, 'artist_name': alternate_artist}
+                ),
+            )
+            matches = matches if isinstance(matches, list) else []
+            result = (
+                matches
+                if alternatives
+                else best_recording(
+                    matches,
+                    title,
+                    artist,
+                    record.get('album', ''),
+                    float(duration or 0),
+                )
+            )
+            if result:
+                break
+    if result is None and record.get('isrc') and duration:
+        from catalog_aliases import alternate_records
+        from metadata import MetadataClient, MetadataError
+
+        # Localized/translated titles need catalog proof, not a guessed kanji reading.
+        catalog = MetadataClient()
+        catalog.cancelled = cancel.is_set
+        catalog.deadline = deadline
+        try:
+            anchor = dict(
+                record,
+                title=title,
+                artists=artists if isinstance(artists, list) else [artist],
+                duration_ms=float(duration) * 1000,
+            )
+            aliases = alternate_records(anchor, catalog)[:2]
+            for alias in aliases:
+                if cancel.is_set():
+                    raise ValueError('Busca de letra cancelada.')
+                alias_artist = ', '.join(alias.get('artists') or [])
+                matches = request(
+                    'search',
+                    {'track_name': alias['title'], 'artist_name': alias_artist},
+                )
+                result = best_recording(
+                    matches if isinstance(matches, list) else [],
+                    alias['title'],
+                    alias_artist,
+                    alias.get('album', ''),
+                    float(duration),
+                )
+                if result:
+                    break
+        except MetadataError:
+            pass
+        finally:
+            catalog.close()
     if result is None:
         raise ValueError('Letra não encontrada para esta gravação.')
     if alternatives:

@@ -22,8 +22,8 @@ Drawer {
         requestedWidth=Qt.binding(function(){return workspace.preferences.playback_queue_width || 470})
     }
     readonly property string openKey: effects ? "effectsQueueOpen" : "jukeboxQueueOpen"
-    readonly property var tracks: effects ? workspace.values.effectsQueue : (recent ? bridge.recentTracks : bridge.upcomingTracks)
-    readonly property var results: (effects ? workspace.values.effectsQueueResults : workspace.values.jukeboxQueueResults) || []
+    readonly property var tracks: effects ? workspace.optionValue(workspace.optionsRevision,"effectsQueue") : (recent ? bridge.visibleRecentTracks : bridge.visibleUpcomingTracks)
+    readonly property var results: (effects ? workspace.optionValue(workspace.optionsRevision,"effectsQueueResults") : workspace.optionValue(workspace.optionsRevision,"jukeboxQueueResults")) || []
     readonly property bool searching: ["playback_input","effects_collection","effects_load"].some(function(name){return workspace.activity.busy.indexOf(name)>=0})
     function search(){
         if(searching)["playback_input","effects_collection","effects_load"].forEach(function(name){workspace.invoke("cancel_task",{name:name})})
@@ -68,8 +68,8 @@ Drawer {
     Connections {
         target: workspace
         function onOptionsChanged() {
-            if(workspace.values[drawer.openKey] && !drawer.opened)drawer.open()
-            else if(!workspace.values[drawer.openKey] && drawer.opened)drawer.close()
+            if(workspace.optionValue(workspace.optionsRevision,drawer.openKey) && !drawer.opened)drawer.open()
+            else if(!workspace.optionValue(workspace.optionsRevision,drawer.openKey) && drawer.opened)drawer.close()
         }
     }
     function play(index) {
@@ -150,7 +150,7 @@ Drawer {
                 required property var modelData
                 required property int index
                 readonly property var record:drawer.effects?modelData.record:modelData
-                readonly property bool current:drawer.effects?index===workspace.values.effectsQueueIndex:!!modelData.current
+                readonly property bool current:drawer.effects?index===workspace.optionValue(workspace.optionsRevision,"effectsQueueIndex"):!!modelData.current
                 readonly property bool failed:!!modelData.error||modelData.analysis==="error"
                 readonly property bool section:!!modelData.section&&!drawer.recent
                 width:queueList.width;height:60

@@ -67,6 +67,9 @@ def create_application(*, complete=True):
 
     register_qt_fonts()
     qmlRegisterType(BeatGraph, 'Onda', 1, 0, 'BeatGraph')
+    from qt_models_ui import QueueRowsModel
+
+    qmlRegisterType(QueueRowsModel, 'Onda', 1, 0, 'QueueRowsModel')
     from qt_workspace_ui import DesktopWorkspace
     from PySide6.QtCore import QTimer
 

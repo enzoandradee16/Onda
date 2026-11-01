@@ -2217,5 +2217,13 @@
   "Use uma faixa de até 20 minutos com duração conhecida.": "Usa una pista de hasta 20 minutos con una duración conocida.",
   "Não foi possível reproduzir o áudio online. Tente abrir a música novamente.": "No se pudo reproducir el audio en línea. Intenta abrir la pista de nuevo.",
   "Cache limpo. Espaço liberado: {size} MB.": "Caché borrada. Espacio liberado: {size} MB.",
-  "Alguns arquivos não puderam ser removidos. Tente novamente depois de fechar as operações em andamento.": "No se pudieron eliminar algunos archivos. Inténtalo de nuevo después de cerrar las operaciones en curso."
+  "Alguns arquivos não puderam ser removidos. Tente novamente depois de fechar as operações em andamento.": "No se pudieron eliminar algunos archivos. Inténtalo de nuevo después de cerrar las operaciones en curso.",
+  "Playlists do Spotify": "Playlists de Spotify",
+  "Conecte sua conta Spotify para ver suas playlists.": "Conecta tu cuenta de Spotify para ver tus playlists.",
+  "Carregando playlists…": "Cargando playlists…",
+  "Nenhuma playlist encontrada": "No se encontraron playlists",
+  "As playlists da conta conectada aparecerão aqui.": "Las playlists de la cuenta conectada aparecerán aquí.",
+  "Página de playlists Spotify inválida.": "Página de playlists de Spotify no válida.",
+  "Não foi possível listar as playlists do Spotify.": "No se pudieron listar las playlists de Spotify.",
+  "Não foi possível listar as playlists do Spotify. Reconecte sua conta e autorize o acesso às playlists.": "No se pudieron listar las playlists de Spotify. Vuelve a conectar tu cuenta y autoriza el acceso a las playlists."
 }

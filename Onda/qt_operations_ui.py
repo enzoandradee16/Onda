@@ -156,8 +156,8 @@ def perform(action, config, cancel, emit):
             raise
     if action == 'history_details':
         from platform_info import platform_info
-        from history_details import history_platform
-        from audio_library import read_audio, cover_preview, AUDIO_TYPES
+        from history_details import history_details
+        from audio_library import AUDIO_TYPES
 
         rows = []
         for row in config['rows']:
@@ -167,11 +167,8 @@ def perform(action, config, cancel, emit):
             if path.suffix.lower() not in AUDIO_TYPES:
                 continue
             try:
-                cover = cover_preview(path)
-                try:
-                    record = read_audio(path)
-                except (OSError, ValueError):
-                    record = {'title': path.stem, 'artists': [], 'album': ''}
+                record = history_details(path)
+                cover = record.get('cover') or ''
                 cover_url = 'data:image/png;base64,' + cover if cover else ''
                 if not cover_url:
                     for candidate in (
@@ -188,11 +185,13 @@ def perform(action, config, cancel, emit):
                 rows.append(
                     dict(
                         id=row['id'],
-                        title=record['title'],
-                        artist=', '.join(record['artists']),
-                        album=record['album'],
+                        title=record.get('title') or path.stem,
+                        artist=', '.join(record.get('artists') or []),
+                        album=record.get('album') or '',
                         cover_url=cover_url,
-                        **platform_info(row.get('source', ''), history_platform(path)),
+                        **platform_info(
+                            row.get('source', ''), record.get('platform') or ''
+                        ),
                     )
                 )
             except (OSError, ValueError):
@@ -513,6 +512,10 @@ def perform(action, config, cancel, emit):
                 'Falha na atualização das ferramentas. Verifique a conexão e tente novamente.'
             )
         return dict(report=report, display=display(report), message=present(report))
+    if action == 'spotify_playlists':
+        return config['_account'].playlists(
+            offset=int(config.get('offset', 0)), cancelled=cancel.is_set
+        )
     if action == 'spotify_connect':
         from spotify_account import authorize
 
