@@ -20,7 +20,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.json.JSONObject
 
 @Composable internal fun RemotePlaybackPage(vm: OndaViewModel) {
-    val state by RemotePlaybackRuntime.state.collectAsStateWithLifecycle()
+    val state by RemotePlaybackRuntime.presentationState.collectAsStateWithLifecycle()
     val effects = state.effects
     val jukebox = state.jukebox
     var devices by remember { mutableStateOf(false) }
@@ -84,7 +84,7 @@ import org.json.JSONObject
 
 /** Uses the PC resolver, and sends only result identities back to the PC. */
 @Composable internal fun RemoteQueueSearch(vm: OndaViewModel) {
-    val state by RemotePlaybackRuntime.state.collectAsStateWithLifecycle()
+    val state by RemotePlaybackRuntime.presentationState.collectAsStateWithLifecycle()
     var query by rememberSaveable { mutableStateOf("") }
     fun search() {
         if (state.searchBusy) RemotePlaybackRuntime.command("search_cancel")

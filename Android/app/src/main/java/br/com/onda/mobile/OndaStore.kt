@@ -239,7 +239,7 @@ object OndaStore {
         if(previous.state==state && (progress==null || progress==previous.progress) && (message==null || message==previous.message) && (activity==null || activity==previous.activity)) return
         val checkpoint=(progress ?: previous.progress).coerceIn(0f,100f)
         val saveCheckpoint=state!=previous.state || kotlin.math.abs(checkpoint-previous.config.optDouble("_resume_progress",0.0))>=5
-        val updatedConfig=if(saveCheckpoint)JSONObject(previous.config.toString()).put("_resume_progress",checkpoint).put("_interrupted",state in listOf("Baixando","Aguardando escolha") || state=="Pendente"&&previous.config.optBoolean("_interrupted")) else previous.config
+        val updatedConfig=if(saveCheckpoint)copyJsonObject(previous.config).put("_resume_progress",checkpoint).put("_interrupted",state in listOf("Baixando","Aguardando escolha") || state=="Pendente"&&previous.config.optBoolean("_interrupted")) else previous.config
         if(saveCheckpoint)database.writableDatabase.execSQL("UPDATE queue SET config=? WHERE id=?",arrayOf(updatedConfig.toString(),id))
         if(previous.state != state) database.writableDatabase.execSQL("UPDATE queue SET state=? WHERE id=?",arrayOf(state,id))
         if(previous.state!="Concluído" && state=="Concluído")queueTiming.recordCompletion()

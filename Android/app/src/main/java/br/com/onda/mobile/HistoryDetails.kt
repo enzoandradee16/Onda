@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
 import android.net.Uri
+import kotlinx.coroutines.sync.withPermit
 
 internal data class HistoryDetails(val title:String="",val artist:String="",val lines:List<String> = emptyList(),val cover:Bitmap?=null)
 
@@ -50,4 +51,16 @@ internal fun invalidateHistoryDetails() {
 internal fun cachedHistoryDetails(context:Context,item:HistoryItem,revision:Long):HistoryDetails {
     val key="${item.uri}|${item.size}|$revision"
     return historyDetailsCache.get(key) ?: readHistoryDetails(context,item.uri).also {historyDetailsCache.put(key,it)}
+}
+
+
+private val historyReadSlots=kotlinx.coroutines.sync.Semaphore(2)
+internal suspend fun loadHistoryDetails(context:Context,item:HistoryItem,revision:Long):HistoryDetails {
+    val key="${item.uri}|${item.size}|$revision"
+    historyDetailsCache.get(key)?.let {return it}
+    return historyReadSlots.withPermit {
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            cachedHistoryDetails(context,item,revision)
+        }
+    }
 }

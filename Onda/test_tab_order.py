@@ -16,10 +16,10 @@ class TabPreferenceTests(unittest.TestCase):
                 'catalog',
                 'downloads',
                 'queue',
-                'images',
-                'converter',
                 'playlists',
                 'history',
+                'images',
+                'converter',
                 'metadata',
             ],
         )

@@ -235,3 +235,83 @@ class RemoteControlTests(unittest.TestCase):
             self.assertEqual(response.read(), b'jpeg-content')
         finally:
             connection.close()
+
+    def test_handoff_accepts_only_portable_catalog_metadata(self):
+        self.pair()
+        record = dict(
+            title='Song',
+            artists=['Artist'],
+            duration_ms=180000,
+            source_url='https://open.spotify.com/track/abc',
+        )
+        for command, value in [
+            ('handoff_prepare', dict(id='abc123', record=record)),
+            ('handoff_commit', dict(id='abc123', position=76.25, playing=True)),
+            ('handoff_release', dict(id='abc123', track_id='current')),
+            ('handoff_cancel', dict(id='abc123')),
+        ]:
+            self.assertEqual(
+                self.request('/v1/command', dict(command=command, value=value))[0], 202
+            )
+            self.assertEqual(self.server.commands.get_nowait(), (command, value))
+        for command, value in [
+            (
+                'handoff_prepare',
+                dict(id='abc123', record=dict(record, source='C:/private.wav')),
+            ),
+            (
+                'handoff_prepare',
+                dict(
+                    id='abc123',
+                    record=dict(record, source_url='https://example.org/song'),
+                ),
+            ),
+            ('handoff_prepare', dict(id='abc123', record=dict(record, artists=[]))),
+            ('handoff_commit', dict(id='abc123', position=float('nan'), playing=True)),
+            ('handoff_commit', dict(id='abc123', position=-1, playing=True)),
+            ('handoff_commit', dict(id='abc123', position=10, playing=1)),
+            ('handoff_release', dict(id='abc123', track_id='')),
+            ('handoff_cancel', dict(id='../invalid')),
+        ]:
+            self.assertEqual(
+                self.request('/v1/command', dict(command=command, value=value))[0], 400
+            )
+        self.assertTrue(self.server.commands.empty())
+
+    def test_multilingual_handoff_can_exceed_four_kilobytes(self):
+        self.pair()
+        record = dict(
+            title='音楽' * 200,
+            artists=['歌手' * 90 for _ in range(15)],
+            duration_ms=180000,
+        )
+        payload = dict(
+            command='handoff_prepare', value=dict(id='large123', record=record)
+        )
+        self.assertGreater(len(json.dumps(payload).encode()), 4096)
+        self.assertEqual(self.request('/v1/command', payload)[0], 202)
+        self.assertEqual(
+            self.server.commands.get_nowait(), ('handoff_prepare', payload['value'])
+        )
+
+    def test_confirm_and_ack_flag_are_validated(self):
+        self.pair()
+        self.assertEqual(
+            self.request(
+                '/v1/command', dict(command='handoff_complete', value=dict(id='ack123'))
+            )[0],
+            202,
+        )
+        self.assertEqual(
+            self.server.commands.get_nowait(), ('handoff_complete', dict(id='ack123'))
+        )
+        self.assertEqual(
+            self.request(
+                '/v1/command',
+                dict(
+                    command='handoff_release',
+                    value=dict(id='ack123', track_id='current', ack_required='yes'),
+                ),
+            )[0],
+            400,
+        )

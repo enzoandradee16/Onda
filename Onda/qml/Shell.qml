@@ -12,7 +12,7 @@ Pane {
     id: app
     width: 1360; height: 900
     readonly property var inlineTasks: ({downloads:["image_gallery_manifest"],queue:["image_gallery_manifest"],catalog:["search"],playlists:["collection","compare_collection","check_matches"],converter:["convert","detect_silence"],effects:["effects_export","effects_search","effects_load","effects_queue_info","effects_collection"],images:["image_preview","image_export","image_gallery_manifest"],metadata:["audio_edit","normalize_preview"]})[workspace.currentPage] || []
-    readonly property var remainingTasks: workspace.activity.busy.filter(function(name) { return app.inlineTasks.indexOf(name)<0 && workspace.activity.background.indexOf(name)<0 })
+    readonly property var remainingTasks: workspace.activityValue(workspace.statusRevision,"busy").filter(function(name) { return app.inlineTasks.indexOf(name)<0 && workspace.activityValue(workspace.statusRevision,"background").indexOf(name)<0 })
     padding: 0
     background: Rectangle { color: bridge.palette.bg }
     font.family: bridge.interfaceFamily; font.pixelSize: Math.round(14*bridge.fontScale)
@@ -65,14 +65,14 @@ Pane {
             }
             Card {
                 objectName: "toolsProgressCard"
-                visible: workspace.activity.busy.indexOf("prepare_tools") >= 0 || workspace.activity.busy.indexOf("update_tools") >= 0
+                visible: workspace.activityValue(workspace.statusRevision,"busy").indexOf("prepare_tools") >= 0 || workspace.activityValue(workspace.statusRevision,"busy").indexOf("update_tools") >= 0
                 Layout.fillWidth: true; Layout.leftMargin: 24; Layout.rightMargin: 24; Layout.bottomMargin: 16
                 implicitHeight: toolProgressBody.implicitHeight+32
                 ColumnLayout {
                     id: toolProgressBody; anchors.fill: parent; anchors.margins: 16; spacing: 10
-                    Label { visible: !!workspace.activity.tools.message && !/^Preparando/i.test(workspace.activity.tools.message); Layout.fillWidth: true; wrapMode: Text.Wrap; color: bridge.palette.text; text: bridge.translate(workspace.activity.tools.message || "") }
-                    OndaProgressBar { Layout.fillWidth: true; from: 0; to: Math.max(1,workspace.activity.tools.total || 0); value: workspace.activity.tools.done || 0; indeterminate: !(workspace.activity.tools.total > 0) }
-                    Label { visible: workspace.activity.tools.total > 0; color: bridge.palette.muted; text: Math.min(100,Math.round(100*(workspace.activity.tools.done || 0)/Math.max(1,workspace.activity.tools.total || 0)))+"%" }
+                    Label { visible: !!workspace.activityValue(workspace.statusRevision,"tools").message && !/^Preparando/i.test(workspace.activityValue(workspace.statusRevision,"tools").message); Layout.fillWidth: true; wrapMode: Text.Wrap; color: bridge.palette.text; text: bridge.translate(workspace.activityValue(workspace.statusRevision,"tools").message || "") }
+                    OndaProgressBar { Layout.fillWidth: true; from: 0; to: Math.max(1,workspace.activityValue(workspace.statusRevision,"tools").total || 0); value: workspace.activityValue(workspace.statusRevision,"tools").done || 0; indeterminate: !(workspace.activityValue(workspace.statusRevision,"tools").total > 0) }
+                    Label { visible: workspace.activityValue(workspace.statusRevision,"tools").total > 0; color: bridge.palette.muted; text: Math.min(100,Math.round(100*(workspace.activityValue(workspace.statusRevision,"tools").done || 0)/Math.max(1,workspace.activityValue(workspace.statusRevision,"tools").total || 0)))+"%" }
                 }
             }
             WorkspaceView { objectName: "workspaceArea"; visible: workspace.currentPage !== "jukebox"; active: visible; Layout.fillWidth: true; Layout.fillHeight: true; Layout.leftMargin: 24; Layout.rightMargin: 24; Layout.bottomMargin: 16 }

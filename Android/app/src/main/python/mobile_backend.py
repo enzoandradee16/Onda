@@ -673,6 +673,17 @@ def perform(action, config):
         finally:
             value.close()
 
+    if action == 'jukebox_transfer_prepare':
+        from online_audio import prepare_stream
+
+        model = prepare_stream(
+            config['model'],
+            config,
+            _local.state['cancel'].is_set,
+            lambda value: emit('progress', percent=value),
+        )
+        model['source'] = str(Path(model['cache']) / 'audio.wav')
+        return model
     if action in (
         'jukebox_prepare',
         'jukebox_open',

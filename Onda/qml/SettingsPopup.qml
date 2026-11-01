@@ -75,7 +75,7 @@ Popup {
                         ActionButton { text: bridge.translate("Restaurar ordem das abas"); onClicked: workspace.invoke("reset_tab_order",{}) }
                     }
                     Flow { visible: popup.category === "Contas" && !popup.searching; Layout.fillWidth: true; spacing: Math.round(8*bridge.spacing)
-                        Repeater { model: [{name:"Remover credenciais",key:"forget_credentials"},{name:workspace.activity.spotify ? "Desconectar Spotify" : "Conectar Spotify",key:workspace.activity.spotify ? "spotify_disconnect" : "spotify_connect"},{name:"Abrir Spotify Developers",key:"spotify_developers"}].filter(function(action) { return action.key !== "forget_credentials" || workspace.activity.spotify })
+                        Repeater { model: [{name:"Remover credenciais",key:"forget_credentials"},{name:workspace.activityValue(workspace.statusRevision,"spotify") ? "Desconectar Spotify" : "Conectar Spotify",key:workspace.activityValue(workspace.statusRevision,"spotify") ? "spotify_disconnect" : "spotify_connect"},{name:"Abrir Spotify Developers",key:"spotify_developers"}].filter(function(action) { return action.key !== "forget_credentials" || workspace.activityValue(workspace.statusRevision,"spotify") })
                             TaskButton { required property var modelData; objectName: modelData.key; idleText: bridge.translate(modelData.name); operation: modelData.key }
                         }
                         ActionButton { text: bridge.translate(workspace.preferences.youtube_cookies ? "Remover cookies do YouTube" : "Importar cookies do YouTube"); onClicked: { if (workspace.preferences.youtube_cookies) workspace.setSetting("youtube_cookies",""); else workspace.invoke("pick",{kind:"youtube_cookies"}) } }

@@ -5,7 +5,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @Composable internal fun JukeboxLyricsButton(vm:OndaViewModel) {
     val controller=vm.jukebox
-    val state by controller.state.collectAsStateWithLifecycle()
+    val state by controller.presentationState.collectAsStateWithLifecycle()
     val queue by controller.playbackQueue.collectAsStateWithLifecycle()
     val current by controller.currentQueueId.collectAsStateWithLifecycle()
     LyricsButton(vm,state.model?.optString("source").orEmpty(),{

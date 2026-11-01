@@ -39,7 +39,7 @@ ColumnLayout {
         visible: root.settings && root.field.key === "language" && workspace.languageRestartRequired
         text: bridge.translate("Reiniciar")
         primary: true
-        enabled: workspace.activity.active === 0 && workspace.activity.busy.length === 0 && !bridge.stateValue(bridge.stateRevision,"busy")
+        enabled: workspace.activityValue(workspace.statusRevision,"active") === 0 && workspace.activityValue(workspace.statusRevision,"busy").length === 0 && !bridge.stateValue(bridge.stateRevision,"busy")
         onClicked: workspace.invoke("restart_language", {})
     }
     Loader { active: root.field.key === "theme_accent"; visible: active; Layout.fillWidth: true; sourceComponent: Component { AccentSelector { value: String(root.current || "Verde-Água"); onSelected: function(color) {root.save(color)} } } }

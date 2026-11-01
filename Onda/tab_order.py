@@ -8,11 +8,11 @@ DEFAULT_ORDER = (
     'catalog',
     'downloads',
     'queue',
-    'images',
-    'converter',
     'playlists',
     'history',
     'effects',
+    'images',
+    'converter',
     'metadata',
 )
 

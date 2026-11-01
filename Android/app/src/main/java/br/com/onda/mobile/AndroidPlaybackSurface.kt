@@ -24,7 +24,7 @@ import coil.compose.AsyncImage
 
 /** One compact player across navigation; expanding never transfers audio between tabs. */
 @Composable internal fun AndroidPlaybackSurface(vm:OndaViewModel,queueIsVisible:Boolean=false) {
-    val remote by RemotePlaybackRuntime.state.collectAsStateWithLifecycle()
+    val remote by RemotePlaybackRuntime.presentationState.collectAsStateWithLifecycle()
     if(remote.connected){RemotePlaybackSurface(remote,vm,queueIsVisible);return}
     val mode by vm.playbackMode.collectAsStateWithLifecycle()
     val fxSource by vm.effectsSource.collectAsStateWithLifecycle()

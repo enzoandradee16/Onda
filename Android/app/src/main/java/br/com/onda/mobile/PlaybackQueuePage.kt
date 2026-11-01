@@ -50,10 +50,10 @@ import org.json.JSONObject
     val controller=vm.jukebox
     val localQueue by controller.playbackQueue.collectAsStateWithLifecycle()
     val localCurrent by controller.currentQueueId.collectAsStateWithLifecycle()
-    val remote by RemotePlaybackRuntime.state.collectAsStateWithLifecycle()
+    val remote by RemotePlaybackRuntime.presentationState.collectAsStateWithLifecycle()
     val queue=remember(remote.connected,remote.queue,localQueue){if(remote.connected)remote.queue.map {it.queueRecord()} else localQueue}
     val current=if(remote.connected)remote.trackId else localCurrent
-    val summaryFlow=remember(controller){controller.state.map {it.model to it.title}.distinctUntilChanged()}
+    val summaryFlow=remember(controller){controller.presentationState.map {it.model to it.title}.distinctUntilChanged()}
     val summary by summaryFlow.collectAsStateWithLifecycle(initialValue=controller.state.value.let {it.model to it.title})
     var recent by rememberSaveable {mutableStateOf(false)}
     var searching by rememberSaveable {mutableStateOf(false)}
@@ -227,11 +227,11 @@ import org.json.JSONObject
 
 @Composable private fun PlaybackQueueTrack(record:JSONObject,vm:OndaViewModel,current:Boolean,recent:Boolean,play:()->Unit,modifier:Modifier=Modifier,drag:@Composable ()->Unit={}) {
     val controller=vm.jukebox
-    val remote by RemotePlaybackRuntime.state.collectAsStateWithLifecycle()
+    val remote by RemotePlaybackRuntime.presentationState.collectAsStateWithLifecycle()
     var actions by remember {mutableStateOf(false)}
     fun index()=if(remote.connected)remote.queue.indexOfFirst {it.id==record.optString("_queue_id")} else controller.playbackQueue.value.indexOfFirst {it.optString("_queue_id")==record.optString("_queue_id")}
     fun move(delta:Int){if(remote.connected)RemotePlaybackRuntime.moveQueue(record.optString("_queue_id"),delta) else controller.moveQueued(index(),delta)}
-    val state=if(current && !remote.connected)controller.state.collectAsStateWithLifecycle().value else JukeboxState()
+    val state=if(current && !remote.connected)controller.presentationState.collectAsStateWithLifecycle().value else JukeboxState()
     val model=if(current && !remote.connected)state.model else null
     val artist=record.stringList("artists").ifBlank {model?.optString("media_artist").orEmpty()}
     val cover=record.optString("_cover").ifBlank {model?.optString("media_cover").orEmpty()}
@@ -241,14 +241,7 @@ import org.json.JSONObject
         Column(Modifier.width(56.dp),verticalArrangement=Arrangement.spacedBy(6.dp)) {
             if(current && remote.connected)RemoteCover(remote,Modifier.size(56.dp)) else EffectsArtwork(JSONObject().put("record",record).put("cover",cover),Modifier.size(56.dp))
             if(current && (model!=null || remote.connected)) {
-                val remotePosition=if(remote.connected)remotePosition(remote) else 0.0
-                val beats=model?.optJSONArray("beats");val a=beats?.optDouble(state.index,0.0) ?: 0.0;val b=beats?.optDouble(state.index+1,a) ?: a
-                val progress=if(duration>0)((if(remote.connected)remotePosition else a+(b-a)*state.phase)/duration).toFloat().coerceIn(0f,1f) else 0f
-                Canvas(Modifier.fillMaxWidth().padding(horizontal=3.dp).height(3.dp).testTag("queue-current-cover-progress")) {
-                    val start=Offset(0f,center.y);val end=Offset(size.width,center.y)
-                    drawLine(colors.primary.copy(alpha=.2f),start,end,size.height,StrokeCap.Round)
-                    if(progress>0f)drawLine(colors.primary,start,Offset(size.width*progress,center.y),size.height,StrokeCap.Round)
-                }
+                QueueCoverProgress(controller,remote.connected,duration)
             } else if(record.optString("_analysis") in listOf("Preparando","Analisando")) {
                 LinearProgressIndicator(Modifier.fillMaxWidth().padding(horizontal=3.dp).height(3.dp).testTag("queue-cover-preparation"))
             }
@@ -275,6 +268,23 @@ import org.json.JSONObject
     }
 }
 
+
+@Composable private fun QueueCoverProgress(controller:JukeboxController,remote:Boolean,duration:Long) {
+    val position=if(remote) {
+        val clock by RemotePlaybackRuntime.state.collectAsStateWithLifecycle()
+        remotePosition(clock)
+    } else {
+        val clock by controller.state.collectAsStateWithLifecycle()
+        controller.sessionSeconds(clock.model,clock.index,clock.phase.toDouble())
+    }
+    val progress=if(duration>0)(position/duration).toFloat().coerceIn(0f,1f) else 0f
+    val colors=MaterialTheme.colorScheme
+    Canvas(Modifier.fillMaxWidth().padding(horizontal=3.dp).height(3.dp).testTag("queue-current-cover-progress")) {
+        val start=Offset(0f,center.y);val end=Offset(size.width,center.y)
+        drawLine(colors.primary.copy(alpha=.2f),start,end,size.height,StrokeCap.Round)
+        if(progress>0f)drawLine(colors.primary,start,Offset(size.width*progress,center.y),size.height,StrokeCap.Round)
+    }
+}
 
 /** The expanded player keeps its own queue overlay; dismissing it preserves the player. */
 @OptIn(ExperimentalMaterial3Api::class)

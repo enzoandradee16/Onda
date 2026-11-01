@@ -150,7 +150,7 @@ import androidx.compose.ui.text.input.ImeAction
 }
 
 @Composable internal fun PlaybackQueueSearch(vm:OndaViewModel,jukeboxTarget:Boolean) {
-    val remote by RemotePlaybackRuntime.state.collectAsStateWithLifecycle()
+    val remote by RemotePlaybackRuntime.presentationState.collectAsStateWithLifecycle()
     if(remote.connected){RemoteQueueSearch(vm);return}
     val scope=rememberCoroutineScope()
     var query by rememberSaveable {mutableStateOf("")}

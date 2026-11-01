@@ -61,7 +61,7 @@ internal fun toolDateText(value:String,language:String,zone:ZoneId=ZoneId.system
     val downloading by OndaStore.running.collectAsStateWithLifecycle()
     val preparing by vm.effectsPreparing.collectAsStateWithLifecycle()
     val loadingCollection by vm.loadingPlaybackCollection.collectAsStateWithLifecycle()
-    val jukebox by vm.jukebox.state.collectAsStateWithLifecycle()
+    val jukebox by vm.jukebox.presentationState.collectAsStateWithLifecycle()
     var report by remember {mutableStateOf(JSONObject())}
     LaunchedEffect(busy) {
         if(busy)return@LaunchedEffect

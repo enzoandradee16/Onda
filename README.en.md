@@ -20,6 +20,8 @@ On Android, updates can download within ONDA, with progress and background conti
 
 On PC, right-click lists or cards to open the actions available in that tab. Shift+F10 and the menu key also open these options; an existing multiple selection is preserved when clicking one of its selected items.
 
+On PC, the **Playback** tab is in the sidebar’s **Library** category. On Android, it remains in the bottom bar.
+
 ## Application highlights
 
 - **Windows:** clicking Download now in search opens format and quality selection: MP3, M4A, FLAC or original audio. Saved preferences are preselected. Download immediately or add to the queue; cancelling starts nothing. The selection applies to that track.

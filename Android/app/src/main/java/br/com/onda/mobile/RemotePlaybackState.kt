@@ -18,7 +18,7 @@ internal data class RemotePlaybackState(
     val trackId: String = "", val position: Double = 0.0, val duration: Double = 0.0,
     val playing: Boolean = false, val ready: Boolean = false, val busy: Boolean = false,
     val speed: Float = 1f, val volume: Int = 80, val receivedAt: Long = 0L,
-    val artworkId: String = "", val artwork: ByteArray? = null,
+    val artworkId: String = "", val artwork: ByteArray? = null, val artworkUrl:String="",
     val queue: List<RemoteQueueTrack> = emptyList(), val queueTotal: Int = 0,
     val queueRevision: Long = -1, val queueLoading: Boolean = false,
     val notice: String = "",
@@ -37,3 +37,6 @@ internal fun RemotePlaybackState.metadataSignature(artwork:Any?):List<Any?> =
     listOf(trackId,title,artist,album,duration,artwork)
 internal fun RemotePlaybackState.notificationSignature(artwork:Any?):List<Any?> =
     listOf(title,artist,online,playing,artwork)
+
+
+internal fun RemotePlaybackState.presentationSnapshot():RemotePlaybackState = copy(position=0.0,receivedAt=0L)

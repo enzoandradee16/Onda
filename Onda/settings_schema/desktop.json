@@ -25,11 +25,11 @@
       "catalog",
       "downloads",
       "queue",
-      "images",
-      "converter",
       "playlists",
       "history",
       "effects",
+      "images",
+      "converter",
       "metadata"
     ],
     "hidden_tabs": [],

@@ -141,8 +141,8 @@ val lightAccents=mapOf(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable fun OndaApp(vm: OndaViewModel) {
-    val remotePlayback by RemotePlaybackRuntime.state.collectAsStateWithLifecycle()
-    LaunchedEffect(remotePlayback.connected){if(remotePlayback.connected)vm.playbackQueueOpen.value=false}
+    val remoteConnected by RemotePlaybackRuntime.connectedState.collectAsStateWithLifecycle()
+    LaunchedEffect(remoteConnected){if(remoteConnected)vm.playbackQueueOpen.value=false}
     val settings by OndaStore.settings.collectAsStateWithLifecycle()
     val question by OndaStore.question.collectAsStateWithLifecycle()
     val busy by vm.busy.collectAsStateWithLifecycle()
@@ -234,7 +234,7 @@ val lightAccents=mapOf(
                         "Pesquisar"->SearchPage(vm,onConnectSpotify={settingsCategory="Contas";showSettings=true})
                         "Links e fila","Fila"->DownloadsHome(vm)
                         "Mais"->MorePage(tabs,tabGroupOrder(settings),onNavigate={tab=it},onYouTube={youtubeSession=true},onLicenses={showLicenses=true},onFailures={OndaStore.failureSummary.value=OndaStore.items.value.filter {it.state=="Erro"}.map {it.id}.takeIf {it.isNotEmpty()}},onRemote={showRemote=true})
-                        "Efeitos"->if(remotePlayback.connected)RemotePlaybackPage(vm) else PlaybackPage(vm)
+                        "Efeitos"->if(remoteConnected)RemotePlaybackPage(vm) else PlaybackPage(vm)
                         "Imagens"->ImagesPage(vm)
                         "Playlists / Álbuns"->CollectionsPage(vm,onConnectSpotify={settingsCategory="Contas";showSettings=true})
                         "Histórico"->HistoryPage(vm,onEditMetadata={metadataUri=it.uri;tab="Metadados"})

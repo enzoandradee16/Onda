@@ -33,7 +33,7 @@ import kotlinx.coroutines.launch
 /** Device selection controls the destination; it never claims to transfer local-only files. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable internal fun PlaybackDevicesSheet(onDismiss: () -> Unit) {
-    val remote by RemotePlaybackRuntime.state.collectAsStateWithLifecycle()
+    val remote by RemotePlaybackRuntime.presentationState.collectAsStateWithLifecycle()
     val context = OndaStore.context
     val juke = remember { JukeboxRuntime.get(context) }
     val local by juke.presentationState.collectAsStateWithLifecycle()
@@ -42,6 +42,7 @@ import kotlinx.coroutines.launch
     var found by remember { mutableStateOf(emptyList<PlaybackDevice>()) }
     var searching by remember { mutableStateOf(true) }
     var pairing by remember { mutableStateOf<String?>(null) }
+    var pairingTransfer by remember { mutableStateOf(false) }
     var connecting by remember { mutableStateOf(false) }
     var notice by remember { mutableStateOf("") }
     var volume by remember(remote.volume) { mutableFloatStateOf(remote.volume.toFloat()) }
@@ -59,15 +60,15 @@ import kotlinx.coroutines.launch
             }
         }
     }
-    fun select(address: String) {
+    fun select(address: String, transfer:Boolean=false) {
         if (connecting) return
         connecting = true
         scope.launch {
             try {
-                if (RemotePlaybackRuntime.reconnect(context, address)) { RemotePlaybackRuntime.expandedRequested.value = true; onDismiss() }
-                else pairing = address
+                if (RemotePlaybackRuntime.reconnect(context, address, transferPlayback=transfer)) { RemotePlaybackRuntime.expandedRequested.value = true; onDismiss() }
+                else {pairingTransfer=transfer;pairing = address}
             } catch (cancelled: CancellationException) { throw cancelled
-            } catch (_: Exception) { notice = "Não foi possível conectar. Confira o endereço, o código e a rede."
+            } catch (error: Exception) { notice = error.message ?: "Não foi possível conectar. Confira o endereço, o código e a rede."
             } finally { connecting = false }
         }
     }
@@ -85,16 +86,24 @@ import kotlinx.coroutines.launch
                     OndaIcon(if (remote.connected) "computer" else "phone", modifier = Modifier.size(36.dp), tint = MaterialTheme.colorScheme.primary)
                 }
             }
+            if(connecting)LinearProgressIndicator(Modifier.fillMaxWidth())
+            if (notice.isNotBlank()) UiText(notice, style = MaterialTheme.typography.bodySmall)
             if (remote.connected) {
                 Column {
                     UiText("Volume do computador", style = MaterialTheme.typography.labelLarge)
                     RoundSlider(volume, { volume = it }, valueRange = 0f..100f, enabled = remote.online,
                         onValueChangeFinished = { RemotePlaybackRuntime.setVolume(volume.toInt()) }, modifier = Modifier.fillMaxWidth().a11yLabel("Volume do computador"), slim = true)
                 }
-                DeviceRow(translateUi("Este telefone"), "Voltar à reprodução local", "phone", !connecting, onClick = {
-                    RemotePlaybackRuntime.localExpandedRequested.value = local.model != null
-                    RemotePlaybackRuntime.disconnect(); onDismiss()
+                DeviceRow(translateUi("Este telefone"), "Continuar neste telefone", "phone", !connecting && remote.online, onClick = {
+                    connecting=true
+                    scope.launch {
+                        try {RemotePlaybackRuntime.transferToPhone(context);onDismiss()}
+                        catch(cancelled:CancellationException){throw cancelled}
+                        catch(error:Exception){notice=error.message ?: "Não foi possível transferir a reprodução."}
+                        finally {connecting=false}
+                    }
                 })
+                TextButton(onClick={RemotePlaybackRuntime.disconnect();onDismiss()},enabled=!connecting){UiText("Somente desconectar") }
             }
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 UiText("Na mesma rede", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
@@ -108,15 +117,16 @@ import kotlinx.coroutines.launch
                         Box {
                             IconButton(onClick = { menu = true }) { OndaIcon("more", "Mais", Modifier.size(24.dp)) }
                             DropdownMenu(menu, { menu = false }) {
+                                if(local.model!=null && !remote.connected)DropdownMenuItem(text={UiText("Transferir música para o computador")},onClick={menu=false;select(device.address,true)})
                                 DropdownMenuItem(text = { UiText("Esquecer dispositivo") }, onClick = { menu = false; RemotePlaybackRuntime.forget(device.address); if (saved == device.address) saved = "" })
                             }
                         }
                     })
             }
             if (devices.isEmpty()) UiText("Ative Controle remoto em Reprodução no ONDA PC para encontrá-lo aqui.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            if (notice.isNotBlank()) UiText(notice, style = MaterialTheme.typography.bodySmall)
+
             Spacer(Modifier.height(8.dp))
-            OutlinedButton(onClick = { pairing = "" }, enabled = !connecting, modifier = Modifier.fillMaxWidth()) {
+            OutlinedButton(onClick = { pairingTransfer=false;pairing = "" }, enabled = !connecting, modifier = Modifier.fillMaxWidth()) {
                 OndaIcon("add", modifier = Modifier.size(20.dp)); Spacer(Modifier.width(8.dp)); UiText("Conectar computador")
             }
             OutlinedButton(onClick = {
@@ -125,10 +135,10 @@ import kotlinx.coroutines.launch
             }, modifier = Modifier.fillMaxWidth()) {
                 OndaIcon("bluetooth", modifier = Modifier.size(20.dp)); Spacer(Modifier.width(8.dp)); UiText("Bluetooth deste telefone")
             }
-            UiText("O áudio continua no computador ao desconectar o controle remoto.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            UiText("Transfira músicas pesquisadas no ONDA entre o telefone e o computador. Ao desconectar, o áudio permanece no dispositivo atual.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(16.dp))
         }
-        if (pairing != null) RemoteControlWindow(initialAddress = pairing!!.ifBlank { saved }, forcePairing = true, onDismiss = { pairing = null; if (RemotePlaybackRuntime.state.value.connected) onDismiss() })
+        if (pairing != null) RemoteControlWindow(initialAddress = pairing!!.ifBlank { saved }, forcePairing = true, transferPlayback=pairingTransfer, onDismiss = { pairing = null; if (RemotePlaybackRuntime.state.value.connected) onDismiss() })
     }
 }
 

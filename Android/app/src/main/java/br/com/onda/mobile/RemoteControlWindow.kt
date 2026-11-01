@@ -1,6 +1,9 @@
 package br.com.onda.mobile
 
 import androidx.compose.foundation.layout.*
+import androidx.activity.compose.rememberLauncherForActivityResult
+import com.journeyapps.barcodescanner.ScanContract
+import com.journeyapps.barcodescanner.ScanOptions
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -18,14 +21,32 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 /** Pairing UI only; closing it does not own or stop the connection. */
-@Composable internal fun RemoteControlWindow(initialAddress: String? = null, forcePairing: Boolean = false, onDismiss: () -> Unit) {
-    val remote by RemotePlaybackRuntime.state.collectAsStateWithLifecycle()
+@Composable internal fun RemoteControlWindow(initialAddress: String? = null, forcePairing: Boolean = false, transferPlayback:Boolean=false, onDismiss: () -> Unit) {
+    val remote by RemotePlaybackRuntime.presentationState.collectAsStateWithLifecycle()
     val preferences = remember { OndaStore.context.getSharedPreferences("remote_control", 0) }
     var address by rememberSaveable(initialAddress) { mutableStateOf(initialAddress ?: preferences.getString("address", "").orEmpty()) }
     var code by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
     var notice by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
+    fun pairNow() {
+        busy=true
+        scope.launch {
+            try {
+                RemotePlaybackRuntime.connect(OndaStore.context,address,code,transferPlayback)
+                code="";RemotePlaybackRuntime.expandedRequested.value=true;onDismiss()
+            } catch(cancelled:CancellationException){throw cancelled}
+            catch(error:Exception){notice=error.message ?: "Não foi possível conectar."}
+            finally {busy=false}
+        }
+    }
+    val scanner=rememberLauncherForActivityResult(ScanContract()) {result->
+        result.contents?.let {contents->
+            runCatching {parseRemotePairing(contents)}.onSuccess {pair->
+                address=pair.address;code=pair.code;pairNow()
+            }.onFailure {notice=it.message ?: "QR Code inválido."}
+        }
+    }
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(Modifier.fillMaxWidth().padding(16.dp), shape = RoundedCornerShape(20.dp)) {
             Column(Modifier.padding(20.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -36,22 +57,13 @@ import kotlinx.coroutines.launch
                     Button(onClick = { RemotePlaybackRuntime.expandedRequested.value = true; onDismiss() }) { UiText("Abrir reprodução") }
                     OutlinedButton(onClick = { RemotePlaybackRuntime.disconnect(); onDismiss() }) { UiText("Desconectar") }
                 } else {
-                    UiText("Teste na mesma rede Wi-Fi confiável. No PC, abra Reprodução → Controle remoto. O áudio continua no computador.")
+                    UiText(if(transferPlayback) "Na mesma rede Wi-Fi, ative o controle remoto no PC e informe o código. A música continua no telefone enquanto o computador prepara o áudio." else "Teste na mesma rede Wi-Fi confiável. No PC, abra Reprodução → Controle remoto. O áudio continua no computador.")
                     OutlinedTextField(value = address, onValueChange = { address = it }, label = { UiText("Endereço exibido no PC") }, singleLine = true, modifier = Modifier.fillMaxWidth(), enabled = !busy)
                     OutlinedTextField(value = code, onValueChange = { code = it.filter(Char::isDigit).take(6) }, label = { UiText("Código de conexão") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth(), enabled = !busy)
-                    Button(enabled = !busy && code.length == 6 && address.isNotBlank(), onClick = {
-                        busy = true
-                        scope.launch {
-                            try {
-                                RemotePlaybackRuntime.connect(OndaStore.context, address, code)
-                                code = ""
-                                RemotePlaybackRuntime.expandedRequested.value = true
-                                onDismiss()
-                            } catch (cancelled: CancellationException) { throw cancelled
-                            } catch (error: Exception) { notice = error.message ?: "Não foi possível conectar. Confira o endereço, o código e a rede."
-                            } finally { busy = false }
-                        }
-                    }) { UiText(if (busy) "Conectando…" else "Conectar") }
+                    OutlinedButton(enabled=!busy,onClick={
+                        scanner.launch(ScanOptions().setDesiredBarcodeFormats(ScanOptions.QR_CODE).setPrompt(translateUi("Aponte para o QR Code do ONDA PC")).setBeepEnabled(false).setOrientationLocked(false))
+                    }) {UiText("Ler QR Code")}
+                    Button(enabled = !busy && code.length == 6 && address.isNotBlank(), onClick = {pairNow()}) {UiText(if(busy) "Conectando…" else "Conectar")}
                 }
                 val message = notice.ifBlank { remote.notice }
                 if (message.isNotBlank()) UiText(message, style = MaterialTheme.typography.bodySmall)

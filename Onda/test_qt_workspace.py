@@ -606,11 +606,9 @@ class NativeDesktopTests(unittest.TestCase):
                 groups[current].append(row['key'])
         self.assertEqual(
             groups['BIBLIOTECA'],
-            ['downloads', 'catalog', 'queue', 'playlists', 'history'],
+            ['downloads', 'catalog', 'queue', 'playlists', 'history', 'effects'],
         )
-        self.assertEqual(
-            groups['FERRAMENTAS'], ['images', 'converter', 'effects', 'metadata']
-        )
+        self.assertEqual(groups['FERRAMENTAS'], ['images', 'converter', 'metadata'])
         before = list(self.ws.settings['tab_order'])
         self.ws.invoke('tab_move', {'key': 'images', 'direction': -1})
         self.assertEqual(self.ws.settings['tab_order'], before)
@@ -620,10 +618,48 @@ class NativeDesktopTests(unittest.TestCase):
         ]
         self.assertEqual(
             [row['key'] for row in tools],
-            ['converter', 'images', 'effects', 'metadata'],
+            ['converter', 'images', 'metadata'],
         )
         self.assertFalse(tools[0]['canMoveUp'])
         self.assertFalse(tools[-1]['canMoveDown'])
+
+    def test_playback_belongs_to_library_for_defaults_saved_order_and_reset(self):
+        from tab_order import DEFAULT_ORDER
+
+        self.assertEqual(list(DEFAULT_ORDER), self.ws.defaults['tab_order'])
+
+        def group_members():
+            result = {}
+            current = None
+            for row in self.ws.navigation:
+                if row.get('groupKey'):
+                    current = row['groupKey']
+                    result[current] = []
+                else:
+                    result[current].append(row['key'])
+            return result
+
+        self.assertIn('effects', group_members()['library'])
+        self.assertNotIn('effects', group_members()['tools'])
+        legacy = [
+            'catalog',
+            'downloads',
+            'queue',
+            'images',
+            'converter',
+            'playlists',
+            'history',
+            'effects',
+            'metadata',
+        ]
+        self.ws.setSetting('tab_order', legacy)
+        self.assertEqual(self.ws.settings['tab_order'], legacy)
+        self.ws.invoke('tab_move', {'key': 'effects', 'direction': -1})
+        self.assertEqual(group_members()['library'][-2:], ['effects', 'history'])
+        self.assertEqual(group_members()['tools'], ['images', 'converter', 'metadata'])
+        self.ws.invoke('reset_tab_order', {})
+        self.assertEqual(self.ws.settings['tab_order'], list(DEFAULT_ORDER))
+        self.assertEqual(group_members()['library'][-1], 'effects')
 
     def test_queue_duplicate_filters_order_and_persistence(self):
         urls = ['https://example.com/b.mp3', 'https://example.com/a.mp3']

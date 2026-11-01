@@ -94,6 +94,7 @@ chaquopy {
 tasks.named("preBuild") { dependsOn(prepareNativeTools, syncSharedEngine) }
 tasks.matching { it.name.contains("Python") }.configureEach { dependsOn(syncSharedEngine) }
 dependencies {
+    implementation("com.journeyapps:zxing-android-embedded:4.3.0")
     implementation("androidx.work:work-runtime-ktx:2.10.1")
     implementation(platform("androidx.compose:compose-bom:2025.05.01"))
     implementation("androidx.browser:browser:1.8.0")

@@ -24,7 +24,7 @@ Drawer {
     readonly property string openKey: effects ? "effectsQueueOpen" : "jukeboxQueueOpen"
     readonly property var tracks: effects ? workspace.optionValue(workspace.optionsRevision,"effectsQueue") : (recent ? bridge.visibleRecentTracks : bridge.visibleUpcomingTracks)
     readonly property var results: (effects ? workspace.optionValue(workspace.optionsRevision,"effectsQueueResults") : workspace.optionValue(workspace.optionsRevision,"jukeboxQueueResults")) || []
-    readonly property bool searching: ["playback_input","effects_collection","effects_load"].some(function(name){return workspace.activity.busy.indexOf(name)>=0})
+    readonly property bool searching: ["playback_input","effects_collection","effects_load"].some(function(name){return workspace.activityValue(workspace.statusRevision,"busy").indexOf(name)>=0})
     function search(){
         if(searching)["playback_input","effects_collection","effects_load"].forEach(function(name){workspace.invoke("cancel_task",{name:name})})
         else workspace.invoke("playback_queue_search",{effects:drawer.effects,query:queueQuery.text})

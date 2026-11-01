@@ -21,3 +21,6 @@ Referências de origem: https://github.com/mikf/gallery-dl, https://github.com/q
 O pacote de fontes de terceiros reúne gallery-dl, Mutagen e yt-dlp, correspondentes às versões Python incluídas. O FFmpeg é uma ferramenta externa obtida diretamente do seu distribuidor, não acompanha os arquivos publicados do ONDA. Não adicione os executáveis do cache local a futuros ZIPs ou instaladores.
 
 Origem fixa do download: https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-9.0.2-essentials_build.zip. SHA-256 esperado: `60f467265b1e312373dbcd92200c2618a74850f98d3d078e94296bb3fa2047ba`. Licença e fontes do build são responsabilidade da distribuição de origem; os respectivos avisos são conservados no download local.
+
+- QR Code desktop: python-qrcode 8.2 (BSD), https://github.com/lincolnloop/python-qrcode.
+- Leitor QR Android: ZXing Android Embedded 4.3.0 e ZXing Core (Apache-2.0), https://github.com/journeyapps/zxing-android-embedded.

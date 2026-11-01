@@ -43,7 +43,7 @@ internal fun historyDay(time:Long,now:Long=System.currentTimeMillis()):String {
 @Composable internal fun HistoryToolCard(item:HistoryItem,settings:JSONObject,vm:OndaViewModel,selectionMode:Boolean,selected:Boolean,onSelect:(Boolean)->Unit,onEdit:(HistoryItem)->Unit) {
     val context=LocalContext.current
     val revision by historyDetailsRevision.collectAsState()
-    val details by produceState<HistoryDetails?>(null,item.uri,item.size,revision){value=withContext(Dispatchers.IO){cachedHistoryDetails(context,item,revision)}}
+    val details by produceState<HistoryDetails?>(null,item.uri,item.size,revision){value=loadHistoryDetails(context,item,revision)}
     var menu by remember {mutableStateOf(false)}
     var preview by remember {mutableStateOf(false)}
     if(preview)HistoryImageGallery(item,vm){preview=false}

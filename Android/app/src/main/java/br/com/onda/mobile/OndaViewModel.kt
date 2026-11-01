@@ -67,8 +67,9 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
     suspend fun completeCard(record:JSONObject):JSONObject {
         val url=record.cleanString("source_url")
         if(url.isBlank() || record.optBoolean("_details_checked"))return record
-        cardDetails[url]?.let {cached->return JSONObject(record.toString()).apply {cached.keys().forEach {put(it,cached.get(it))}}}
+        cardDetails[url]?.let {cached->return copyJsonObject(record).apply {cached.keys().forEach {put(it,cached.get(it))}}}
         return cardSlots.withPermit {
+            cardDetails[url]?.let {cached->return@withPermit copyJsonObject(record).apply {cached.keys().forEach {put(it,cached.get(it))}}}
             val id="card-details-"+UUID.randomUUID()
             try {
                 val result=withContext(Dispatchers.IO){MobileEngine.call(getApplication(),id,"record_details",OndaStore.config().put("record",record),EventCallback {})}

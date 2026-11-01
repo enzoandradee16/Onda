@@ -38,6 +38,7 @@ class JukeboxBridge(QObject):
     def __init__(self, store=None, parent=None):
         super().__init__(parent)
         self._state_revision = 0
+        self._transport_revision = 0
         self.changed.connect(self._advance_state_revision)
         self.store = store or PreferenceStore()
         try:
@@ -793,7 +794,8 @@ class JukeboxBridge(QObject):
         self.prepare_next_queued()
 
     @Slot(int)
-    def playQueued(self, index):
+    def playQueued(self, index, *, auto_play=True):
+        self._transport_revision += 1
         if not 0 <= index < len(self.playlist):
             return
         entry = self.playlist[index]
@@ -817,7 +819,8 @@ class JukeboxBridge(QObject):
             self.queue_index = index
             self.online.position = float(entry.pop('restore_seconds', 0))
             self.handle_event(self.revision, 'result', model)
-            self.playPause()
+            if auto_play:
+                self.playPause()
             self.queueChanged.emit()
             return
         if not (Path(model['cache']) / 'analysis.json').is_file():
@@ -841,9 +844,9 @@ class JukeboxBridge(QObject):
             self._switch_requests.put((str(model['cache']), seconds))
             self.update_state(status=tr('Transição para a próxima música…'))
             return
-        self.activate_queued(index, model)
+        self.activate_queued(index, model, auto_play=auto_play)
 
-    def activate_queued(self, index, model):
+    def activate_queued(self, index, model, *, auto_play=True):
         self.remember_current()
         self.stop(reset_timer=False)
         self.queue_index = index
@@ -851,7 +854,8 @@ class JukeboxBridge(QObject):
         restored = self.playlist[index].pop('restore_seconds', 0)
         if restored:
             self.seekSeconds(restored)
-        self.playPause()
+        if auto_play:
+            self.playPause()
         self.queueChanged.emit()
         self.changed.emit()
         self.prepare_next_queued()
@@ -992,6 +996,7 @@ class JukeboxBridge(QObject):
 
     @Slot(float)
     def seekSeconds(self, seconds):
+        self._transport_revision += 1
         if (self.model or {}).get('_stream'):
             running = self._state['playing'] and not self.paused.is_set()
             self.stop(reset_timer=False)
@@ -1916,6 +1921,7 @@ class JukeboxBridge(QObject):
 
     @Slot()
     def playPause(self):
+        self._transport_revision += 1
         if self._state['playing']:
             if self.paused.is_set():
                 self.playbackRequested.emit()

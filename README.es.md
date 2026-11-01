@@ -20,6 +20,8 @@ En Android, las actualizaciones pueden descargarse dentro de ONDA, con progreso 
 
 En PC, haz clic derecho en las listas o tarjetas para abrir las acciones disponibles en esa pestaña. Mayús+F10 y la tecla de menú también abren estas opciones; la selección múltiple se conserva al hacer clic en uno de los elementos seleccionados.
 
+En PC, la pestaña **Reproducción** está en la categoría **Biblioteca** de la barra lateral. En Android, permanece en la barra inferior.
+
 ## Características destacadas
 
 - **Windows:** Descargar ahora en la búsqueda abre la elección de formato y calidad: MP3, M4A, FLAC o audio original. Parte de las preferencias guardadas. Permite descargar o añadir a la cola; cancelar no inicia nada. La elección se aplica a esa canción.

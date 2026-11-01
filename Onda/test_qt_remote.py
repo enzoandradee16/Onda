@@ -375,3 +375,112 @@ class QtRemoteTests(unittest.TestCase):
         self.assertEqual(self.request('/v1/state', paired['token'])[1]['volume'], 17)
         self.remote.stop()
         self.assertFalse(self.remote.state['enabled'])
+
+    def test_streaming_cover_is_fetched_off_thread_and_published(self):
+        from PySide6.QtCore import QEventLoop, QTimer
+        from PySide6.QtGui import QImage
+        from remote_control import RemoteServer
+        import io
+        from PIL import Image
+
+        output = io.BytesIO()
+        Image.new('RGB', (32, 32), 'cyan').save(output, format='PNG')
+        with patch(
+            'qt_remote_ui.RemoteServer', side_effect=lambda: RemoteServer('127.0.0.1')
+        ):
+            self.remote.start()
+        self.remote.timer.stop()
+        with patch('catalog_ui.cover_png', return_value=output.getvalue()) as fetch:
+            self.remote.refresh_artwork(dict(cover='https://i.scdn.co/image/fixture'))
+            loop = QEventLoop()
+            QTimer.singleShot(300, loop.quit)
+            loop.exec()
+        fetch.assert_called_once_with('https://i.scdn.co/image/fixture', size=768)
+        self.assertTrue(self.remote.server.artwork_id)
+        self.assertFalse(QImage.fromData(self.remote.server.artwork).isNull())
+
+    def test_disable_revokes_existing_connection_without_pausing_song(self):
+        from remote_control import RemoteServer
+
+        with patch(
+            'qt_remote_ui.RemoteServer', side_effect=lambda: RemoteServer('127.0.0.1')
+        ):
+            self.remote.start()
+        server = self.remote.server
+        status, paired = self.request('/v1/pair', body=dict(code=server.code))
+        self.assertEqual(status, 200)
+        with patch.object(self.bridge, 'playPause') as toggle:
+            self.remote.stop()
+            toggle.assert_not_called()
+        self.assertFalse(self.remote.state['enabled'])
+        connection = http.client.HTTPConnection('127.0.0.1', server.port, timeout=2)
+        try:
+            connection.request(
+                'GET',
+                '/v1/state',
+                headers={'Authorization': 'Bearer ' + paired['token']},
+            )
+            response = connection.getresponse()
+            response.read()
+            self.assertEqual(response.status, 410)
+        finally:
+            connection.close()
+
+    def test_qr_contains_only_pairing_code_and_selected_address(self):
+        from remote_control import RemoteServer
+        import base64
+        from PySide6.QtGui import QImage
+
+        with patch(
+            'qt_remote_ui.RemoteServer', side_effect=lambda: RemoteServer('127.0.0.1')
+        ):
+            self.remote.start()
+        self.remote._addresses = ['192.168.1.9']
+        address = self.remote.state['addresses'][0]
+        value = self.remote.qrCode(address)
+        self.assertTrue(value.startswith('data:image/png;base64,'))
+        self.assertFalse(
+            QImage.fromData(base64.b64decode(value.split(',')[1])).isNull()
+        )
+        self.assertEqual(self.remote.qrCode('http://8.8.8.8:80'), '')
+
+    def test_transfer_exports_current_resolved_audio_without_cookies_or_paths(self):
+        from remote_control import RemoteServer
+
+        with patch(
+            'qt_remote_ui.RemoteServer', side_effect=lambda: RemoteServer('127.0.0.1')
+        ):
+            self.remote.start()
+        self.bridge.playlist = [
+            dict(
+                id='current',
+                kind='catalog',
+                record=dict(
+                    title='Song',
+                    artists=['Artist'],
+                    source_url='https://open.spotify.com/track/example',
+                ),
+            )
+        ]
+        self.bridge.queue_index = 0
+        self.bridge.model = dict(
+            title='Song',
+            duration=120,
+            neighbors=[[]],
+            beats=[0, 120],
+            links=0,
+            _stream=dict(
+                url='https://cdn.example/audio',
+                headers={
+                    'User-Agent': 'ONDA',
+                    'Cookie': 'secret',
+                    'Authorization': 'private',
+                },
+            ),
+        )
+        self.remote.refresh_transfer_source()
+        source = self.remote.server.transfer_source
+        self.assertEqual(source['track_id'], 'current')
+        self.assertEqual(source['model']['_stream']['url'], 'https://cdn.example/audio')
+        self.assertEqual(source['model']['_stream']['headers'], {'User-Agent': 'ONDA'})
+        self.assertNotIn('cache', source['model'])

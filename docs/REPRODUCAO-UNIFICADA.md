@@ -13,6 +13,8 @@ PC e Android passam a apresentar uma tela **Reprodução**, com uma música sele
 
 ## Interface
 
+No PC, o acesso fica em **Biblioteca → Reprodução** na barra lateral e nas configurações de ordem/visibilidade. No Android, **Reprodução** continua no mesmo lugar da barra inferior.
+
 - No PC, os ajustes ficam lado a lado, com uma visão compacta da fila quando há largura suficiente. A fila completa continua acessível pelo ícone da barra e permite pesquisar, adicionar arquivos, reorganizar, remover e preparar novamente músicas com falha.
 - No Android, os mesmos ajustes ficam em cartões na tela rolável. A barra compacta permanece única e abre o player expandido, com capa, letra e controles de reprodução. O ícone de fila também aparece no cabeçalho, inclusive antes de selecionar uma música.
 - Timer, letra, equalizador, repetição e reprodução aleatória usam a mesma seleção e fila. Miniplayer e volume continuam disponíveis no PC; no Android, o volume permanece controlado pelo sistema.
@@ -44,3 +46,19 @@ Os dados da sessão antiga de Efeitos permanecem disponíveis no armazenamento l
 - Testes Python verificam cópia processada com FFmpeg real, preservação da análise, duração com velocidade alterada, efeitos com saltos, retorno ao áudio original, migração única e carregamento do QML.
 - Testes instrumentados Android verificam os dois controles sobre o mesmo player, migração silenciosa e chamadas reais de preparação e reprodução PCM com efeitos.
 - O aparelho físico ARM64 ainda exige verificação prática; testes no emulador não substituem essa validação.
+
+
+## Transferir a música entre PC e Android
+
+Na mesma rede, ative o controle remoto no PC e abra **Dispositivos** no player do Android.
+
+- Para continuar no telefone, selecione **Este telefone → Continuar neste telefone** enquanto controla o PC.
+- Para continuar no PC, use **Transferir música para o computador** no menu do dispositivo. Conectar normalmente apenas abre o controle e preserva a música que já toca no PC.
+- Para conectar sem digitar o endereço e o código, use **Ler QR Code** e aponte a câmera para o código exibido no PC. O endereço e o código continuam disponíveis para digitação manual.
+
+Esta primeira implementação transfere apenas a música atual de catálogo (Spotify, Deezer ou Apple/iTunes), com a posição e o estado de pausa. Cada aparelho prepara o próprio áudio; a origem permanece tocando durante a preparação. As configurações de efeitos de cada aparelho são mantidas. A fila, arquivos locais e links diretos de áudio/vídeo não são transferidos.
+
+Ambos os aplicativos precisam estar atualizados. **Somente desconectar** encerra o controle remoto sem transferir o áudio.
+
+
+A transferência só é concluída depois de o destino confirmar o início do áudio (ou a posição pronta, quando pausada). Cancelar a preparação interrompe também o processamento nativo. Se a conexão cair depois da pausa provisória do PC e antes da confirmação, o PC recupera a reprodução quando ainda é a mesma faixa e o usuário não mexeu nos controles. Uma ação posterior do usuário tem prioridade sobre essa recuperação.

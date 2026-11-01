@@ -20,6 +20,8 @@ No Android, novas versões podem ser baixadas dentro do ONDA, com progresso e co
 
 No PC, clique com o botão direito nas listas ou cards para abrir as ações disponíveis naquela aba. Shift+F10 e a tecla de menu também abrem essas opções; uma seleção múltipla é preservada ao clicar em um dos itens selecionados.
 
+No PC, a aba **Reprodução** fica na categoria **Biblioteca** da barra lateral. No Android, permanece na barra inferior.
+
 ## Destaques do aplicativo
 
 - **Windows:** ao clicar em Baixar agora na pesquisa, escolha MP3, M4A, FLAC ou áudio original e a qualidade disponível. A janela parte das preferências salvas e permite baixar ou adicionar à fila; cancelar não inicia o download. A escolha vale para aquela música.

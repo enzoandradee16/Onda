@@ -28,7 +28,7 @@ import kotlinx.coroutines.delay
 
 @Composable internal fun RemoteCover(state: RemotePlaybackState, modifier: Modifier) {
     Surface(modifier.clip(RoundedCornerShape(12.dp)), color = MaterialTheme.colorScheme.surfaceContainerHighest) {
-        if (state.artwork != null) AsyncImage(state.artwork, translateUi("Capa do álbum"), Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+        if (state.artwork != null || state.artworkUrl.isNotBlank()) AsyncImage(state.artwork ?: state.artworkUrl, translateUi("Capa do álbum"), Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
         else Box(contentAlignment = Alignment.Center) { OndaIcon("album", modifier = Modifier.size(36.dp)) }
     }
 }
@@ -38,7 +38,8 @@ import kotlinx.coroutines.delay
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     LaunchedEffect(state.playing, state.online, lifecycle) {
         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
-            while (true) { now = SystemClock.elapsedRealtime(); delay(if (state.online && state.playing) 250 else 1000) }
+            now = SystemClock.elapsedRealtime()
+            while (state.online && state.playing) { delay(250); now = SystemClock.elapsedRealtime() }
         }
     }
     return state.positionAt(now)
@@ -52,7 +53,6 @@ import kotlinx.coroutines.delay
     LaunchedEffect(expanded) { if (!expanded) queue = false }
     val requested by RemotePlaybackRuntime.expandedRequested.collectAsStateWithLifecycle()
     LaunchedEffect(requested) { if (requested) { expanded = true; RemotePlaybackRuntime.expandedRequested.value = false } }
-    val position = remotePosition(state)
     AlbumGlass(state.artwork, Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp).testTag("remote-compact-player")) { glass ->
         Column {
             Row(Modifier.fillMaxWidth().clickable { expanded = true }.padding(6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -71,11 +71,7 @@ import kotlinx.coroutines.delay
                     else OndaIcon(if (state.playing) "pause" else "play", if (state.playing) "Pausar" else "Reproduzir", Modifier.size(26.dp))
                 }
             }
-            Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 3.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(mediaClock(position.toLong()), style = MaterialTheme.typography.labelSmall, color = glass.secondary)
-                Text(mediaClock(state.duration.toLong()), style = MaterialTheme.typography.labelSmall, color = glass.secondary)
-            }
-            LinearProgressIndicator(progress = { if (state.duration > 0) (position / state.duration).toFloat().coerceIn(0f, 1f) else 0f }, modifier = Modifier.fillMaxWidth().height(2.dp), trackColor = glass.ink.copy(alpha = .18f))
+            RemoteCompactClock(glass)
         }
     }
     if (expanded) Dialog(onDismissRequest = { expanded = false }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
@@ -87,9 +83,17 @@ import kotlinx.coroutines.delay
     if (devices) PlaybackDevicesSheet { devices = false }
 }
 
+@Composable private fun RemoteCompactClock(glass:AlbumGlassColors) {
+    val state by RemotePlaybackRuntime.state.collectAsStateWithLifecycle()
+    val position=remotePosition(state)
+    Row(Modifier.fillMaxWidth().padding(horizontal=10.dp,vertical=3.dp),horizontalArrangement=Arrangement.SpaceBetween) {
+        Text(mediaClock(position.toLong()),style=MaterialTheme.typography.labelSmall,color=glass.secondary)
+        Text(mediaClock(state.duration.toLong()),style=MaterialTheme.typography.labelSmall,color=glass.secondary)
+    }
+    LinearProgressIndicator(progress={if(state.duration>0)(position/state.duration).toFloat().coerceIn(0f,1f) else 0f},modifier=Modifier.fillMaxWidth().height(2.dp),trackColor=glass.ink.copy(alpha=.18f))
+}
+
 @Composable private fun RemotePlayerContent(state: RemotePlaybackState, onCollapse: (() -> Unit)? = null, onQueue: () -> Unit, onAdjustments: () -> Unit) {
-    val position = remotePosition(state)
-    var dragged by remember(state.trackId) { mutableStateOf<Float?>(null) }
     var devices by remember { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
     BoxWithConstraints(Modifier.fillMaxSize()) {
@@ -114,16 +118,7 @@ import kotlinx.coroutines.delay
                 Text(state.title.ifBlank { "ONDA PC" }, style = MaterialTheme.typography.headlineSmall)
                 Text(state.artist, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Column {
-                RoundSlider(dragged ?: position.toFloat().coerceIn(0f, state.duration.toFloat().coerceAtLeast(1f)), { dragged = it },
-                    valueRange = 0f..state.duration.toFloat().coerceAtLeast(1f), enabled = state.online && state.ready && state.duration > 0,
-                    onValueChangeFinished = { dragged?.let { RemotePlaybackRuntime.seek(it.toDouble()) }; dragged = null },
-                    modifier = Modifier.fillMaxWidth().testTag("remote-player-timeline").a11yLabel("Posição na música"), slim = true)
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    UiText(mediaClock((dragged?.toDouble() ?: position).toLong()), style = MaterialTheme.typography.labelSmall)
-                    UiText(mediaClock(state.duration.toLong()), style = MaterialTheme.typography.labelSmall)
-                }
-            }
+            RemoteTimeline()
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceEvenly) {
                 IconButton(onClick = { devices = true }) { OndaIcon("volume", "Volume do computador", Modifier.size(24.dp)) }
                 IconButton(onClick = { RemotePlaybackRuntime.command("previous") }, enabled = state.online) { OndaIcon("previous", "Retroceder", Modifier.size(32.dp)) }
@@ -139,4 +134,21 @@ import kotlinx.coroutines.delay
         }
     }
     if (devices) PlaybackDevicesSheet { devices = false }
+}
+
+
+@Composable private fun RemoteTimeline() {
+    val state by RemotePlaybackRuntime.state.collectAsStateWithLifecycle()
+    val position=remotePosition(state)
+    var dragged by remember(state.trackId) {mutableStateOf<Float?>(null)}
+    Column {
+        RoundSlider(dragged ?: position.toFloat().coerceIn(0f,state.duration.toFloat().coerceAtLeast(1f)),{dragged=it},
+            valueRange=0f..state.duration.toFloat().coerceAtLeast(1f),enabled=state.online&&state.ready&&state.duration>0,
+            onValueChangeFinished={dragged?.let {RemotePlaybackRuntime.seek(it.toDouble())};dragged=null},
+            modifier=Modifier.fillMaxWidth().testTag("remote-player-timeline").a11yLabel("Posição na música"),slim=true)
+        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) {
+            UiText(mediaClock((dragged?.toDouble() ?: position).toLong()),style=MaterialTheme.typography.labelSmall)
+            UiText(mediaClock(state.duration.toLong()),style=MaterialTheme.typography.labelSmall)
+        }
+    }
 }

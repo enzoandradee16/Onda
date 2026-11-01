@@ -72,9 +72,11 @@ class RemoteServer:
         self.snapshot = {'ready': False, 'playing': False, 'title': '', 'volume': 80}
         self.attempts = []
         self.paired = False
+        self.revoked = False
         self.name = socket.gethostname()[:80] or 'ONDA PC'
         self.discovery = None
         self.discoverable = host == '0.0.0.0'
+        self.transfer_source = {}
         self.queue_rows = []
         self.queue_revision = 0
         self.artwork = b''
@@ -101,6 +103,9 @@ class RemoteServer:
                 self.close_connection = True
 
             def allowed(self):
+                if owner.revoked:
+                    self.reply(410, {'error': 'Controle remoto desativado no PC.'})
+                    return False
                 if not local_address(self.client_address[0]) or self.headers.get(
                     'Origin'
                 ):
@@ -131,6 +136,11 @@ class RemoteServer:
                     return
                 url = urlsplit(self.path)
                 query = parse_qs(url.query)
+                if url.path == '/v1/transfer':
+                    with owner.lock:
+                        source = copy.deepcopy(owner.transfer_source)
+                    self.reply(200, source)
+                    return
                 if url.path == '/v1/queue':
                     try:
                         offset = int(query.get('offset', ['0'])[0])
@@ -181,7 +191,8 @@ class RemoteServer:
                     return
                 try:
                     length = int(self.headers.get('Content-Length', '0'))
-                    if not 0 < length <= 4096:
+                    limit = 4096 if self.path == '/v1/pair' else 32768
+                    if not 0 < length <= limit:
                         raise ValueError()
                     if self.headers.get_content_type() != 'application/json':
                         raise ValueError()
@@ -217,7 +228,7 @@ class RemoteServer:
                             'token': owner.token,
                             'name': owner.name,
                             'protocol': 1,
-                            'features': 3,
+                            'features': 5,
                         },
                     )
                     return
@@ -245,6 +256,11 @@ class RemoteServer:
                     'search_add',
                     'queue_clear',
                     'queue_move_to',
+                    'handoff_prepare',
+                    'handoff_commit',
+                    'handoff_cancel',
+                    'handoff_release',
+                    'handoff_complete',
                 ):
                     self.reply(400, {'error': 'Comando indisponível.'})
                     return
@@ -254,6 +270,10 @@ class RemoteServer:
                         self.reply(400, {'error': 'Volume inválido.'})
                         return
                 payload = value.get('value')
+                if command.startswith('handoff_'):
+                    if not valid_handoff(command, payload):
+                        self.reply(400, {'error': 'Transferência inválida.'})
+                        return
                 if command in ('effects', 'jukebox'):
                     fields = (
                         {
@@ -338,6 +358,10 @@ class RemoteServer:
         with self.lock:
             self.snapshot = copy.deepcopy(snapshot)
 
+    def update_transfer(self, source):
+        with self.lock:
+            self.transfer_source = copy.deepcopy(source)
+
     def update_queue(self, rows):
         with self.lock:
             self.queue_rows = copy.deepcopy(rows)
@@ -348,7 +372,13 @@ class RemoteServer:
             self.artwork_id = identity
             self.artwork = data
 
+    def revoke(self):
+        with self.lock:
+            self.revoked = True
+            self.paired = False
+
     def close(self):
+        self.revoke()
         if self.discovery:
             self.discovery.close()
             self.discovery = None
@@ -372,3 +402,113 @@ def valid_adjustments(value, fields):
         ):
             return False
     return True
+
+
+def transferable_record(record):
+    """Only catalog metadata crosses devices; paths, caches and URLs stay local."""
+    if not isinstance(record, dict) or record.get('_jukebox_direct'):
+        return None
+    title = record.get('title')
+    artists = record.get('artists')
+    if not isinstance(title, str) or not title.strip() or len(title) > 500:
+        return None
+    if (
+        not isinstance(artists, list)
+        or not 1 <= len(artists) <= 20
+        or any(
+            not isinstance(artist, str) or not artist.strip() or len(artist) > 200
+            for artist in artists
+        )
+    ):
+        return None
+    result = dict(title=title, artists=artists)
+    source = record.get('source_url')
+    if source:
+        if not catalog_handoff_url(source):
+            return None
+        result['source_url'] = source
+    cover = record.get('cover_url')
+    if isinstance(cover, str) and len(cover) <= 2048:
+        try:
+            parsed = urlsplit(cover)
+            port = parsed.port
+        except ValueError:
+            parsed = urlsplit('')
+            port = None
+        host = parsed.hostname or ''
+        if (
+            parsed.scheme == 'https'
+            and not parsed.username
+            and not port
+            and any(
+                host == suffix or host.endswith('.' + suffix)
+                for suffix in ('scdn.co', 'dzcdn.net', 'mzstatic.com')
+            )
+        ):
+            result['cover_url'] = cover
+
+    for key in ('album', 'isrc'):
+        value = record.get(key)
+        if isinstance(value, str) and len(value) <= 500:
+            result[key] = value
+    duration = record.get('duration_ms', 0)
+    if (
+        type(duration) in (int, float)
+        and math.isfinite(duration)
+        and 0 <= duration <= 86400000
+    ):
+        result['duration_ms'] = duration
+    return result
+
+
+def valid_handoff(command, payload):
+    if not isinstance(payload, dict):
+        return False
+    identity = payload.get('id')
+    if (
+        not isinstance(identity, str)
+        or not 1 <= len(identity) <= 64
+        or not identity.isalnum()
+    ):
+        return False
+    if command == 'handoff_prepare':
+        record = payload.get('record')
+        return transferable_record(record) == record and bool(record)
+    if command == 'handoff_commit':
+        seconds = payload.get('position')
+        return (
+            type(payload.get('playing')) is bool
+            and type(seconds) in (int, float)
+            and math.isfinite(seconds)
+            and 0 <= seconds <= 86400
+        )
+    if command == 'handoff_release':
+        track = payload.get('track_id')
+        return (
+            isinstance(track, str)
+            and 1 <= len(track) <= 128
+            and type(payload.get('ack_required', False)) is bool
+        )
+    return command in ('handoff_cancel', 'handoff_complete')
+
+
+def catalog_handoff_url(value):
+    if not isinstance(value, str) or len(value) > 2048:
+        return False
+    try:
+        parsed = urlsplit(value)
+        return (
+            parsed.scheme == 'https'
+            and not parsed.username
+            and not parsed.port
+            and parsed.hostname
+            in (
+                'open.spotify.com',
+                'deezer.com',
+                'www.deezer.com',
+                'music.apple.com',
+                'itunes.apple.com',
+            )
+        )
+    except ValueError:
+        return False

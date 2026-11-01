@@ -21,6 +21,7 @@ class RemotePlaybackService: Service() {
     private var artwork: Bitmap? = null
     private var artworkId = ""
     private var ownGeneration = 0L
+    private var selfStopped=false
     private var metadataKey: List<Any?>? = null
     private var notificationKey: List<Any?>? = null
 
@@ -54,7 +55,7 @@ class RemotePlaybackService: Service() {
         else startForeground(16, notification)
         scope.launch {
             RemotePlaybackRuntime.state.collect { state ->
-                if (!state.connected) { stopSelf(); return@collect }
+                if (!state.connected) { selfStopped=true;stopSelf(); return@collect }
                 if (state.online && state.playing) {
                     if (!wake.isHeld) wake.acquire(10 * 60 * 1000L)
                 } else if (wake.isHeld) wake.release()
@@ -121,16 +122,23 @@ class RemotePlaybackService: Service() {
             "play", "pause", "next", "previous" -> RemotePlaybackRuntime.command(intent.action!!)
             else -> RemotePlaybackRuntime.startPolling()
         }
-        if (!RemotePlaybackRuntime.state.value.connected) stopSelf()
+        if (!RemotePlaybackRuntime.state.value.connected) {selfStopped=true;stopSelf()}
         return START_NOT_STICKY
     }
 
     override fun onDestroy() {
+        val restart=selfStopped && RemotePlaybackRuntime.state.value.connected
         scope.cancel()
         if (wake.isHeld) wake.release()
         session.isActive = false; session.release()
         stopForeground(STOP_FOREGROUND_REMOVE)
-        if (ownGeneration == RemotePlaybackRuntime.generation && RemotePlaybackRuntime.state.value.connected) RemotePlaybackRuntime.disconnect()
+        if (!selfStopped && ownGeneration == RemotePlaybackRuntime.generation && RemotePlaybackRuntime.state.value.connected) RemotePlaybackRuntime.disconnect()
         super.onDestroy()
+        if(restart)try {
+            androidx.core.content.ContextCompat.startForegroundService(applicationContext,Intent(applicationContext,RemotePlaybackService::class.java))
+        }catch(error:RuntimeException){
+            RemotePlaybackRuntime.disconnect("Não foi possível manter o controle remoto em segundo plano.")
+            android.util.Log.w("ONDA","Remote service restart rejected",error)
+        }
     }
 }

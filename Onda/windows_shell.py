@@ -41,6 +41,7 @@ class WindowsShell:
         self.root = root
         self.events = queue.Queue()
         self.added = False
+        self._progress_signature = None
         self.taskbar = c.c_void_p()
         self.closed = False
         self.owns_icon = False
@@ -77,9 +78,11 @@ class WindowsShell:
         def window_proc(hwnd, message, wp, lp):
             if message == self.button_message:
                 self.ready = True
+                self._progress_signature = None
             elif message == self.restart_message:
                 self.added = False
                 self.ready = False
+                self._progress_signature = None
                 self.events.put('restart')
             elif message == self.MESSAGE:
                 if lp in (0x202, 0x203, 0x405, 0x400, 0x401):
@@ -226,11 +229,19 @@ class WindowsShell:
         if not self.taskbar or not self.ready:
             return False
         state = 0 if not enabled or value is None else 8 if paused else 2
+        amount = int(max(0, min(100, value)) * 100) if state else None
+        signature = (state, amount)
+        if signature == getattr(self, '_progress_signature', None):
+            return True
         result = self.com(10, [w.HWND, c.c_int])(self.hwnd, state)
+        if result < 0:
+            self._progress_signature = None
+            return False
         if state:
-            self.com(9, [w.HWND, c.c_ulonglong, c.c_ulonglong])(
-                self.hwnd, int(max(0, min(100, value)) * 100), 10000
+            result = self.com(9, [w.HWND, c.c_ulonglong, c.c_ulonglong])(
+                self.hwnd, amount, 10000
             )
+        self._progress_signature = signature if result >= 0 else None
         return result >= 0
 
     def close(self):

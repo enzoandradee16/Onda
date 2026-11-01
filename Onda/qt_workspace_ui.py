@@ -24,8 +24,11 @@ PAGES = {
     'jukebox': 'Reprodução',
 }
 TAB_GROUPS = [
-    ('BIBLIOTECA', ('catalog', 'downloads', 'queue', 'playlists', 'history')),
-    ('FERRAMENTAS', ('images', 'converter', 'effects', 'metadata')),
+    (
+        'BIBLIOTECA',
+        ('catalog', 'downloads', 'queue', 'playlists', 'history', 'effects'),
+    ),
+    ('FERRAMENTAS', ('images', 'converter', 'metadata')),
 ]
 CHOICES = {
     'choose_flac',
@@ -57,6 +60,9 @@ class DesktopWorkspace(QObject):
     def __init__(self, bridge, parent=None):
         super().__init__(parent)
         self.bridge = bridge
+        self._status_revision = 0
+        self._activity_snapshot = None
+        self.statusChanged.connect(self._invalidate_activity)
         self._options_revision = 0
         self.optionsChanged.connect(self._advance_options_revision)
         bridge.messageRequested.connect(self.message.emit)
@@ -382,6 +388,37 @@ class DesktopWorkspace(QObject):
 
     @Property('QVariantMap', notify=statusChanged)
     def activity(self):
+        return self._activity_values()
+
+    def _invalidate_activity(self):
+        self._status_revision += 1
+        self._activity_snapshot = None
+
+    @Property(int, notify=statusChanged)
+    def statusRevision(self):
+        return self._status_revision
+
+    @Slot(int, str, result='QVariant')
+    def activityValue(self, revision, key):
+        if key == 'logs':
+            return '\n'.join(self.logs[-200:])
+        if self._activity_snapshot is None:
+            self._activity_snapshot = self._activity_values(include_logs=False)
+        return self._activity_snapshot.get(key)
+
+    def _activity_values(self, include_logs=True):
+        selected = interrupted = remaining = 0
+        queued_operations = []
+        for job in self.jobs:
+            state = job.get('state')
+            selected += bool(job.get('checked'))
+            interrupted += bool(job.get('interrupted')) and state not in (
+                'Concluído',
+                'Em andamento',
+            )
+            remaining += state in ('Na fila', 'Em andamento')
+            if job.get('ui_operation') and state == 'Na fila':
+                queued_operations.append(job['ui_operation'])
         return {
             'hasCredentials': any(self.saved_credentials)
             or bool(
@@ -401,17 +438,13 @@ class DesktopWorkspace(QObject):
                 self.settings.get('spotify_client_secret', ''),
             ),
             'tools': dict(self.tool_progress),
-            'selected': sum(bool(job.get('checked')) for job in self.jobs),
+            'selected': selected,
             'visibleSelected': sum(
                 bool(row.get('checked')) for row in self.models['queue'].rows
             ),
             'total': len(self.jobs),
             'undoCount': len(self.undo_history.entries),
-            'interrupted': sum(
-                bool(job.get('interrupted'))
-                and job['state'] not in ('Concluído', 'Em andamento')
-                for job in self.jobs
-            ),
+            'interrupted': interrupted,
             'running': self.running,
             'active': len(self.active),
             'background': list(self.background_tasks),
@@ -423,23 +456,13 @@ class DesktopWorkspace(QObject):
                         for state in self.active.values()
                         if state.get('operation')
                     ]
-                    + [
-                        job['ui_operation']
-                        for job in self.jobs
-                        if job.get('ui_operation') and job['state'] == 'Na fila'
-                    ]
+                    + queued_operations
                 )
             ),
-            'logs': '\n'.join(self.logs[-200:]),
+            'logs': '\n'.join(self.logs[-200:]) if include_logs else '',
             'spotify': self.account.connected,
             'elapsed': (
-                self.timing.snapshot(
-                    sum(
-                        job['state'] in ('Na fila', 'Em andamento') for job in self.jobs
-                    )
-                )[0]
-                if hasattr(self, 'timing')
-                else 0
+                self.timing.snapshot(remaining)[0] if hasattr(self, 'timing') else 0
             ),
         }
 
@@ -2821,8 +2844,24 @@ class DesktopWorkspace(QObject):
             ),
         )
 
-    def save_queue(self):
-        self.library.save_queue(self.jobs)
+    def save_queue(self, background=False):
+        from queue_persistence import QueuePersistence
+
+        if getattr(self, '_queue_writer', None) is None:
+            self._queue_writer = QueuePersistence(self.library)
+        future = self._queue_writer.submit(self.jobs)
+        if not background:
+            future.result()
+        else:
+
+            def finished(result):
+                error = result.exception()
+                if error is not None:
+                    self._event.emit(
+                        'queue_save_error', {'type': 'error', 'message': str(error)}
+                    )
+
+            future.add_done_callback(finished)
 
     def enqueue_tracks(self, records, start=False):
         added = []
@@ -3005,6 +3044,8 @@ class DesktopWorkspace(QObject):
         ):
             return
         limit = int(self.settings.get('concurrent_downloads', 1))
+        if len(self.active) >= limit:
+            return
         started = False
         pending = any(
             job['state'] == 'Na fila' and self.in_queue_scope(job) for job in self.jobs
@@ -3380,7 +3421,6 @@ class DesktopWorkspace(QObject):
                 progress = event['event']
                 if action in ('prepare_tools', 'update_tools'):
                     self.tool_progress = dict(progress, action=action)
-                    self.statusChanged.emit()
                 self.notify(progress.get('message', ''))
             else:
                 self.tasks.pop(action, None)
@@ -3509,7 +3549,7 @@ class DesktopWorkspace(QObject):
                 and time.monotonic() - getattr(self, '_last_checkpoint', 0) > 5
             ):
                 self._last_checkpoint = time.monotonic()
-                self.save_queue()
+                self.save_queue(background=True)
             if kind == 'error':
                 job['last_error'] = event.get('message', '')
         if kind in ('error', 'log', 'stage'):
@@ -4100,11 +4140,12 @@ class DesktopWorkspace(QObject):
         if not allowed:
             self.schedule_blocked = False
         if self.running and not allowed and not self.manual_queue:
-            for job in self.jobs:
-                if job['id'] in self.active and not job.get('_paused'):
+            for identity in list(self.active):
+                job = self.job_by_id(identity)
+                if job is not None and not job.get('_paused'):
                     job['_paused'] = True
                     job['_pause_reason'] = 'schedule'
-                    self.stop_job(job['id'])
+                    self.stop_job(identity)
         elif (
             allowed or (self.running and self.manual_queue)
         ) and not self.schedule_blocked:
@@ -4123,7 +4164,11 @@ class DesktopWorkspace(QObject):
             ):
                 self.begin_queue()
         if self.shell:
-            active = [job['percent'] for job in self.jobs if job['id'] in self.active]
+            active = [
+                job['percent']
+                for identity in self.active
+                if (job := self.job_by_id(identity)) is not None
+            ]
             self.shell.progress(
                 sum(active) / len(active) if active else None,
                 self.paused_all,
@@ -4462,6 +4507,8 @@ class DesktopWorkspace(QObject):
         deadline = time.monotonic() + 3
         for thread in self.tasks_threads:
             thread.join(timeout=max(0, deadline - time.monotonic()))
+        if getattr(self, '_queue_writer', None):
+            self._queue_writer.close()
 
     def music_overrides(self, record):
         from engine import MODES

@@ -9,7 +9,7 @@ ScrollView {
     ScrollBar.vertical: OndaScrollBar { parent: page; x: page.width-width; y: 0; height: page.height }
     property var scrollTopButton: ScrollToTop { target: page.contentItem; viewport: page }
     property string mode: workspace.currentPage
-    readonly property bool effectsSearching: workspace.activity.busy.indexOf("effects_collection")>=0 || workspace.activity.busy.indexOf("effects_search")>=0 || workspace.activity.busy.indexOf("effects_load")>=0 || workspace.activity.busy.indexOf("effects_queue_info")>=0
+    readonly property bool effectsSearching: workspace.activityValue(workspace.statusRevision,"busy").indexOf("effects_collection")>=0 || workspace.activityValue(workspace.statusRevision,"busy").indexOf("effects_search")>=0 || workspace.activityValue(workspace.statusRevision,"busy").indexOf("effects_load")>=0 || workspace.activityValue(workspace.statusRevision,"busy").indexOf("effects_queue_info")>=0
     readonly property var inlineImages: workspace.optionValue(workspace.optionsRevision,"imageGalleryEmbedded") ? (workspace.optionValue(workspace.optionsRevision,"imageGallery") || []) : []
     readonly property int inlineImageIndex: workspace.optionValue(workspace.optionsRevision,"imageGalleryIndex") || 0
     readonly property var inlineImage: inlineImages[inlineImageIndex] || ({})
@@ -89,9 +89,9 @@ ScrollView {
                                 Label { Layout.fillWidth: true; text: (modelData.artists || []).join(", "); color: bridge.palette.muted; elide: Text.ElideRight }
                                 Label { Layout.fillWidth: true; text: workspace.albumReleaseText(modelData); color: bridge.palette.muted; elide: Text.ElideRight }
                             }
-                            ActionButton { text: bridge.translate("Adicionar à fila"); enabled: workspace.activity.busy.indexOf("effects_load")<0; onClicked: {workspace.invoke("effects_enqueue_result",{index:index})} }
+                            ActionButton { text: bridge.translate("Adicionar à fila"); enabled: workspace.activityValue(workspace.statusRevision,"busy").indexOf("effects_load")<0; onClicked: {workspace.invoke("effects_enqueue_result",{index:index})} }
                         }
-                        enabled: workspace.activity.busy.indexOf("effects_load")<0
+                        enabled: workspace.activityValue(workspace.statusRevision,"busy").indexOf("effects_load")<0
                         onClicked: workspace.invoke("effects_load",{index:index})
                     }
                 }
@@ -190,7 +190,7 @@ ScrollView {
                 Layout.fillWidth: true; wrapMode: Text.Wrap; color: bridge.palette.muted
                 text: (original.width ? bridge.translate("Original")+": "+summary(original) : "")+(output.width ? "\n"+bridge.translate("Resultado")+": "+summary(output) : "")
             }
-            EmptyState { Layout.fillWidth: true; Layout.preferredHeight: 220; visible: !workspace.optionValue(workspace.optionsRevision,"imagePreview") && (!workspace.optionValue(workspace.optionsRevision,"imageGalleryEmbedded") || !page.inlineImages.length); heading: bridge.translate((workspace.activity.busy.indexOf("image_preview")>=0 || workspace.activity.busy.indexOf("image_gallery_manifest")>=0 || workspace.activity.busy.indexOf("image_gallery_thumbnail")>=0) ? "Carregando imagem…" : "Sua imagem aparecerá aqui"); description: bridge.translate("Escolha um arquivo ou cole um link e clique em Visualizar. A resolução e o formato serão mostrados quando disponíveis.") }
+            EmptyState { Layout.fillWidth: true; Layout.preferredHeight: 220; visible: !workspace.optionValue(workspace.optionsRevision,"imagePreview") && (!workspace.optionValue(workspace.optionsRevision,"imageGalleryEmbedded") || !page.inlineImages.length); heading: bridge.translate((workspace.activityValue(workspace.statusRevision,"busy").indexOf("image_preview")>=0 || workspace.activityValue(workspace.statusRevision,"busy").indexOf("image_gallery_manifest")>=0 || workspace.activityValue(workspace.statusRevision,"busy").indexOf("image_gallery_thumbnail")>=0) ? "Carregando imagem…" : "Sua imagem aparecerá aqui"); description: bridge.translate("Escolha um arquivo ou cole um link e clique em Visualizar. A resolução e o formato serão mostrados quando disponíveis.") }
             Image { objectName:"inlineImagePreview"; visible: !!workspace.optionValue(workspace.optionsRevision,"imagePreview") || (workspace.optionValue(workspace.optionsRevision,"imageGalleryEmbedded") && page.inlineImages.length>0); source: workspace.optionValue(workspace.optionsRevision,"imagePreview"); Layout.fillWidth: true; Layout.preferredHeight: 360; fillMode: Image.PreserveAspectFit; horizontalAlignment:Image.AlignHCenter;verticalAlignment:Image.AlignVCenter;asynchronous: true; cache: false
                 focus: false
                 BusyIndicator {anchors.centerIn:parent;running:workspace.optionValue(workspace.optionsRevision,"imageGalleryEmbedded") && !workspace.optionValue(workspace.optionsRevision,"imagePreview") && !page.inlineImage.error;visible:running}

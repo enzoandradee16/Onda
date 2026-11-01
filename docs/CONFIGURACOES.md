@@ -29,7 +29,7 @@ Instalações novas usam **Preto puro + Verde-Água**. As preferências existent
 
 A janela rápida de Aparência fica acessível pelo botão próprio; no Android, é um ícone ao lado de Configurações. As configurações completas oferecem também ordem/visibilidade das áreas e tamanhos dos cards.
 
-No PC, em **Aparência → Ordem e visibilidade das abas**, as setas ao lado de **Biblioteca** e **Ferramentas** trocam a ordem das categorias na barra lateral. A ordem das abas dentro de cada categoria permanece independente. **Restaurar ordem das abas** também restaura a ordem original das categorias.
+No PC, em **Aparência → Ordem e visibilidade das abas**, as setas ao lado de **Biblioteca** e **Ferramentas** trocam a ordem das categorias na barra lateral. A aba **Reprodução** pertence à categoria **Biblioteca**, inclusive na lista de ordem e visibilidade. A ordem das abas dentro de cada categoria permanece independente. **Restaurar ordem das abas** também restaura a ordem original das categorias.
 
 No Android, as setas junto a **Biblioteca no menu Mais** e **Ferramentas no menu Mais**, em **Configurações → Aparência**, alteram a ordem dessas categorias no menu **Mais**. A preferência é salva sem mudar a ordem das abas dentro de cada categoria. **Restaurar ordem do menu Mais** restaura ambas as ordens.
 
