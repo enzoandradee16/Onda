@@ -5,7 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.compositeOver
@@ -36,9 +36,12 @@ import androidx.compose.ui.unit.dp
 }
 
 @Composable internal fun PlaybackAdjustment(label:String,value:Float,range:ClosedFloatingPointRange<Float>,tag:String,enabled:Boolean=true,changed:(Float)->Unit) {
+    var draft by remember(value) { mutableFloatStateOf(value) }
+    val displayLabel=label.substringBeforeLast(" · ")+" · ${draft.toInt()}%"
     Column {
-        UiText(label,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-        RoundSlider(value,changed,valueRange=range,slim=true,enabled=enabled,
-            modifier=Modifier.fillMaxWidth().height(36.dp).testTag(tag).a11yLabel(label))
+        UiText(displayLabel,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+        RoundSlider(draft,{draft=it},valueRange=range,slim=true,enabled=enabled,
+            onValueChangeFinished={if(draft!=value)changed(draft)},
+            modifier=Modifier.fillMaxWidth().height(36.dp).testTag(tag).a11yLabel(displayLabel))
     }
 }

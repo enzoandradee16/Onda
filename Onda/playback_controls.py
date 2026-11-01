@@ -4,6 +4,14 @@ import math, time
 from array import array
 
 
+def volume_gain(value):
+    """Perceptual slider curve with a continuous response down to silence."""
+    value = float(value)
+    if not math.isfinite(value):
+        return 0.0
+    return (max(0.0, min(100.0, value)) / 100.0) ** 2
+
+
 class SleepTimer:
     def __init__(self, clock=time.monotonic):
         self.clock = clock
@@ -39,8 +47,21 @@ class SleepTimer:
 
 def fade_pcm(data, start, end):
     """Ramp stereo signed 16-bit PCM across this block without altering the input."""
-    if start == end == 1:
-        return data
+    start = max(0.0, min(1.0, start))
+    end = max(0.0, min(1.0, end))
+    if start == end:
+        if end == 1:
+            return data
+        if end == 0:
+            return bytes(len(data))
+        # The steady volume path runs ten times a second; keep it out of Python's
+        # per-sample loop so the UI and analysis can run alongside playback.
+        try:
+            import audioop
+        except ImportError:
+            pass
+        else:
+            return audioop.mul(data, 2, end)
     samples = array('h')
     samples.frombytes(data)
     frames = len(samples) // 2

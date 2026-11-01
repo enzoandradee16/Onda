@@ -41,6 +41,8 @@ class DesktopWorkspace(QObject):
     changed = Signal()
     optionsChanged = Signal()
     settingsChanged = Signal()
+    navigationChanged = Signal()
+    shortcutFieldsChanged = Signal()
     choiceChanged = Signal()
     statusChanged = Signal()
     lyricsRequested = Signal()
@@ -55,6 +57,7 @@ class DesktopWorkspace(QObject):
     def __init__(self, bridge, parent=None):
         super().__init__(parent)
         self.bridge = bridge
+        bridge.messageRequested.connect(self.message.emit)
         self.window = None
         self.prepare_tools = False
         self.restart_requested = False
@@ -75,6 +78,7 @@ class DesktopWorkspace(QObject):
         self.settings = dict(self.defaults, **bridge.preferences)
         self.settings['remember_settings'] = bridge.store.remember_enabled()
         self.settings['language'] = bridge.store.load_language()
+        self._startup_language = self.settings['language']
         self.settings['folder'] = self.settings.get('folder') or str(
             Path.home() / 'Downloads/Onda'
         )
@@ -248,6 +252,7 @@ class DesktopWorkspace(QObject):
         self.timer.timeout.connect(self.tick)
         self._event.connect(self.on_event, Qt.ConnectionType.QueuedConnection)
         bridge.appearanceChanged.connect(self.from_bridge)
+        bridge.appearanceChanged.connect(self.refresh_tray_style)
         bridge.equalizerChanged.connect(self.from_bridge)
         bridge.config_provider = self.config
         for index, job in enumerate(self.library.load_queue()):
@@ -327,7 +332,7 @@ class DesktopWorkspace(QObject):
     def preferences(self):
         return dict(self.settings)
 
-    @Property('QVariantList', notify=settingsChanged)
+    @Property('QVariantList', constant=True)
     def settingsFields(self):
         return self.fields
 
@@ -775,6 +780,10 @@ class DesktopWorkspace(QObject):
         ):
             self.selectPage('catalog')
         self.settingsChanged.emit()
+        if key in ('tab_order', 'tab_group_order', 'hidden_tabs'):
+            self.navigationChanged.emit()
+        if key == 'shortcut_keys':
+            self.shortcutFieldsChanged.emit()
         self.save_timer.start()
 
     @Slot()
@@ -970,6 +979,10 @@ class DesktopWorkspace(QObject):
             self.save_queue()
         self.statusChanged.emit()
 
+    @Property(bool, notify=settingsChanged)
+    def languageRestartRequired(self):
+        return self.settings['language'] != self._startup_language
+
     @Slot(str, 'QVariantMap')
     def invoke(self, action, params):
         try:
@@ -1020,11 +1033,15 @@ class DesktopWorkspace(QObject):
         if action == 'effects_previous':
             self.bridge.previousTrack()
             return
-        if action == 'restart_app':
-            from tool_status import read, display
+        if action in ('restart_app', 'restart_language'):
+            if action == 'restart_language':
+                if not self.languageRestartRequired:
+                    return
+            else:
+                from tool_status import read, display
 
-            if not display(read(self.store.path.parent)).get('can_restart'):
-                raise ValueError('Verifique as ferramentas antes de reiniciar.')
+                if not display(read(self.store.path.parent)).get('can_restart'):
+                    raise ValueError('Verifique as ferramentas antes de reiniciar.')
             if self.active or self.tasks or self.bridge.state.get('busy'):
                 raise ValueError(
                     'Aguarde as operações em andamento antes de reiniciar.'
@@ -1145,6 +1162,11 @@ class DesktopWorkspace(QObject):
                 }
                 self.card_timer.start()
         elif action == 'playback_queue_search':
+            if not str(p.get('query', '')).strip():
+                self.message.emit(
+                    tr('Pesquisar'), tr('Informe uma música, álbum, playlist ou link.')
+                )
+                return
             effects = p.get('effects', True)
             key = 'effectsQueueResults' if effects else 'jukeboxQueueResults'
 
@@ -1222,6 +1244,11 @@ class DesktopWorkspace(QObject):
                 self.run_task('effects_collection', {'tracks': records}, loaded)
         elif action == 'effects_search':
             query = self.options['effectsQuery'].strip()
+            if not query:
+                self.message.emit(
+                    tr('Pesquisar'), tr('Informe uma música, álbum, playlist ou link.')
+                )
+                return
             if query:
                 self.run_task(
                     'effects_search', {'query': query}, self.effects_input_loaded
@@ -1396,6 +1423,11 @@ class DesktopWorkspace(QObject):
             self.settingsCategoryRequested.emit('Contas')
         elif action == 'search':
             query = self.options['query'].strip()
+            if not query:
+                self.message.emit(
+                    tr('Pesquisar'), tr('Informe uma música, álbum, playlist ou link.')
+                )
+                return
             if (
                 self.options['provider'] == 'Spotify'
                 and not self.activity['spotifySearchReady']
@@ -1419,6 +1451,49 @@ class DesktopWorkspace(QObject):
             )
         elif action == 'cancel_task':
             self.cancel_task(p['name'])
+        elif action == 'queue_playback':
+            identity = p.get('id', '')
+            job = next((row for row in self.jobs if row['id'] == identity), None)
+            if not job or not self.queuePlaybackEnabled(identity):
+                return
+            from video_converter import AUDIO_INPUT_EXTENSIONS, VIDEO_EXTENSIONS
+
+            playable = (
+                AUDIO_INPUT_EXTENSIONS
+                | VIDEO_EXTENSIONS
+                | {'.wma', '.aiff', '.aif', '.alac'}
+            )
+            sources = [
+                path
+                for path in job.get('output_files', [])
+                if Path(path).is_file() and Path(path).suffix.lower() in playable
+            ]
+            if not sources:
+                saved = self.library.find_duplicate(job['url'], job['mode'])
+                if (
+                    saved
+                    and Path(saved).is_file()
+                    and Path(saved).suffix.lower() in playable
+                ):
+                    sources = [saved]
+            if sources:
+                self.accept_files('effects', sources[:1])
+            else:
+                record = dict(job.get('catalog_record') or job.get('queue_info') or {})
+                if not record.get('source_url'):
+                    record['source_url'] = job['url']
+                record.setdefault('title', job.get('display_name') or job['url'])
+                self.bridge.openRecord(record)
+                self.selectPage('jukebox')
+        elif action == 'catalog_playback':
+            model = p.get('model', 'catalog')
+            index = int(p.get('index', -1))
+            if model not in ('catalog', 'playlists'):
+                return
+            rows = self.models[model].rows
+            if 0 <= index < len(rows):
+                self.bridge.openRecord(dict(rows[index]))
+                self.selectPage('jukebox')
         elif action == 'queue_copy_links':
             QGuiApplication.clipboard().setText(
                 '\n'.join(
@@ -2096,7 +2171,7 @@ class DesktopWorkspace(QObject):
     def pageLabel(self, key):
         return tr(PAGES.get(key, key))
 
-    @Property('QVariantList', notify=settingsChanged)
+    @Property('QVariantList', notify=shortcutFieldsChanged)
     def shortcutFields(self):
         from shortcut_options import PRIMARY, load_overrides, display_shortcut
 
@@ -2505,6 +2580,14 @@ class DesktopWorkspace(QObject):
                         ).append(row['path'])
             paths = self.image_history_by_source.get(job.get('url', ''), [])
         return list(dict.fromkeys(paths))
+
+    @Slot(str, result=bool)
+    def queuePlaybackEnabled(self, identity):
+        job = next((row for row in self.jobs if row['id'] == identity), None)
+        return bool(
+            job
+            and job.get('mode') in ('mp3', 'm4a', 'flac', 'original', 'mp4', 'video')
+        )
 
     def queue_record(self, job):
         info = dict(job.get('catalog_record') or {})
@@ -3243,10 +3326,20 @@ class DesktopWorkspace(QObject):
                 result['path'], Path(result['path']).suffix.lstrip('.')
             )
             self.refresh_history()
-        text = result.get('message') if isinstance(result, dict) else str(result)
+        text = (
+            result.get('message')
+            if isinstance(result, dict)
+            else result if isinstance(result, str) else None
+        )
         if not text and isinstance(result, dict) and result.get('path'):
             text = tr('Arquivo salvo:') + '\n' + str(result['path'])
-        text = text or json.dumps(result, ensure_ascii=False, default=str)
+        if isinstance(result, dict) and 'bytes' in result and not text:
+            from operation_feedback import cache_message
+
+            text = cache_message(result, tr)
+        if not isinstance(text, str) or not text.strip():
+            self.log(json.dumps(result, ensure_ascii=False, default=str))
+            text = tr('Concluído')
         self.notify(text)
         if not notification or self.settings.get('notifications_enabled', True):
             self.message.emit(tr('ONDA'), text)
@@ -3878,11 +3971,20 @@ class DesktopWorkspace(QObject):
         if QSystemTrayIcon.isSystemTrayAvailable():
             self.tray = QSystemTrayIcon(QGuiApplication.windowIcon(), self)
             self.tray_menu = QMenu()
+            self.tray_menu.setWindowFlag(Qt.WindowType.FramelessWindowHint, True)
+            self.tray_menu.setWindowFlag(Qt.WindowType.NoDropShadowWindowHint, True)
+            self.tray_menu.setAttribute(
+                Qt.WidgetAttribute.WA_TranslucentBackground, True
+            )
             self.tray_menu.addAction(tr('Abrir ONDA'), self.restore)
             self.tray_menu.addAction(tr('Baixar fila'), self.start_queue)
             self.tray_menu.addAction(tr('Parar fila'), self.stop_queue)
             self.tray_menu.addAction(tr('Sair'), lambda: self.requestClose(True))
-            self.tray.setContextMenu(self.tray_menu)
+            self.refresh_tray_style()
+            # Windows' native tray menu ignores QWidget styles and rounded corners.
+            # Use our Qt popup there; other platforms retain their tray integration.
+            if sys.platform != 'win32':
+                self.tray.setContextMenu(self.tray_menu)
             self.tray.activated.connect(self.tray_activated)
         try:
             from windows_shell import WindowsShell
@@ -3893,9 +3995,41 @@ class DesktopWorkspace(QObject):
         except OSError:
             self.shell = None
 
+    def refresh_tray_style(self):
+        menu = getattr(self, 'tray_menu', None)
+        if menu is None:
+            return
+        colors = self.bridge.palette
+        scale = self.bridge.spacing
+        font = QGuiApplication.font()
+        font.setPointSizeF(10 * self.bridge.fontScale)
+        menu.setFont(font)
+        menu.setStyleSheet(
+            'QMenu { background-color: %(surface)s; color: %(text)s; '
+            'border: 1px solid %(line)s; border-radius: 9px; padding: 6px; }'
+            'QMenu::item { padding: %(vertical)spx %(horizontal)spx; '
+            'margin: 2px; border-radius: 6px; }'
+            'QMenu::item:selected { background-color: %(selected)s; color: %(accent)s; }'
+            'QMenu::item:disabled { color: %(disabled)s; }'
+            'QMenu::separator { height: 1px; background: %(line)s; margin: 5px 8px; }'
+            % dict(colors, vertical=round(8 * scale), horizontal=round(16 * scale))
+        )
+
     def tray_activated(self, reason):
         from PySide6.QtWidgets import QSystemTrayIcon
 
+        if (
+            reason == QSystemTrayIcon.ActivationReason.Context
+            and sys.platform == 'win32'
+        ):
+            menu = getattr(self, 'tray_menu', None)
+            if menu is not None:
+                from PySide6.QtGui import QCursor
+
+                self.refresh_tray_style()
+                menu.popup(QCursor.pos())
+                menu.activateWindow()
+            return
         if reason in (
             QSystemTrayIcon.ActivationReason.Trigger,
             QSystemTrayIcon.ActivationReason.DoubleClick,
@@ -4302,6 +4436,8 @@ class DesktopWorkspace(QObject):
                 else 0
             )
             duration = model.get('duration', 0)
+            if model.get('_stream'):
+                position = self.bridge.sourcePosition
         key = source if jukebox else 'effects'
         if jukebox and getattr(self, '_lyric_source', None) != key:
             self._lyric_source = key
@@ -4701,7 +4837,7 @@ class DesktopWorkspace(QObject):
                 )
         self.notify('Conferência concluída.')
 
-    @Property('QVariantList', notify=settingsChanged)
+    @Property('QVariantList', notify=navigationChanged)
     def navigation(self):
         icons = {
             'catalog': 'E721',

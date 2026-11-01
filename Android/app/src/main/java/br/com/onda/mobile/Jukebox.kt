@@ -99,7 +99,7 @@ internal class JukeboxController(private val context:Context,private val scope:C
     private var queueCursor=-1
     val nextQueueIndex:Int get()=(playbackQueue.value.indexOfFirst {it.optString("_queue_id")==currentQueueId.value}.takeIf {it>=0} ?: queueCursor)+1
     private var autoplayQueueId=""
-    fun previousTrack(){val index=nextQueueIndex-1;if(index>0)playQueued(index-1) else seek(0)}
+    fun previousTrack(){val current=state.value;if(sessionSeconds(current.model,current.index,current.phase.toDouble())>=3.0){seek(0);return};val index=nextQueueIndex-1;if(index>0)playQueued(index-1) else seek(0)}
     fun nextTrack(){
         if(autoplayQueueId.isNotBlank() || switchRequest.get()!=null)return
         val rows=playbackQueue.value.toMutableList()
@@ -164,7 +164,7 @@ internal class JukeboxController(private val context:Context,private val scope:C
         removed.forEach {preparedModels.remove(it);updateQueue(it,"Pendente")}
     }
     private fun updateQueue(id:String,status:String,error:String="") {
-        playbackQueue.update {rows->rows.map {if(it.optString("_queue_id")==id)JSONObject(it.toString()).put("_analysis",status).put("_error",error) else it}}
+        playbackQueue.update {rows->rows.map {if(it.optString("_queue_id")==id && (it.optString("_analysis")!=status || it.optString("_error")!=error))JSONObject(it.toString()).put("_analysis",status).put("_error",error) else it}}
     }
     private fun prepareConfig(source:String,record:JSONObject?,url:String=""):JSONObject {
         val direct=record?.optBoolean("_jukebox_direct")==true
@@ -175,7 +175,7 @@ internal class JukeboxController(private val context:Context,private val scope:C
         playbackQueue.update {rows->rows.map {row->
             val id=row.optString("_queue_id")
             when {
-                preparedModels.containsKey(id)->JSONObject(row.toString()).put("_analysis","Pronta").put("_error","")
+                preparedModels.containsKey(id)->if(row.optString("_analysis")=="Pronta" && row.optString("_error").isBlank())row else JSONObject(row.toString()).put("_analysis","Pronta").put("_error","")
                 row.optString("_analysis") in listOf("Analisando","Preparando","Pronta")->JSONObject(row.toString()).put("_analysis","Pendente")
                 else->row
             }
@@ -280,7 +280,7 @@ internal class JukeboxController(private val context:Context,private val scope:C
     val effects=MutableStateFlow(JSONObject().put("enabled",false).put("speed",85).put("reverb",25).put("keep_pitch",false))
     private var effectPreparation:Job?=null
     private var effectPreparationId=""
-    fun setEffects(key:String,value:Any){effects.value=JSONObject(effects.value.toString()).put(key,value);prewarmEffects()}
+    fun setEffects(key:String,value:Any){if(effects.value.opt(key)==value)return;effects.value=JSONObject(effects.value.toString()).put(key,value);prewarmEffects()}
     private fun prewarmEffects() {
         effectPreparation?.cancel();if(effectPreparationId.isNotBlank())MobileEngine.cancel(effectPreparationId)
         effectPreparation=scope.launch {
@@ -428,7 +428,7 @@ internal class JukeboxController(private val context:Context,private val scope:C
         if(id.isNotBlank())MobileEngine.cancel(id)
     }
     fun search(query:String) {
-        if(query.isBlank())return
+        if(query.isBlank()){state.update {it.copy(message=EMPTY_MUSIC_SEARCH)};return}
         cancelSearch()
         val id="jukebox-search-"+UUID.randomUUID();searchIdentity=id
         searching.value=true
@@ -610,13 +610,13 @@ internal class JukeboxController(private val context:Context,private val scope:C
     var smooth by rememberSaveable {mutableFloatStateOf(controller.smooth)}
     LaunchedEffect(variation,smooth){controller.variation=variation;controller.smooth=smooth}
     val chooser=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) {uri->if(uri!=null)vm.importLocal(uri,"audio") {file->controller.prepare(file.absolutePath)}}
-    fun search(){if(!searching && !state.busy && query.isNotBlank())controller.search(query)}
+    fun search(){if(!searching && !state.busy && vm.validateMusicQuery(query))controller.search(query)}
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal=LayoutSpacing.inset).padding(top=4.dp,bottom=16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
         Column(Modifier.fillMaxWidth().testTag("jukebox-source-card"),verticalArrangement=Arrangement.spacedBy(8.dp)) {
             Row(Modifier.fillMaxWidth(),verticalAlignment=androidx.compose.ui.Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(query,{query=it},placeholder={UiText("Música, artista ou link",maxLines=1,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)},singleLine=true,
                     keyboardOptions=KeyboardOptions(imeAction=ImeAction.Search),keyboardActions=KeyboardActions(onSearch={search()}),shape=RoundedCornerShape(12.dp),
-                    leadingIcon={IconButton(onClick={if(searching)controller.cancelSearch() else if(state.busy)controller.stop() else search()},enabled=searching||state.busy||query.isNotBlank(),modifier=Modifier.testTag("playback-search-submit")) {
+                    leadingIcon={IconButton(onClick={if(searching)controller.cancelSearch() else if(state.busy)controller.stop() else search()},enabled=true,modifier=Modifier.testTag("playback-search-submit")) {
                         OndaIcon(if(searching||state.busy)"close" else "search",if(searching||state.busy)"Cancelar" else "Pesquisar",Modifier.size(22.dp))
                     }},modifier=Modifier.weight(1f).testTag("playback-search-input").a11yLabel(PLAYBACK_INPUT_HINT))
                 OutlinedIconButton(onClick={chooser.launch(arrayOf("audio/*"))},enabled=!state.busy,shape=RoundedCornerShape(12.dp),modifier=Modifier.size(56.dp).testTag("playback-open-file")) {OndaIcon("folder","Abrir arquivo",Modifier.size(24.dp))}

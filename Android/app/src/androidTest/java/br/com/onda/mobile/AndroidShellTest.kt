@@ -122,10 +122,10 @@ class AndroidShellTest {
                 vm.jukebox.state.value=JukeboxState(title="Gesture test",model=JSONObject().put("neighbors",neighbors))
             }
             compose.onNodeWithText("Jukebox infinito").performClick()
-            compose.onNodeWithTag("jukebox-variation").assertIsDisplayed().performTouchInput {swipe(androidx.compose.ui.geometry.Offset(width*.75f,centerY),androidx.compose.ui.geometry.Offset(width*.15f,centerY),350)}
+            compose.onNodeWithTag("jukebox-variation").performScrollTo().assertIsDisplayed().performTouchInput {swipe(androidx.compose.ui.geometry.Offset(width*.75f,centerY),androidx.compose.ui.geometry.Offset(width*.15f,centerY),350)}
             compose.onNodeWithTag("nav-Efeitos").assertIsSelected()
             compose.runOnIdle {assertTrue("variation=${vm.jukebox.variation}",vm.jukebox.variation<45f)}
-            compose.onNodeWithTag("jukebox-transition").performTouchInput {swipe(androidx.compose.ui.geometry.Offset(width*.2f,centerY),androidx.compose.ui.geometry.Offset(width*.8f,centerY),350)}
+            compose.onNodeWithTag("jukebox-transition").performScrollTo().performTouchInput {swipe(androidx.compose.ui.geometry.Offset(width*.2f,centerY),androidx.compose.ui.geometry.Offset(width*.8f,centerY),350)}
             compose.onNodeWithTag("nav-Efeitos").assertIsSelected()
             compose.runOnIdle {assertTrue("smooth=${vm.jukebox.smooth}",vm.jukebox.smooth>35f)}
         } finally {compose.runOnIdle {vm.jukebox.stop();OndaStore.saveSettings(original)}}

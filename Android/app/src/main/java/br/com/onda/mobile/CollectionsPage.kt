@@ -62,6 +62,10 @@ import org.json.JSONObject
     var exported by remember {mutableStateOf("")}
     val export=rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) {uri->if(uri!=null) OndaStore.context.contentResolver.openOutputStream(uri)?.use {it.write(exported.toByteArray())}}
     val tracks=remember(collection) {collection.optJSONArray("tracks")?.objects() ?: emptyList()}
+    val trackKeys=remember(tracks){
+        val keys=stableTrackKeys(tracks)
+        java.util.IdentityHashMap<JSONObject,String>().apply {tracks.forEachIndexed {index,row->put(row,keys[index])}}
+    }
     val syncItems=remember(comparison) {comparison?.optJSONArray("items")?.objects()?.associateBy {it.optInt("index")} ?: emptyMap()}
     val missingTracks=remember(tracks,comparison) {tracks.filterIndexed {index,_->syncItems[index]?.optString("state")=="missing"}}
     val syncBySource=remember(tracks,comparison) {tracks.mapIndexed {index,record->record.optString("source_url") to syncItems[index]}.toMap()}
@@ -160,7 +164,7 @@ import org.json.JSONObject
         item {OutlinedTextField(filter,{filter=it},label={UiText("Buscar nesta lista")},modifier=Modifier.fillMaxWidth(),singleLine=true);UiText("${visible.size} de ${tracks.size}",style=MaterialTheme.typography.bodySmall)}
         item {collectionActions()}
         if(adding)item {LinearProgressIndicator(Modifier.fillMaxWidth())}
-        items(visible,contentType={"collection_track"}) {original->
+        items(visible,key={row->requireNotNull(trackKeys[row])},contentType={"collection_track"}) {original->
             val record=rememberCardMetadata(original,vm)
             var actions by remember {mutableStateOf(false)}
             Surface(modifier=Modifier.onSecondaryClick(record.optString("source_url")){actions=true},shape=RoundedCornerShape(16.dp),color=MaterialTheme.colorScheme.surfaceVariant.copy(alpha=.45f)){Row(Modifier.fillMaxWidth().heightIn(min=64.dp).toggleable(value=record.optString("source_url") in selected,role=Role.Checkbox,onValueChange={checked->val id=record.optString("source_url");selected=if(checked) selected+id else selected-id}).a11yState(if(record.optString("source_url") in selected) "Selecionado" else "Não selecionado"),verticalAlignment=Alignment.CenterVertically) {

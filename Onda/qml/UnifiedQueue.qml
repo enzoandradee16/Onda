@@ -12,6 +12,7 @@ Card {
         NumberAnimation {target:tabSlide;property:"x";from:queuePanel.recent?queueList.width:-queueList.width;to:0;duration:240;easing.type:Easing.OutCubic}
     }
     readonly property var rows:recent ? bridge.recentTracks : bridge.upcomingTracks
+    StableQueueModel { id: stableTracks; rows: queuePanel.rows }
     function original(i){return rows[i].queueIndex}
     function move(i,target){bridge.moveQueued(original(i),original(target)-original(i))}
     objectName:"unifiedQueuePanel"
@@ -40,7 +41,9 @@ Card {
         ListView {
             transform:Translate {id:tabSlide;objectName:"queueTabSlide"}
             id:queueList;property var activeDrag:null;objectName:"unifiedPlaybackQueueList"
-            Layout.fillWidth:true;Layout.fillHeight:true;clip:true;model:queuePanel.rows;spacing:6
+            Layout.fillWidth:true;Layout.fillHeight:true;clip:true;model:stableTracks;spacing:6
+            ScrollBar.vertical: OndaScrollBar {}
+            ScrollToTop { target: queueList; viewport: queueList }
             section.property:"group"
             section.criteria:ViewSection.FullString
             section.delegate:Item {

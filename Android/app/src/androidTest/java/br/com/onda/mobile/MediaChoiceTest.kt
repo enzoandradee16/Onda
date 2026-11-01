@@ -43,7 +43,7 @@ class MediaChoiceTest {
         ready()
         for(hasAudio in listOf(true,false)) {
             var reply:JSONObject?=null
-            val photo=JSONObject().put("id","1").put("title","Foto teste").put("kind","Foto").put("photo_choice",true).put("has_audio",hasAudio)
+            val photo=JSONObject().put("id","1").put("title","Foto teste").put("kind","Foto").put("photo_choice",true).put("has_audio",hasAudio).put("automatic_quality",true)
             compose.runOnIdle {OndaStore.ask("choice-test",JSONObject().put("type","choose_media").put("candidates",JSONArray().put(photo))){reply=it}}
             try {
                 if(hasAudio) {
@@ -61,6 +61,24 @@ class MediaChoiceTest {
                 }
             } finally {compose.runOnIdle {OndaStore.dismissQuestions("choice-test")}}
         }
+    }
+
+    @Test fun carouselKeepsPhotoAndMusicVideoChoicesSeparateInAutomaticQuality() {
+        ready()
+        var reply:JSONObject?=null
+        val rows=JSONArray()
+        for(i in 1..2)rows.put(JSONObject().put("id",i.toString()).put("title","Foto $i").put("kind","Foto").put("photo_choice",true).put("has_audio",true).put("automatic_quality",true).put("auto_select_media",true))
+        compose.runOnIdle {OndaStore.ask("choice-test",JSONObject().put("type","choose_media").put("candidates",rows)){reply=it}}
+        try {
+            compose.onAllNodesWithText("Só foto").onFirst().performScrollTo().performClick()
+            compose.onNodeWithText("Foto com música · MP4").performClick()
+            compose.onNodeWithText("Confirmar").performClick()
+            compose.runOnIdle {
+                assertEquals(2,reply!!.getJSONArray("selected_ids").length())
+                assertEquals("photo_video",reply!!.getJSONObject("media_modes").getString("1"))
+                assertFalse(reply!!.getJSONObject("media_modes").has("2"))
+            }
+        } finally {compose.runOnIdle {OndaStore.dismissQuestions("choice-test")}}
     }
 
     @Test fun multipleMediaStartSelectedAndToggleAllOrIndividual() {

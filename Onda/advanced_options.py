@@ -89,6 +89,7 @@ COMMON = {
     'language',
     'history_card_size',
     'pure_black_separators',
+    'pure_light_borders',
     'history_view',
     'theme',
     'accent',
@@ -149,6 +150,7 @@ def import_settings(payload, platform):
         'auto_match',
         'review_metadata',
         'pure_black_separators',
+        'pure_light_borders',
         'notice_animation',
     ):
         if key in result and type(result[key]) is not bool:

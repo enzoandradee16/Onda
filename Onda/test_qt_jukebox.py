@@ -75,6 +75,47 @@ class QtJukeboxTests(unittest.TestCase):
         self.env.stop()
         self.temp.cleanup()
 
+    def test_volume_changes_output_gain_without_rebuilding_graph_or_state(self):
+        from PySide6.QtTest import QSignalSpy
+
+        bridge = self.bridge()
+        bridge.preferences['jukebox_gradual_transition'] = False
+        state = QSignalSpy(bridge.changed)
+        graph = QSignalSpy(bridge.graphChanged)
+        params = QSignalSpy(bridge.playbackParamsChanged)
+        bridge.setParams(45, 35, 50, False)
+        self.assertEqual(bridge.playback_gain(), 0.25)
+        bridge.setParams(45, 35, 0, False)
+        self.assertEqual(bridge.playback_gain(), 0)
+        self.assertEqual(params.count(), 2)
+        self.assertEqual(state.count(), 0)
+        self.assertEqual(graph.count(), 0)
+
+    def test_local_analysis_progress_is_bounded_and_cancels_old_effects(self):
+        bridge = self.bridge()
+        emitted = []
+
+        def analyze(cancel, progress):
+            for _ in range(5000):
+                progress(20)
+            progress(99)
+            return {'done': True}
+
+        with (
+            patch.object(bridge, 'start_worker', side_effect=lambda fn: fn()),
+            patch.object(
+                bridge,
+                'emit',
+                side_effect=lambda revision, kind, value: emitted.append((kind, value)),
+            ),
+        ):
+            bridge.task(analyze)
+        self.assertTrue(bridge._effect_prepare_cancel.is_set())
+        self.assertEqual(
+            [value for kind, value in emitted if kind == 'progress'], [20, 99]
+        )
+        self.assertEqual([kind for kind, value in emitted][-2:], ['result', 'idle'])
+
     def bridge(self):
         from qt_jukebox_ui import JukeboxBridge
 
@@ -679,7 +720,9 @@ class QtJukeboxTests(unittest.TestCase):
             self.assertFalse(cancelled.is_set())
             self.assertTrue(bridge.playback['sleepActive'])
             self.assertEqual(bridge.track_minutes, 5)
-            self.assertEqual(bridge.playback_gain(), 1)
+            self.assertAlmostEqual(
+                bridge.playback_gain(), (bridge.playbackParams["volume"] / 100) ** 2
+            )
         self.assertEqual(
             self.store.clean({'jukebox_transition_seconds': '4'})[
                 'jukebox_transition_seconds'

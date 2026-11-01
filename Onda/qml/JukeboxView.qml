@@ -5,6 +5,8 @@ import QtQuick.Dialogs
 import Onda 1.0
 ScrollView {
     id: page
+    ScrollBar.vertical: OndaScrollBar { parent: page; x: page.width-width; y: 0; height: page.height }
+    property var scrollTopButton: ScrollToTop { target: page.contentItem; viewport: page }
     RemoteControlPopup {id:remotePopup}
     objectName: "jukeboxView"
     contentWidth: availableWidth
@@ -34,7 +36,7 @@ ScrollView {
                 background: Rectangle { radius: 8; color: bridge.palette.surface; border.color: query.activeFocus ? bridge.palette.accent : bridge.palette.line; border.width: query.activeFocus ? 2 : 1 }
                 onAccepted: if (!bridge.state.busy) bridge.search(text)
             }
-            ActionButton { primary: true; text: bridge.translate(bridge.state.busy ? "Cancelar" : "Pesquisar"); enabled: bridge.state.busy || query.text.trim().length>0; onClicked: if (bridge.state.busy) bridge.cancelOperation(); else bridge.search(query.text) }
+            ActionButton { primary: true; text: bridge.translate(bridge.state.busy ? "Cancelar" : "Pesquisar"); enabled: true; onClicked: if (bridge.state.busy) bridge.cancelOperation(); else bridge.search(query.text) }
             ActionButton { text: bridge.translate("Abrir arquivo"); enabled: !bridge.state.busy; onClicked: fileDialog.open() }
             ActionButton {text:bridge.translate("Controle remoto");onClicked:remotePopup.open()}
         }
@@ -119,16 +121,16 @@ ScrollView {
                         }
                         MouseArea {anchors.fill:parent;enabled:bridge.state.ready;onClicked:function(mouse){const dx=mouse.x-width/2,dy=mouse.y-height/2,r=Math.min(width,height)*.42;if(Math.abs(Math.sqrt(dx*dx+dy*dy)-r)<22)bridge.seek(Math.round(((Math.atan2(dy,dx)+Math.PI/2+2*Math.PI)%(2*Math.PI))/(2*Math.PI)*bridge.graph.count)%bridge.graph.count)}}
                     }
-                    Label {text:bridge.translate("Variação");color:bridge.palette.text}
-                    OndaSlider {id:variation;Layout.fillWidth:true;value:bridge.playbackParams.variation;enabled:!bridge.playbackParams.normal;Accessible.name:bridge.translate("Variação");onMoved:page.updateParams()}
-                    Label {text:bridge.translate("Transição suave");color:bridge.palette.text}
-                    OndaSlider {id:smooth;Layout.fillWidth:true;value:bridge.playbackParams.smooth;enabled:!bridge.playbackParams.normal;Accessible.name:bridge.translate("Transição suave");onMoved:page.updateParams()}
+                    Label {text:bridge.translate("Variação")+" · "+Math.round(variation.value)+"%";color:bridge.palette.text}
+                    OndaSlider {id:variation;Layout.fillWidth:true;value:bridge.playbackParams.variation;enabled:!bridge.playbackParams.normal;Accessible.name:bridge.translate("Variação");onMoved:if(!pressed)page.updateParams();onPressedChanged:if(!pressed)page.updateParams()}
+                    Label {text:bridge.translate("Transição suave")+" · "+Math.round(smooth.value)+"%";color:bridge.palette.text}
+                    OndaSlider {id:smooth;Layout.fillWidth:true;value:bridge.playbackParams.smooth;enabled:!bridge.playbackParams.normal;Accessible.name:bridge.translate("Transição suave");onMoved:if(!pressed)page.updateParams();onPressedChanged:if(!pressed)page.updateParams()}
                 }
             }
             UnifiedQueue {Layout.fillWidth:true;Layout.fillHeight:true;Layout.preferredWidth:330;Layout.columnSpan:page.availableWidth>=700&&page.availableWidth<1100?2:1}
         }
         Item { height: 8 }
     }
-    property real volume: 80
+    readonly property real volume: bridge.playbackParams.volume
     function updateParams() { bridge.setParams(variation.value,smooth.value,volume,bridge.playbackParams.normal) }
 }

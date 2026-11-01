@@ -2209,5 +2209,13 @@
   "Texto de exemplo": "Texto de ejemplo",
   "A tonalidade pode ser ajustada para manter o contraste.": "El tono puede ajustarse para mantener el contraste.",
   "O ícone da tela inicial usa a cor predefinida mais próxima.": "El icono de la pantalla de inicio usa el color predefinido más cercano.",
-  "Editar": "Editar"
+  "Editar": "Editar",
+  "Mostrar bordas no modo Claro Puro": "Mostrar bordes en el modo Claro puro",
+  "Usar em reprodução": "Usar en reproducción",
+  "Voltar ao início": "Volver al inicio",
+  "A fonte não disponibilizou um fluxo de áudio compatível.": "La fuente no proporcionó un flujo de audio compatible.",
+  "Use uma faixa de até 20 minutos com duração conhecida.": "Usa una pista de hasta 20 minutos con una duración conocida.",
+  "Não foi possível reproduzir o áudio online. Tente abrir a música novamente.": "No se pudo reproducir el audio en línea. Intenta abrir la pista de nuevo.",
+  "Cache limpo. Espaço liberado: {size} MB.": "Caché borrada. Espacio liberado: {size} MB.",
+  "Alguns arquivos não puderam ser removidos. Tente novamente depois de fechar as operações em andamento.": "No se pudieron eliminar algunos archivos. Inténtalo de nuevo después de cerrar las operaciones en curso."
 }

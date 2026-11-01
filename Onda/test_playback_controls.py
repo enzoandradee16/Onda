@@ -6,6 +6,26 @@ from silence import bounds
 
 
 class PlaybackControlTests(unittest.TestCase):
+    def test_volume_curve_is_continuous_monotonic_and_has_exact_endpoints(self):
+        from playback_controls import volume_gain
+
+        levels = [volume_gain(n) for n in range(101)]
+        self.assertEqual(levels[0], 0)
+        self.assertEqual(levels[-1], 1)
+        self.assertTrue(all(a < b for a, b in zip(levels, levels[1:])))
+        self.assertLess(max(b - a for a, b in zip(levels, levels[1:])), 0.02)
+        self.assertEqual(volume_gain(-10), 0)
+        self.assertEqual(volume_gain(200), 1)
+
+    def test_steady_volume_keeps_pcm_shape_and_matches_gain_within_one_sample(self):
+        data = array('h', [-32768, -12345, 0, 12345, 32767, 5]).tobytes()
+        for gain in (0.0, 0.01, 0.25, 0.75, 1.0):
+            result = array('h')
+            result.frombytes(fade_pcm(data, gain, gain))
+            self.assertEqual(len(result), 6)
+            for source, actual in zip(array('h', data), result):
+                self.assertLessEqual(abs(actual - round(source * gain)), 1)
+
     def test_sleep_fades_only_at_end_and_cancel_restores_gain(self):
         now = [100.0]
         timer = SleepTimer(lambda: now[0])

@@ -16,6 +16,7 @@ import kotlinx.coroutines.withContext
     val active by OndaStore.active.collectAsStateWithLifecycle()
     var bytes by remember {mutableStateOf<Long?>(null)}
     var cleaned by remember {mutableStateOf(false)}
+    var freed by remember {mutableStateOf(0L)}
     val scope=rememberCoroutineScope()
     var cleaning by remember {mutableStateOf(false)}
     var reading by remember {mutableStateOf(false)}
@@ -39,6 +40,8 @@ import kotlinx.coroutines.withContext
         readError="";vm.stopPreview()
         vm.operation("cache_clear",JSONObject(),dialog=false) {result->
             cleaning=true
+            freed=result.optLong("removed")+(loader.diskCache?.size ?: 0L)
+            if(result.optInt("failed")>0)readError="Alguns arquivos não puderam ser removidos. Tente novamente depois de fechar as operações em andamento."
             scope.launch {
                 try {
                     withContext(Dispatchers.IO) {loader.memoryCache?.clear();loader.diskCache?.clear()}
@@ -55,6 +58,7 @@ import kotlinx.coroutines.withContext
     UiText("Cache",style=MaterialTheme.typography.titleMedium)
     UiText("Limpa capas, buscas e caches temporários. Downloads, fila, histórico, contas e escolhas salvas são preservados.",style=MaterialTheme.typography.bodySmall)
     bytes?.let {UiText((if(cleaned) "Cache limpo. Restante em disco: {size} MB." else "Cache em disco: {size} MB.").replace("{size}","%.2f".format(it/1048576.0)))}
+    if(cleaned)UiText("Cache limpo. Espaço liberado: {size} MB.".replace("{size}","%.2f".format(freed/1048576.0)))
     if(readError.isNotBlank())UiErrorText(readError,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.error)
     OutlinedButton(enabled=!busy && !cleaning && !reading && active.isBlank(),onClick={clear()}){UiText("Limpar cache")}
     TextButton(enabled=!busy && !cleaning && !reading,onClick={scope.launch {readSize()}}){UiText("Atualizar tamanho")}

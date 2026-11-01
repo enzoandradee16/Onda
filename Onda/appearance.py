@@ -72,7 +72,9 @@ def blend(first, second, amount):
     return '#' + ''.join(f'{value:02x}' for value in values)
 
 
-def palette(mode='Seguir o sistema', accent='Verde-Água', separators=False):
+def palette(
+    mode='Seguir o sistema', accent='Verde-Água', separators=False, light_borders=True
+):
     mode = system_mode() if mode == 'Seguir o sistema' else mode
     light = mode in ('Claro', 'Claro puro')
     colors = dict(
@@ -127,6 +129,8 @@ def palette(mode='Seguir o sistema', accent='Verde-Água', separators=False):
             hover='#000000',
             selected='#000000',
         )
+    if mode == 'Claro puro' and not light_borders:
+        colors['line'] = '#ffffff'
     if mode == 'Alto contraste':
         colors.update(
             bg='#000000',
@@ -191,6 +195,7 @@ class ThemeManager:
                 app.interface_font_size,
                 app.interface_spacing,
                 app.pure_black_separators,
+                app.pure_light_borders,
             )
         ]
         self.map_binding = app.bind_all('<Map>', self.mapped, add='+')
@@ -205,6 +210,7 @@ class ThemeManager:
             self.app.theme_mode.get(),
             self.app.theme_accent.get(),
             self.app.pure_black_separators.get(),
+            self.app.pure_light_borders.get(),
         )
         font_name = self.app.interface_font.get()
         scale = font_scale(self.app.interface_font_size.get())

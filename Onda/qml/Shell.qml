@@ -6,7 +6,7 @@ Pane {
     ImageGalleryPopup {}
     LyricsWindow { id: lyricsWindow }
     EffectsQueueDrawer {parent: Overlay.overlay; effects: false}
-    MiniPlayer { id: floatingPlayer; mainWindow: app.Window.window; volumeValue: volume.value; onVolumeMoved: function(value){bridge.setParams(bridge.playbackParams.variation,bridge.playbackParams.smooth,value,bridge.playbackParams.normal)} }
+    MiniPlayer { id: floatingPlayer; mainWindow: app.Window.window; volumeValue: bridge.playbackParams.volume; onVolumeMoved: function(value){bridge.setParams(bridge.playbackParams.variation,bridge.playbackParams.smooth,value,bridge.playbackParams.normal)} }
 
     Connections { target: workspace; function onLyricsRequested() {lyricsWindow.open()} }
     id: app
@@ -74,7 +74,7 @@ Pane {
                 }
             }
             WorkspaceView { objectName: "workspaceArea"; visible: workspace.currentPage !== "jukebox"; active: visible; Layout.fillWidth: true; Layout.fillHeight: true; Layout.leftMargin: 24; Layout.rightMargin: 24; Layout.bottomMargin: 16 }
-            JukeboxView { id: jukebox; visible: workspace.currentPage === "jukebox"; Layout.fillWidth: true; Layout.fillHeight: true; Layout.leftMargin: 24; Layout.rightMargin: 24; volume: volume.value }
+            JukeboxView { id: jukebox; visible: workspace.currentPage === "jukebox"; Layout.fillWidth: true; Layout.fillHeight: true; Layout.leftMargin: 24; Layout.rightMargin: 24 }
             Card {
                 objectName: "jukeboxMiniPlayer"
                 visible: workspace.currentPage !== "jukebox" && bridge.state.playing
@@ -218,6 +218,7 @@ Pane {
             Label { text: bridge.translate("Modo de aparência"); color: bridge.palette.muted }
             ChoiceBox { Layout.fillWidth: true; model: bridge.themes; currentIndex: model.indexOf(bridge.theme); displayText: bridge.translate(bridge.theme); onActivated: bridge.setAppearance(model[index],bridge.accent,bridge.animations) }
             OndaSwitch { objectName:"appearanceBlackSeparators"; visible:bridge.theme==="Preto puro"; Layout.fillWidth:true; text:bridge.translate("Mostrar bordas e separações no Preto puro"); checked:workspace.preferences.pure_black_separators===true; onToggled:workspace.setSetting("pure_black_separators",checked) }
+            OndaSwitch { objectName:"appearanceLightBorders"; visible:bridge.theme==="Claro puro"; Layout.fillWidth:true; text:bridge.translate("Mostrar bordas no modo Claro Puro"); checked:workspace.preferences.pure_light_borders!==false; onToggled:workspace.setSetting("pure_light_borders",checked) }
             Label { text: bridge.translate("Cor de destaque"); color: bridge.palette.muted }
             AccentSelector { Layout.fillWidth: true; value: bridge.accent; onSelected: function(color) {bridge.setAppearance(bridge.theme,color,bridge.animations)} }
             OndaSwitch { text: bridge.translate("Animações da interface"); checked: bridge.animations; onToggled: bridge.setAppearance(bridge.theme,bridge.accent,checked) }

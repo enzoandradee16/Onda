@@ -16,6 +16,25 @@ class PaletteTests(unittest.TestCase):
             self.assertEqual(colors['accent'], palette('Claro', accent)['accent'])
             self.assertEqual(colors['accent_text'], '#ffffff')
 
+    def test_pure_light_border_setting_is_independent_and_persisted(self):
+        bordered = palette('Claro puro', light_borders=True)
+        flat = palette('Claro puro', light_borders=False)
+        self.assertNotEqual(bordered['line'], bordered['bg'])
+        self.assertEqual(flat['line'], flat['bg'])
+        for key in ('text', 'muted', 'accent', 'accent_text'):
+            self.assertEqual(flat[key], bordered[key])
+        self.assertEqual(palette('Escuro'), palette('Escuro', light_borders=False))
+        for value in (True, False):
+            self.assertEqual(
+                PreferenceStore.clean({'pure_light_borders': value})[
+                    'pure_light_borders'
+                ],
+                value,
+            )
+        self.assertNotIn(
+            'pure_light_borders', PreferenceStore.clean({'pure_light_borders': 'false'})
+        )
+
     def test_pure_black_has_no_surface_separations_unless_enabled(self):
         flat = palette('Preto puro')
         for key in ('bg', 'surface', 'input', 'line', 'hover', 'selected'):

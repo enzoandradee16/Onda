@@ -167,7 +167,7 @@ val lightAccents=mapOf(
         surfaceContainerHigh=Color(0xFF101010),surfaceContainerHighest=Color(0xFF181818),
         surfaceVariant=Color(0xFF181818),outlineVariant=Color(0xFF303030)
     ) else baseScheme
-    val scheme=if(settings.optString("theme")=="Alto contraste") highContrastScheme() else if(pureBlack) pureBlackSurfaces(blackScheme,settings.optBoolean("pure_black_separators",false)) else if(settings.optString("theme")=="Claro puro")pureLightSurfaces(baseScheme) else blackScheme
+    val scheme=if(settings.optString("theme")=="Alto contraste") highContrastScheme() else if(pureBlack) pureBlackSurfaces(blackScheme,settings.optBoolean("pure_black_separators",false)) else if(settings.optString("theme")=="Claro puro")pureLightSurfaces(baseScheme,settings.optBoolean("pure_light_borders",true)) else blackScheme
     val iconActivity=androidx.activity.compose.LocalActivity.current
     LaunchedEffect(settings.optString("theme"),settings.optString("accent"),dark,iconActivity) {
         LauncherIcons.sync(OndaStore.context,settings)
@@ -337,6 +337,7 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
     val active by OndaStore.active.collectAsStateWithLifecycle()
     val running by OndaStore.running.collectAsStateWithLifecycle()
     val results by vm.searchResults.collectAsStateWithLifecycle()
+    val trackKeys=remember(results){stableTrackKeys(results)}
     var query by rememberSaveable { mutableStateOf("") }
     var provider by rememberSaveable { mutableStateOf("Deezer") }
     var showSearchFilters by rememberSaveable { mutableStateOf(false) }
@@ -355,7 +356,7 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
     val keyboard=LocalSoftwareKeyboardController.current
     fun submitSearch() {
         val text=query.lineSequence().joinToString(" ").trim()
-        if(text.isNotBlank() && !vm.busy.value) {keyboard?.hide();vm.search(text,provider)}
+        if(!vm.busy.value && vm.validateMusicQuery(text)) {keyboard?.hide();vm.search(text,provider)}
     }
     if(comparison.size==2) AlertDialog(onDismissRequest={comparison=emptyList()},title={UiText("Comparar resultados")},text={
         Column(Modifier.verticalScroll(rememberScrollState())) {
@@ -399,7 +400,7 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
         item {PageTitle("Pesquisar músicas","")}
         item {OutlinedTextField(query,{query=it},placeholder={UiText("Música, artista ou link")},singleLine=true,shape=RoundedCornerShape(14.dp),
             leadingIcon={OndaIcon("search",modifier=Modifier.size(21.dp))},
-            trailingIcon={IconButton(onClick={if(busy)vm.cancel() else submitSearch()},enabled=busy || query.isNotBlank()){OndaIcon(if(busy)"stop" else "search",if(busy)"Cancelar" else "Pesquisar",Modifier.size(22.dp))}},
+            trailingIcon={IconButton(onClick={if(busy)vm.cancel() else submitSearch()},enabled=true){OndaIcon(if(busy)"stop" else "search",if(busy)"Cancelar" else "Pesquisar",Modifier.size(22.dp))}},
             keyboardOptions=KeyboardOptions(imeAction=ImeAction.Search),keyboardActions=KeyboardActions(onSearch={submitSearch()}),
             modifier=Modifier.fillMaxWidth().testTag("music-query").onPreviewKeyEvent {event->
                 if(event.key==Key.Enter || event.key==Key.NumPadEnter) {
@@ -431,7 +432,9 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
         if(searchQueue.isNotEmpty())item {TextButton(onClick={vm.queueNavigation.value=true}){UiText("Ver fila")}}
         if(results.isEmpty()) item {UiText("Sua biblioteca começa com uma busca",fontWeight=FontWeight.Bold);UiText("Encontre a música e escolha a versão que você quer.",style=MaterialTheme.typography.bodySmall)}
         if(comparison.size==1)item {UiText("Selecione outro resultado para comparar.")}
-        items(results,contentType={"search_track"}) {record-> TrackCard(record,vm,onDownload={downloadTrack=record.toString()},onCompare={
+        items(results.size,key={trackKeys[it]},contentType={"search_track"}) {trackIndex->
+            val record=results[trackIndex]
+            TrackCard(record,vm,onDownload={downloadTrack=record.toString()},onCompare={
             val source=record.cleanString("source_url")
             val repeated=comparison.any {it===record || (source.isNotBlank() && sourceKey(it.cleanString("source_url"))==sourceKey(source))}
             if(repeated)vm.showNotice("Comparar resultados","Essa música já foi selecionada. Escolha outro resultado para comparar.")
@@ -478,6 +481,7 @@ internal fun displayReleaseDate(value:String):String {
                 DropdownMenu(expanded=actions,onDismissRequest={actions=false}) {
                     DropdownMenuItem(text={UiText("Baixar agora")},onClick={actions=false;onDownload()})
                     DropdownMenuItem(text={UiText("Adicionar à fila")},onClick={actions=false;vm.queueTrack(record,origin="search")})
+                    DropdownMenuItem(text={UiText("Usar em reprodução")},onClick={actions=false;vm.useInPlayback(record)})
                     DropdownMenuItem(text={UiText(if(thisPlaying)"Parar prévia" else "Ouvir prévia")},enabled=thisPlaying || url.isNotBlank(),onClick={actions=false;if(thisPlaying)vm.stopPreview() else vm.preview(url,OndaStore.settings.value.optInt("search_preview",25))})
                     DropdownMenuItem(text={UiText("Ver no catálogo")},onClick={actions=false;val source=record.cleanString("source_url");if(source.startsWith("https://"))OndaStore.context.startActivity(Intent(Intent.ACTION_VIEW,android.net.Uri.parse(source)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))})
                     if(onCompare!=null)DropdownMenuItem(text={UiText("Comparar resultados")},onClick={actions=false;onCompare()})
@@ -598,7 +602,7 @@ fun mediaClock(seconds:Long):String {val value=seconds.coerceAtLeast(0);return "
     val searchBusy by vm.busy.collectAsStateWithLifecycle()
     val collectionBusy by vm.loadingPlaybackCollection.collectAsStateWithLifecycle()
     fun searchEffects() {
-        if(collectionBusy)vm.cancelPlaybackCollection() else if(searchBusy)vm.cancel() else if(effectsQuery.isNotBlank())vm.operation("effects_search",JSONObject().put("query",effectsQuery).put("provider",OndaStore.settings.value.optString("catalog_provider","Deezer"))) {result->
+        if(collectionBusy)vm.cancelPlaybackCollection() else if(searchBusy)vm.cancel() else if(vm.validateMusicQuery(effectsQuery))vm.operation("effects_search",JSONObject().put("query",effectsQuery).put("provider",OndaStore.settings.value.optString("catalog_provider","Deezer"))) {result->
             val rows=result.optJSONArray("tracks")?.objects().orEmpty()
             if(result.optBoolean("is_collection")){effectsResults=emptyList();vm.addPlaybackCollection(rows,false)}else effectsResults=rows
         }

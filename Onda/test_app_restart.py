@@ -85,6 +85,43 @@ class DesktopRestartTests(unittest.TestCase):
     setUp = Fixture.setUp
     tearDown = Fixture.tearDown
 
+    def test_language_restart_is_pending_only_when_different_from_startup(self):
+        original = self.ws.settings['language']
+        self.assertFalse(self.ws.languageRestartRequired)
+        self.ws.setSetting('language', 'en' if original != 'en' else 'es')
+        self.assertTrue(self.ws.languageRestartRequired)
+        self.ws.setSetting('language', original)
+        self.assertFalse(self.ws.languageRestartRequired)
+        with patch('app_restart.schedule') as start:
+            self.ws.dispatch('restart_language', {})
+        start.assert_not_called()
+
+    def test_language_restart_preserves_session_without_requiring_tools_check(self):
+        self.ws.setSetting('language', 'en')
+        with (
+            patch('app_restart.schedule') as start,
+            patch('tool_status.read', return_value={}),
+            patch('qt_workspace_ui.QGuiApplication') as application,
+            patch.object(self.ws, 'save_playback_session') as session,
+            patch.object(self.ws, 'save_queue') as queue,
+        ):
+            self.ws.dispatch('restart_language', {})
+            session.assert_called_once_with(strict=True)
+            queue.assert_called_once()
+            start.assert_called_once()
+            application.exit.assert_called_once_with(0)
+
+    def test_language_restart_waits_for_active_operations(self):
+        self.ws.setSetting('language', 'en')
+        self.ws.active['busy'] = Mock()
+        try:
+            with patch('app_restart.schedule') as start:
+                with self.assertRaisesRegex(ValueError, 'operações'):
+                    self.ws.dispatch('restart_language', {})
+                start.assert_not_called()
+        finally:
+            self.ws.active.clear()
+
     def test_busy_restart_never_schedules_a_process(self):
         self.ws.active['busy'] = Mock()
         try:

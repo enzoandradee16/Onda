@@ -26,10 +26,10 @@ import androidx.compose.ui.window.Dialog
     var editing by remember { mutableStateOf(false) }
     val custom=normalizeAccent(value)
     Column(modifier) {
-        Select("Cor de destaque", if(custom!=null)CUSTOM_ACCENT else value, accents.keys.toList()+CUSTOM_ACCENT) {
-            if(it==CUSTOM_ACCENT)editing=true else changed(it)
+        Select("Cor de destaque", if(custom!=null)CUSTOM_ACCENT else value, accents.keys.toList()) {
+            changed(it)
         }
-        if(custom!=null) TextButton(onClick={editing=true},modifier=Modifier.testTag("edit-custom-accent")) {Text(custom);Spacer(Modifier.width(8.dp));UiText("Editar")}
+        TextButton(onClick={editing=true},modifier=Modifier.testTag("edit-custom-accent")) {UiText("Cor personalizada");if(custom!=null){Spacer(Modifier.width(8.dp));Text(custom)}}
     }
     if(editing)CustomAccentDialog(custom ?: resolvedAccent(value,MaterialTheme.colorScheme.background.luminance()<.5f).hexRgb(),{editing=false}) {
         changed(it);editing=false

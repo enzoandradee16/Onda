@@ -37,6 +37,7 @@ class UiMixin:
             self.theme_mode.get(),
             self.theme_accent.get(),
             self.pure_black_separators.get(),
+            self.pure_light_borders.get(),
         )
         BG, SURFACE, INPUT, TEXT, MUTED, ACCENT, LINE = (
             colors[key]
@@ -931,6 +932,11 @@ class UiMixin:
             appearance,
             text=tr("Mostrar bordas e separações no Preto puro"),
             variable=self.pure_black_separators,
+        ).pack(anchor="w", pady=(0, 12))
+        ttk.Checkbutton(
+            appearance,
+            text=tr("Mostrar bordas no modo Claro Puro"),
+            variable=self.pure_light_borders,
         ).pack(anchor="w", pady=(0, 12))
         from interface_fonts import font_choices, FONT_PREVIEW, FONT_SIZES
 

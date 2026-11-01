@@ -25,7 +25,7 @@ import org.json.JSONObject
 
 val categories=linkedMapOf(
     "Geral" to listOf("remember","language","clipboard_links","notice_duration","notice_animation"),
-    "Aparência" to listOf("simple_download_ui","queue_card_size","catalog_card_size","history_card_size","pure_black_separators","history_view","theme","accent","playback_tab_order","bottom_bar_order","tab_order","tab_group_order","hidden_tabs","interface_font","interface_font_size","interface_spacing"),
+    "Aparência" to listOf("simple_download_ui","queue_card_size","catalog_card_size","history_card_size","pure_black_separators","pure_light_borders","history_view","theme","accent","playback_tab_order","bottom_bar_order","tab_order","tab_group_order","hidden_tabs","interface_font","interface_font_size","interface_spacing"),
     "Downloads" to listOf("wifi_only","wifi_loss","finish_action","notification_controls","auto_select_media","social_best_quality","detect_duplicates","filename_template","concurrent_downloads","resume_downloads","resume_queue","normalize_volume","schedule_enabled","schedule_start","schedule_stop","mode","audio_quality","height","fps","playlist_limit","link_playlist","organization","duplicate_policy","output_uri","auto_metadata","auto_match","review_metadata"),
     "Imagens" to listOf("image_format","image_size","image_width","image_height","keep_ratio"),
     "Áudio" to listOf("search_preview","synced_lyrics","jukebox_equalizer","jukebox_gradual_transition","jukebox_transition_seconds","playback_prepare_ahead"),
@@ -55,7 +55,7 @@ val categories=linkedMapOf(
     val language=LocalUiLanguage.current
     val keyboard=LocalSoftwareKeyboardController.current
     val searchResults=remember(searchQuery,language,settings.optString("theme")) {if(searchQuery.isBlank())emptyList() else searchEntries.filter {entry->
-        (entry.label!="Mostrar bordas e separações no Preto puro" || settings.optString("theme")=="Preto puro") && settingsSearchMatches(searchQuery,settingsSearchText(entry,language))
+        (entry.label!="Mostrar bordas e separações no Preto puro" || settings.optString("theme")=="Preto puro") && (entry.label!="Mostrar bordas no modo Claro Puro" || settings.optString("theme")=="Claro puro") && settingsSearchMatches(searchQuery,settingsSearchText(entry,language))
     }.sortedWith(compareBy<SettingsSearchEntry> {!settingsSearchMatches(searchQuery,translateUi(it.label,language))}.thenBy {it.label.length})}
     fun put(key: String,value: Any) {OndaStore.saveSettings(JSONObject(settings.toString()).put(key,value))}
     val folder=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) {uri->if(uri!=null) {
@@ -144,6 +144,7 @@ val categories=linkedMapOf(
                         AccentPreference(settings.optString("accent")){put("accent",it)}
                         SettingsDivider()
                         if(settings.optString("theme")=="Preto puro") Toggle("Mostrar bordas e separações no Preto puro",settings.optBoolean("pure_black_separators",false)){put("pure_black_separators",it)}
+                        if(settings.optString("theme")=="Claro puro") Toggle("Mostrar bordas no modo Claro Puro",settings.optBoolean("pure_light_borders",true)){put("pure_light_borders",it)}
                         SettingsDivider()
                         UiText("Texto e espaçamento",style=MaterialTheme.typography.titleMedium)
                         Select("Alterar tamanho da fonte",settings.optString("interface_font_size","100%"),interfaceFontSizes){put("interface_font_size",it)}

@@ -9,6 +9,27 @@ class PlaybackPreparationVisualTests(unittest.TestCase):
     tearDown = fixtures.PlaybackQueueDrawerTests.tearDown
     settle = fixtures.PlaybackQueueDrawerTests.settle
 
+    def test_pure_light_borders_and_custom_color_have_separate_controls(self):
+        from PySide6.QtCore import QObject, QMetaObject
+
+        self.bridge.setAppearance('Claro puro', 'Azul', False)
+        popup = self.window.findChild(QObject, 'appearancePopup')
+        QMetaObject.invokeMethod(popup, 'open')
+        self.settle()
+        toggle = popup.findChild(QObject, 'appearanceLightBorders')
+        custom = popup.findChild(QObject, 'customAccentButton')
+        self.assertTrue(toggle.property('visible'))
+        self.assertTrue(custom.property('visible'))
+        self.assertNotIn('Cor personalizada', self.bridge.accents)
+        for enabled in (False, True):
+            self.ws.setSetting('pure_light_borders', enabled)
+            self.settle()
+            self.assertEqual(toggle.property('checked'), enabled)
+            self.assertEqual(self.bridge.palette['line'] == '#ffffff', not enabled)
+        self.bridge.setAppearance('Escuro', 'Azul', False)
+        self.settle()
+        self.assertFalse(toggle.property('visible'))
+
     def test_pure_black_toggle_applies_to_all_playback_cards_and_drawer(self):
         from PySide6.QtCore import QObject, QMetaObject
         from PySide6.QtQml import QQmlProperty

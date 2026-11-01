@@ -25,6 +25,7 @@ import org.json.JSONObject
                 Select("Modo de aparência",settings.optString("theme","Preto puro"),appearanceModes,Modifier.testTag("appearance-theme")){put("theme",it)}
                 AccentPreference(settings.optString("accent","Verde-Água"),Modifier.testTag("appearance-accent")){put("accent",it)}
                 if(settings.optString("theme")=="Preto puro")Toggle("Mostrar bordas e separações no Preto puro",settings.optBoolean("pure_black_separators",false)){put("pure_black_separators",it)}
+                if(settings.optString("theme")=="Claro puro")Toggle("Mostrar bordas no modo Claro Puro",settings.optBoolean("pure_light_borders",true)){put("pure_light_borders",it)}
                 FilledTonalButton(onClick=close,modifier=Modifier.align(Alignment.End).testTag("appearance-done")){UiText("Pronto")}
             }
         }

@@ -56,27 +56,29 @@ ColumnLayout {
     ActionButton {visible:!page.catalog && !page.history && workspace.playlistModel.count>0;text:bridge.translate("Conferir lista importada");enabled:workspace.activity.busy.length===0;onClicked:workspace.invoke("compare_imported_collection",{})}
     Label {visible:!page.catalog && !page.history && !!text;Layout.fillWidth:true;wrapMode:Text.Wrap;color:bridge.palette.muted;text:bridge.translate(workspace.values.collectionReference || "")}
     CardSizeControl { Layout.alignment: Qt.AlignRight; settingKey: page.cardSizeKey }
-    ListView { Layout.fillWidth: true; Layout.fillHeight: true; clip: true; spacing: Math.round(10*bridge.spacing); reuseItems: true; model: page.catalog ? workspace.catalogModel : page.history ? workspace.historyModel : workspace.playlistModel
+    ListView { id:libraryList; objectName:"libraryScrollList"; Layout.fillWidth: true; Layout.fillHeight: true; clip: true; spacing: Math.round(10*bridge.spacing); reuseItems: true; model: page.catalog ? workspace.catalogModel : page.history ? workspace.historyModel : workspace.playlistModel
         EmptyState {
             objectName: "libraryEmptyState"
             anchors.fill: parent; visible: parent.count === 0
             heading: bridge.translate(page.history ? (workspace.values.historyQuery || workspace.values.historyKind!=="Todos" ? "Nenhum arquivo encontrado" : "Seu histórico está vazio") : page.catalog ? (workspace.activity.busy.indexOf("search")>=0 ? "Pesquisando músicas…" : workspace.values.catalogSearched ? "Nenhuma música encontrada" : "Encontre sua próxima música") : (workspace.activity.busy.indexOf("collection")>=0 ? "Carregando álbum ou playlist…" : "Nenhuma faixa para mostrar"))
             description: bridge.translate(page.history ? (workspace.values.historyQuery || workspace.values.historyKind!=="Todos" ? "Tente outro termo para buscar no histórico." : "Seus downloads e arquivos exportados aparecerão aqui.") : page.catalog ? (workspace.activity.busy.indexOf("search")>=0 ? "Aguarde os resultados ou clique em Cancelar." : workspace.values.catalogSearched ? "Tente outra busca ou ajuste os filtros de artista, álbum e versão." : "Pesquise por música ou artista, ou cole um link de faixa.") : "Cole o link de um álbum ou playlist e clique em Carregar, ou importe uma lista.")
         }
-        ScrollBar.vertical: ScrollBar {}
+        ScrollBar.vertical: OndaScrollBar {}
+        ScrollToTop { target: libraryList; viewport: libraryList }
         delegate: Card { id: rowCard; objectName: "libraryTrackCard"; required property var entry; required property int index; width: ListView.view.width; height: Math.max(page.history ? (page.smallCards ? 76 : page.cardSize === "Médio" ? 104 : 132) : (page.smallCards ? 132 : page.cardSize === "Médio" ? 160 : 192),trackDetails.implicitHeight+24)
             Component.onCompleted: if(!page.history)workspace.invoke("request_card_details",{model:page.catalog ? "catalog" : "playlists",source:entry.source_url || ""})
             ListView.onReused: if(!page.history)workspace.invoke("request_card_details",{model:page.catalog ? "catalog" : "playlists",source:entry.source_url || ""})
             OndaMenu {id:historyContext;objectName:"libraryCardActions"
                 OndaMenuItem {visible:!page.history;text:bridge.translate("Baixar agora");onTriggered:workspace.invoke("catalog_download",{model:page.catalog ? "catalog" : "playlists",index:rowCard.index})}
                 OndaMenuItem {visible:!page.history;text:bridge.translate("Adicionar à fila");onTriggered:workspace.invoke("catalog_add",{model:page.catalog ? "catalog" : "playlists",index:rowCard.index})}
+                OndaMenuItem {visible:!page.history;text:bridge.translate("Usar em reprodução");onTriggered:workspace.invoke("catalog_playback",{model:page.catalog ? "catalog" : "playlists",index:rowCard.index})}
                 OndaMenuItem {visible:page.catalog;text:bridge.translate("Ouvir prévia");onTriggered:workspace.invoke("preview_catalog",{index:rowCard.index})}
                 OndaMenuItem {visible:!page.history;text:bridge.translate("Ver no catálogo");onTriggered:workspace.invoke("open_url",{url:rowCard.entry.source_url})}
                 OndaMenuItem {visible:!page.history;text:bridge.translate("Copiar link");onTriggered:workspace.invoke("copy_link",{url:rowCard.entry.source_url})}
                 OndaMenuItem {visible:page.catalog;text:bridge.translate("Comparar resultados");onTriggered:workspace.invoke("compare_results",{index:rowCard.index})}
                 OndaMenuItem {visible:page.history;text:bridge.translate("Abrir arquivo");onTriggered:workspace.invoke(rowCard.entry.is_image ? "history_preview" : "open_file",{path:rowCard.entry.path,id:rowCard.entry.id})}
                 OndaMenuItem {visible:page.history;text:bridge.translate("Editar metadados");onTriggered:workspace.invoke("history_edit",rowCard.entry.checked ? {} : {index:rowCard.index})}
-                OndaMenuItem {visible:page.history;text:bridge.translate("Reprodução");onTriggered:workspace.invoke("history_effects",{index:rowCard.index})}
+                OndaMenuItem {visible:page.history && !rowCard.entry.is_image;text:bridge.translate("Usar em reprodução");onTriggered:workspace.invoke("history_effects",{index:rowCard.index})}
                 OndaMenuItem {visible:page.history;text:bridge.translate("Baixar novamente");enabled:!!rowCard.entry.source;onTriggered:workspace.invoke("history_retry",{index:rowCard.index})}
                 OndaMenuItem {objectName:"removeHistoryContext";visible:page.history;text:bridge.translate("Remover");onTriggered:workspace.invoke("history_remove",{id:rowCard.entry.id})}
             }

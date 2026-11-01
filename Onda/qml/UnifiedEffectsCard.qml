@@ -18,19 +18,28 @@ Card {
                 currentIndex:{for(let i=0;i<pairs.length;i++)if(Math.round(workspace.values.speed)===pairs[i][0]&&Math.round(workspace.values.reverb)===pairs[i][1])return i;return 9}
                 onActivated:{if(index<pairs.length){workspace.setOption("speed",pairs[index][0]);workspace.setOption("reverb",pairs[index][1])}}
             }
-            Label {text:bridge.translate("Velocidade")+" · "+Math.round(workspace.values.speed)+"%";color:bridge.palette.text}
-            OndaSlider {Layout.fillWidth:true;from:50;to:150;value:workspace.values.speed;Accessible.name:bridge.translate("Velocidade");onMoved:workspace.setOption("speed",value)}
-            Label {text:bridge.translate("Reverb")+" · "+Math.round(workspace.values.reverb)+"%";color:bridge.palette.text}
-            OndaSlider {Layout.fillWidth:true;value:workspace.values.reverb;Accessible.name:bridge.translate("Reverb");onMoved:workspace.setOption("reverb",value)}
+            Label {objectName:"unifiedSpeedReadout";text:bridge.translate("Velocidade")+" · "+Math.round(speedControl.value)+"%";color:bridge.palette.text}
+            OndaSlider {id:speedControl;objectName:"unifiedSpeedSlider";Layout.fillWidth:true;from:50;to:150;value:workspace.values.speed;Accessible.name:bridge.translate("Velocidade");onMoved:if(!pressed)workspace.setOption("speed",value);onPressedChanged:if(!pressed)workspace.setOption("speed",value)}
+            Label {text:bridge.translate("Reverb")+" · "+Math.round(reverbControl.value)+"%";color:bridge.palette.text}
+            OndaSlider {id:reverbControl;Layout.fillWidth:true;value:workspace.values.reverb;Accessible.name:bridge.translate("Reverb");onMoved:if(!pressed)workspace.setOption("reverb",value);onPressedChanged:if(!pressed)workspace.setOption("reverb",value)}
             OndaSwitch {Layout.fillWidth:true;text:bridge.translate("Manter tom");checked:workspace.values.keep_pitch;onToggled:workspace.setOption("keep_pitch",checked)}
         }
-        Label {visible:!!bridge.state.effects_pending;Layout.fillWidth:true;text:bridge.translate("Preparando efeitos; a reprodução atual continua.");wrapMode:Text.Wrap;color:bridge.palette.muted}
+        Item {
+            Layout.fillWidth:true;Layout.preferredHeight:8
+            OndaProgressBar {
+                objectName:"unifiedEffectsPreparationBar"
+                anchors.fill:parent
+                visible:!!bridge.state.effects_pending
+                indeterminate:visible
+                Accessible.name:bridge.translate("Efeitos")
+            }
+        }
         Label {visible:!!bridge.state.effects_error;Layout.fillWidth:true;text:bridge.translateError(bridge.state.effects_error || "");wrapMode:Text.Wrap;color:bridge.palette.text}
         Item {Layout.fillHeight:true}
         RowLayout {
             Layout.fillWidth:true
             ChoiceBox {model:["MP3","M4A","FLAC","WAV"];Layout.preferredWidth:90;Accessible.name:bridge.translate("Formato");currentIndex:model.indexOf(workspace.values.effectFormat);onActivated:workspace.setOption("effectFormat",currentText)}
-            TaskButton {Layout.fillWidth:true;idleText:bridge.translate("Exportar música");enabled:taskRunning||bridge.state.ready;operation:"unified_effects_export";taskNames:["effects_export"]}
+            TaskButton {Layout.fillWidth:true;idleText:bridge.translate("Exportar música");enabled:taskRunning||(bridge.state.ready&&!bridge.state.streaming);operation:"unified_effects_export";taskNames:["effects_export"]}
         }
     }
 }

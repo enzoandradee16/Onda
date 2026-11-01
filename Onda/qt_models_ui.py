@@ -44,6 +44,46 @@ class RowsModel(QAbstractListModel):
                     item = self.index(index)
                     self.dataChanged.emit(item, item, [Qt.UserRole + 1])
             return
+        ids = [row.get('id') for row in rows]
+        old_ids = [row.get('id') for row in self.rows]
+        if (
+            all(identity is not None for identity in ids + old_ids)
+            and len(set(ids)) == len(ids)
+            and len(set(old_ids)) == len(old_ids)
+        ):
+            wanted = set(ids)
+            for index in range(len(self.rows) - 1, -1, -1):
+                if self.rows[index]['id'] not in wanted:
+                    self.beginRemoveRows(QModelIndex(), index, index)
+                    self.rows.pop(index)
+                    self.endRemoveRows()
+            for target, row in enumerate(rows):
+                found = next(
+                    (
+                        i
+                        for i in range(target, len(self.rows))
+                        if self.rows[i]['id'] == row['id']
+                    ),
+                    -1,
+                )
+                if found < 0:
+                    self.beginInsertRows(QModelIndex(), target, target)
+                    self.rows.insert(target, row)
+                    self.endInsertRows()
+                else:
+                    if found != target:
+                        self.beginMoveRows(
+                            QModelIndex(), found, found, QModelIndex(), target
+                        )
+                        self.rows.insert(target, self.rows.pop(found))
+                        self.endMoveRows()
+                    if self.rows[target] != row:
+                        self.rows[target] = row
+                        item = self.index(target)
+                        self.dataChanged.emit(item, item, [Qt.UserRole + 1])
+            if len(rows) != old_count:
+                self.countChanged.emit()
+            return
         self.beginResetModel()
         self.rows = rows
         self.endResetModel()

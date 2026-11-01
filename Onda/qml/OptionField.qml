@@ -34,6 +34,14 @@ ColumnLayout {
         Label { text: Math.round(transitionSlider.value) + " s"; color: bridge.palette.text }
     }
     ChoiceBox { visible: root.field.kind === "select" && !root.transitionDuration && root.field.key !== "theme_accent"; Layout.fillWidth: true; Layout.minimumWidth: 0; model: root.field.choices || []; currentIndex: Math.max(0,model.indexOf(root.current)); displayText: bridge.translate(currentText).replace(" (320 kbps)",""); onActivated: root.save(model[index]) }
+    ActionButton {
+        objectName: "restartAfterLanguageChange"
+        visible: root.settings && root.field.key === "language" && workspace.languageRestartRequired
+        text: bridge.translate("Reiniciar")
+        primary: true
+        enabled: workspace.activity.active === 0 && workspace.activity.busy.length === 0 && !bridge.state.busy
+        onClicked: workspace.invoke("restart_language", {})
+    }
     Loader { active: root.field.key === "theme_accent"; visible: active; Layout.fillWidth: true; sourceComponent: Component { AccentSelector { value: String(root.current || "Verde-Água"); onSelected: function(color) {root.save(color)} } } }
     OndaTextField {
         id: scheduleTime

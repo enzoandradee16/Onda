@@ -160,6 +160,89 @@ class UnifiedDesktopTests(unittest.TestCase):
         self.assertTrue(self.ws.options['jukeboxQueueOpen'])
         self.assertEqual(len(self.bridge.playlist), 1)
 
+    def test_setting_values_do_not_rebuild_navigation_or_shortcut_models(self):
+        from PySide6.QtTest import QSignalSpy
+
+        navigation = QSignalSpy(self.ws.navigationChanged)
+        shortcuts = QSignalSpy(self.ws.shortcutFieldsChanged)
+        self.ws.setSetting('queue_card_size', 'Pequeno')
+        self.ws.setSetting('theme_mode', 'Claro puro')
+        self.assertEqual(navigation.count(), 0)
+        self.assertEqual(shortcuts.count(), 0)
+        self.ws.setSetting('tab_group_order', ['tools', 'library'])
+        self.assertEqual(navigation.count(), 1)
+        self.ws.setSetting('shortcut_keys', '{}')
+        self.assertEqual(shortcuts.count(), 1)
+        meta = self.ws.metaObject()
+        self.assertTrue(
+            meta.property(meta.indexOfProperty('settingsFields')).isConstant()
+        )
+
+    def test_download_queue_playback_prefers_downloaded_audio_over_link(self):
+        source = self.ws.store.path.parent / 'downloaded.mp3'
+        source.parent.mkdir(parents=True, exist_ok=True)
+        source.write_bytes(b'fixture')
+        self.ws.jobs = [
+            dict(
+                id='song',
+                url='https://example.com/song',
+                mode='mp3',
+                output_files=[str(source)],
+            )
+        ]
+        with (
+            patch.object(self.ws, 'accept_files') as local,
+            patch.object(self.bridge, 'openRecord') as online,
+        ):
+            self.ws.dispatch('queue_playback', {'id': 'song'})
+        local.assert_called_once_with('effects', [str(source)])
+        online.assert_not_called()
+
+    def test_download_queue_playback_uses_metadata_without_starting_a_download(self):
+        self.ws.jobs = [
+            dict(
+                id='song',
+                url='https://example.com/song',
+                mode='mp3',
+                catalog_record=dict(title='Song', artists=['Artist']),
+            )
+        ]
+        with (
+            patch.object(self.bridge, 'openRecord') as play,
+            patch.object(self.ws, 'enqueue') as download,
+        ):
+            self.ws.dispatch('queue_playback', {'id': 'song'})
+        self.assertEqual(
+            play.call_args.args[0]['source_url'], 'https://example.com/song'
+        )
+        self.assertEqual(play.call_args.args[0]['title'], 'Song')
+        download.assert_not_called()
+        self.ws.jobs[0]['mode'] = 'photos'
+        self.assertFalse(self.ws.queuePlaybackEnabled('song'))
+        self.assertFalse(self.ws.queuePlaybackEnabled('missing'))
+
+    def test_previous_restarts_at_three_seconds_without_consuming_history(self):
+        self.bridge.playlist = [dict(id='first'), dict(id='second')]
+        self.bridge.queue_index = 1
+        self.bridge._queue_history = ['first']
+        self.bridge.model = dict(beats=[0.0, 1.0, 2.0, 3.0, 4.0], duration=4)
+        for seconds in (3.0, 3.5):
+            self.bridge._position = 3.0
+            self.bridge._phase = seconds - 3.0
+            with (
+                patch.object(self.bridge, 'seekSeconds') as seek,
+                patch.object(self.bridge, 'playQueued') as play,
+            ):
+                self.bridge.previousTrack()
+            seek.assert_called_once_with(0)
+            play.assert_not_called()
+            self.assertEqual(self.bridge._queue_history, ['first'])
+        self.bridge._position = 2.0
+        self.bridge._phase = 0.99
+        with patch.object(self.bridge, 'playQueued') as play:
+            self.bridge.previousTrack()
+        play.assert_called_once_with(0)
+
     def test_played_song_leaves_upcoming_but_previous_and_recent_keep_it(self):
         self.bridge.playlist = [
             dict(id=str(i), title=str(i), analysis='pending') for i in range(4)

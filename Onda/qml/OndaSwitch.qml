@@ -8,7 +8,7 @@ Switch {
     indicator: Rectangle {
         x: control.width-width; y: (control.height-height)/2
         width: 44; height: 25; radius: 13
-        color: control.checked ? bridge.palette.accent : (bridge.palette.mode === "Preto puro" ? "#40464e" : bridge.palette.line)
+        color: control.checked ? bridge.palette.accent : (bridge.palette.mode === "Preto puro" ? "#40464e" : bridge.palette.mode === "Claro puro" ? "#b5bbc3" : bridge.palette.line)
         Behavior on color { ColorAnimation { duration: bridge.animations ? 130 : 0 } }
         Rectangle {
             x: control.checked ? parent.width-width-3 : 3; y: 3

@@ -149,8 +149,9 @@ class PreferenceStore:
                 result[name] = value
             elif name == 'theme_accent' and normalize_color(value):
                 result[name] = normalize_color(value)
-        if type(data.get("pure_black_separators")) is bool:
-            result["pure_black_separators"] = data["pure_black_separators"]
+        for name in ("pure_black_separators", "pure_light_borders"):
+            if type(data.get(name)) is bool:
+                result[name] = data[name]
         for name in ("catalog_card_size", "playlist_card_size"):
             if data.get(name) in ("Pequeno", "Médio", "Grande"):
                 result[name] = data[name]

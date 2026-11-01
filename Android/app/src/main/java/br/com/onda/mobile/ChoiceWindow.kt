@@ -110,7 +110,7 @@ import org.json.JSONObject
                                     val mode=mediaModes[id] ?: candidate.optString("default_mode", "mp4")
                                     Select("Baixar este vídeo como",outputs.entries.firstOrNull {it.value==mode}?.key ?: "Vídeo · MP4",outputs.keys.toList()){mediaModes=mediaModes+(id to outputs.getValue(it))}
                                 }
-                                if(kind=="choose_media" && candidate.optBoolean("photo_choice") && !candidate.optBoolean("automatic_quality")) {
+                                if(kind=="choose_media" && candidate.optBoolean("photo_choice")) {
                                     val outputs=if(candidate.optBoolean("has_audio")) linkedMapOf("Só foto" to "photos", "Foto com música · MP4" to "photo_video") else linkedMapOf("Só foto" to "photos")
                                     Select("Baixar esta foto como",outputs.entries.firstOrNull {it.value==mediaModes[id]}?.key ?: "Só foto",outputs.keys.toList()){mediaModes=mediaModes+(id to outputs.getValue(it))}
                                     if(!candidate.optBoolean("has_audio")) UiText("A plataforma não disponibilizou a música desta foto.",style=MaterialTheme.typography.bodySmall)

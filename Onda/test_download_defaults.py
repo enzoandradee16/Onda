@@ -134,6 +134,15 @@ class EffectiveDownloadTests(unittest.TestCase):
             self.assertEqual(download.call_args.args[0]['mode'], 'social')
             picker.return_value = {'selected_ids': ['1'], 'media_modes': {'1': 'mp3'}}
             self.assertEqual(wrapped([]), {'selected_ids': ['1'], 'media_modes': {}})
+            picker.return_value = {
+                'selected_ids': ['1'],
+                'media_modes': {'1': 'photo_video'},
+            }
+            photo = {'id': '1', 'kind': 'Foto', 'photo_choice': True, 'has_audio': True}
+            self.assertEqual(wrapped([photo]), picker.return_value)
+            photo['has_audio'] = False
+            self.assertEqual(wrapped([photo])['media_modes'], {})
+
             download_post(
                 dict(config, social_best_quality=False), Mock(), Mock(), picker
             )

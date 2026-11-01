@@ -19,6 +19,7 @@ ColumnLayout {
         OndaMenuItem { text: bridge.translate("Retomar"); enabled: workspace.activity.total>0 && queueContext.targetId!=="" && workspace.queueActionEnabled("resume",queueContext.actionId); onTriggered: workspace.invoke("queue_action",{id:queueContext.actionId,name:"resume"}) }
         OndaMenuItem { text: bridge.translate("Tentar novamente"); enabled: workspace.activity.total>0 && queueContext.targetId!=="" && workspace.queueActionEnabled("retry",queueContext.actionId); onTriggered: workspace.invoke("queue_action",{id:queueContext.actionId,name:"retry"}) }
         OndaMenuItem { text: bridge.translate("Editar metadados"); enabled: queueContext.targetId !== ""; onTriggered: workspace.invoke("queue_edit",{id:queueContext.actionId}) }
+        OndaMenuItem { objectName: "queueContextPlayback"; text: bridge.translate("Usar em reprodução"); enabled: queueContext.targetId !== "" && workspace.queuePlaybackEnabled(queueContext.targetId); onTriggered: workspace.invoke("queue_playback",{id:queueContext.targetId}) }
         OndaMenuSeparator {}
         OndaMenuItem { text: bridge.translate("Mover para cima"); enabled: queueContext.targetId !== ""; onTriggered: workspace.invoke("queue_action",{id:queueContext.actionId,name:"up"}) }
         OndaMenuItem { text: bridge.translate("Mover para baixo"); enabled: queueContext.targetId !== ""; onTriggered: workspace.invoke("queue_action",{id:queueContext.actionId,name:"down"}) }
@@ -119,7 +120,8 @@ ColumnLayout {
         ActionButton {text:bridge.translate("Ver fila");onClicked:workspace.selectPage("queue")}
     }
     ListView { id:downloadList; property var activeDrag:null; objectName: "downloadQueueList"; visible: page.queuePage || workspace.linksModel.count>0; Layout.fillWidth: true; Layout.fillHeight: true; clip: true; spacing: Math.round(8*bridge.spacing); model: page.queuePage ? workspace.queueModel : workspace.linksModel; reuseItems: true
-        ScrollBar.vertical: ScrollBar {}
+        ScrollBar.vertical: OndaScrollBar {}
+        ScrollToTop { target: downloadList; viewport: downloadList }
         delegate: Card { id: card; z:downloadDrag.dragging ? 20 : 0; transform:Translate {y:downloadDrag.cardOffset;Behavior on y {enabled:downloadList.activeDrag!==null && !downloadDrag.dragging;NumberAnimation {duration:140;easing.type:Easing.OutCubic}}} objectName: "downloadQueueCard"; required property var entry; required property int index; width: ListView.view.width; height: Math.max(page.smallCards ? 88 : page.cardSize === "Médio" ? 128 : 176,queueDetails.implicitHeight+24)
             function openContext() {
                 queueContext.targetId = card.entry.id

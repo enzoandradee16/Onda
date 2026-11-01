@@ -11,6 +11,15 @@ import java.io.File
 
 @RunWith(AndroidJUnit4::class)
 class MobileRuntimeTest {
+    @Test fun photoSoundtrackCreatesRealMp4OnDevice() {
+        val context=InstrumentationRegistry.getInstrumentation().targetContext
+        MobileEngine.initialize(context)
+        val report=Python.getInstance().getModule("photo_music_smoke").callAttr("verify",context.cacheDir.absolutePath).toString()
+        File(context.filesDir,"photo-music-validation.json").writeText(report)
+        println("ONDA_PHOTO_MUSIC=$report")
+        assertTrue(JSONObject(report).getBoolean("ok"))
+    }
+
     @Test fun nativeDownloadAndEffects() {
         val context=InstrumentationRegistry.getInstrumentation().targetContext
         MobileEngine.initialize(context)

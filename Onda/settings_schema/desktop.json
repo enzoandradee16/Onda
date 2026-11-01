@@ -99,7 +99,8 @@
     "playback_queue_width": 470,
     "lyrics_animation": "Suave",
     "minimize_on_miniplayer": true,
-    "automatic_cache_cleanup": true
+    "automatic_cache_cleanup": true,
+    "pure_light_borders": true
   },
   "fields": [
     {
@@ -207,6 +208,13 @@
       "category": "Aparência",
       "key": "pure_black_separators",
       "label": "Mostrar bordas e separações no Preto puro",
+      "kind": "bool",
+      "choices": []
+    },
+    {
+      "category": "Aparência",
+      "key": "pure_light_borders",
+      "label": "Mostrar bordas no modo Claro Puro",
       "kind": "bool",
       "choices": []
     },

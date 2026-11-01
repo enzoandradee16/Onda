@@ -205,6 +205,7 @@ import org.json.JSONObject
                     DropdownMenuItem(text={UiText("Próximo")},onClick={OndaStore.move(item.id,0);menu=false})
                 }
                 DropdownMenuItem(text={UiText("Remover")},enabled=item.state !in listOf("Baixando","Aguardando escolha"),onClick={OndaStore.remove(setOf(item.id));menu=false})
+                if(!imageMedia && item.config.optString("mode") !in listOf("photos","social"))DropdownMenuItem(text={UiText("Usar em reprodução")},onClick={menu=false;vm.useDownloadInPlayback(item)})
                 DropdownMenuItem(text={UiText("Ver detalhes")},onClick={vm.showNotice(item.title,item.message.ifBlank {activity.ifBlank {item.state}},error=item.state=="Erro");menu=false})
             }}
         }

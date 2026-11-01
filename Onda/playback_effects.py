@@ -75,7 +75,7 @@ class PreparedEffects:
         value = clean(value)
         key = (
             (value['speed'], value['reverb'], value['keep_pitch'])
-            if value['enabled']
+            if value['enabled'] and (value['speed'] != 100 or value['reverb'] != 0)
             else None
         )
         with self.lock:
@@ -123,6 +123,10 @@ class PreparedEffects:
                             '-y',
                             '-v',
                             'error',
+                            '-threads',
+                            '1',
+                            '-filter_threads',
+                            '1',
                             '-i',
                             str(self.base / 'audio.wav'),
                             '-af',

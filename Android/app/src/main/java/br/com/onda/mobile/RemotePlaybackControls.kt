@@ -88,7 +88,7 @@ import org.json.JSONObject
     var query by rememberSaveable { mutableStateOf("") }
     fun search() {
         if (state.searchBusy) RemotePlaybackRuntime.command("search_cancel")
-        else if (query.isNotBlank()) RemotePlaybackRuntime.command("search", query.trim().take(500))
+        else if (vm.validateMusicQuery(query)) RemotePlaybackRuntime.command("search", query.trim().take(500))
     }
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         OutlinedTextField(query, { query = it }, label = { UiText(PLAYBACK_INPUT_HINT) }, singleLine = true,
@@ -101,7 +101,7 @@ import org.json.JSONObject
                 }
             },
             modifier = Modifier.fillMaxWidth().testTag("remote-queue-search"))
-        TextButton(onClick = ::search, enabled = state.online && (state.searchBusy || query.isNotBlank())) { UiText(if (state.searchBusy) "Cancelar" else "Pesquisar") }
+        TextButton(onClick = ::search, enabled = state.online) { UiText(if (state.searchBusy) "Cancelar" else "Pesquisar") }
         if (state.searchBusy) LinearProgressIndicator(Modifier.fillMaxWidth())
         if (state.searchMessage.isNotBlank()) UiText(state.searchMessage, style = MaterialTheme.typography.bodySmall)
         if (state.searchBatch.isNotBlank()) TextButton(onClick = { RemotePlaybackRuntime.command("search_add", state.searchBatch) }, enabled = state.online) { UiText("Adicionar todas à fila") }

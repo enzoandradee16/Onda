@@ -6,6 +6,8 @@ ScrollView {
     Timer { interval: 100; running: page.visible; repeat: true; onTriggered: page.effectsLyricFrame=workspace.lyricsFrame() }
     signal lyricsRequested()
     id: page
+    ScrollBar.vertical: OndaScrollBar { parent: page; x: page.width-width; y: 0; height: page.height }
+    property var scrollTopButton: ScrollToTop { target: page.contentItem; viewport: page }
     property string mode: workspace.currentPage
     readonly property bool effectsSearching: workspace.activity.busy.indexOf("effects_collection")>=0 || workspace.activity.busy.indexOf("effects_search")>=0 || workspace.activity.busy.indexOf("effects_load")>=0 || workspace.activity.busy.indexOf("effects_queue_info")>=0
     readonly property var inlineImages: workspace.values.imageGalleryEmbedded ? (workspace.values.imageGallery || []) : []
@@ -46,7 +48,7 @@ ScrollView {
                     text: workspace.values.effectsQuery || ""; onTextEdited: workspace.setOption("effectsQuery",text)
                     onAccepted: if(!page.effectsSearching && text.trim().length)workspace.invoke("effects_search",{})
                 }
-                TaskButton { objectName: "effectsSearchButton"; idleText: bridge.translate("Pesquisar"); primary: true; operation: "effects_search"; taskNames: ["effects_search","effects_load","effects_queue_info","effects_collection"]; enabled: taskRunning || !!(workspace.values.effectsQuery || "").trim() }
+                TaskButton { objectName: "effectsSearchButton"; idleText: bridge.translate("Pesquisar"); primary: true; operation: "effects_search"; taskNames: ["effects_search","effects_load","effects_queue_info","effects_collection"] }
             }
             Flow { Layout.fillWidth: true; spacing: 8
                 ActionButton {text: bridge.translate("Próxima"); enabled: workspace.values.effectsQueue.length>0 && (workspace.values.effectsRepeat==="Todas" || workspace.values.effectsQueueIndex+1<workspace.values.effectsQueue.length); onClicked: workspace.invoke("effects_next",{})}
@@ -154,10 +156,10 @@ ScrollView {
                     onActivated: { var values=[[100,0],[90,0],[75,0],[115,0],[130,0],[120,25],[100,30],[85,25],[75,50]]; workspace.setOption("speed",values[index][0]); workspace.setOption("reverb",values[index][1]) }
                 }
             }
-            Label { text: bridge.translate("Velocidade")+" · "+Math.round(workspace.values.speed)+"%"; color: bridge.palette.text }
-            OndaSlider { Layout.fillWidth: true; from: 50; to: 150; value: workspace.values.speed; onMoved: workspace.setOption("speed",value) }
-            Label { text: bridge.translate("Reverb")+" · "+Math.round(workspace.values.reverb)+"%"; color: bridge.palette.text }
-            OndaSlider { Layout.fillWidth: true; value: workspace.values.reverb; onMoved: workspace.setOption("reverb",value) }
+            Label { text: bridge.translate("Velocidade")+" · "+Math.round(legacySpeedSlider.value)+"%"; color: bridge.palette.text }
+            OndaSlider { id:legacySpeedSlider; Layout.fillWidth: true; from: 50; to: 150; value: workspace.values.speed; onMoved: if(!pressed)workspace.setOption("speed",value); onPressedChanged: if(!pressed)workspace.setOption("speed",value) }
+            Label { text: bridge.translate("Reverb")+" · "+Math.round(legacyReverbSlider.value)+"%"; color: bridge.palette.text }
+            OndaSlider { id:legacyReverbSlider; Layout.fillWidth: true; value: workspace.values.reverb; onMoved: if(!pressed)workspace.setOption("reverb",value); onPressedChanged: if(!pressed)workspace.setOption("reverb",value) }
             OndaSwitch { text: bridge.translate("Manter tom (pitch) ao alterar a velocidade"); checked: workspace.values.keep_pitch; onToggled: workspace.setOption("keep_pitch",checked) }
             AnimatedLyric { visible: workspace.preferences.synced_lyrics; text: effectsLyricFrame.text || ""; lineKey: String(effectsLyricFrame.active); textFormat: Text.RichText; Layout.fillWidth: true }
             Label { visible: !!workspace.values.effectLyricsName; text: workspace.values.effectLyricsName || ""; color: bridge.palette.muted; Layout.fillWidth: true; elide: Text.ElideMiddle }

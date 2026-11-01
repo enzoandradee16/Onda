@@ -91,7 +91,11 @@ class MediaPicker(tk.Toplevel):
             ).pack(side="right")
             from media_selection import output_choices
 
-            choices = {} if item.get("automatic_quality") else output_choices(item)
+            choices = (
+                {}
+                if item.get("automatic_quality") and not item.get("photo_choice")
+                else output_choices(item)
+            )
             if item.get('photo_choice') and not item.get('has_audio'):
                 ttk.Label(
                     rows,

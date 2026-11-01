@@ -10,7 +10,7 @@ Popup {
     property string category: "Geral"
     readonly property bool searching: search.text.trim().length>0
     readonly property int resultCount: workspace.settingsFields.filter(function(field) {
-        return (field.key!=="pure_black_separators" || workspace.preferences.theme_mode==="Preto puro") && workspace.settingsSearchMatches(search.text,field)
+        return (field.key!=="pure_black_separators" || workspace.preferences.theme_mode==="Preto puro") && (field.key!=="pure_light_borders" || workspace.preferences.theme_mode==="Claro puro") && workspace.settingsSearchMatches(search.text,field)
     }).length
     background: Card {}
     enter: Transition { NumberAnimation { property: "opacity"; from: 0; to: 1; duration: bridge.animations ? 150 : 0 } }
@@ -30,13 +30,15 @@ Popup {
             }
             ScrollView {
                 id: settingsScroll
+                ScrollBar.vertical: OndaScrollBar { parent: settingsScroll; x: settingsScroll.width-width; y: 0; height: settingsScroll.height }
+                property var scrollTopButton: ScrollToTop { target: settingsScroll.contentItem; viewport: settingsScroll }
                 Layout.fillWidth: true; Layout.fillHeight: true; Layout.minimumWidth: 0; Layout.preferredWidth: 700
                 clip: true; contentWidth: availableWidth
                 ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
                 ColumnLayout { width: settingsScroll.availableWidth; spacing: Math.round(18*bridge.spacing)
                     Label {objectName: "settingsSearchEmpty"; visible: popup.searching && popup.resultCount===0; text: bridge.translate("Nenhuma configuração encontrada."); color: bridge.palette.muted; wrapMode: Text.Wrap; Layout.fillWidth: true}
                     Repeater { model: workspace.settingsFields
-                        OptionField { required property var modelData; Layout.fillWidth: true; Layout.minimumWidth: 0; Layout.maximumWidth: parent.width; field: modelData; settings: true; showCategory: popup.searching; onCategoryRequested: function(category) {popup.category=category;search.clear()}; visible: (modelData.key !== "pure_black_separators" || workspace.preferences.theme_mode === "Preto puro") && (popup.searching ? workspace.settingsSearchMatches(search.text,modelData) : modelData.category === popup.category) }
+                        OptionField { required property var modelData; Layout.fillWidth: true; Layout.minimumWidth: 0; Layout.maximumWidth: parent.width; field: modelData; settings: true; showCategory: popup.searching; onCategoryRequested: function(category) {popup.category=category;search.clear()}; visible: (modelData.key !== "pure_black_separators" || workspace.preferences.theme_mode === "Preto puro") && (modelData.key !== "pure_light_borders" || workspace.preferences.theme_mode === "Claro puro") && (popup.searching ? workspace.settingsSearchMatches(search.text,modelData) : modelData.category === popup.category) }
                     }
                     ActionButton { visible: popup.category === "Geral" && !popup.searching; text: bridge.translate("Escolher quais configurações restaurar…"); onClicked: reset.open() }
                     Flow { visible: popup.category === "Geral" && !popup.searching; Layout.fillWidth: true; spacing: Math.round(8*bridge.spacing)

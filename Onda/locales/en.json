@@ -2209,5 +2209,13 @@
   "Texto de exemplo": "Sample text",
   "A tonalidade pode ser ajustada para manter o contraste.": "The shade may be adjusted to preserve contrast.",
   "O ícone da tela inicial usa a cor predefinida mais próxima.": "The home screen icon uses the closest preset color.",
-  "Editar": "Edit"
+  "Editar": "Edit",
+  "Mostrar bordas no modo Claro Puro": "Show borders in Pure Light mode",
+  "Usar em reprodução": "Use in playback",
+  "Voltar ao início": "Back to top",
+  "A fonte não disponibilizou um fluxo de áudio compatível.": "The source did not provide a compatible audio stream.",
+  "Use uma faixa de até 20 minutos com duração conhecida.": "Use a track up to 20 minutes long with a known duration.",
+  "Não foi possível reproduzir o áudio online. Tente abrir a música novamente.": "Could not play the online audio. Try opening the track again.",
+  "Cache limpo. Espaço liberado: {size} MB.": "Cache cleared. Space freed: {size} MB.",
+  "Alguns arquivos não puderam ser removidos. Tente novamente depois de fechar as operações em andamento.": "Some files could not be removed. Try again after closing ongoing operations."
 }

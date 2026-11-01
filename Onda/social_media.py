@@ -506,8 +506,9 @@ def download_selected(items, session, config, emit, ask_duplicate, choose=None):
             for domain in ('instagram', 'tiktok', 'kwai', 'kwai-video', 'kw')
         )
     )
-    if single_photo:
-        candidates[0]['photo_choice'] = True
+    for candidate in candidates:
+        if candidate['kind'] == 'Foto':
+            candidate['photo_choice'] = True
     from download_defaults import supported_social, automatic_social
 
     for candidate in candidates:
@@ -522,6 +523,7 @@ def download_selected(items, session, config, emit, ask_duplicate, choose=None):
         if choose
         and (
             single_photo
+            or any(item['kind'] == 'Foto' and item['has_audio'] for item in candidates)
             or len(candidates) > 2
             or (len(candidates) > 1 and supported_social(config.get('url', '')))
             or (has_photos and has_videos)
@@ -876,10 +878,27 @@ def download_post(config, emit, ask_duplicate, choose=None):
 
             def choose(candidates):
                 response = original_choose(candidates)
-                return (
-                    dict(response, media_modes={})
-                    if isinstance(response, dict)
-                    else response
+                if not isinstance(response, dict):
+                    return response
+                # Automatic quality still allows explicitly turning a photo
+                # into a video with the soundtrack supplied by the post.
+                from media_selection import output_choices
+
+                photo_choices = {
+                    row['id']: output_choices(row)
+                    for row in candidates
+                    if row.get('photo_choice')
+                }
+                modes = response.get('media_modes', {})
+                if not isinstance(modes, dict):
+                    raise ValueError('Formatos de mídia inválidos.')
+                return dict(
+                    response,
+                    media_modes={
+                        key: mode
+                        for key, mode in modes.items()
+                        if key in photo_choices and mode in photo_choices[key].values()
+                    },
                 )
 
     result = _download_post(config, emit, ask_duplicate, choose)

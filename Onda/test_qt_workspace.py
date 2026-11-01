@@ -351,6 +351,67 @@ class NativeDesktopTests(unittest.TestCase):
             json.loads(self.ws.settings['shortcut_keys'])['links'], '<F12>'
         )
 
+    def test_tray_menu_is_retained_attached_and_can_open(self):
+        from unittest.mock import Mock
+        from PySide6.QtCore import QPoint
+        from PySide6.QtTest import QSignalSpy
+
+        tray_type = Mock()
+        tray_type.isSystemTrayAvailable.return_value = True
+        with (
+            patch('PySide6.QtWidgets.QSystemTrayIcon', tray_type),
+            patch('windows_shell.WindowsShell'),
+        ):
+            self.ws.setup_shell()
+        menu = self.ws.tray_menu
+        if sys.platform == 'win32':
+            tray_type.return_value.setContextMenu.assert_not_called()
+        else:
+            tray_type.return_value.setContextMenu.assert_called_once_with(menu)
+        self.assertEqual(len(menu.actions()), 4)
+        for theme in ('Escuro', 'Claro puro', 'Preto puro'):
+            self.bridge.setAppearance(theme, 'Azul', False)
+            self.app.processEvents()
+            self.assertIn(self.bridge.palette['surface'], menu.styleSheet())
+            self.assertIn(self.bridge.palette['accent'], menu.styleSheet())
+
+        shown = QSignalSpy(menu.aboutToShow)
+        with patch.object(self.ws, 'restore') as restore:
+            menu.popup(QPoint(20, 20))
+            self.app.processEvents()
+            self.assertTrue(menu.isVisible())
+            from PySide6.QtCore import Qt
+
+            self.assertTrue(
+                menu.testAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+            )
+            self.assertTrue(menu.windowFlags() & Qt.WindowType.FramelessWindowHint)
+            picture = menu.grab().toImage()
+            self.assertEqual(picture.pixelColor(0, 0).alpha(), 0)
+            self.assertGreater(
+                picture.pixelColor(picture.width() // 2, picture.height() // 2).alpha(),
+                0,
+            )
+
+            self.assertEqual(shown.count(), 1)
+            restore.assert_not_called()
+        menu.close()
+        menu.deleteLater()
+
+    def test_windows_right_click_opens_the_themed_popup(self):
+        from unittest.mock import Mock
+        from PySide6.QtWidgets import QSystemTrayIcon
+
+        self.ws.tray_menu = Mock()
+        with (
+            patch('qt_workspace_ui.sys.platform', 'win32'),
+            patch.object(self.ws, 'restore') as restore,
+        ):
+            self.ws.tray_activated(QSystemTrayIcon.ActivationReason.Context)
+            self.ws.tray_menu.popup.assert_called_once()
+            self.ws.tray_menu.activateWindow.assert_called_once()
+            restore.assert_not_called()
+
     def test_tray_context_menu_does_not_restore_window(self):
         from PySide6.QtWidgets import QSystemTrayIcon
 

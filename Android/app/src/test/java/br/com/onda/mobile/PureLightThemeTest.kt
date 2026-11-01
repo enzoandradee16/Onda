@@ -10,6 +10,17 @@ class PureLightThemeTest {
     private fun contrast(a: Color, b: Color): Float =
         (maxOf(a.luminance(), b.luminance()) + .05f) / (minOf(a.luminance(), b.luminance()) + .05f)
 
+    @Test fun bordersCanBeHiddenWithoutChangingTextOrAccent() {
+        val base=lightColorScheme()
+        val shown=pureLightSurfaces(base,true)
+        val hidden=pureLightSurfaces(base,false)
+        assertEquals(Color.White,hidden.outline)
+        assertEquals(Color.White,hidden.outlineVariant)
+        assertNotEquals(shown.outline,hidden.outline)
+        assertEquals(shown.primary,hidden.primary)
+        assertEquals(shown.onSurface,hidden.onSurface)
+    }
+
     @Test fun pureLightRemovesSurfaceTintAndKeepsEveryAccentReadable() {
         assertEquals(accents.keys, lightAccents.keys)
         for (accent in lightAccents.values) {

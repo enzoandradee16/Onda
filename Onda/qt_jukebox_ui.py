@@ -23,8 +23,10 @@ from error_localization import error_text
 
 class JukeboxBridge(QObject):
     changed = Signal()
+    messageRequested = Signal(str, str)
     playbackRequested = Signal()
     queueChanged = Signal()
+    playbackParamsChanged = Signal()
     tracksAdded = Signal('QStringList')
     preparationChanged = Signal()
     positionChanged = Signal()
@@ -97,6 +99,10 @@ class JukeboxBridge(QObject):
         self._params = (45.0, 35.0, 80.0, True)
         self._equalizer = clean(self.preferences.get('jukebox_equalizer'))
         self._effects = {}
+        from qt_online_playback_ui import OnlinePlayback
+
+        self.online = OnlinePlayback(self)
+        self._stream_resume = None
         self._effects_status = None
         self._effect_prepare_cancel = threading.Event()
         self.effect_prepare_timer = QTimer(self)
@@ -289,8 +295,11 @@ class JukeboxBridge(QObject):
         self.appearanceChanged.emit()
 
     def playback_gain(self):
+        from playback_controls import volume_gain
+
+        volume = volume_gain(self._params[2])
         if not self.preferences.get('jukebox_gradual_transition', True):
-            return 1.0
+            return volume
         gain = (
             min(
                 self.sleep.gain(),
@@ -309,7 +318,7 @@ class JukeboxBridge(QObject):
                 gain,
                 max(0.0, min(1.0, self.normal_remaining() / self.transitionSeconds)),
             )
-        return gain
+        return gain * volume
 
     def normal_remaining(self):
         speed = (
@@ -334,6 +343,8 @@ class JukeboxBridge(QObject):
         return target if 0 <= target < len(self.playlist) else None
 
     def normal_transition(self):
+        if (self.model or {}).get('_stream'):
+            return
         if (
             not self._params[3]
             or not self._state['playing']
@@ -444,6 +455,11 @@ class JukeboxBridge(QObject):
         return model
 
     def fetch_record(self, record, config, cancel, progress):
+        if config.get('_direct_stream'):
+            from online_audio import resolve
+
+            return resolve(config, record, cancel.is_set)
+
         direct = record.get('_jukebox_direct')
 
         def staged_progress(stage, percent):
@@ -529,7 +545,7 @@ class JukeboxBridge(QObject):
         identity = entry['id']
         cancel = threading.Event()
         self._queue_cancel[identity] = cancel
-        config = self.config()
+        config = dict(self.config(), _direct_stream=self.can_stream())
         entry = dict(entry)
         self.queueChanged.emit()
         self.preparationChanged.emit()
@@ -722,6 +738,20 @@ class JukeboxBridge(QObject):
                 self.retryQueued(index)
             self.prepare_next_queued()
             return
+        if model.get('_stream') and not self.can_stream():
+            self._prepared.pop(entry['id'], None)
+            entry['analysis'] = 'pending'
+            self._autoplay_entry = entry['id']
+            self.prepare_next_queued()
+            return
+        if model.get('_stream'):
+            self.stop(reset_timer=False)
+            self.queue_index = index
+            self.online.position = float(entry.pop('restore_seconds', 0))
+            self.handle_event(self.revision, 'result', model)
+            self.playPause()
+            self.queueChanged.emit()
+            return
         if not (Path(model['cache']) / 'analysis.json').is_file():
             self._prepared.pop(entry['id'], None)
             entry['analysis'] = 'pending'
@@ -760,6 +790,9 @@ class JukeboxBridge(QObject):
 
     @Slot()
     def previousTrack(self):
+        if self.sourcePosition >= 3:
+            self.seekSeconds(0)
+            return
         while self._queue_history:
             identity = self._queue_history.pop()
             target = next(
@@ -875,6 +908,8 @@ class JukeboxBridge(QObject):
 
     @Property(float, notify=positionChanged)
     def sourcePosition(self):
+        if (self.model or {}).get('_stream'):
+            return self.online.position
         beats = (self.model or {}).get('beats', [])
         index = min(int(self._position), len(beats) - 2)
         return (
@@ -889,6 +924,14 @@ class JukeboxBridge(QObject):
 
     @Slot(float)
     def seekSeconds(self, seconds):
+        if (self.model or {}).get('_stream'):
+            running = self._state['playing'] and not self.paused.is_set()
+            self.stop(reset_timer=False)
+            self.online.position = max(0, min(float(seconds), self.sourceDuration))
+            self.positionChanged.emit()
+            if running:
+                self.playPause()
+            return
         import bisect
 
         beats = (self.model or {}).get('beats', [])
@@ -983,6 +1026,7 @@ class JukeboxBridge(QObject):
             self.preferences.get('theme_mode', 'Preto puro'),
             self.preferences.get('theme_accent', 'Verde-Água'),
             self.preferences.get('pure_black_separators', False),
+            self.preferences.get('pure_light_borders', True),
         )
 
     @Property(bool, notify=appearanceChanged)
@@ -1023,7 +1067,7 @@ class JukeboxBridge(QObject):
     def accents(self):
         from appearance import ACCENTS
 
-        return list(ACCENTS) + ['Cor personalizada']
+        return list(ACCENTS)
 
     @Property(str, notify=appearanceChanged)
     def theme(self):
@@ -1153,13 +1197,16 @@ class JukeboxBridge(QObject):
         values = tuple(max(0.0, min(100.0, v)) for v in (variation, smooth, volume)) + (
             bool(normal),
         )
+        if values == self._params:
+            return
         graph_changed = values[0] != self._params[0] or values[3] != self._params[3]
         self._params = values
         if graph_changed:
             self.update_graph()
-        self.changed.emit()
+        self.playbackParamsChanged.emit()
+        self.prepare_stream_effects()
 
-    @Property('QVariantMap', notify=changed)
+    @Property('QVariantMap', notify=playbackParamsChanged)
     def playbackParams(self):
         return dict(
             variation=self._params[0],
@@ -1172,13 +1219,21 @@ class JukeboxBridge(QObject):
     def setEffects(self, value):
         from playback_effects import clean as clean_effects
 
-        self._effects = clean_effects(dict(value))
+        effects = clean_effects(dict(value))
+        if effects == self._effects:
+            return
+        self._effects = effects
+        self.prepare_stream_effects()
         self.changed.emit()
         self._effect_prepare_cancel.set()
         self.effect_prepare_timer.start()
 
     def prewarm_effects(self):
-        if not self._effects.get('enabled') or self.closed:
+        if (
+            not self._effects.get('enabled')
+            or self.closed
+            or (self.model or {}).get('_stream')
+        ):
             return
         cancel = threading.Event()
         self._effect_prepare_cancel = cancel
@@ -1201,7 +1256,8 @@ class JukeboxBridge(QObject):
                 if cancel.is_set():
                     break
                 try:
-                    prepare_effects(model['cache'], effects, cancel.is_set)
+                    if not model.get('_stream'):
+                        prepare_effects(model['cache'], effects, cancel.is_set)
                 except Cancelled:
                     break
 
@@ -1259,6 +1315,13 @@ class JukeboxBridge(QObject):
 
     def task(self, function, stop_current=True):
         if stop_current:
+            job = getattr(self, '_stream_preparation', None)
+            if job:
+                job.cancel()
+                self._stream_preparation = None
+                self.update_state(effects_pending=False)
+            self.effect_prepare_timer.stop()
+            self._effect_prepare_cancel.set()
             self.stop(reset_timer=False)
             self.cancelled = threading.Event()
             cancel = self.cancelled
@@ -1271,7 +1334,16 @@ class JukeboxBridge(QObject):
         request = self.request_number
         revision = self.revision
 
+        last_progress = [None, 0.0]
+
         def post(kind, value):
+            if kind == 'progress':
+                now = time.monotonic()
+                if value == last_progress[0] or (
+                    value != 0 and value < 99 and now - last_progress[1] < 0.1
+                ):
+                    return
+                last_progress[:] = [value, now]
             if request == self.request_number and not cancel.is_set():
                 self.emit(
                     revision,
@@ -1303,6 +1375,8 @@ class JukeboxBridge(QObject):
     def openFile(self, url):
         if not url.isLocalFile():
             return
+        self._stream_resume = None
+        self.online.position = 0.0
         self._selection_insert = max(0, self.queue_index + 1)
         self._selected_record = None
         self.queue_index = -1
@@ -1319,7 +1393,12 @@ class JukeboxBridge(QObject):
     @Slot(str)
     def search(self, query):
         query = query.strip()
-        if not query or self._state['busy']:
+        if self._state['busy']:
+            return
+        if not query:
+            self.messageRequested.emit(
+                tr('Pesquisar'), tr('Informe uma música, álbum, playlist ou link.')
+            )
             return
         config = self.config()
         provider = self.preferences.get('catalog_provider', 'Todos')
@@ -1350,13 +1429,47 @@ class JukeboxBridge(QObject):
     def selectResult(self, index):
         if not 0 <= index < len(self.records) or self._state['busy']:
             return
+        self.openRecord(dict(self.records[index]))
+
+    @Slot('QVariantMap')
+    def openRecord(self, record):
+        if self._state['busy'] or not record.get('source_url'):
+            return
+        self._stream_resume = None
+        self.online.position = 0.0
         self._selection_insert = max(0, self.queue_index + 1)
         self.queue_index = -1
-        self.prepare_record(dict(self.records[index]))
+        self.prepare_record(dict(record))
+
+    def can_stream(self):
+        return self._params[3] and not (
+            self._effects.get('enabled')
+            and (
+                self._effects.get('speed', 100) != 100
+                or self._effects.get('reverb', 0) != 0
+            )
+        )
+
+    def prepare_stream_effects(self):
+        job = getattr(self, '_stream_preparation', None)
+        if not (self.model or {}).get('_stream') or self.can_stream():
+            if job:
+                job.cancel()
+                self._stream_preparation = None
+                self.update_state(effects_pending=False)
+            return
+        if job and job.source is self.model and not job.cancelled.is_set():
+            return
+        from qt_online_playback_ui import StreamPreparation
+
+        if job:
+            job.cancel()
+        self._stream_preparation = StreamPreparation(self)
+        self._stream_preparation.start()
 
     def prepare_record(self, record):
         self._selected_record = dict(record)
-        config = self.config()
+        config = dict(self.config(), _direct_stream=self.can_stream())
         self.update_state(status=tr('Obtendo áudio para análise…'))
         self.task(
             lambda cancel, progress: self.fetch_record(record, config, cancel, progress)
@@ -1365,6 +1478,37 @@ class JukeboxBridge(QObject):
     @Slot(int, str, object)
     def handle_event(self, revision, kind, value):
         if self.closed:
+            return
+        if kind in ('stream_prepared', 'stream_prepare_error'):
+            job = value if kind == 'stream_prepared' else value[0]
+            if (
+                job is not getattr(self, '_stream_preparation', None)
+                or job.cancelled.is_set()
+                or self.model is not job.source
+            ):
+                return
+            if (
+                kind == 'stream_prepared'
+                and not self.can_stream()
+                and getattr(job, 'effects', self._effects) != self._effects
+            ):
+                self.start_worker(job.retry)
+                return
+            self._stream_preparation = None
+            if kind == 'stream_prepare_error':
+                self.update_state(effects_pending=False, effects_error=value[1])
+                return
+            if self.can_stream():
+                self.update_state(effects_pending=False)
+                return
+            seconds = self.sourcePosition
+            running = self._state['playing'] and not self.paused.is_set()
+            self.stop(reset_timer=False)
+            self.handle_event(self.revision, 'result', job.model)
+            self.seekSeconds(seconds)
+            self.update_state(effects_pending=False, effects_error='')
+            if running:
+                self.playPause()
             return
         if kind == 'queue_progress':
             owner = value['owner']
@@ -1460,7 +1604,11 @@ class JukeboxBridge(QObject):
             return
         if revision != self.revision:
             return
-        if kind == 'progress':
+        if kind == 'stream_position':
+            self.online.position = min(float(value), self.sourceDuration)
+            self._elapsed = self.online.position
+            self.positionChanged.emit()
+        elif kind == 'progress':
             self.update_state(progress=value)
         elif kind == 'result':
             if 'tracks' in value:
@@ -1496,11 +1644,18 @@ class JukeboxBridge(QObject):
                     )
                 )
             else:
+                job = getattr(self, '_stream_preparation', None)
+                if job and job.source is not value:
+                    job.cancel()
+                    self._stream_preparation = None
+                    self.update_state(effects_pending=False)
                 if 0 <= self.queue_index < len(self.playlist):
                     value = self.retain_media_metadata(
                         value, self.playlist[self.queue_index]
                     )
                 self.model = value
+                if 0 <= self.queue_index < len(self.playlist):
+                    self._prepared[self.playlist[self.queue_index]['id']] = value
                 self.flow = []
                 self.used_edges = set()
                 self._position = 0
@@ -1515,6 +1670,7 @@ class JukeboxBridge(QObject):
                     else cover
                 )
                 self.update_state(
+                    streaming=bool(value.get('_stream')),
                     title=value.get('media_title') or value['title'],
                     artist=value.get('media_artist') or '',
                     album=value.get('album') or '',
@@ -1564,6 +1720,12 @@ class JukeboxBridge(QObject):
                         duration=int(value.get('duration') or 0),
                     )
                     self.queueChanged.emit()
+                if self._stream_resume and not value.get('_stream'):
+                    seconds, resume = self._stream_resume
+                    self._stream_resume = None
+                    self.seekSeconds(seconds)
+                    if resume:
+                        self.autoplay_revision = revision
                 self.update_graph()
                 self.positionChanged.emit()
         elif kind == 'switch_error':
@@ -1649,6 +1811,8 @@ class JukeboxBridge(QObject):
             pending, error = value
             self.update_state(effects_pending=pending, effects_error=error)
         elif kind == 'finished':
+            if (self.model or {}).get('_stream'):
+                self.online.position = self.sourceDuration
             self.stop(reset_timer=False)
             if self.queue_repeat == 'Uma':
                 self.seek(0)
@@ -1696,6 +1860,10 @@ class JukeboxBridge(QObject):
         if not self.model:
             if self.playlist:
                 self.playQueued(max(0, self.queue_index))
+            return
+        if self.model.get('_stream'):
+            self.playbackRequested.emit()
+            self.online.start()
             return
         self.playbackRequested.emit()
         self.cancelled = threading.Event()
@@ -1843,8 +2011,14 @@ class JukeboxBridge(QObject):
                             output = PcmOutput(progress=progress)
                             output.gain = self.playback_gain
                             output.last_gain = gain
+                    params = self._params
                     part = session.chunk(
-                        *self._params, equalizer=self._equalizer, effects=self._effects
+                        params[0],
+                        params[1],
+                        100,
+                        params[3],
+                        equalizer=self._equalizer,
+                        effects=self._effects,
                     )
                     frames = len(part['pcm']) // 4
                     submitted += frames
@@ -1918,6 +2092,15 @@ class JukeboxBridge(QObject):
 
     @Slot()
     def stop(self, reset_timer=True):
+        self.cancelled.set()
+        self.online.cancel()
+        if reset_timer:
+            job = getattr(self, '_stream_preparation', None)
+            if job:
+                job.cancel()
+                self._stream_preparation = None
+                self.update_state(effects_pending=False)
+            self.online.position = 0.0
         self._switch_after = None
         if reset_timer:
             self.sleep.cancel()
@@ -1951,6 +2134,9 @@ class JukeboxBridge(QObject):
 
     @Slot(int)
     def seek(self, index, phase=0.0):
+        if (self.model or {}).get('_stream'):
+            self.seekSeconds((index + phase) * self.sourceDuration)
+            return
         if self.model and 0 <= index < len(self.model['neighbors']):
             self.seeks.put((str(self.model['cache']), index, phase))
             self._position = float(index) + phase

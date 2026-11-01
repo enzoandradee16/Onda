@@ -4,6 +4,7 @@ import QtQuick.Layouts
 import QtQuick.Dialogs
 Drawer {
     id: drawer
+    StableQueueModel { id: stableTracks; rows: drawer.tracks }
     property bool effects: true
     property bool recent:false
     onRecentChanged:if(bridge.animations&&visible)tabReveal.restart();else {tabReveal.stop();queueList.opacity=1;tabSlide.x=0}
@@ -26,7 +27,7 @@ Drawer {
     readonly property bool searching: ["playback_input","effects_collection","effects_load"].some(function(name){return workspace.activity.busy.indexOf(name)>=0})
     function search(){
         if(searching)["playback_input","effects_collection","effects_load"].forEach(function(name){workspace.invoke("cancel_task",{name:name})})
-        else if(queueQuery.text.trim())workspace.invoke("playback_queue_search",{effects:drawer.effects,query:queueQuery.text})
+        else workspace.invoke("playback_queue_search",{effects:drawer.effects,query:queueQuery.text})
     }
     function closeSearch(){workspace.invoke("playback_queue_close_search",{});queueQuery.clear();searchExpanded=false}
     objectName: effects ? "effectsQueueDrawer" : "jukeboxQueueDrawer"
@@ -110,7 +111,7 @@ Drawer {
         }
         RowLayout {Layout.fillWidth:true;visible:drawer.searchExpanded
             OndaTextField {id:queueQuery;objectName:"playbackQueueSearch";Layout.fillWidth:true;placeholderText:bridge.translate("Música, artista ou link de música, álbum ou playlist");onAccepted:drawer.search();Keys.onEscapePressed:drawer.closeSearch()}
-            QueueIconButton {objectName:"playbackQueueSearchButton";glyph:drawer.searching?"close":"catalog";text:bridge.translate(drawer.searching?"Cancelar":"Pesquisar");enabled:drawer.searching||!!queueQuery.text.trim();onClicked:drawer.search()}
+            QueueIconButton {objectName:"playbackQueueSearchButton";glyph:drawer.searching?"close":"catalog";text:bridge.translate(drawer.searching?"Cancelar":"Pesquisar");onClicked:drawer.search()}
             QueueIconButton {objectName:"closePlaybackQueueSearch";glyph:"close";text:bridge.translate("Fechar pesquisa");onClicked:drawer.closeSearch()}
         }
         ListView {Layout.fillWidth:true;Layout.preferredHeight:Math.min(240,contentHeight);visible:drawer.results.length>0;clip:true;spacing:8;model:drawer.results
@@ -131,8 +132,9 @@ Drawer {
             transform:Translate {id:tabSlide;objectName:"queueTabSlide"}
             property var activeDrag:null
             objectName:"playbackQueueList"
-            Layout.fillWidth:true;Layout.fillHeight:true;clip:true;spacing:4;model:drawer.tracks
-            ScrollBar.vertical:ScrollBar {policy:ScrollBar.AsNeeded}
+            Layout.fillWidth:true;Layout.fillHeight:true;clip:true;spacing:4;model:stableTracks
+            ScrollBar.vertical: OndaScrollBar {}
+            ScrollToTop { target: queueList; viewport: queueList }
             section.property:"group"
             section.criteria:ViewSection.FullString
             section.delegate:Item {

@@ -111,6 +111,7 @@ class App(UiMixin, tk.Tk):
         self.image_width = tk.StringVar(value='1920')
         self.image_height = tk.StringVar(value='1080')
         self.image_keep_ratio = tk.BooleanVar(value=True)
+        self.pure_light_borders = tk.BooleanVar(value=True)
         self.pure_black_separators = tk.BooleanVar(value=False)
         self.queue_card_size = tk.StringVar(value="Grande")
         self.queue_view = tk.StringVar(value="Compacto")
@@ -178,6 +179,7 @@ class App(UiMixin, tk.Tk):
                 "queue_view",
                 "history_card_size",
                 "pure_black_separators",
+                "pure_light_borders",
                 "history_view",
                 "theme_mode",
                 "theme_accent",

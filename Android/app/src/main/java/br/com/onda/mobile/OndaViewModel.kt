@@ -317,7 +317,7 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
     fun effectsControlsMatch(speed:Int,reverb:Int,pitch:Boolean)=effectsSelectedSpeed==speed&&effectsSelectedReverb==reverb&&effectsSelectedPitch==pitch
     internal fun mediaToggleEffects(){if(effectSource.isNotBlank())toggleEffectsPlayback(effectSource,effectsSelectedSpeed,effectsSelectedReverb,effectsSelectedPitch)}
     internal fun mediaSeekEffects(seconds:Double){if(effectSource.isNotBlank())seekEffectsPlayback(seconds,effectSource,effectsSelectedSpeed,effectsSelectedReverb,effectsSelectedPitch)}
-    internal fun mediaPreviousEffects(){val current=effectsQueueIndex(effectSource);if(current>0)playEffectsQueueTrack(current-1) else mediaSeekEffects(0.0)}
+    internal fun mediaPreviousEffects(){if(effectsPosition.value>=3.0){mediaSeekEffects(0.0);return};val current=effectsQueueIndex(effectSource);if(current>0)playEffectsQueueTrack(current-1) else mediaSeekEffects(0.0)}
     internal fun mediaNextEffects(){advanceEffects(false)}
     private fun advanceEffects(automatic:Boolean) {
         val rows=effectsPlaylist.value.toMutableList()
@@ -600,7 +600,7 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 }
                 if(result.has("error")) report(result.optString("error"),true) else {
-                    report(result.optString("message","Concluído"))
+                    report(operationResultMessage(result))
                     if(result.has("connected"))spotifyConnected.value=result.optBoolean("connected")
                     finished(result)
                 }
@@ -656,8 +656,13 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
         } finally {releaseDateSlots.release()}
     }
     private var searchRevision=0
+    fun validateMusicQuery(query:String):Boolean {
+        if(query.isNotBlank())return true
+        showNotice("Pesquisar",EMPTY_MUSIC_SEARCH)
+        return false
+    }
     fun search(query: String, provider: String, refresh: Boolean=false) {
-        if(busy.value)return
+        if(busy.value || !validateMusicQuery(query))return
         val config=OndaStore.config()
         val configured=spotifyConnected.value || (config.optString("spotify_client_id").isNotBlank() && config.optString("spotify_client_secret").isNotBlank())
         if(provider=="Spotify" && !configured && !query.trim().let {it.startsWith("https://") || it.startsWith("http://") || it.startsWith("spotify:")}) {
@@ -752,7 +757,25 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
             finally {titleSlots.release()}
         }
     }
+    fun useInPlayback(record:JSONObject) {
+        val url=record.optString("source_url")
+        if(url.isBlank())return
+        RemotePlaybackRuntime.disconnect()
+        stopPreview(false)
+        jukebox.prepare(record=record,url=url)
+        playbackMode.value=1;effectsNavigation.value=true
+    }
+    fun useDownloadInPlayback(item:DownloadItem) {
+        val source=jobSource(item.config)
+        val saved=OndaStore.history.value.firstOrNull {source.isNotBlank() && it.source==source && historySupportsEffects(it)}
+        if(saved!=null){useInEffects(saved.uri);return}
+        val record=JSONObject((item.config.optJSONObject("catalog_record") ?: item.config.optJSONObject("queue_info") ?: JSONObject()).toString())
+        record.put("source_url",item.config.optString("url"))
+        if(record.optString("title").isBlank())record.put("title",item.title)
+        useInPlayback(record)
+    }
     fun useInEffects(uri: String) {
+        RemotePlaybackRuntime.disconnect()
         importLocal(Uri.parse(uri),"audio") { file ->
             stopPreview(false)
             jukebox.prepare(file.absolutePath);playbackMode.value=1;effectsNavigation.value=true

@@ -311,6 +311,7 @@ def analyse_wave(path, cancelled=lambda: False, progress=lambda _: None):
     """Bounded, low-rate spectral analysis; silence never creates arbitrary jumps."""
     features = []
     energies = []
+    next_yield = time.monotonic() + 0.008
     with wave.open(str(path), 'rb') as sound:
         if sound.getframerate() != 8000 or sound.getnchannels() != 1:
             raise ValueError('Áudio de análise inválido.')
@@ -319,6 +320,10 @@ def analyse_wave(path, cancelled=lambda: False, progress=lambda _: None):
         if not 3 <= duration <= MAX_SECONDS + 0.1:
             raise ValueError('Use uma música entre 3 segundos e 20 minutos.')
         for offset in range(0, max(0, count - 512), 256):
+            if time.monotonic() >= next_yield:
+                check(cancelled)
+                time.sleep(0.002)
+                next_yield = time.monotonic() + 0.008
             if offset % 16384 == 0:
                 check(cancelled)
                 progress(min(85, int(offset / max(1, count) * 85)))
@@ -389,6 +394,10 @@ def analyse_wave(path, cancelled=lambda: False, progress=lambda _: None):
             (i % 4 if reliable else 0, max(range(12), key=vector.__getitem__)), []
         ).append(i)
     for i in range(n):
+        if time.monotonic() >= next_yield:
+            check(cancelled)
+            time.sleep(0.002)
+            next_yield = time.monotonic() + 0.008
         if i % 32 == 0:
             check(cancelled)
             progress(85 + int(i / max(1, n) * 14))

@@ -65,7 +65,65 @@ class SocialFlowTests(unittest.TestCase):
             )
         self.assertEqual(save.call_args.args[3]['mode'], 'photo_video')
 
-    def test_photo_video_requires_single_photo_and_soundtrack(self):
+    def test_carousel_photos_offer_soundtrack_video_independently(self):
+        audio = direct_audio('https://cdn.example/audio.mp3')
+        items = [
+            ('https://cdn.example/1.jpg', dict(extension='jpg', _photo_audio=audio)),
+            ('https://cdn.example/2.jpg', dict(extension='jpg', _photo_audio=audio)),
+            ('https://cdn.example/3.jpg', dict(extension='jpg')),
+        ]
+        choose = Mock(
+            return_value={
+                'selected_ids': ['1', '2', '3'],
+                'media_modes': {'1': 'photo_video', '2': 'photos'},
+            }
+        )
+        with patch('social_media.save_media', return_value='saved') as save:
+            download_selected(
+                items,
+                Mock(),
+                {
+                    'mode': 'social',
+                    'url': 'https://www.instagram.com/p/a/',
+                    'social_best_quality': True,
+                },
+                Mock(),
+                Mock(),
+                choose,
+            )
+        candidates = choose.call_args.args[0]
+        self.assertTrue(all(row['photo_choice'] for row in candidates))
+        self.assertEqual(
+            [call.args[3]['mode'] for call in save.call_args_list],
+            ['photo_video', 'photos', 'photos'],
+        )
+        with self.assertRaises(ValueError):
+            validate_selection(
+                {'selected_ids': ['3'], 'media_modes': {'3': 'photo_video'}}, candidates
+            )
+
+    def test_single_photo_with_audio_offers_choice_even_outside_known_domains(self):
+        choose = Mock(return_value={'selected_ids': ['1']})
+        with patch('social_media.save_media', return_value='saved'):
+            download_selected(
+                [
+                    (
+                        'https://cdn.example/1.jpg',
+                        dict(
+                            extension='jpg',
+                            _photo_audio=direct_audio('https://cdn.example/a.mp3'),
+                        ),
+                    )
+                ],
+                Mock(),
+                {'mode': 'photos'},
+                Mock(),
+                Mock(),
+                choose,
+            )
+        choose.assert_called_once()
+
+    def test_photo_video_requires_photo_choice_and_soundtrack(self):
         reply = {'selected_ids': ['1'], 'media_modes': {'1': 'photo_video'}}
         for candidate in (
             {'id': '1', 'kind': 'Foto'},

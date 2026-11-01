@@ -22,6 +22,8 @@ FIELDS = (
 
 
 def prepared_reference(model):
+    if model.get('_stream'):
+        return {}
     return {
         key: model[key]
         for key in (
@@ -73,7 +75,7 @@ def save(workspace, strict=False):
                 for row in bridge.playlist
             ],
             'index': bridge.queue_index,
-            'model': bridge.model,
+            'model': None if (bridge.model or {}).get('_stream') else bridge.model,
             'seconds': (
                 bridge.sourcePosition
                 if bridge.model
@@ -289,6 +291,17 @@ def restore(workspace):
                 bridge._prepared[entry['id']] = model
                 entry.update(analysis='ready', error='')
         elif current is not None:
+            params = jukebox.get('params')
+            if (
+                isinstance(params, list)
+                and len(params) == 4
+                and all(
+                    type(value) in (int, float) and math.isfinite(value)
+                    for value in params[:3]
+                )
+                and type(params[3]) is bool
+            ):
+                bridge.setParams(*params)
             bridge.update_state(
                 title=current.get('title', ''),
                 status=__import__('i18n').tr('Sessão restaurada. Toque em reproduzir.'),

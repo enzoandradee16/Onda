@@ -14,6 +14,9 @@ Popup {
     enter: Transition { NumberAnimation { property: "opacity"; from: 0; to: 1; duration: bridge.animations ? 160 : 0 } NumberAnimation { property: "scale"; from: 0.97; to: 1; duration: bridge.animations ? 180 : 0; easing.type: Easing.OutCubic } }
     exit: Transition { NumberAnimation { property: "opacity"; to: 0; duration: bridge.animations ? 100 : 0 } }
     ScrollView {
+            id: equalizerScroll
+            ScrollBar.vertical: OndaScrollBar { parent: equalizerScroll; x: equalizerScroll.width-width; y: 0; height: equalizerScroll.height }
+            property var scrollTopButton: ScrollToTop { target: equalizerScroll.contentItem; viewport: equalizerScroll }
         anchors.fill: parent; contentWidth: availableWidth; clip: true
         ColumnLayout {
             id: content; width: parent.width; spacing: Math.round(16*bridge.spacing)
@@ -31,8 +34,8 @@ Popup {
             RowLayout {
                 Layout.fillWidth: true
                 Text { text: bridge.translate("Pré-amplificação"); color: bridge.palette.text; font.pixelSize: Math.round(13*bridge.fontScale) }
-                OndaSlider { Layout.fillWidth: true; from: -24; to: 0; value: bridge.equalizer.preamp; onMoved: bridge.setPreamp(value) }
-                Text { text: bridge.equalizer.preamp.toFixed(1)+" dB"; color: bridge.palette.muted; font.pixelSize: Math.round(12*bridge.fontScale); Layout.preferredWidth: 55 }
+                OndaSlider { id: preampSlider; Layout.fillWidth: true; from: -24; to: 0; value: bridge.equalizer.preamp; onMoved: if(!pressed)bridge.setPreamp(value); onPressedChanged: if(!pressed)bridge.setPreamp(value) }
+                Text { text: preampSlider.value.toFixed(1)+" dB"; color: bridge.palette.muted; font.pixelSize: Math.round(12*bridge.fontScale); Layout.preferredWidth: 55 }
             }
             ScrollView {
                 Layout.fillWidth: true; Layout.preferredHeight: 260
@@ -44,8 +47,8 @@ Popup {
                         ColumnLayout {
                             required property int index
                             Layout.preferredWidth: 64; spacing: Math.round(4*bridge.spacing)
-                            Text { Layout.alignment: Qt.AlignHCenter; text: (bridge.equalizer.bands[index].gain >= 0 ? "+" : "")+bridge.equalizer.bands[index].gain.toFixed(1); font.pixelSize: Math.round(12*bridge.fontScale); color: bridge.palette.text }
-                            BandSlider { Layout.alignment: Qt.AlignHCenter; value: bridge.equalizer.bands[index].gain; onMoved: bridge.setBand(index,bridge.equalizer.bands[index].frequency,value,bridge.equalizer.bands[index].q); Accessible.name: bridge.equalizer.bands[index].frequency+" Hz" }
+                            Text { Layout.alignment: Qt.AlignHCenter; text: (gainSlider.value >= 0 ? "+" : "")+gainSlider.value.toFixed(1); font.pixelSize: Math.round(12*bridge.fontScale); color: bridge.palette.text }
+                            BandSlider { id: gainSlider; Layout.alignment: Qt.AlignHCenter; value: bridge.equalizer.bands[index].gain; onMoved: if(!pressed)bridge.setBand(index,bridge.equalizer.bands[index].frequency,value,bridge.equalizer.bands[index].q); onPressedChanged: if(!pressed)bridge.setBand(index,bridge.equalizer.bands[index].frequency,value,bridge.equalizer.bands[index].q); Accessible.name: bridge.equalizer.bands[index].frequency+" Hz" }
                             ActionButton { Layout.fillWidth: true; text: (bridge.equalizer.bands[index].frequency>=1000 ? (bridge.equalizer.bands[index].frequency/1000).toFixed(1)+"k" : Math.round(bridge.equalizer.bands[index].frequency)); primary: popup.selectedBand===index; onClicked: popup.selectedBand=index }
                         }
                     }
