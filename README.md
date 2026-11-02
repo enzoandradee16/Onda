@@ -14,6 +14,8 @@ O projeto continua em desenvolvimento. Sugestões, contribuições e relatos de 
 
 **Versão 1.2.4 para Windows 10 ou superior (x64) e Android 8 ou superior (ARM64 e x86_64).**
 
+Código-fonte em preparação para **1.2.5-rc**. Consulte as [notas da pré-release](RELEASE_NOTES.md); os downloads estáveis abaixo continuam na 1.2.4.
+
 ![ONDA Windows 1.2.1](docs/images/pc%20novo/pesquisa-musicas-preto-puro.png)
 
 No Android, novas versões podem ser baixadas dentro do ONDA, com progresso e continuidade em segundo plano. Ao terminar, toque em Instalar atualização; na primeira vez, permita a instalação pelo ONDA nas configurações do Android. O sistema pede confirmação e os dados são preservados.

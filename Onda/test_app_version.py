@@ -69,3 +69,39 @@ class AppVersionTests(unittest.TestCase):
                 'AssemblyFileVersion("2.3.4.0")', first['Launcher.cs'].decode()
             )
             self.assertIn('AppVersion=2.3.4-rc.2', first['Onda.iss'].decode())
+
+    def test_bare_rc_is_supported_and_never_compares_as_stable(self):
+        from advanced_options import version_key
+
+        self.assertLess(version_key('1.2.5-rc'), version_key('1.2.5-rc.1'))
+        self.assertLess(version_key('1.2.5-rc.1'), version_key('1.2.5'))
+        release = dict(
+            tag_name='v1.2.5-rc',
+            prerelease=True,
+            assets=[
+                dict(
+                    name='Onda-1.2.5-rc-Setup-Windows-x64.exe',
+                    browser_download_url='https://github.com/enzoandradee16/Onda/releases/download/v1.2.5-rc/setup.exe',
+                )
+            ],
+        )
+        self.assertFalse(release_update('windows', '1.2.4', [release])['available'])
+        final = dict(
+            tag_name='v1.2.5',
+            assets=[
+                dict(
+                    name='Onda-1.2.5-Setup-Windows-x64.exe',
+                    browser_download_url='https://github.com/enzoandradee16/Onda/releases/download/v1.2.5/setup.exe',
+                )
+            ],
+        )
+        self.assertTrue(release_update('windows', '1.2.5-rc', [final])['available'])
+
+    def test_android_and_release_notes_match_candidate(self):
+        source = (ROOT / 'Android/app/build.gradle.kts').read_text(encoding='utf-8')
+        self.assertIn('versionName = "' + VERSION + '"', source)
+        self.assertTrue(
+            (ROOT / 'RELEASE_NOTES.md')
+            .read_text(encoding='utf-8')
+            .startswith('# ONDA ' + VERSION + '\n')
+        )

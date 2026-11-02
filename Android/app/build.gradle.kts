@@ -55,8 +55,8 @@ android {
         minSdk = 26
         targetSdk = 35
         buildConfigField("String", "ONDA_ABIS", "\"${targetAbis.joinToString(",")}\"")
-        versionCode = 31
-        versionName = "1.2.4"
+        versionCode = 32
+        versionName = "1.2.5-rc"
         ndk { abiFilters += targetAbis }
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

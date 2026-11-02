@@ -240,7 +240,7 @@ def import_settings(payload, platform):
 
 def version_key(value):
     match = re.search(
-        r'(\d+)\.(\d+)(?:\.(\d+))?(?:[-.]?(alpha|beta|rc)[.-]?(\d+))?', value, re.I
+        r'(\d+)\.(\d+)(?:\.(\d+))?(?:[-.]?(alpha|beta|rc)(?:[.-]?(\d+))?)?', value, re.I
     )
     if not match:
         return (-1,)

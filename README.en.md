@@ -14,6 +14,8 @@ The project is still in development. Suggestions, contributions and bug reports 
 
 **Version 1.2.4 for Windows 10 or later (x64) and Android 8 or later (ARM64 and x86_64).**
 
+Source prepared for **1.2.5-rc**. See the [prerelease notes](RELEASE_NOTES.md); the stable downloads below remain at 1.2.4.
+
 ![ONDA Windows 1.2.0](docs/images/pc%20novo/pesquisa-musicas-preto-puro.png)
 
 On Android, updates can download within ONDA, with progress and background continuation. When finished, tap Install update; the first time, allow installation from ONDA in Android settings. The system asks for confirmation and your data is preserved.

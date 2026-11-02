@@ -1,5 +1,15 @@
 # Histórico de versões
 
+## 1.2.5-rc — 2026-11-01
+
+- Pré-release candidata à 1.2.5, com controle remoto PC ↔ Android, pareamento por QR Code e transferência da música atual com posição e pausa.
+- Melhorias de streaming, continuidade dos efeitos, busca multilíngue, letras e playlists da conta Spotify.
+- Otimizações de filas, sessão, histórico, áudio, interface e notificações nas duas versões.
+- Correções de reconexões rápidas, cancelamento nativo, confirmação de áudio e recuperação após interrupções da transferência.
+- Claro Puro, cor personalizada, melhorias de volume/sliders e menu da bandeja; Reprodução na Biblioteca do PC, preservada na barra inferior Android.
+- Preparação do código e metadados: Windows 1.2.5.0 / 1.2.5-rc; Android 1.2.5-rc, código 32. Pacotes da RC ainda não anexados ao rascunho.
+
+
 ## 1.2.4 — 2026-10-29
 
 - Recuperação precisa da posição ao reabrir nas duas versões, mantendo a reprodução pausada; encerramento do serviço Android não apaga a posição e a retomada sobrevive à perda do cache.

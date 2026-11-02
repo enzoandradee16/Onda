@@ -454,7 +454,10 @@ def finalize(
             'android_binary_contains_uncommitted_changes': android_uncommitted,
             'android_shared_sources_verified_unchanged': bool(reuse_android_from),
             'android_release_apks_verified': validation,
-            'windows_numeric_version': VERSION + '.0',
+            'windows_numeric_version': '.'.join(
+                re.match(r'(\d+)\.(\d+)\.(\d+)', VERSION).groups()
+            )
+            + '.0',
             'windows_authenticode_signed': False,
             'windows_launcher_self_test': True,
             'windows_installer_interface': 'ONDA standalone WPF frontend',

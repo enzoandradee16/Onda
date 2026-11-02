@@ -6,13 +6,15 @@ A navegação principal usa **Pesquisar**, **Downloads**, **Reprodução** e **M
 
 O player compacto acompanha a navegação; toque nele para abrir capa, controles e letras, que também podem ocupar a tela inteira. Efeitos e Jukebox compartilham música, fila e player na tela Reprodução e podem funcionar juntos. Veja [Reprodução unificada](../docs/REPRODUCAO-UNIFICADA.md). As capturas em `docs/images/android novo` registram a interface anterior à unificação.
 
-Os dois APKs oficiais usam versão **1.2.4**, código **30**, com a assinatura de produção original. Não houve execução automatizada do conjunto completo em aparelho ARM64 físico na preparação desta release. Consulte [o relatório atual](../docs/VALIDACAO-RELEASE-1.2.3.md).
+Os dois APKs oficiais usam versão **1.2.4**, código **31**, com a assinatura de produção original. Não houve execução automatizada do conjunto completo em aparelho ARM64 físico na preparação desta release. Consulte [o relatório atual](../docs/VALIDACAO-RELEASE-1.2.4.md).
 
 Projeto Android separado da distribuição Windows. Kotlin/Compose fornece a interface e os serviços; Python/Chaquopy executa o motor compartilhado do ONDA. O build copia os módulos necessários de `../Onda`, sem editar o programa de PC.
 
-Versão de desenvolvimento **1.2.4**, conforme `app/build.gradle.kts`, para Android 8 ou superior, ARM64 e x86_64. Kotlin/Compose e o motor compartilhado fornecem busca, downloads, histórico, edição de metadados, imagens e efeitos. Consulte [FUNCIONALIDADES.md](FUNCIONALIDADES.md) e a [auditoria de paridade com o PC](PARIDADE-PC-ANDROID.md).
+Versão de desenvolvimento **1.2.5-rc**, código **32**, conforme `app/build.gradle.kts`, para Android 8 ou superior, ARM64 e x86_64. Kotlin/Compose e o motor compartilhado fornecem busca, downloads, histórico, edição de metadados, imagens e efeitos. Consulte [FUNCIONALIDADES.md](FUNCIONALIDADES.md) e a [auditoria de paridade com o PC](PARIDADE-PC-ANDROID.md).
 
 Resultados e pendências desta compilação: [validation/RESULTADOS.md](validation/RESULTADOS.md).
+
+A pré-release está em preparação no Git; os APKs 1.2.4 citados abaixo não são binários da RC.
 
 ## Instalar no celular
 

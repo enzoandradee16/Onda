@@ -1,45 +1,47 @@
-# ONDA 1.2.4
+# ONDA 1.2.5-rc
 
-## Nas duas versões
+Pré-release candidata à versão 1.2.5. Este rascunho prepara o código e as notas; os pacotes específicos da RC ainda não foram compilados nem anexados.
 
-- Recuperação precisa da posição da música ao reabrir, mantendo o áudio pausado e preservando a retomada caso o cache precise ser preparado novamente.
-- Deslizamento horizontal do conteúdo ao alternar entre Fila e Tocado recentemente, com indicador animado abaixo dos títulos.
-- Prévia de imagens e carrosséis integrada à página Imagens; no PC, Visualizar mantém a imagem centralizada na página.
-- Removida a ação Prévia do original do Conversor.
+## Controle remoto e transferência PC ↔ Android
 
-- Reprodução unificada: aplique Efeitos e Jukebox à mesma música e fila, com restauração da sessão sem iniciar o áudio automaticamente.
-- Exportação com os efeitos ativos, nome no formato **Artista - Música - Slowed + Reverb**, tags e capa da faixa correta. Arquivos locais também preservam os metadados disponíveis.
-- Letras escolhidas automaticamente, mantendo a opção de procurar e selecionar outra gravação.
-- Transição gradual na reprodução normal, inclusive sem timer; repetição controlada diretamente pelo botão da barra.
-- Preparação antecipada configurável para 1, 2, 3 ou 5 próximas músicas, com recuperação do cache e proteção contra estados de preparação travados.
-- Proteção ao carregar álbuns e playlists grandes, respeitando o limite configurado e informando cargas parciais.
-- Fontes ONDA Modern e ONDA Legacy disponíveis nas configurações. No Android, Modern usa a fonte do sistema e Legacy mantém Inter; no PC, Modern mantém Inter. Cards com álbum e data na mesma linha.
-- Situação das ferramentas mais clara, com ícones, detalhes recolhidos e opção de reiniciar após uma verificação bem-sucedida.
-- Ordem das categorias Biblioteca e Ferramentas configurável. Inventário de funções e guias revisados.
+- Controle da reprodução do PC pelo Android, com capa, posição, fila, tocado recentemente e notificação de mídia.
+- Ajustes de Efeitos e Jukebox e pesquisa para adicionar músicas à fila do PC pelo celular.
+- Pareamento manual ou por QR Code, usando o código temporário exibido no PC. Os aparelhos precisam estar na mesma rede.
+- Transferência da música atual de catálogo nos dois sentidos, preservando posição e estado de pausa. A fila, arquivos locais e configurações de efeitos não são transferidos.
+- A origem continua durante a preparação e a troca só conclui após a confirmação do destino. Quando disponível, o Android aproveita o áudio já resolvido pelo PC.
+- Proteções contra conexões atrasadas, comandos duplicados, transferências simultâneas, cache removido, mudanças de faixa/efeitos e preparação cancelada.
+- Corrigido crash Android em reconexões rápidas e o encerramento da conexão quando o PC desativa o remoto.
 
-## Somente PC
+## Reprodução, busca e playlists
 
-- Fila com Tocando agora, próximas músicas e Tocado recentemente; adições manuais têm prioridade e as faixas anteriores continuam acessíveis pelo Retroceder.
-- Correções na troca rápida de músicas, avanço, busca por posição e reorganização da fila. Ao desligar a reprodução aleatória, a ordem original é restaurada.
-- Troca de faixa na fila com dois cliques, pesquisa recolhível e painel lateral redimensionável. Adicionar músicas pela pesquisa em Tocado recentemente volta à fila sem iniciar a reprodução.
-- Indicadores visuais de preparação nas capas das duas filas, sem textos nem porcentagens.
-- Miniplayer arredondado, capas de maior resolução, expansão suave para letras e fila e melhorias na rolagem.
-- Fundo do miniplayer com desfoque, Swirl, halo e animações integradas à opção Efeitos translúcidos e liquid glass, ativada por padrão.
-- Volume do miniplayer passa a atualizar o áudio corretamente. Preparações canceladas ou antigas não sobrescrevem o estado de uma nova operação.
-- Menus suspensos padronizados; Exportar histórico como ação direta; Alterar destino com seletor de pasta e edição manual do caminho.
-- Preto Puro sem bordas aplicado à Reprodução; opção de bordas disponível na janela de Aparência. Botão Equalizador na barra e remoção do atalho Metadados.
-- Removido o componente antigo de miniplayer de Efeitos que ficou sem uso após a unificação.
+- Reprodução normal por streaming no PC; preparação de efeitos mantém o áudio atual até a nova versão ficar pronta.
+- Melhorias na aplicação/remoção dos efeitos, no processamento de áudio e na continuidade da reprodução.
+- Playlists da conta Spotify disponíveis para reprodução ou download pelo motor do ONDA; o catálogo não fornece o áudio do Spotify.
+- Busca de músicas e letras com melhorias para japonês, variações de escrita, acentos e correspondência entre nomes.
+- Correções dos sliders: valores acompanham o movimento; os efeitos são aplicados ao soltar. O volume é aplicado durante o ajuste.
+- Retroceder reinicia a música depois de três segundos; antes disso, volta à faixa anterior.
 
-## Somente Android
+## Desempenho e estabilidade
 
-- Reprodução com busca compacta, cards de música e efeitos, ajustes do Jukebox e player com cronometragem acima da barra.
-- Fila com música atual, próximas faixas e Tocado recentemente; abertura fluida de baixo para cima diretamente sobre a página atual, sem passar por Reprodução. Fechar retorna à página anterior.
-- Fila aberta pelo player expandido permanece em uma janela inferior, preservando o player. Deslize fora dos cards para alternar as abas e deslize um card para a esquerda para remover a música.
-- Resultados de pesquisa da fila com espaçamento maior e cantos menos arredondados; progresso da faixa atual abaixo da capa.
-- Página Imagens com prévia na própria tela, setas, gestos, navegação por pontos, compartilhamento e download. Formato e Tamanho máximo ficam juntos nas opções visíveis da página.
-- Conversor organizado em Arquivo de origem, Configurações e Pasta de destino, com Alterar destino e botão Converter; opções de lote e ajustes avançados no menu.
-- Abas de Downloads mais compactas; Modern e Legacy trocadas no seletor de fontes do Android.
+- Menos reconstruções de telas e filas, atualizações de capas e notificações e gravações repetidas de sessão.
+- Índices de fila e caches reaproveitados; cópias de dados, leituras do histórico e processamento de áudio reduzidos.
+- Salvamento da fila em segundo plano no PC, evitando bloquear a interface durante gravações no disco.
+- Preparações canceladas interrompem o trabalho nativo e não iniciam a reprodução mais tarde.
 
-- Correções na capa da notificação de mídia, incluindo recuperação quando a imagem embutida é inválida ou a consulta falha temporariamente.
-- Recuperação das faixas já preparadas ao reabrir, evitando repetir a análise ou manter a fila bloqueada em Preparando.
-- Pacotes ARM64 para celulares e x86_64 para emuladores, assinados com a chave original.
+## Aparência e ferramentas
+
+- Claro Puro, opções de bordas e cor de destaque personalizada nas duas versões.
+- Barra compacta Android acompanha as cores da capa.
+- Menu da bandeja do PC com o tema do programa, reinício após mudar o idioma e melhorias de rolagem.
+- Reprodução passa para Biblioteca no PC; no Android, permanece na barra inferior.
+- Mensagens de operação/cache mais claras e aviso de pesquisa vazia.
+- Foto com música em MP4 nos formatos de download de publicações compatíveis.
+
+## Verificações da base candidata
+
+- 77 testes de protocolo, transferência e player Qt no PC.
+- 106 testes unitários Android e 31 testes instrumentados no BlueStacks 5; os 12 testes remotos também passaram em repetição.
+- Testes com HTTP local, áudio sintético, saída PCM nativa e falhas de rede simuladas. Não representam uma validação completa em aparelho ARM64 físico nem de todos os provedores externos.
+- Portátil anterior à mudança de versão: autoteste e nove telas sem avisos QML.
+
+Os testes funcionais acima validam a base de código; os artefatos atualmente existentes com nome 1.2.4 não são pacotes da 1.2.5-rc. A compilação, assinatura e validação dos pacotes da RC ficam para a etapa de distribuição.
