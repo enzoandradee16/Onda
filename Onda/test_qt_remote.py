@@ -484,3 +484,209 @@ class QtRemoteTests(unittest.TestCase):
         self.assertEqual(source['model']['_stream']['url'], 'https://cdn.example/audio')
         self.assertEqual(source['model']['_stream']['headers'], {'User-Agent': 'ONDA'})
         self.assertNotIn('cache', source['model'])
+
+    def test_lyrics_document_changes_only_with_song_or_lyrics(self):
+        from remote_control import RemoteServer
+
+        with patch(
+            'qt_remote_ui.RemoteServer', side_effect=lambda: RemoteServer('127.0.0.1')
+        ):
+            self.remote.start()
+        self.bridge.playlist = [
+            dict(id='song', kind='catalog', record=dict(title='Song'))
+        ]
+        self.bridge.queue_index = 0
+        self.bridge.model = dict(
+            source='test-song.wav',
+            title='Song',
+            duration=30,
+            beats=[0, 30],
+            neighbors=[[]],
+            links=0,
+        )
+        self.engine.workspace._lyric_source = 'test-song.wav'
+        self.engine.workspace._jukebox_lyrics = [(0, 'First'), (5, 'Second')]
+        self.remote.refresh_lyrics()
+        revision = self.remote._lyrics_revision
+        self.assertEqual(
+            self.remote.server.lyrics['lines'][1], dict(time=5, text='Second')
+        )
+        self.bridge._phase = 0.5
+        self.remote._lyrics_next = 0
+        self.remote.refresh_lyrics()
+        self.assertEqual(self.remote._lyrics_revision, revision)
+        self.engine.workspace._jukebox_lyrics = [(1, 'Replacement')]
+        self.remote._lyrics_next = 0
+        self.remote.refresh_lyrics()
+        self.assertNotEqual(self.remote._lyrics_revision, revision)
+        self.bridge.playlist[0]['id'] = 'next'
+        self.bridge.model = None
+        self.remote.refresh_lyrics()
+        self.assertEqual(self.remote.server.lyrics['track_id'], 'next')
+        self.assertEqual(self.remote.server.lyrics['lines'], [])
+
+    def test_streams_have_a_distinct_lyrics_identity_without_local_files(self):
+        self.bridge.model = dict(
+            _stream=dict(url='https://cdn.example/one'), neighbors=[[]]
+        )
+        first = self.engine.workspace.jukebox_lyrics_source()
+        self.bridge.model = dict(
+            _stream=dict(url='https://cdn.example/two'), neighbors=[[]]
+        )
+        self.assertNotEqual(first, self.engine.workspace.jukebox_lyrics_source())
+        self.assertNotIn('https:', first)
+
+    def test_devices_button_opens_the_same_popup_from_both_playback_bars(self):
+        from PySide6.QtCore import QObject, QMetaObject, QEventLoop, QTimer
+        from remote_control import RemoteServer
+
+        workspace = self.engine.workspace
+        window = self.engine.rootObjects()[0]
+        self.bridge.update_state(ready=True, playing=True, paused=True, title='Fixture')
+
+        def settle():
+            loop = QEventLoop()
+            QTimer.singleShot(300, loop.quit)
+            loop.exec()
+
+        popup = window.findChild(QObject, 'remoteControlPopup')
+        self.assertIsNotNone(popup)
+        for page, name in (
+            ('jukebox', 'playbackDevicesButton'),
+            ('catalog', 'compactPlaybackDevicesButton'),
+        ):
+            workspace.selectPage(page)
+            settle()
+            button = window.findChild(QObject, name)
+            self.assertIsNotNone(button)
+            self.assertTrue(button.property('visible'))
+            self.assertEqual(button.property('glyph'), 'devices')
+            self.assertFalse(button.property('primary'))
+            QMetaObject.invokeMethod(button, 'clicked')
+            settle()
+            self.assertTrue(popup.property('visible'))
+            QMetaObject.invokeMethod(popup, 'close')
+            settle()
+        from PySide6.QtCore import QPointF
+
+        workspace.selectPage('jukebox')
+        for width in (800, 900, 1360):
+            window.setWidth(width)
+            settle()
+            transport = window.findChild(QObject, 'jukeboxPlaybackControlsTransport')
+            extras = window.findChild(QObject, 'unifiedPlaybackExtras')
+            end = transport.mapToScene(QPointF(transport.width(), 0)).x()
+            self.assertLessEqual(end, extras.mapToScene(QPointF(0, 0)).x())
+            for child in extras.childItems():
+                if child.isVisible():
+                    self.assertLessEqual(
+                        child.mapToScene(QPointF(child.width(), 0)).x(), window.width()
+                    )
+        with patch(
+            'qt_remote_ui.RemoteServer', side_effect=lambda: RemoteServer('127.0.0.1')
+        ):
+            self.remote.start()
+        self.remote.server.paired = True
+        import time
+
+        self.remote.server.last_seen = time.monotonic()
+        self.remote.tick()
+        settle()
+        for name in ('playbackDevicesButton', 'compactPlaybackDevicesButton'):
+            self.assertTrue(window.findChild(QObject, name).property('primary'))
+
+        self.remote.server.last_seen -= 9
+        self.remote.tick()
+        settle()
+        self.assertTrue(self.remote.server.paired)
+        self.assertFalse(
+            window.findChild(QObject, 'playbackDevicesButton').property('primary')
+        )
+
+    def test_devices_panel_pairs_from_right_sidebar_and_preserves_audio(self):
+        import time
+        from PySide6.QtCore import QObject, QMetaObject, QTimer, QEventLoop
+        from remote_control import RemoteServer
+
+        workspace = self.engine.workspace
+        window = self.engine.rootObjects()[0]
+        workspace.selectPage('jukebox')
+        window.setWidth(900)
+        window.setHeight(800)
+        popup = window.findChild(QObject, 'remoteControlPopup')
+        QMetaObject.invokeMethod(popup, 'open')
+
+        def settle():
+            loop = QEventLoop()
+            QTimer.singleShot(80, loop.quit)
+            loop.exec()
+
+        settle()
+        self.assertFalse(popup.property('modal'))
+        self.assertGreater(popup.property('x'), 0)
+        self.assertFalse(popup.property('pairingExpanded'))
+        self.assertFalse(self.remote.state['enabled'])
+        with patch(
+            'qt_remote_ui.RemoteServer', side_effect=lambda: RemoteServer('127.0.0.1')
+        ):
+            QMetaObject.invokeMethod(
+                window.findChild(QObject, 'connectPhoneButton'), 'clicked'
+            )
+        self.remote._addresses = ['192.168.1.9']
+        self.remote.changed.emit()
+        settle()
+        self.assertTrue(self.remote.state['enabled'])
+        self.assertTrue(popup.property('pairingExpanded'))
+        popup.setProperty('manualExpanded', True)
+        settle()
+        address = window.findChild(QObject, 'devicesAddress')
+        self.assertTrue(address.property('visible'))
+        self.assertTrue(address.property('text').startswith('http://192.168.1.9:'))
+        self.remote.server.paired = True
+        self.remote.server.last_seen = time.monotonic()
+        self.remote.tick()
+        settle()
+        self.assertTrue(
+            window.findChild(QObject, 'connectedPhoneCard').property('visible')
+        )
+        for theme in ('Claro', 'Escuro', 'Preto puro'):
+            workspace.setSetting('theme_mode', theme)
+            for height in (600, 800):
+                window.setHeight(height)
+                settle()
+                self.assertLessEqual(
+                    popup.property('x') + popup.property('width'), window.width()
+                )
+                self.assertLessEqual(
+                    popup.property('y') + popup.property('height'),
+                    window.height() - 118,
+                )
+        with patch.object(self.bridge, 'playPause') as toggle:
+            QMetaObject.invokeMethod(
+                window.findChild(QObject, 'disableRemoteButton'), 'clicked'
+            )
+            toggle.assert_not_called()
+        self.assertFalse(self.remote.state['enabled'])
+
+    def test_devices_panel_button_closes_it_even_with_a_held_click(self):
+        from PySide6.QtCore import QObject, QPointF, QPoint, Qt
+        from PySide6.QtTest import QTest
+
+        window = self.engine.rootObjects()[0]
+        self.engine.workspace.selectPage('jukebox')
+        window.show()
+        button = window.findChild(QObject, 'playbackDevicesButton')
+        popup = window.findChild(QObject, 'remoteControlPopup')
+        for animations in (True, False):
+            self.engine.workspace.setSetting('qt_animations', animations)
+            QTest.qWait(180)
+            point = button.mapToScene(QPointF(button.width() / 2, button.height() / 2))
+            target = QPoint(round(point.x()), round(point.y()))
+            QTest.mouseClick(window, Qt.LeftButton, Qt.NoModifier, target)
+            QTest.qWait(200)
+            self.assertTrue(popup.property('visible'))
+            QTest.mousePress(window, Qt.LeftButton, Qt.NoModifier, target)
+            QTest.qWait(250)
+            QTest.mouseRelease(window, Qt.LeftButton, Qt.NoModifier, target)
+            QTest.qWait(200)
+            self.assertFalse(popup.property('visible'))

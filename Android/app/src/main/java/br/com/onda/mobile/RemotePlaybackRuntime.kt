@@ -42,9 +42,21 @@ internal object RemotePlaybackRuntime {
             for ((own, body) in commands) {
                 if (own != generation || !state.value.online) continue
                 val host = endpoint; val credential = token
-                try { RemoteClient.request(host, "/v1/command", credential, body) }
+                try {
+                    for (attempt in 0..2) {
+                        if (own != generation || !state.value.online) break
+                        try { RemoteClient.request(host, "/v1/command", credential, body); break }
+                        catch (error: RemoteHttpException) {
+                            // Only an explicit refusal is safe to repeat: a lost response may
+                            // belong to a toggle that the computer has already applied.
+                            if (error.status != 429 || attempt == 2) throw error
+                            delay(150L * (attempt + 1))
+                        }
+                    }
+                }
                 catch (cancelled: CancellationException) { throw cancelled }
-                catch (_: Exception) {
+                catch (error: Exception) {
+                    android.util.Log.w("ONDA", "Remote command ${body.optString("command")} failed (${(error as? RemoteHttpException)?.status ?: "transport"})")
                     if (own == generation) state.update { it.copy(notice = "Não foi possível enviar o comando. Tente novamente.") }
                 }
             }
@@ -67,6 +79,13 @@ internal object RemotePlaybackRuntime {
         require(initial.optInt("protocol")==1 && initial.optInt("features")>=3) {"Atualize o ONDA PC para usar o controle remoto."}
         verifyAttempt(attempt)
         activate(context, host, credential, name, initial=initial)
+    }
+
+    /** A device-row selection moves active phone playback; pairing alone remains control-only. */
+    suspend fun selectDevice(context: Context, address: String, transferPlayback: Boolean? = null): Boolean {
+        val local = JukeboxRuntime.get(context).state.value
+        val transfer = transferPlayback ?: (!state.value.connected && local.model != null && local.playing && !local.paused)
+        return reconnect(context, address, transferPlayback = transfer)
     }
 
     suspend fun reconnect(context: Context, address: String, transferPlayback:Boolean=false): Boolean {
@@ -274,6 +293,8 @@ internal object RemotePlaybackRuntime {
                         searchMessage = search.optString("message"), searchBatch = search.optString("batch"),
                         deviceName = data.optString("device_name", previous.deviceName).take(80),
                         shuffle = data.optBoolean("shuffle"), repeat = data.optString("repeat", "Desativada"),
+                        lyrics = if(previous.trackId==data.optString("track_id"))previous.lyrics else emptyList(),
+                        lyricsRevision = if(previous.trackId==data.optString("track_id"))previous.lyricsRevision else "",
                         online = true, title = data.optString("title"), artist = data.optString("artist"), album = data.optString("album"),
                         trackId = data.optString("track_id"), position = data.optDouble("position", 0.0).safeSeconds(),
                         duration = data.optDouble("duration", 0.0).safeSeconds(), playing = data.optBoolean("playing"), ready = data.optBoolean("ready"),
@@ -283,6 +304,18 @@ internal object RemotePlaybackRuntime {
                     )
                     failedSince = 0L
                     failures=0
+                    val lyricsRevision=data.optString("lyrics_revision")
+                    if(lyricsRevision.isNotBlank() && state.value.lyricsRevision!=lyricsRevision) {
+                        try {
+                            val document=RemoteClient.request(host,"/v1/lyrics",credential)
+                            ensureActive()
+                            if(own==generation && document.optString("track_id")==state.value.trackId && document.optString("revision")==lyricsRevision) {
+                                val lines=readRemoteLyrics(document)
+                                state.update {it.copy(lyrics=lines,lyricsRevision=lyricsRevision)}
+                            }
+                        } catch(cancelled:CancellationException){throw cancelled}
+                        catch(error:Exception){if(error is RemoteHttpException && error.status in listOf(401,410))throw error}
+                    }
                     if (artId.isNotBlank() && state.value.artwork == null) {
                         val bytes = runCatching { RemoteClient.artwork(host, credential, artId) }.getOrNull()
                         ensureActive()
@@ -383,7 +416,11 @@ internal object RemotePlaybackRuntime {
     }
 
     fun toggle() = command("toggle")
-    fun seek(seconds: Double) = command("seek", seconds, state.value.trackId)
+    fun seek(seconds: Double) {
+        val current = state.value
+        if (!current.online || !current.ready || current.trackId.isBlank() || !seconds.isFinite()) return
+        command("seek", seconds.coerceIn(0.0, current.duration.coerceAtLeast(0.0)), current.trackId)
+    }
 
     fun setVolume(value: Int) {
         if (!state.value.online) return

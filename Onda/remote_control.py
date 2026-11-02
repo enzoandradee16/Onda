@@ -72,6 +72,7 @@ class RemoteServer:
         self.snapshot = {'ready': False, 'playing': False, 'title': '', 'volume': 80}
         self.attempts = []
         self.paired = False
+        self.last_seen = 0.0
         self.revoked = False
         self.name = socket.gethostname()[:80] or 'ONDA PC'
         self.discovery = None
@@ -79,6 +80,7 @@ class RemoteServer:
         self.transfer_source = {}
         self.queue_rows = []
         self.queue_revision = 0
+        self.lyrics = {}
         self.artwork = b''
         self.artwork_id = ''
         owner = self
@@ -129,6 +131,8 @@ class RemoteServer:
                         401, {'error': 'Conecte novamente com o código exibido no PC.'}
                     )
                     return False
+                with owner.lock:
+                    owner.last_seen = time.monotonic()
                 return True
 
             def do_GET(self):
@@ -136,6 +140,11 @@ class RemoteServer:
                     return
                 url = urlsplit(self.path)
                 query = parse_qs(url.query)
+                if url.path == '/v1/lyrics':
+                    with owner.lock:
+                        document = copy.deepcopy(owner.lyrics)
+                    self.reply(200, document)
+                    return
                 if url.path == '/v1/transfer':
                     with owner.lock:
                         source = copy.deepcopy(owner.transfer_source)
@@ -222,6 +231,7 @@ class RemoteServer:
                             self.reply(401, {'error': 'Código incorreto.'})
                             return
                         owner.paired = True
+                        owner.last_seen = now
                     self.reply(
                         200,
                         {
@@ -341,6 +351,15 @@ class RemoteServer:
         self.thread = threading.Thread(target=self.http.serve_forever, daemon=True)
 
     @property
+    def connected(self):
+        with self.lock:
+            return (
+                self.paired
+                and not self.revoked
+                and time.monotonic() - self.last_seen < 8
+            )
+
+    @property
     def port(self):
         return self.http.server_port
 
@@ -357,6 +376,10 @@ class RemoteServer:
     def update(self, snapshot):
         with self.lock:
             self.snapshot = copy.deepcopy(snapshot)
+
+    def update_lyrics(self, document):
+        with self.lock:
+            self.lyrics = copy.deepcopy(document)
 
     def update_transfer(self, source):
         with self.lock:

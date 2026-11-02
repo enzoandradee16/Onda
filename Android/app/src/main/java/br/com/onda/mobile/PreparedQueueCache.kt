@@ -7,6 +7,7 @@ internal fun preparationAhead(settings:JSONObject):Int=settings.opt("playback_pr
 
 /** Persist cache references, never a running job or a second copy of the beat graph. */
 internal fun preparedQueueReference(model:JSONObject)=JSONObject().apply {
+    if(model.has("_stream"))return@apply
     listOf("cache","source","title","media_title","media_artist","album","cover_url").forEach {key->if(model.has(key))put(key,model.get(key))}
 }
 internal fun restoreQueueModel(row:JSONObject):JSONObject?=runCatching {

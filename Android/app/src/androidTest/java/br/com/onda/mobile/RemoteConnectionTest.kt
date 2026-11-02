@@ -22,6 +22,35 @@ import java.util.concurrent.CopyOnWriteArrayList
 class RemoteConnectionTest {
     private val context get()=InstrumentationRegistry.getInstrumentation().targetContext
 
+    @Test fun remoteLyricsRefreshOnlyOnRevisionAndFollowTheSharedClock()=runBlocking {
+        OndaStore.initialize(context)
+        val server=FixturePc(byteArrayOf())
+        try {
+            withContext(Dispatchers.Main){RemotePlaybackRuntime.connect(context,server.address,"123456")}
+            withTimeout(5000){while(RemotePlaybackRuntime.state.value.lyrics.size!=2)delay(20)}
+            val initial=RemotePlaybackRuntime.state.value
+            val timeline=LyricTimeline(initial.lyrics)
+            assertEquals(0,timeline.activeIndex(1.0))
+            assertEquals(1,timeline.activeIndex(6.0))
+            assertEquals(1,timeline.activeIndex(initial.copy(position=4.0,speed=2f,receivedAt=1000L).positionAt(2000L)))
+            assertEquals(0,timeline.activeIndex(initial.copy(position=1.0,playing=false,receivedAt=1000L).positionAt(4000L)))
+            delay(1800)
+            assertEquals(1,server.lyricsRequests)
+            server.trackId="next";server.lyricsVersion=2
+            withTimeout(5000){while(RemotePlaybackRuntime.state.value.lyricsRevision!="lyrics-2")delay(20)}
+            assertEquals("next",RemotePlaybackRuntime.state.value.trackId)
+            assertEquals("New verse",RemotePlaybackRuntime.state.value.lyrics.first().second)
+            withContext(Dispatchers.Main){RemotePlaybackRuntime.disconnect()}
+            assertTrue(RemotePlaybackRuntime.state.value.lyrics.isEmpty())
+        } finally {withContext(Dispatchers.Main){RemotePlaybackRuntime.disconnect()};server.close()}
+    }
+
+    @Test fun qrReaderUsesPortraitOrientation() {
+        val component=android.content.ComponentName(context,com.journeyapps.barcodescanner.CaptureActivity::class.java)
+        val activity=context.packageManager.getActivityInfo(component,0)
+        assertEquals(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT,activity.screenOrientation)
+    }
+
     @Test fun readsQrGeneratedByDesktopAndRejectsForeignCodes() {
         val testContext=InstrumentationRegistry.getInstrumentation().context
         val bitmap=testContext.assets.open("remote-pair.png").use {BitmapFactory.decodeStream(it)}
@@ -77,7 +106,7 @@ class RemoteConnectionTest {
             assertTrue(server.commands.contains("handoff_release"))
             server.prepareReady=false
             withContext(Dispatchers.Main) {
-                val reverse=async {RemotePlaybackRuntime.reconnect(context,server.address,transferPlayback=true)}
+                val reverse=async {RemotePlaybackRuntime.selectDevice(context,server.address)}
                 withTimeout(3000){while(!server.commands.contains("handoff_prepare"))delay(10)}
                 assertTrue("Phone must keep playing while PC prepares",local.state.value.playing)
                 server.prepareReady=true
@@ -107,6 +136,31 @@ class RemoteConnectionTest {
             PlaybackSessions.save(context,"jukebox",saved ?: JSONObject().put("queue",JSONArray()),true)
             server.close();root.deleteRecursively()
         }
+    }
+
+    @Test fun firstCommandRetriesOnlyExplicitBusyAndDoesNotRepeatLostToggle()=runBlocking {
+        OndaStore.initialize(context)
+        val server=FixturePc(byteArrayOf()).apply {commandBusy=1}
+        try {
+            withContext(Dispatchers.Main) {RemotePlaybackRuntime.connect(context,server.address,"123456")}
+            withTimeout(5000){while(!RemotePlaybackRuntime.state.value.online)delay(20)}
+            withContext(Dispatchers.Main){RemotePlaybackRuntime.toggle()}
+            withTimeout(5000){while(server.commands.count {it=="toggle"}<1)delay(20)}
+            assertFalse(server.remotePlaying)
+            assertEquals(0,server.commandBusy)
+            server.loseToggleResponse=true
+            withContext(Dispatchers.Main){RemotePlaybackRuntime.toggle()}
+            withTimeout(5000){while(server.commands.count {it=="toggle"}<2)delay(20)}
+            delay(700)
+            assertTrue(server.remotePlaying)
+            assertEquals("An applied toggle must never be retried",2,server.commands.count {it=="toggle"})
+            withContext(Dispatchers.Main) {
+                RemotePlaybackRuntime.state.value=RemotePlaybackRuntime.state.value.copy(trackId="",ready=false)
+                RemotePlaybackRuntime.seek(3.0)
+            }
+            delay(200)
+            assertFalse(server.commands.contains("seek"))
+        } finally {withContext(Dispatchers.Main){RemotePlaybackRuntime.disconnect()};server.close()}
     }
 
     @Test fun cancelledPairingCannotReconnectAfterDisconnect()=runBlocking {
@@ -295,6 +349,10 @@ class RemoteConnectionTest {
         }.toByteArray()
         @Volatile var revoked=false
         @Volatile var pairDelay=0L
+        @Volatile var lyricsRequests=0
+        @Volatile var lyricsVersion=1
+        @Volatile var commandBusy=0
+        @Volatile var loseToggleResponse=false
         @Volatile var queueFailure=false
         @Volatile var stateFailures=0
         @Volatile var stateProtocol=1
@@ -338,9 +396,18 @@ class RemoteConnectionTest {
                         client.getOutputStream().apply {write("HTTP/1.1 503 Busy\r\nContent-Type: application/json\r\nContent-Length: ${payload.size}\r\nConnection: close\r\n\r\n".toByteArray());write(payload);flush()}
                         return@use
                     }
+                    if(path=="/v1/command" && commandBusy>0) {
+                        commandBusy--
+                        client.getOutputStream().apply {write("HTTP/1.1 429 Busy\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}".toByteArray());flush()}
+                        return@use
+                    }
                     if(result.optString("status")=="preparing" && prepareReady)result.put("status","ready")
                     val response=when {
                         path=="/v1/pair"->JSONObject().put("token","test-credential-with-at-least-20-characters").put("name","Fixture PC").put("protocol",1).put("features",features)
+                        path=="/v1/lyrics"->{
+                            lyricsRequests++
+                            JSONObject().put("track_id",trackId).put("revision","lyrics-$lyricsVersion").put("lines",JSONArray().put(JSONObject().put("time",0).put("text",if(lyricsVersion==1)"First verse" else "New verse")).put(JSONObject().put("time",5).put("text","君を信じて")))
+                        }
                         path=="/v1/command"->{
                             val command=body.getString("command");commands.add(command)
                             val value=body.optJSONObject("value") ?: JSONObject()
@@ -355,11 +422,11 @@ class RemoteConnectionTest {
                                 "handoff_cancel"->{result.put("status","cancelled");remotePlaying=true}
                                 "toggle"->remotePlaying=!remotePlaying
                             }
-                            if(command=="handoff_complete" && commandResponseLost)return@use
+                            if(command=="handoff_complete" && commandResponseLost || command=="toggle" && loseToggleResponse)return@use
                             JSONObject().put("accepted",true)
                         }
                         path.startsWith("/v1/queue")->JSONObject().put("rows",JSONArray()).put("revision",0).put("total",0)
-                        else->JSONObject().put("protocol",stateProtocol).put("features",features).put("title","PC song").put("artist","Artist").put("track_id",trackId).put("ready",true).put("playing",remotePlaying).put("duration",12).put("position",position).put("queue_revision",0).put("artwork_id","a".repeat(24)).put("cover_url","https://i.scdn.co/image/test").put("transfer_record",JSONObject().put("title","PC song").put("artists",JSONArray().put("Artist")).put("source_url","https://open.spotify.com/track/test")).put("handoff",result)
+                        else->JSONObject().put("lyrics_revision","lyrics-$lyricsVersion").put("protocol",stateProtocol).put("features",features).put("title","PC song").put("artist","Artist").put("track_id",trackId).put("ready",true).put("playing",remotePlaying).put("duration",12).put("position",position).put("queue_revision",0).put("artwork_id","a".repeat(24)).put("cover_url","https://i.scdn.co/image/test").put("transfer_record",JSONObject().put("title","PC song").put("artists",JSONArray().put("Artist")).put("source_url","https://open.spotify.com/track/test")).put("handoff",result)
                     }
                     val payload=(if(revoked)JSONObject().put("error","Disabled") else response).toString().toByteArray()
                     client.getOutputStream().apply {write("HTTP/1.1 ${if(revoked)410 else 200} OK\r\nContent-Type: application/json\r\nContent-Length: ${payload.size}\r\nConnection: close\r\n\r\n".toByteArray());write(payload);flush()}

@@ -61,7 +61,7 @@ import kotlinx.coroutines.launch
                     OutlinedTextField(value = address, onValueChange = { address = it }, label = { UiText("Endereço exibido no PC") }, singleLine = true, modifier = Modifier.fillMaxWidth(), enabled = !busy)
                     OutlinedTextField(value = code, onValueChange = { code = it.filter(Char::isDigit).take(6) }, label = { UiText("Código de conexão") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth(), enabled = !busy)
                     OutlinedButton(enabled=!busy,onClick={
-                        scanner.launch(ScanOptions().setDesiredBarcodeFormats(ScanOptions.QR_CODE).setPrompt(translateUi("Aponte para o QR Code do ONDA PC")).setBeepEnabled(false).setOrientationLocked(false))
+                        scanner.launch(ScanOptions().setDesiredBarcodeFormats(ScanOptions.QR_CODE).setPrompt(translateUi("Aponte para o QR Code do ONDA PC")).setBeepEnabled(false).setOrientationLocked(true))
                     }) {UiText("Ler QR Code")}
                     Button(enabled = !busy && code.length == 6 && address.isNotBlank(), onClick = {pairNow()}) {UiText(if(busy) "Conectando…" else "Conectar")}
                 }

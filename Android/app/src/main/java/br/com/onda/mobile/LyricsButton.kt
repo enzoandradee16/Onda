@@ -30,7 +30,7 @@ import org.json.JSONObject
 
 @Composable internal fun LyricsButton(vm:OndaViewModel,source:String,position:()->Double,duration:Double,seek:(Double)->Unit,toggle:()->Unit,
     isPlaying:()->Boolean={vm.previewActive.value},previous:()->Unit={seek(0.0)},next:(()->Unit)?=null,
-    title:String="",artist:String="",showButton:Boolean=true,openRequest:Int=0) {
+    title:String="",artist:String="",showButton:Boolean=true,openRequest:Int=0,providedLines:List<Pair<Double,String>>?=null,controlsEnabled:Boolean=true) {
     val latestSource by rememberUpdatedState(source)
     val latestPosition by rememberUpdatedState(position)
     var open by remember {mutableStateOf(false)}
@@ -41,7 +41,7 @@ import org.json.JSONObject
     var dragged by remember(source) {mutableStateOf<Float?>(null)}
     val (lyricsBackground,lyricsInk)=rememberLyricsColors(vm,source)
     val cache by vm.lyricsCache.collectAsStateWithLifecycle()
-    val lines=cache[source].orEmpty()
+    val lines=providedLines ?: cache[source].orEmpty()
     val timeline=remember(lines){LyricTimeline(lines)}
     val settings by OndaStore.settings.collectAsStateWithLifecycle()
     var alternatives by remember(source) {mutableStateOf<List<JSONObject>>(emptyList())}
@@ -49,7 +49,7 @@ import org.json.JSONObject
     fun applyLyrics(result:JSONObject) {
         result.optJSONArray("lines")?.let {rows->vm.storeLyrics(source,(0 until rows.length()).map {i->rows.getJSONArray(i).let {it.getDouble(0) to it.getString(1)}})}
     }
-    LaunchedEffect(source) {vm.lookupLyrics(source)}
+    LaunchedEffect(source,providedLines!=null) {if(providedLines==null)vm.lookupLyrics(source)}
     val picker=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) {uri->if(uri!=null) {
         val requestedSource=source
         vm.importLocal(uri,"lyrics",dialog=true) {file->vm.operation("lyrics_read",JSONObject().put("source",file.absolutePath),dialog=true) {result->
@@ -90,7 +90,7 @@ import org.json.JSONObject
                                 }
                             }
                         }
-                        Text(text,Modifier.fillMaxWidth().lyricAnimation(index to selected,animation,emphasized=selected,muted=active>=0&&!selected).clickable(enabled=timeline.synced){seconds=line.first;seek(line.first)}.testTag("lyric-line-$index"),color=if(selected)ink else normal,style=MaterialTheme.typography.headlineSmall,textAlign=TextAlign.Start,fontWeight=FontWeight.Bold)
+                        Text(text,Modifier.fillMaxWidth().lyricAnimation(index to selected,animation,emphasized=selected,muted=active>=0&&!selected).clickable(enabled=timeline.synced&&controlsEnabled){seconds=line.first;seek(line.first)}.testTag("lyric-line-$index"),color=if(selected)ink else normal,style=MaterialTheme.typography.headlineSmall,textAlign=TextAlign.Start,fontWeight=FontWeight.Bold)
                     }
                 }
                 Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) {
@@ -98,7 +98,7 @@ import org.json.JSONObject
                         val text=listOf(title,artist,timeline.verses.joinToString("\n"){it.plain}).filter {it.isNotBlank()}.joinToString("\n\n")
                         context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT,text),translateUi("Compartilhar letra")))
                     },enabled=lines.isNotEmpty()){OndaIcon("share","Compartilhar letra",Modifier.size(25.dp))}
-                    Box {
+                    if(providedLines==null)Box {
                         IconButton(onClick={menu=true}){OndaIcon("more-vertical","Mais",Modifier.size(25.dp))}
                         DropdownMenu(menu,{menu=false}) {
                             DropdownMenuItem(text={UiText(if(searching)"Pesquisando…" else "Buscar letra online")},enabled=!searching&&source.isNotBlank(),onClick={
@@ -110,14 +110,14 @@ import org.json.JSONObject
                     }
                 }
                 Column(Modifier.fillMaxWidth()) {
-                    RoundSlider(dragged ?: seconds.toFloat().coerceIn(0f,duration.toFloat().coerceAtLeast(1f)),{dragged=it},valueRange=0f..duration.toFloat().coerceAtLeast(1f),onValueChangeFinished={dragged?.let {seconds=it.toDouble();seek(seconds)};dragged=null},enabled=duration>0,slim=true,modifier=Modifier.fillMaxWidth().a11yLabel("Posição na música"))
+                    RoundSlider(dragged ?: seconds.toFloat().coerceIn(0f,duration.toFloat().coerceAtLeast(1f)),{dragged=it},valueRange=0f..duration.toFloat().coerceAtLeast(1f),onValueChangeFinished={dragged?.let {seconds=it.toDouble();seek(seconds)};dragged=null},enabled=duration>0&&controlsEnabled,slim=true,modifier=Modifier.fillMaxWidth().a11yLabel("Posição na música"))
                     Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) {
                         UiText(mediaClock((dragged?.toDouble() ?: seconds).toLong()),style=MaterialTheme.typography.labelSmall)
                         UiText(mediaClock(duration.toLong()),style=MaterialTheme.typography.labelSmall)
                     }
                 }
                 Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.Center) {
-                    FilledIconButton(onClick=toggle,enabled=source.isNotBlank(),modifier=Modifier.size(80.dp).testTag("lyrics-play-pause"),shape=CircleShape) {
+                    FilledIconButton(onClick=toggle,enabled=source.isNotBlank()&&controlsEnabled,modifier=Modifier.size(80.dp).testTag("lyrics-play-pause"),shape=CircleShape) {
                         OndaIcon(if(isPlaying())"pause" else "play",if(isPlaying())"Pausar" else "Reproduzir",Modifier.size(38.dp))
                     }
                 }

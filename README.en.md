@@ -24,6 +24,8 @@ On PC, right-click lists or cards to open the actions available in that tab. Shi
 
 On PC, the **Playback** tab is in the sidebar’s **Library** category. On Android, it remains in the bottom bar.
 
+Catalog tracks can stream on PC and Android without saving the complete audio file to the playback cache when effects are off. Effects prepare in the background while the current audio keeps playing until the processed version is ready.
+
 ## Application highlights
 
 - **Windows:** clicking Download now in search opens format and quality selection: MP3, M4A, FLAC or original audio. Saved preferences are preselected. Download immediately or add to the queue; cancelling starts nothing. The selection applies to that track.
@@ -63,7 +65,7 @@ On Android, symbol buttons, selectors, checkboxes and playback/effects sliders e
 
 ## Queue and restart
 
-In **Links** (Windows) or **Downloads** (Android), choose compact or card view and adjust card size with the subtle control on the page. On Windows, **Ctrl + mouse wheel** also changes card size. Queue and history sizes are independent. Full cards show artwork, artist, album, duration and other metadata supplied by the source. In History, Clear history, view and size controls are aligned horizontally and centered below search. Display options are also available under Appearance. Queue and history views and card sizes are restored after reopening, even when “Remember settings” is disabled.
+In **Downloads**, on Windows and Android, choose compact or card view and adjust card size with the subtle control on the page. On Windows, **Ctrl + mouse wheel** also changes card size. Queue and history sizes are independent. Full cards show artwork, artist, album, duration and other metadata supplied by the source. In History, Clear history, view and size controls are aligned horizontally and centered below search. Display options are also available under Appearance. Queue and history views and card sizes are restored after reopening, even when “Remember settings” is disabled.
 
 On Windows, **Restart** appears below Language only while a language change is pending. Returning to the current language clears the pending change. Restarting preserves the queue; ongoing operations must finish first. On Android, language and appearance changes apply immediately, without restarting.
 
@@ -124,8 +126,8 @@ More screenshots: [Album and tracks](docs/images/android%20novo/album-discovery-
 ## Quick start
 
 1. Choose the destination folder in **Settings**.
-2. In **Links** (Windows) or **Downloads** (Android), paste a link, choose a format and select **Download now**, or add it to the queue.
-3. In **Albums and playlists**, load a link or import a file, select the items and choose the download options.
+2. In **Downloads**, on Windows and Android, paste a link, choose a format and select **Download now**, or add it to the queue.
+3. In **Collection**, load a link or import a file, select the items and choose the download options.
 4. Use **Images** to convert photos and **Effects** to edit a local track.
 
 Albums use an `Artist - Album` subfolder; playlists use the playlist name. Detailed help is available in the [manual](Onda/README.md) (in Portuguese).

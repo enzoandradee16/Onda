@@ -53,6 +53,7 @@ import androidx.compose.ui.graphics.drawscope.rotate
         fun line(x:Float,y:Float,a:Float,b:Float)=drawLine(tint,Offset(x*u,y*v),Offset(a*u,b*v),stroke,StrokeCap.Round)
         fun path(vararg points:Pair<Float,Float>,close:Boolean=false) {drawPath(Path().apply {points.forEachIndexed {i,p->if(i==0)moveTo(p.first*u,p.second*v) else lineTo(p.first*u,p.second*v)};if(close)close()},tint,style=Stroke(stroke,cap=StrokeCap.Round))}
         when(name) {
+            "devices"->{path(13f to 15f,2f to 15f,2f to 4f,19f to 4f,19f to 8f);line(9f,15f,9f,20f);line(5f,20f,13f,20f);path(15f to 10f,22f to 10f,22f to 21f,15f to 21f,close=true);line(18f,18f,19f,18f)}
             "computer"->{path(4f to 3f,20f to 3f,20f to 16f,4f to 16f,close=true);line(12f,16f,12f,21f);line(7f,21f,17f,21f)}
             "phone"->{path(7f to 2f,17f to 2f,17f to 22f,7f to 22f,close=true);line(11f,18f,13f,18f)}
             "volume"->{path(3f to 9f,7f to 9f,12f to 4f,12f to 20f,7f to 15f,3f to 15f,close=true);path(16f to 8f,18f to 12f,16f to 16f);path(19f to 4f,22f to 12f,19f to 20f)}

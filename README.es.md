@@ -24,6 +24,8 @@ En PC, haz clic derecho en las listas o tarjetas para abrir las acciones disponi
 
 En PC, la pestaña **Reproducción** está en la categoría **Biblioteca** de la barra lateral. En Android, permanece en la barra inferior.
 
+Las canciones de catálogo pueden reproducirse por streaming en PC y Android sin guardar el archivo de audio completo en la caché de reproducción cuando los efectos están desactivados. Los efectos se preparan en segundo plano y el audio actual continúa hasta que la versión procesada está lista.
+
 ## Características destacadas
 
 - **Windows:** Descargar ahora en la búsqueda abre la elección de formato y calidad: MP3, M4A, FLAC o audio original. Parte de las preferencias guardadas. Permite descargar o añadir a la cola; cancelar no inicia nada. La elección se aplica a esa canción.
@@ -63,7 +65,7 @@ En Android, los controles con símbolos, selectores, casillas y barras de reprod
 
 ## Cola y reinicio
 
-En **Enlaces** (Windows) o **Descargas** (Android), elige la vista compacta o en tarjetas y ajusta su tamaño con el control discreto de la propia pestaña. En Windows, **Ctrl + rueda del ratón** también cambia el tamaño de las tarjetas. Los tamaños de la cola y del historial son independientes. Las tarjetas completas muestran portada, artista, álbum, duración y otros metadatos proporcionados por la fuente. En Historial, Borrar historial, vista y tamaño están alineados horizontalmente y centrados debajo de la búsqueda. Las opciones de visualización también están en Apariencia. La vista y el tamaño de las tarjetas de la cola y del historial se conservan al volver a abrir, aunque “Recordar configuración” esté desactivado.
+En **Descargas**, tanto en Windows como en Android, elige la vista compacta o en tarjetas y ajusta su tamaño con el control discreto de la propia pestaña. En Windows, **Ctrl + rueda del ratón** también cambia el tamaño de las tarjetas. Los tamaños de la cola y del historial son independientes. Las tarjetas completas muestran portada, artista, álbum, duración y otros metadatos proporcionados por la fuente. En Historial, Borrar historial, vista y tamaño están alineados horizontalmente y centrados debajo de la búsqueda. Las opciones de visualización también están en Apariencia. La vista y el tamaño de las tarjetas de la cola y del historial se conservan al volver a abrir, aunque “Recordar configuración” esté desactivado.
 
 En Windows, **Reiniciar** aparece debajo de Idioma solo cuando hay un cambio de idioma pendiente. Volver al idioma actual elimina el cambio pendiente. El reinicio conserva la cola; las operaciones en curso deben terminar primero. En Android, el idioma y la apariencia cambian de inmediato, sin reiniciar.
 
@@ -124,8 +126,8 @@ Más capturas: [Álbum y canciones](docs/images/android%20novo/album-discovery-e
 ## Inicio rápido
 
 1. Elige la carpeta de destino en **Configuración**.
-2. En **Enlaces** (Windows) o **Descargas** (Android), pega el enlace, elige el formato y pulsa **Descargar ahora**, o añádelo a la cola.
-3. En **Álbumes y listas de reproducción**, carga un enlace o importa un archivo, selecciona los elementos y elige las opciones de descarga.
+2. En **Descargas**, tanto en Windows como en Android, pega el enlace, elige el formato y pulsa **Descargar ahora**, o añádelo a la cola.
+3. En **Colección**, carga un enlace o importa un archivo, selecciona los elementos y elige las opciones de descarga.
 4. Usa **Imágenes** para convertir fotos y **Efectos** para editar una canción local.
 
 Los álbumes usan una subcarpeta `Artista - Álbum`; las listas usan su propio nombre. La ayuda detallada está en el [manual](Onda/README.md) (en portugués).

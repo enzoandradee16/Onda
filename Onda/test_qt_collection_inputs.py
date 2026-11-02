@@ -216,3 +216,33 @@ class CollectionInputTests(unittest.TestCase):
             self.assertFalse(warnings, '\n'.join(warnings))
         finally:
             close_application(engine, bridge)
+
+    def test_collection_bulk_actions_include_only_visible_selected_tracks(self):
+        self.ws.collection_loaded(
+            dict(
+                title='Collection',
+                kind='album',
+                release_date='1990-05-25',
+                tracks=[
+                    dict(
+                        title='Hidden',
+                        artists=['Other'],
+                        source_url='https://example.com/hidden',
+                    ),
+                    dict(
+                        title='Visible',
+                        artists=['Cindy'],
+                        source_url='https://example.com/visible',
+                    ),
+                ],
+            )
+        )
+        self.ws.collection_filter.setFilters('visible', 'cindy', '', '1990')
+        with patch.object(self.ws, 'enqueue_tracks') as enqueue:
+            self.ws.dispatch('playlist_add', {})
+        self.assertEqual(
+            [row['title'] for row in enqueue.call_args.args[0]], ['Visible']
+        )
+        self.assertTrue(self.ws.models['playlists'].rows[0]['checked'])
+        self.ws.collection_loaded(dict(title='Next', tracks=[]))
+        self.assertEqual(self.ws.collection_filter.filters['title'], '')

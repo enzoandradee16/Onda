@@ -68,7 +68,7 @@ class CollectionInputFeaturesTest {
         try {
             compose.setContent {OndaApp(vm)}
             compose.onNodeWithText("Mais").performClick()
-            compose.onNodeWithTag("more-Álbuns e playlists").performScrollTo().performClick()
+            compose.onNodeWithTag("more-Coleção").performScrollTo().performClick()
             compose.runOnIdle {vm.busy.value=true;vm.status.value="Carregando álbum ou playlist…"}
             compose.onAllNodesWithText("Cancelar").assertCountEquals(1)
             compose.runOnIdle {vm.busy.value=false}

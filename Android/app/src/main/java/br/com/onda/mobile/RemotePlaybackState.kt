@@ -21,6 +21,7 @@ internal data class RemotePlaybackState(
     val artworkId: String = "", val artwork: ByteArray? = null, val artworkUrl:String="",
     val queue: List<RemoteQueueTrack> = emptyList(), val queueTotal: Int = 0,
     val queueRevision: Long = -1, val queueLoading: Boolean = false,
+    val lyrics: List<Pair<Double,String>> = emptyList(), val lyricsRevision: String = "",
     val notice: String = "",
     val effects: RemoteEffects = RemoteEffects(), val jukebox: RemoteJukebox = RemoteJukebox(), val effectsPending: Boolean = false,
     val searchBusy: Boolean = false, val searchRows: List<RemoteQueueTrack> = emptyList(), val searchMessage: String = "", val searchBatch: String = "",
@@ -40,3 +41,17 @@ internal fun RemotePlaybackState.notificationSignature(artwork:Any?):List<Any?> 
 
 
 internal fun RemotePlaybackState.presentationSnapshot():RemotePlaybackState = copy(position=0.0,receivedAt=0L)
+
+/** One bounded document per revision; the playback clock never reparses lyric text. */
+internal fun readRemoteLyrics(document:org.json.JSONObject):List<Pair<Double,String>> {
+    val rows=document.optJSONArray("lines") ?: return emptyList()
+    var remaining=120000
+    return (0 until rows.length().coerceAtMost(2000)).mapNotNull {index->
+        val row=rows.optJSONObject(index) ?: return@mapNotNull null
+        val time=row.optDouble("time",Double.NaN)
+        if(!time.isFinite() || time !in 0.0..86400.0 || remaining<=0)return@mapNotNull null
+        val text=row.optString("text").take(minOf(300,remaining))
+        remaining-=text.length
+        time to text
+    }.sortedBy {it.first}
+}

@@ -318,13 +318,13 @@ class UiMixin:
         self.catalog_page = LazyPane(self.pages, self, "catalog_ui", "CatalogPane")
         self.pages.add(self.catalog_page, text=tr("Pesquisar músicas"))
         self.pages.add(self.download_page, text=tr("Links"))
-        self.pages.add(self.queue_page, text=tr("Fila"))
+        self.pages.add(self.queue_page, text=tr("Downloads"))
         self.effects_page = LazyPane(self.pages, self, "playback_ui", "PlaybackPane")
         self.playlist_page = LazyPane(self.pages, self, "playlist_ui", "PlaylistPane")
         self.history_page = LazyPane(self.pages, self, "history_ui", "HistoryPane")
         self.images_page = LazyPane(self.pages, self, "images_ui", "ImagesPane")
         self.pages.add(self.images_page, text=tr("Imagens"))
-        self.pages.add(self.playlist_page, text=tr("Álbuns e playlists"))
+        self.pages.add(self.playlist_page, text=tr("Coleção"))
         self.pages.add(self.history_page, text=tr("Histórico"))
         self.pages.add(self.effects_page, text=tr("Reprodução e efeitos"))
         self.metadata_page = LazyPane(
@@ -485,7 +485,7 @@ class UiMixin:
             card, text=tr("Normalizar volume"), variable=self.normalize_volume
         ).grid(row=4, column=0, sticky="w", pady=(4, 0))
 
-        ttk.Button(main, text=tr("Ver fila"), command=self.show_queue).grid(
+        ttk.Button(main, text=tr("Ver downloads"), command=self.show_queue).grid(
             row=3, column=0, sticky="e", pady=12
         )
         self.link_status_label = ttk.Label(

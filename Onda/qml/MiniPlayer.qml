@@ -124,9 +124,15 @@ ApplicationWindow {
         RowLayout {
             Layout.fillWidth: true
             Layout.preferredHeight:20;Layout.maximumHeight:20
-            Label {text: workspace.clock(mini.frame.position || 0);color: bridge.palette.muted}
-            MiniSlider { Layout.fillWidth: true; from: 0; to: Math.max(1,mini.frame.duration || 0); value: mini.frame.position || 0; enabled: mini.frame.duration>0; onMoved: workspace.seekLyrics(value,true) }
-            Label {text: "−"+workspace.clock(Math.max(0,(mini.frame.duration || 0)-(mini.frame.position || 0)));color: bridge.palette.muted}
+            Label {text: workspace.clock(miniTimeline.pressed?miniTimeline.previewPosition:mini.frame.position || 0);color: bridge.palette.muted}
+            MiniSlider {
+                id:miniTimeline;objectName:"miniTimeline";property real previewPosition:0
+                Layout.fillWidth:true;from:0;to:Math.max(1,mini.frame.duration || 0);enabled:mini.frame.duration>0
+                Binding {target:miniTimeline;property:"value";value:mini.frame.position || 0;when:!miniTimeline.pressed;restoreMode:Binding.RestoreNone}
+                onMoved:{previewPosition=value;if(!pressed)workspace.seekLyrics(value,true)}
+                onPressedChanged:{if(pressed)previewPosition=value;else workspace.seekLyrics(previewPosition,true)}
+            }
+            Label {text: "−"+workspace.clock(Math.max(0,(mini.frame.duration || 0)-(miniTimeline.pressed?miniTimeline.previewPosition:mini.frame.position || 0)));color: bridge.palette.muted}
         }
         RowLayout {
             Layout.fillWidth: true; Layout.preferredHeight:42;Layout.maximumHeight:42;spacing: 8

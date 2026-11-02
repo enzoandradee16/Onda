@@ -24,6 +24,8 @@ No PC, clique com o botão direito nas listas ou cards para abrir as ações dis
 
 No PC, a aba **Reprodução** fica na categoria **Biblioteca** da barra lateral. No Android, permanece na barra inferior.
 
+Músicas de catálogo podem ser ouvidas por streaming no PC e no Android, sem salvar o arquivo completo no cache de áudio quando os efeitos estão desligados. A preparação dos efeitos acontece em segundo plano e mantém o áudio atual até a nova versão ficar pronta.
+
 ## Destaques do aplicativo
 
 - **Windows:** ao clicar em Baixar agora na pesquisa, escolha MP3, M4A, FLAC ou áudio original e a qualidade disponível. A janela parte das preferências salvas e permite baixar ou adicionar à fila; cancelar não inicia o download. A escolha vale para aquela música.
@@ -63,7 +65,7 @@ No Android, controles com símbolos, seletores, caixas de seleção e barras de 
 
 ## Fila e reinício
 
-Na **Fila** do Windows e em **Downloads** no Android, escolha a exibição compacta ou em cards e ajuste o tamanho pelo controle discreto na própria aba. No Windows, **Ctrl + rolagem do mouse** também altera o tamanho dos cards. O tamanho da fila é independente do histórico. Os cards completos mostram capa, artista, álbum, duração e outros metadados fornecidos pela fonte. No Histórico, “Limpar histórico”, visualização e tamanho ficam alinhados horizontalmente, centralizados abaixo da pesquisa. As opções de exibição ficam também em Aparência. A visualização e o tamanho dos cards da fila e do histórico são salvos ao reabrir, mesmo com “Lembrar configurações” desativado.
+Em **Downloads**, no Windows e no Android, escolha a exibição compacta ou em cards e ajuste o tamanho pelo controle discreto na própria aba. No Windows, **Ctrl + rolagem do mouse** também altera o tamanho dos cards. O tamanho da fila é independente do histórico. Os cards completos mostram capa, artista, álbum, duração e outros metadados fornecidos pela fonte. No Histórico, “Limpar histórico”, visualização e tamanho ficam alinhados horizontalmente, centralizados abaixo da pesquisa. As opções de exibição ficam também em Aparência. A visualização e o tamanho dos cards da fila e do histórico são salvos ao reabrir, mesmo com “Lembrar configurações” desativado.
 
 No Windows, **Reiniciar** aparece abaixo de Idioma apenas enquanto houver uma alteração de idioma pendente. Voltar ao idioma atual remove a pendência. A fila é preservada ao reiniciar; operações em andamento precisam terminar primeiro. No Android, o idioma e a aparência mudam imediatamente, sem reinício.
 
@@ -127,7 +129,7 @@ Outras capturas: [Álbum e faixas](docs/images/android%20novo/album-discovery-es
 
 1. Escolha a pasta de destino em **Configurações**.
 2. Em **Links** no Windows ou **Downloads** no Android, cole o link, escolha o formato e use **Baixar agora** ou adicione à fila.
-3. Em **Álbuns e playlists**, carregue o link ou importe um arquivo, selecione os itens e escolha as opções de download.
+3. Em **Coleção**, carregue o link ou importe um arquivo, selecione os itens e escolha as opções de download.
 4. Use **Imagens** para conversão de fotos e **Efeitos** para editar uma música local.
 
 Álbuns usam uma subpasta `Artista - Álbum`; playlists usam o nome da playlist. A ajuda detalhada está no [manual](Onda/README.md).

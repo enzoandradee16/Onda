@@ -6,13 +6,13 @@ import threading
 from urllib.parse import urlsplit
 
 
-def resolve(config, record, cancelled=lambda: False):
+def resolve(config, record, cancelled=lambda: False, *, source_url=""):
     from yt_dlp import YoutubeDL
     from engine import build_options, validate_url
     from jukebox import SearchLog, check
     from metadata import is_streaming_link
 
-    source = record.get('source_url') or config.get('url', '')
+    source = source_url or record.get('source_url') or config.get('url', '')
     options = build_options(
         dict(config, mode='original', playlist=False, playlist_limit=1)
     )
@@ -36,6 +36,16 @@ def resolve(config, record, cancelled=lambda: False):
         socket_timeout=15,
         retries=1,
     )
+    host = (urlsplit(source).hostname or '').lower()
+    if any(
+        host == domain or host.endswith('.' + domain)
+        for domain in ('youtube.com', 'youtu.be')
+    ):
+        # Direct media URLs may resolve successfully yet reject FFmpeg with 403.
+        # Prefer the segmented audio and probe candidates before returning one.
+        options.update(
+            format='bestaudio[protocol^=m3u8]/bestaudio/best', check_formats='selected'
+        )
     options.pop('postprocessors', None)
     with YoutubeDL(options) as downloader:
         info = downloader.extract_info(validate_url(source), download=False)
@@ -56,7 +66,12 @@ def resolve(config, record, cancelled=lambda: False):
         if not any(c in str(k) + str(v) for c in '\r\n')
     }
     return dict(
-        _stream=dict(url=url, headers=headers),
+        _stream=dict(
+            url=url,
+            headers=headers,
+            source_url=source,
+            protocol=info.get('protocol') or '',
+        ),
         cache='',
         source='',
         title=record.get('title') or info.get('title') or 'ONDA',
@@ -71,6 +86,10 @@ def resolve(config, record, cancelled=lambda: False):
         neighbors=[[]],
         links=0,
     )
+
+
+class StreamUnavailableError(ValueError):
+    """The remote decoder failed; the same track can be resolved again once."""
 
 
 class NetworkAudio:
@@ -156,7 +175,7 @@ class NetworkAudio:
                 self.process = self._open(command)
             return self.read()
         if not data and not self.closed and self.process.wait(timeout=5) != 0:
-            raise ValueError(
+            raise StreamUnavailableError(
                 'Não foi possível reproduzir o áudio online. Tente abrir a música novamente.'
             )
         return data
@@ -174,14 +193,63 @@ class NetworkAudio:
             self.process.stdout.close()
 
 
+class RecoveringNetworkAudio:
+    """Refresh one expired/denied source, continuing after the PCM already read."""
+
+    def __init__(self, stream, folder='', start=0, refresh=None):
+        self.folder, self.start, self.refresh = folder, start, refresh
+        self.reader = NetworkAudio(stream, folder, start)
+        self.frames = 0
+        self.retried = False
+        self.cancelled = threading.Event()
+        self.lock = threading.Lock()
+
+    def read(self):
+        try:
+            data = self.reader.read()
+        except StreamUnavailableError:
+            if self.retried or self.refresh is None or self.cancelled.is_set():
+                raise
+            self.retried = True
+            self.reader.close()
+            stream = self.refresh()
+            with self.lock:
+                if self.cancelled.is_set():
+                    return b''
+                self.reader = NetworkAudio(
+                    stream, self.folder, self.start + self.frames / 44100
+                )
+            data = self.reader.read()
+        self.frames += len(data) // 4
+        return data
+
+    def cancel(self):
+        self.cancelled.set()
+        with self.lock:
+            self.reader.cancel()
+
+    def close(self):
+        self.cancel()
+        self.reader.close()
+
+
 class ReadAheadAudio:
     """A bounded raw-PCM reserve; live gain/EQ stay at the output, after buffering."""
 
-    def __init__(self, reader, blocks=12):
+    def __init__(self, reader, blocks=120):
         import queue
 
         self.reader = reader
-        self.blocks = queue.Queue(maxsize=max(1, min(30, int(blocks))))
+        self.blocks = queue.Queue(maxsize=max(1, min(120, int(blocks))))
+        self.warmup_blocks = min(30, self.blocks.maxsize)
+        self.ready = threading.Event()
+        self.primed = False
+        from collections import deque
+
+        self.history = deque()
+        self.cursor = 0
+        self.frontier = 0
+        self.history_limit = 44100 * 4 * 10
         self.cancelled = threading.Event()
         self.finished = False
         self.thread = threading.Thread(
@@ -195,6 +263,12 @@ class ReadAheadAudio:
         while not self.cancelled.is_set():
             try:
                 self.blocks.put(value, timeout=0.05)
+                if (
+                    self.blocks.qsize() >= self.warmup_blocks
+                    or not value[0]
+                    or value[1] is not None
+                ):
+                    self.ready.set()
                 return
             except queue.Full:
                 pass
@@ -209,10 +283,67 @@ class ReadAheadAudio:
         except Exception as error:
             self._put((b'', error))
 
-    def read(self):
+    def _remember(self, data):
+        if not data:
+            return
+        self.history.append((self.frontier, data))
+        self.frontier += len(data)
+        while (
+            len(self.history) > 1
+            and self.history[0][0] + len(self.history[0][1])
+            <= self.frontier - self.history_limit
+        ):
+            self.history.popleft()
+
+    def seek(self, seconds):
+        """Worker-owned seek into recent PCM or the already fetched forward reserve."""
+        target = round(seconds * 44100) * 4
+        oldest = self.history[0][0] if self.history else self.frontier
+        if self.cancelled.is_set() or target < oldest:
+            return False
+        with self.blocks.mutex:
+            available = 0
+            for data, error in self.blocks.queue:
+                if error is not None or not data:
+                    break
+                available += len(data)
+        if target > self.frontier + available:
+            return False
+        while self.frontier < target:
+            data, error = self.blocks.get_nowait()
+            self._remember(data)
+        self.cursor = target
+        return True
+
+    def read(self, interrupted=lambda: False):
         import queue
 
+        if interrupted():
+            raise InterruptedError()
+        if self.cancelled.is_set():
+            return b''
+        if self.cursor < self.frontier:
+            for start, data in self.history:
+                if start <= self.cursor < start + len(data):
+                    result = data[self.cursor - start :]
+                    self.cursor += len(result)
+                    return result
+
+        if not self.primed:
+            import time
+
+            deadline = time.monotonic() + 5
+            while not self.ready.wait(0.05):
+                if self.cancelled.is_set():
+                    return b''
+                if interrupted():
+                    raise InterruptedError()
+                if time.monotonic() >= deadline:
+                    break
+            self.primed = True
         while not self.finished and not self.cancelled.is_set():
+            if interrupted():
+                raise InterruptedError()
             try:
                 data, error = self.blocks.get(timeout=0.05)
             except queue.Empty:
@@ -222,11 +353,14 @@ class ReadAheadAudio:
                 raise error
             if not data:
                 self.finished = True
+            self._remember(data)
+            self.cursor = self.frontier
             return data
         return b''
 
     def cancel(self):
         self.cancelled.set()
+        self.ready.set()
         self.reader.cancel()
 
     def close(self):

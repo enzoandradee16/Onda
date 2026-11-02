@@ -11,6 +11,12 @@ PC e Android passam a apresentar uma tela **Reprodução**, com uma música sele
 | Desligado | Ligado | Navegação infinita entre trechos compatíveis da música original. |
 | Ligado | Ligado | Navegação infinita com os efeitos aplicados ao áudio reproduzido. |
 
+## Streaming na versão 1.2.5-rc
+
+Faixas de catálogo podem tocar por streaming no PC e no Android, sem salvar o arquivo completo no cache de áudio quando não há processamento ativo. O PC usa uma reserva de áudio em memória; o Android usa o player nativo com buffer e histórico de reprodução em memória. Endereços de streaming podem expirar e são resolvidos novamente quando necessário.
+
+Slowed, Jukebox e outros efeitos que exigem processamento preparam o áudio em segundo plano. A faixa atual continua tocando; a posição mais recente é usada quando a versão processada está pronta. A preparação pode usar o cache de áudio. Desligar o processamento permite voltar à reprodução normal. A sessão conserva a faixa e a posição, sem persistir os endereços temporários e seus cabeçalhos de acesso.
+
 ## Interface
 
 No PC, o acesso fica em **Biblioteca → Reprodução** na barra lateral e nas configurações de ordem/visibilidade. No Android, **Reprodução** continua no mesmo lugar da barra inferior.

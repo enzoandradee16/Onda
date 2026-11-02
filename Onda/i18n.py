@@ -43,8 +43,10 @@ def patterns(language="en"):
         ]
         if not names:
             continue
+        numeric_pair = key in ('{visible} de {total}', '{position} de {duration}')
+        capture = r"(\d[\d:.,]*)" if numeric_pair else "(.+?)"
         pattern = "".join(
-            "(.+?)" if part.startswith("{") and part.endswith("}") else re.escape(part)
+            capture if part.startswith("{") and part.endswith("}") else re.escape(part)
             for part in parts
         )
         result.append((re.compile(pattern, re.DOTALL), names, value))

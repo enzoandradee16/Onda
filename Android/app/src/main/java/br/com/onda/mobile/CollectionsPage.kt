@@ -52,6 +52,23 @@ import org.json.JSONObject
     val adding by vm.addingToQueue.collectAsStateWithLifecycle()
     var url by rememberSaveable {mutableStateOf("")}
     var filter by rememberSaveable {mutableStateOf("")}
+    var artistFilter by rememberSaveable {mutableStateOf("")}
+    var albumFilter by rememberSaveable {mutableStateOf("")}
+    var releaseFilter by rememberSaveable {mutableStateOf("")}
+    var libraryQuery by rememberSaveable {mutableStateOf("")}
+    var libraryKind by rememberSaveable {mutableStateOf("")}
+    var releaseDate by rememberSaveable {mutableStateOf("")}
+    var creationDate by rememberSaveable {mutableStateOf("")}
+    var librarySort by rememberSaveable {mutableStateOf("")}
+    var libraryDescending by rememberSaveable {mutableStateOf(false)}
+    var trackSort by rememberSaveable {mutableStateOf("")}
+    var trackDescending by rememberSaveable {mutableStateOf(false)}
+    val savedIndex=remember(saved){collectionFilterIndex(saved,true)}
+    val spotifyIndex=remember(spotifyPlaylists){collectionFilterIndex(spotifyPlaylists,true)}
+    val savedVisible=remember(savedIndex,libraryQuery,libraryKind,releaseDate,creationDate,librarySort,libraryDescending){
+        orderCollectionRows(filterCollectionEntries(savedIndex,libraryQuery,kind=libraryKind,collections=true).filter {row->collectionDateMatches(collectionDate(row),if(row.optString("kind")=="album")releaseDate else creationDate)},librarySort,libraryDescending)
+    }
+    val spotifyVisible=remember(spotifyIndex,libraryQuery,creationDate,librarySort,libraryDescending){orderCollectionRows(filterCollectionEntries(spotifyIndex,libraryQuery,date=creationDate,collections=true),librarySort,libraryDescending)}
     var selected by remember {mutableStateOf(setOf<String>())}
     var options by remember {mutableStateOf(OndaStore.collectionOptions())}
     LaunchedEffect(options) {OndaStore.saveCollectionOptions(options)}
@@ -62,7 +79,7 @@ import org.json.JSONObject
             vm.compareCollectionLocal(tree,url,options,syncReload)
         }
     }
-    LaunchedEffect(collection.optString("_collection_url"),collection.optString("title")){selected=emptySet();filter=""}
+    LaunchedEffect(collection.optString("_collection_url"),collection.optString("title")){selected=emptySet();filter="";artistFilter="";albumFilter="";releaseFilter=""}
     val import=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) {uri->if(uri!=null) vm.importLocal(uri,"playlist") {vm.importCollection(it.absolutePath)}}
     var exported by remember {mutableStateOf("")}
     val export=rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) {uri->if(uri!=null) OndaStore.context.contentResolver.openOutputStream(uri)?.use {it.write(exported.toByteArray())}}
@@ -74,16 +91,16 @@ import org.json.JSONObject
     val syncItems=remember(comparison) {comparison?.optJSONArray("items")?.objects()?.associateBy {it.optInt("index")} ?: emptyMap()}
     val missingTracks=remember(tracks,comparison) {tracks.filterIndexed {index,_->syncItems[index]?.optString("state")=="missing"}}
     val syncBySource=remember(tracks,comparison) {tracks.mapIndexed {index,record->record.optString("source_url") to syncItems[index]}.toMap()}
-    val searchIndex=remember(tracks) {tracks.map {it to (it.optString("title")+" "+it.stringList("artists")).lowercase(java.util.Locale.ROOT)}}
-    var settledFilter by remember {mutableStateOf(filter)}
-    LaunchedEffect(filter) {delay(150);settledFilter=filter}
-    val visible=remember(searchIndex,settledFilter) {
-        val term=settledFilter.lowercase(java.util.Locale.ROOT)
-        searchIndex.filter {(_,text)->term in text}.map {(record,_)->record}
+    val searchIndex=remember(tracks) {collectionFilterIndex(tracks)}
+    var settledFilters by remember {mutableStateOf(listOf(filter,artistFilter,albumFilter,releaseFilter))}
+    val requestedFilters=listOf(filter,artistFilter,albumFilter,releaseFilter)
+    LaunchedEffect(requestedFilters) {delay(150);settledFilters=requestedFilters}
+    val visible=remember(searchIndex,settledFilters,trackSort,trackDescending) {
+        orderCollectionRows(filterCollectionEntries(searchIndex,settledFilters[0],settledFilters[1],settledFilters[2],date=settledFilters[3]),trackSort,trackDescending)
     }
     LaunchedEffect(visible) {OndaStore.selectAll.collect {selected=selected+visible.map {it.optString("source_url")}}}
-    val chosenTracks=remember(visible,selected,filter,settledFilter) {
-        if(filter!=settledFilter) emptyList() else visible.filter {it.optString("source_url") in selected}
+    val chosenTracks=remember(visible,selected,requestedFilters,settledFilters) {
+        if(requestedFilters!=settledFilters) emptyList() else visible.filter {it.optString("source_url") in selected}
     }
     fun chosen()=chosenTracks
     fun enqueue(now: Boolean) {
@@ -99,12 +116,23 @@ import org.json.JSONObject
 
     }
     NavigableList(Modifier.fillMaxSize().imePadding().padding(horizontal=20.dp),navigationId="collection",state=listState) {
-        item {ToolHeading("Álbuns e playlists")}
+        item {ToolHeading("Coleção")}
         item {
             OutlinedTextField(url,{url=it},label={UiText("Link da playlist ou álbum")},singleLine=true,modifier=Modifier.fillMaxWidth(),keyboardOptions=androidx.compose.foundation.text.KeyboardOptions(imeAction=androidx.compose.ui.text.input.ImeAction.Go),keyboardActions=androidx.compose.foundation.text.KeyboardActions(onGo={if(!busy&&url.isNotBlank()){libraryTab=1;vm.loadCollection(url,options)}}))
             Button(onClick={if(busy)vm.cancel() else {libraryTab=1;vm.loadCollection(url,options)}},enabled=busy||url.isNotBlank()) {UiText(if(busy)"Cancelar" else if(tracks.isNotEmpty()&&collection.optString("_collection_url")==url)"Atualizar" else "Carregar")}
         }
         item {ToolTabs(listOf("Salvos","Importar","Spotify"),libraryTab){libraryTab=it}}
+        if(libraryTab!=1)item {
+            OutlinedTextField(libraryQuery,{libraryQuery=it},label={UiText("Buscar coleções")},singleLine=true,modifier=Modifier.fillMaxWidth().testTag("collection-library-query"))
+            if(libraryTab==0)Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                listOf("" to "Todos","album" to "Álbuns","playlist" to "Playlists").forEach {(kind,label)->FilterChip(selected=libraryKind==kind,onClick={libraryKind=kind},label={UiText(label)})}
+            }
+            if(libraryTab==0 && libraryKind!="playlist")OutlinedTextField(releaseDate,{releaseDate=it},label={UiText("Data de lançamento")},placeholder={UiText("AAAA ou AAAA-MM-DD")},singleLine=true,modifier=Modifier.fillMaxWidth())
+            if(libraryTab==2 || libraryKind!="album")OutlinedTextField(creationDate,{creationDate=it},label={UiText("Data de criação")},placeholder={UiText("AAAA ou AAAA-MM-DD")},singleLine=true,modifier=Modifier.fillMaxWidth())
+            if(creationDate.isNotBlank())UiText("Somente coleções com data informada pelo serviço.",style=MaterialTheme.typography.bodySmall)
+            CollectionOrdering(librarySort,libraryDescending,listOf("" to "Ordem original","title" to "Nome","date" to "Data de criação / lançamento"),{librarySort=it},{libraryDescending=it})
+            TextButton(onClick={libraryQuery="";libraryKind="";releaseDate="";creationDate=""}){UiText("Limpar filtros")}
+        }
         if(libraryTab==2) {
             item {
                 Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
@@ -115,7 +143,8 @@ import org.json.JSONObject
                 if(busy)LinearProgressIndicator(Modifier.fillMaxWidth())
             }
             if(spotifyPlaylists.isEmpty() && spotifyConnected && !busy)item {ToolEmpty("album","Nenhuma playlist encontrada","As playlists da conta conectada aparecerão aqui.")}
-            items(spotifyPlaylists,key={it.optString("id")},contentType={"spotify_playlist"}) {row->
+            if(spotifyPlaylists.isNotEmpty() && spotifyVisible.isEmpty())item {ToolEmpty("search","Nenhuma coleção encontrada","Tente outros filtros.")}
+            items(spotifyVisible,key={it.optString("id")},contentType={"spotify_playlist"}) {row->
                 ToolCard(Modifier.testTag("spotify-playlist-"+row.optString("id"))) {
                     Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
                         Surface(Modifier.size(72.dp),shape=RoundedCornerShape(10.dp),color=MaterialTheme.colorScheme.surfaceVariant) {
@@ -144,8 +173,9 @@ import org.json.JSONObject
             }
             if(spotifyNext>=0)item {OutlinedButton(enabled=!busy,onClick={vm.loadSpotifyPlaylists(true)},modifier=Modifier.fillMaxWidth()){UiText("Carregar mais")}}
         } else         if(libraryTab==0) {
+            if(saved.isNotEmpty() && savedVisible.isEmpty())item {ToolEmpty("search","Nenhuma coleção encontrada","Tente outros filtros.")}
             if(saved.isEmpty())item {ToolEmpty("album","Suas coleções ficam aqui","Importe um álbum ou playlist e salve para acessar depois.")}
-            items(saved,key={CollectionsLibrary.identity(it)},contentType={"saved_collection"}) {row->
+            items(savedVisible,key={CollectionsLibrary.identity(it)},contentType={"saved_collection"}) {row->
                 ToolCard(Modifier.clickable {vm.collection.value=JSONObject(row.toString());vm.collectionComparison.value=null;url=row.optString("_collection_url");selected=emptySet();filter="";libraryTab=1}) {
                     Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
                         Surface(Modifier.size(80.dp),shape=RoundedCornerShape(12.dp),color=MaterialTheme.colorScheme.surfaceVariant){
@@ -155,6 +185,7 @@ import org.json.JSONObject
                         Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(4.dp)) {
                             Text(row.optString("title"),style=MaterialTheme.typography.titleMedium,maxLines=2)
                             Text(row.optString("subtitle"),style=MaterialTheme.typography.bodySmall)
+                            if(collectionDate(row).isNotBlank())Text(collectionDate(row),style=MaterialTheme.typography.bodySmall)
                             UiText("${row.optJSONArray("tracks")?.length() ?: 0} músicas",style=MaterialTheme.typography.bodySmall)
                         }
                         var menu by remember {mutableStateOf(false)}
@@ -205,7 +236,19 @@ import org.json.JSONObject
                 if(collection.cleanString("note").isNotBlank()) UiText(collection.cleanString("note"),style=MaterialTheme.typography.bodySmall,modifier=Modifier.padding(bottom=8.dp))
             }
         }
-        item {OutlinedTextField(filter,{filter=it},label={UiText("Buscar nesta lista")},modifier=Modifier.fillMaxWidth(),singleLine=true);UiText("${visible.size} de ${tracks.size}",style=MaterialTheme.typography.bodySmall)}
+        item {
+            OutlinedTextField(filter,{filter=it},label={UiText("Título")},modifier=Modifier.fillMaxWidth().testTag("collection-title-filter"),singleLine=true)
+            Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(artistFilter,{artistFilter=it},label={UiText("Artista")},modifier=Modifier.weight(1f),singleLine=true)
+                OutlinedTextField(albumFilter,{albumFilter=it},label={UiText("Álbum")},modifier=Modifier.weight(1f),singleLine=true)
+            }
+            OutlinedTextField(releaseFilter,{releaseFilter=it},label={UiText("Data de lançamento")},placeholder={UiText("AAAA ou AAAA-MM-DD")},modifier=Modifier.fillMaxWidth(),singleLine=true)
+            CollectionOrdering(trackSort,trackDescending,listOf("" to "Ordem original","title" to "Título","artist" to "Artista","album" to "Álbum","release_date" to "Data de lançamento"),{trackSort=it},{trackDescending=it})
+            Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+                UiText("${visible.size} de ${tracks.size}",Modifier.weight(1f),style=MaterialTheme.typography.bodySmall)
+                TextButton(onClick={filter="";artistFilter="";albumFilter="";releaseFilter=""}){UiText("Limpar filtros")}
+            }
+        }
         item {collectionActions()}
         if(adding)item {LinearProgressIndicator(Modifier.fillMaxWidth())}
         items(visible,key={row->requireNotNull(trackKeys[row])},contentType={"collection_track"}) {original->
@@ -239,4 +282,15 @@ import org.json.JSONObject
         NavigableList(Modifier.weight(1f),navigationId="collection-dialog") {items(visible){UiText("${it.stringList("artists")} - ${it.optString("title")}",Modifier.padding(vertical=8.dp))}}
         TextButton(onClick={listOnly=false}){UiText("Fechar")}
     }}}
+}
+
+@Composable private fun CollectionOrdering(field:String,descending:Boolean,options:List<Pair<String,String>>,onField:(String)->Unit,onDirection:(Boolean)->Unit) {
+    var open by remember {mutableStateOf(false)}
+    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+        Box(Modifier.weight(1f)) {
+            TextButton(onClick={open=true}) {UiText("Ordenar por");Text(": ");UiText(options.first {it.first==field}.second)}
+            DropdownMenu(open,{open=false}) {options.forEach {(key,label)->DropdownMenuItem(text={UiText(label)},onClick={onField(key);open=false})}}
+        }
+        TextButton(enabled=field.isNotBlank(),onClick={onDirection(!descending)}) {UiText(if(descending)"Decrescente" else "Crescente")}
+    }
 }

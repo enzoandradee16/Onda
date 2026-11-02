@@ -22,12 +22,12 @@
     "image_height": "1080",
     "image_keep_ratio": true,
     "tab_order": [
-      "catalog",
-      "downloads",
-      "queue",
-      "playlists",
-      "history",
       "effects",
+      "catalog",
+      "playlists",
+      "queue",
+      "downloads",
+      "history",
       "images",
       "converter",
       "metadata"
@@ -486,7 +486,7 @@
     {
       "category": "Aparência",
       "key": "queue_card_size",
-      "label": "Tamanho dos cards da fila",
+      "label": "Tamanho dos cards de downloads",
       "kind": "select",
       "choices": [
         "Pequeno",

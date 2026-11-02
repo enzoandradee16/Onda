@@ -28,7 +28,7 @@ Referência de recursos existentes, diferenças entre plataformas e localizaçã
 - [5. Formatos, qualidade e publicação de arquivos](#sec-05)
 - [6. Fila de downloads](#sec-06)
 - [7. Histórico e arquivos baixados](#sec-07)
-- [8. Álbuns e playlists](#sec-08)
+- [8. Coleção](#sec-08)
 - [9. Reprodução compartilhada: Efeitos e Jukebox](#sec-09)
 - [10. Letras](#sec-10)
 - [11. Imagens, carrosséis e prévias](#sec-11)
@@ -81,9 +81,9 @@ Referência de recursos existentes, diferenças entre plataformas e localizaçã
 | --- | --- | --- | --- |
 | Pesquisa de músicas | Página própria | Pesquisar na barra inferior | `Onda/qml/LibraryView.qml`; `Android/.../MainActivity.kt` |
 | Entrada de links | Página Links | Adicionar links pelo + de Downloads | `Onda/qml/DownloadsView.qml`; `Android/.../DownloadsHome.kt` |
-| Fila de downloads | Página Fila | Downloads, Em andamento | Mesmos componentes acima |
+| Fila de downloads | Página Downloads | Downloads, Em andamento | Mesmos componentes acima |
 | Histórico | Página Histórico | Downloads/Concluídos e ferramentas relacionadas | `LibraryView.qml`; `HistoryPage.kt`; `DownloadsHome.kt` |
-| Álbuns e playlists | Página própria | Menu Mais, Salvos/Importar | `LibraryView.qml`; `CollectionsPage.kt` |
+| Coleção | Página própria | Menu Mais, Salvos/Importar | `LibraryView.qml`; `CollectionsPage.kt` |
 | Reprodução | Efeitos/Jukebox dentro de Reprodução e efeitos | Reprodução com Efeitos/Jukebox | `ToolView.qml`; `JukeboxView.qml`; `MainActivity.kt`; `Jukebox.kt` |
 | Imagens, Conversor, Editar metadados | Páginas próprias | Menu Mais | `ToolView.qml`; `ImagesPage.kt`; `VideoConverterPage.kt`; `MetadataPage.kt` |
 | Configurações e Aparência | Janelas próprias | Ícones de configurações e aparência | `SettingsPopup.qml`; `SettingsWindow.kt`; `AppearanceWindow.kt` |
@@ -272,7 +272,7 @@ Nos caminhos abreviados `Android/.../`, o diretório é `Android/app/src/main/ja
 
 <a id="sec-08"></a>
 
-## 8. Álbuns e playlists
+## 8. Coleção
 
 ### Carregamento e seleção
 
@@ -288,7 +288,7 @@ Nos caminhos abreviados `Android/.../`, o diretório é `Android/app/src/main/ja
 - Exibir carregadas/total quando conhecido ou total não confirmado; conferir os links com TXT/M3U/CSV sem substituir a coleção.
 - Ações secundárias em Mais ações e ações por faixa.
 - Android oferece biblioteca local de coleções salvas, abrir/remover coleção salva e visualização de lista.
-- Efeitos/Jukebox recebem links de coleções nos seus próprios campos e nas pesquisas das filas. Os antigos botões de enviar uma coleção a esses players na página Álbuns e playlists não são o fluxo principal atual.
+- Efeitos/Jukebox recebem links de coleções nos seus próprios campos e nas pesquisas das filas. Os antigos botões de enviar uma coleção a esses players na página Coleção não são o fluxo principal atual.
 
 ### Integração com reprodução e limites
 

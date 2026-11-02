@@ -28,7 +28,7 @@ GROUPS = {
         'interface_font_size': 'Alterar tamanho da fonte',
         'queue_view': 'Exibição da fila',
         'queue_actions_at_top': 'Mostrar ações antes das listas',
-        'queue_card_size': 'Tamanho dos cards da fila',
+        'queue_card_size': 'Tamanho dos cards de downloads',
         'simple_download_ui': 'Simplificar controles de download',
         'hidden_tabs': 'Mostrar ou ocultar abas',
         'tab_order': 'Ordem das abas',

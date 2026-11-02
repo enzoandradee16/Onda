@@ -22,6 +22,18 @@ class CompleteLocalizationTest {
             assertEquals(key,value,translateUi(key,language,context))
         }
     }
+    @Test fun countTemplatesPreserveNamesAndRemoteErrorsTranslateCompletely() {
+        val context=InstrumentationRegistry.getInstrumentation().targetContext
+        for(language in listOf("en","es")) {
+            assertEquals("A Night de Tokyo",translateUi("A Night de Tokyo",language,context))
+            assertEquals("Canção de verão sem tradução cadastrada",translateUi("Canção de verão sem tradução cadastrada",language,context))
+        }
+        assertEquals("00:12 of 04:30",translateUi("00:12 de 04:30","en",context))
+        assertEquals("The connection changed. Try again.",translateUi("A conexão mudou. Tente novamente.","en",context))
+        assertEquals("La conexión ha cambiado. Inténtalo de nuevo.",translateUi("A conexão mudou. Tente novamente.","es",context))
+        assertEquals("This phone's queue is full.",translateUi("A fila deste telefone está cheia.","en",context))
+    }
+
     @Test fun backendNotesAndCountsTranslateWithoutChangingNames() {
         val context=InstrumentationRegistry.getInstrumentation().targetContext
         assertEquals("Discovery · 14 items. Spotify album via API; original order and edition.",translateUi("Discovery · 14 itens. Álbum Spotify via API; ordem e edição originais.","en",context))

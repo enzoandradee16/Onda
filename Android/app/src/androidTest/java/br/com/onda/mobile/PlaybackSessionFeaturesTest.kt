@@ -59,6 +59,8 @@ class PlaybackSessionFeaturesTest {
                 val restored=JukeboxController(context,scope,{}, {_,_,_->calls++;JSONObject()})
                 assertEquals(1.5,restored.playbackQueue.value.first().getDouble("_restore_seconds"),0.0)
                 assertFalse(restored.state.value.playing)
+                assertEquals("Restored Jukebox",restored.state.value.title)
+                assertNull(restored.state.value.model)
                 restored.savePlaybackSession(synchronous=true)
                 assertEquals(1.5,PlaybackSessions.load(context,"jukebox")!!.getDouble("seconds"),0.0)
                 assertEquals(0,calls);restored.close()
@@ -68,6 +70,28 @@ class PlaybackSessionFeaturesTest {
             preferences.edit().apply {if(oldEffects==null)remove("effects") else putString("effects",oldEffects);if(oldJuke==null)remove("jukebox") else putString("jukebox",oldJuke)}.commit()
             source.delete();File(folder,"analysis.json").delete();folder.delete()
         }
+    }
+    @Test fun compactPlayerShowsRecoveredTrackWithoutPreparedCache() {
+        OndaStore.initialize(context)
+        val store=ViewModelStore()
+        lateinit var vm:OndaViewModel
+        lateinit var oldState:JukeboxState
+        var oldRows=emptyList<JSONObject>()
+        var oldId=""
+        compose.runOnIdle {
+            vm=ViewModelProvider(store,ViewModelProvider.AndroidViewModelFactory.getInstance(ApplicationProvider.getApplicationContext()))[OndaViewModel::class.java]
+            oldState=vm.jukebox.state.value;oldRows=vm.jukebox.playbackQueue.value;oldId=vm.jukebox.currentQueueId.value
+            vm.jukebox.currentQueueId.value="recovered-ui"
+            vm.jukebox.playbackQueue.value=listOf(JSONObject().put("_queue_id","recovered-ui").put("title","Recovery fixture").put("source_url","https://example.com/track").put("artists",JSONArray().put("Artist")).put("duration_ms",90000).put("_restore_seconds",25))
+            vm.jukebox.state.value=JukeboxState(title="Recovery fixture")
+        }
+        try {
+            compose.setContent {MaterialTheme {AndroidPlaybackSurface(vm)}}
+            compose.onNodeWithTag("android-compact-player").assertExists()
+            compose.onNodeWithText("Recovery fixture").assertExists()
+            compose.onNodeWithText(mediaClock(25)).assertExists()
+            compose.onNodeWithTag("compact-player-toggle").assertIsEnabled()
+        } finally {compose.runOnIdle {vm.jukebox.state.value=oldState;vm.jukebox.playbackQueue.value=oldRows;vm.jukebox.currentQueueId.value=oldId;store.clear()}}
     }
     @Test fun replacingFailedLinkPreservesIdentityAndDownloadOptions() {
         OndaStore.initialize(context)

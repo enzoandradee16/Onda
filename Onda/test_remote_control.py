@@ -38,6 +38,32 @@ class RemoteControlTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.token = result['token']
 
+    def test_lyrics_require_pairing_and_publish_a_detached_document(self):
+        self.assertEqual(self.request('/v1/lyrics')[0], 401)
+        self.pair()
+        document = dict(
+            track_id='song', revision='one', lines=[dict(time=2.5, text='君を信じて')]
+        )
+        self.server.update_lyrics(document)
+        document['lines'].clear()
+        status, received = self.request('/v1/lyrics')
+        self.assertEqual(status, 200)
+        self.assertEqual(received['lines'], [dict(time=2.5, text='君を信じて')])
+        self.server.update_lyrics(dict(track_id='next', revision='two', lines=[]))
+        self.assertEqual(self.request('/v1/lyrics')[1]['lines'], [])
+
+    def test_active_connection_expires_without_revoking_pairing(self):
+        self.assertFalse(self.server.connected)
+        self.pair()
+        self.assertTrue(self.server.connected)
+        self.server.last_seen -= 9
+        self.assertFalse(self.server.connected)
+        self.assertTrue(self.server.paired)
+        self.assertEqual(self.request('/v1/state')[0], 200)
+        self.assertTrue(self.server.connected)
+        self.server.revoke()
+        self.assertFalse(self.server.connected)
+
     def test_state_and_commands_require_pairing(self):
         self.assertEqual(self.request('/v1/state')[0], 401)
         self.assertEqual(self.request('/v1/command', {'command': 'toggle'})[0], 401)

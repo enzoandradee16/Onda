@@ -25,6 +25,7 @@ class JukeboxBridge(QObject):
     changed = Signal()
     messageRequested = Signal(str, str)
     playbackRequested = Signal()
+    seekRequested = Signal()
     queueChanged = Signal()
     playbackParamsChanged = Signal()
     tracksAdded = Signal('QStringList')
@@ -39,6 +40,7 @@ class JukeboxBridge(QObject):
         super().__init__(parent)
         self._state_revision = 0
         self._transport_revision = 0
+        self._seek_serial = 0
         self.changed.connect(self._advance_state_revision)
         self.store = store or PreferenceStore()
         try:
@@ -980,6 +982,8 @@ class JukeboxBridge(QObject):
 
     @Property(float, notify=positionChanged)
     def sourcePosition(self):
+        if self.model is None and 0 <= self.queue_index < len(self.playlist):
+            return float(self.playlist[self.queue_index].get('restore_seconds', 0))
         if (self.model or {}).get('_stream'):
             return self.online.position
         beats = (self.model or {}).get('beats', [])
@@ -992,18 +996,29 @@ class JukeboxBridge(QObject):
 
     @Property(float, notify=changed)
     def sourceDuration(self):
+        if self.model is None and 0 <= self.queue_index < len(self.playlist):
+            row = self.playlist[self.queue_index]
+            return float(
+                row.get('duration')
+                or row.get('record', {}).get('duration_ms', 0) / 1000
+            )
         return float((self.model or {}).get('duration', 0))
 
     @Slot(float)
     def seekSeconds(self, seconds):
+        if not math.isfinite(float(seconds)):
+            return
+        seconds = max(0, min(float(seconds), self.sourceDuration))
         self._transport_revision += 1
-        if (self.model or {}).get('_stream'):
-            running = self._state['playing'] and not self.paused.is_set()
-            self.stop(reset_timer=False)
-            self.online.position = max(0, min(float(seconds), self.sourceDuration))
+        if self.model is None and 0 <= self.queue_index < len(self.playlist):
+            self.playlist[self.queue_index]['restore_seconds'] = seconds
             self.positionChanged.emit()
-            if running:
-                self.playPause()
+            self.seekRequested.emit()
+            return
+        if (self.model or {}).get('_stream'):
+            self.online.seek(seconds)
+            self.positionChanged.emit()
+            self.seekRequested.emit()
             return
         import bisect
 
@@ -1679,7 +1694,15 @@ class JukeboxBridge(QObject):
             return
         if revision != self.revision:
             return
+        if kind == 'stream_refreshed':
+            if self.model and self.model.get('_stream'):
+                self.model['_stream'] = value
+            return
         if kind == 'stream_position':
+            if isinstance(value, tuple):
+                serial, value = value
+                if serial != self.online.seek_serial:
+                    return
             self.online.position = min(float(value), self.sourceDuration)
             self._elapsed = self.online.position
             self.positionChanged.emit()
@@ -1843,6 +1866,8 @@ class JukeboxBridge(QObject):
                 if target >= 0:
                     self.playQueued(target)
         elif kind == 'position':
+            if value.get('seek_serial', self._seek_serial) != self._seek_serial:
+                return
             self._visual_level = max(0.0, min(1.0, float(value.get('level', 0.0))))
             self._position = value['index'] + value['phase']
             self._phase = value['phase']
@@ -1949,6 +1974,7 @@ class JukeboxBridge(QObject):
         cache = self.model['cache']
         initial = int(self._position)
         initial_phase = self._phase
+        initial_seek_serial = self._seek_serial
         self.seeks = queue.SimpleQueue()
         seeks = self.seeks
         switch_requests = self._switch_requests
@@ -1977,6 +2003,12 @@ class JukeboxBridge(QObject):
                 track_base = 0
                 cursor_initial = initial
                 elapsed_offset = 0.0
+                seek_serial = initial_seek_serial
+
+                def seek_interrupted():
+                    if not seeks.empty():
+                        raise InterruptedError()
+                    return cancel.is_set()
 
                 def progress(played):
                     nonlocal heard_jumps
@@ -2035,6 +2067,7 @@ class JukeboxBridge(QObject):
                         dict(
                             index=index,
                             phase=phase,
+                            seek_serial=seek_serial,
                             edges=edges,
                             elapsed=elapsed_offset + max(0, played - track_base) / RATE,
                             jumps=heard_jumps,
@@ -2063,15 +2096,18 @@ class JukeboxBridge(QObject):
                     while not seeks.empty():
                         target = seeks.get()
                     if target is not None:
-                        expected, index, phase = (
-                            (*target, 0.0)
-                            if isinstance(target, tuple) and len(target) == 2
-                            else (
-                                target
-                                if isinstance(target, tuple)
-                                else (None, target, 0.0)
+                        if isinstance(target, tuple) and len(target) == 4:
+                            expected, index, phase, seek_serial = target
+                        else:
+                            expected, index, phase = (
+                                (*target, 0.0)
+                                if isinstance(target, tuple) and len(target) == 2
+                                else (
+                                    target
+                                    if isinstance(target, tuple)
+                                    else (None, target, 0.0)
+                                )
                             )
-                        )
                         if session.seek(index, expected_cache=expected, phase=phase):
                             elapsed_offset += (
                                 max(0, getattr(output, 'last_frame', 0) - track_base)
@@ -2118,10 +2154,18 @@ class JukeboxBridge(QObject):
                     metadata['frames'] = frames
                     metadata['transition'] = part.get('transition_seconds', 0)
                     timeline.append((submitted, metadata))
-                    output.write(part['pcm'], cancel.is_set, self.paused.is_set)
+                    try:
+                        output.write(part['pcm'], seek_interrupted, self.paused.is_set)
+                    except InterruptedError:
+                        continue
                     if part.get('finished') and part.get('edge_completed', True):
-                        while output.buffers:
-                            output._drain(cancel.is_set, self.paused.is_set)
+                        try:
+                            while output.buffers:
+                                output._drain(seek_interrupted, self.paused.is_set)
+                        except InterruptedError:
+                            continue
+                        if not seeks.empty():
+                            continue
                         self.emit(revision, 'finished', None)
                         break
             except Cancelled:
@@ -2214,9 +2258,11 @@ class JukeboxBridge(QObject):
             self.seekSeconds((index + phase) * self.sourceDuration)
             return
         if self.model and 0 <= index < len(self.model['neighbors']):
-            self.seeks.put((str(self.model['cache']), index, phase))
+            self._seek_serial += 1
+            self.seeks.put((str(self.model['cache']), index, phase, self._seek_serial))
             self._position = float(index) + phase
             self._phase = phase
+            self.seekRequested.emit()
             self.flow = []
             self.used_edges = set()
             self.update_graph()

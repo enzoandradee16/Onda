@@ -514,15 +514,14 @@ class NativeDesktopTests(unittest.TestCase):
                 self.ws.tick()
                 next_track.assert_called_once_with(0)
 
-    def test_playback_navigation_opens_first_configured_tab(self):
-        self.ws.setSetting('playback_tab_order', 'Jukebox infinito primeiro')
-        self.ws.selectNavigationPage('effects')
-        self.assertEqual(self.ws.currentPage, 'jukebox')
-        self.ws.selectPage('effects')
-        self.assertEqual(self.ws.currentPage, 'effects')
-        self.ws.setSetting('playback_tab_order', 'Efeitos primeiro')
-        self.ws.selectNavigationPage('effects')
-        self.assertEqual(self.ws.currentPage, 'effects')
+    def test_playback_navigation_routes_legacy_settings_to_the_unified_player(self):
+        for order in ('Jukebox infinito primeiro', 'Efeitos primeiro'):
+            self.ws.setSetting('playback_tab_order', order)
+            self.ws.selectNavigationPage('effects')
+            self.assertEqual(self.ws.currentPage, 'jukebox')
+            self.ws.selectPage('catalog')
+            self.ws.selectPage('effects')
+            self.assertEqual(self.ws.currentPage, 'jukebox')
 
     def test_settings_persist_preserve_and_disable_remembering(self):
         self.ws.setSetting('theme_accent', 'Turquesa')
@@ -659,7 +658,10 @@ class NativeDesktopTests(unittest.TestCase):
         self.assertEqual(group_members()['tools'], ['images', 'converter', 'metadata'])
         self.ws.invoke('reset_tab_order', {})
         self.assertEqual(self.ws.settings['tab_order'], list(DEFAULT_ORDER))
-        self.assertEqual(group_members()['library'][-1], 'effects')
+        self.assertEqual(
+            group_members()['library'],
+            ['effects', 'catalog', 'playlists', 'queue', 'downloads', 'history'],
+        )
 
     def test_queue_duplicate_filters_order_and_persistence(self):
         urls = ['https://example.com/b.mp3', 'https://example.com/a.mp3']
@@ -856,8 +858,13 @@ class NativeDesktopTests(unittest.TestCase):
             self.settle()
             self.assertEqual(ws.currentPage, 'downloads')
             self.assertFalse(ws.running)
-            self.assertTrue(control('linksQueueNotice').property('visible'))
-            QMetaObject.invokeMethod(control('viewDownloadQueueButton'), 'clicked')
+            self.assertEqual(ws.linksModel.count, 1)
+            self.assertEqual(
+                ws.linksModel.rows[0]['url'], 'https://example.com/test.mp3'
+            )
+            self.assertFalse(control('linksQueueNotice').property('visible'))
+            self.assertTrue(control('linksInlineQueueButton').property('visible'))
+            QMetaObject.invokeMethod(control('linksInlineQueueButton'), 'clicked')
             self.settle()
             self.assertEqual(ws.currentPage, 'queue')
             for name in (
@@ -873,7 +880,11 @@ class NativeDesktopTests(unittest.TestCase):
             with patch.object(ws, 'start_queue') as start:
                 QMetaObject.invokeMethod(control('downloadLinksNowButton'), 'clicked')
                 start.assert_called_once()
-            self.assertEqual(ws.currentPage, 'queue')
+            self.assertEqual(ws.currentPage, 'downloads')
+            self.assertEqual(ws.linksModel.count, 2)
+            self.assertEqual(
+                ws.linksModel.rows[-1]['url'], 'https://example.com/other.mp3'
+            )
             self.assertEqual(len(ws.jobs), 2)
         finally:
             close_application(engine, bridge)
@@ -1128,11 +1139,11 @@ class NativeDesktopTests(unittest.TestCase):
         )
         self.assertEqual(
             {row['key'] for row in rows[1:split]},
-            {'catalog', 'downloads', 'queue', 'playlists', 'history'},
+            {'catalog', 'downloads', 'queue', 'playlists', 'history', 'effects'},
         )
         self.assertEqual(
             {row['key'] for row in rows[split + 1 :]},
-            {'images', 'converter', 'effects', 'metadata'},
+            {'images', 'converter', 'metadata'},
         )
 
     def test_comparison_summary_is_readable_and_notifications_can_be_disabled(self):
@@ -1413,35 +1424,21 @@ class NativeDesktopTests(unittest.TestCase):
             self.ws.stop_preview()
             incoming.close()
 
-    def test_effects_transport_resumes_and_stops_without_using_jukebox_queue(self):
-        self.ws.options.update(
-            effectsSource='song.mp3', duration=300, position=40, speed=100
-        )
-
-        def play(*args, **kwargs):
-            self.ws.player.active = True
-
+    def test_effects_transport_aliases_use_the_unified_playback_controls(self):
         with (
-            patch.object(self.ws.player, 'play', side_effect=play) as playing,
+            patch.object(self.ws.player, 'play') as legacy_play,
+            patch.object(self.bridge, 'playPause') as toggle,
             patch.object(self.bridge, 'nextTrack') as next_track,
             patch.object(self.bridge, 'previousTrack') as previous,
         ):
             self.ws.invoke('effects_play_pause', {})
-            self.assertTrue(playing.call_args.kwargs['full_track'])
-            self.assertEqual(playing.call_args.kwargs['duration'], 260)
-            with patch.object(self.ws.player, 'position_snapshot', return_value=65):
-                self.ws.invoke('effects_play_pause', {})
-            self.assertFalse(self.ws.player.active)
-            self.assertTrue(self.ws.options['effectsPaused'])
-            self.ws.invoke('effects_skip', {'seconds': 10})
-            self.assertEqual(self.ws.options['position'], 75)
             self.ws.invoke('effects_play_pause', {})
-            self.assertEqual(playing.call_args.kwargs['start'], 75)
-            self.ws.invoke('effects_stop', {})
-            self.assertEqual(self.ws.options['position'], 0)
-            self.assertFalse(self.ws.player.active)
-            next_track.assert_not_called()
-            previous.assert_not_called()
+            self.ws.invoke('effects_next', {})
+            self.ws.invoke('effects_previous', {})
+            self.assertEqual(toggle.call_count, 2)
+            next_track.assert_called_once_with()
+            previous.assert_called_once_with()
+            legacy_play.assert_not_called()
 
     def test_jukebox_resume_pauses_effects_and_preserves_source_position(self):
         from unittest.mock import Mock
@@ -1461,35 +1458,56 @@ class NativeDesktopTests(unittest.TestCase):
             self.assertEqual(self.ws.options['effectsSource'], 'effects.wav')
             self.assertFalse(self.bridge.state['paused'])
 
-    def test_effects_search_has_inline_progress_and_cancellation(self):
+    def test_unified_playback_search_and_file_preparation_can_be_cancelled(self):
         from qt_desktop_ui import create_application, close_application
-        from PySide6.QtCore import QObject, QMetaObject
+        from PySide6.QtCore import QObject, QMetaObject, QUrl
 
         app, engine, bridge = create_application(complete=False)
         ws = engine.workspace
+        window = engine.rootObjects()[0]
+        source = self.tone()
+
+        def searching(query, client, config, account, cancelled):
+            while not cancelled():
+                time.sleep(0.01)
+            return {'tracks': [{'title': 'Stale'}]}
+
+        def preparing(source, config, cancel, progress):
+            cancel.wait(3)
+            return {}
+
         try:
             ws.selectPage('effects')
             self.settle()
-            window = engine.rootObjects()[0]
-            button = window.findChild(QObject, 'effectsSearchButton')
-            progress = window.findChild(QObject, 'effectsSearchProgress')
+            button = window.findChild(QObject, 'playbackSearchButton')
+            progress = window.findChild(QObject, 'playbackPreparationProgress')
+            self.assertIsNotNone(progress)
             self.assertFalse(progress.property('visible'))
-            for operation in ('effects_search', 'effects_load'):
-                cancel = threading.Event()
-                ws.tasks[operation] = cancel
-                ws.statusChanged.emit()
-                self.settle()
-                self.assertTrue(progress.property('visible'))
-                self.assertTrue(button.property('enabled'))
-                self.assertEqual(button.property('text'), bridge.translate('Cancelar'))
-                QMetaObject.invokeMethod(button, 'clicked')
-                self.settle()
-                self.assertTrue(cancel.is_set())
-                self.assertNotIn(operation, ws.tasks)
-                self.settle()
-                self.assertFalse(progress.property('visible'))
+            with (
+                patch('playback_input.resolve_input', side_effect=searching),
+                patch.object(bridge, 'prepare_local', side_effect=preparing),
+            ):
+                for lookup in (True, False):
+                    if lookup:
+                        bridge.search('Fixture song')
+                    else:
+                        bridge.openFile(QUrl.fromLocalFile(str(source)))
+                    self.settle()
+                    self.assertTrue(progress.property('visible'))
+                    self.assertTrue(button.property('enabled'))
+                    self.assertEqual(button.property('text'), 'Cancelar')
+                    cancel = bridge.lookup_cancelled if lookup else bridge.cancelled
+                    QMetaObject.invokeMethod(button, 'clicked')
+                    self.assertTrue(cancel.is_set())
+                    self.wait_for(
+                        lambda: not any(worker.is_alive() for worker in bridge.workers)
+                    )
+                    self.settle()
+                    self.assertFalse(progress.property('visible'))
+                    self.assertFalse(bridge.state['busy'])
+                    self.assertEqual(bridge.state['results'], [])
+                    self.assertIsNone(bridge.model)
         finally:
-            ws.tasks.clear()
             close_application(engine, bridge)
 
     def test_window_layout_is_persisted_independently_of_settings(self):
@@ -1920,6 +1938,16 @@ class NativeDesktopTests(unittest.TestCase):
         finally:
             close_application(engine, bridge)
 
+    def test_empty_catalog_search_warns_without_starting_a_worker(self):
+        messages = []
+        self.ws.message.connect(lambda title, text: messages.append((title, text)))
+        self.ws.options['query'] = '   '
+        with patch.object(self.ws, 'run_task') as run:
+            self.ws.invoke('search', {})
+        run.assert_not_called()
+        self.assertTrue(messages)
+        self.assertEqual(self.ws.catalogModel.count, 0)
+
     def test_primary_search_and_load_buttons_cancel_their_real_tasks(self):
         from qt_desktop_ui import create_application, close_application
         from PySide6.QtCore import QObject, QMetaObject, qInstallMessageHandler
@@ -1948,6 +1976,14 @@ class NativeDesktopTests(unittest.TestCase):
                     self.settle()
                     button = window.findChild(QObject, 'libraryLoadButton')
                     self.assertEqual(button.property('text'), label)
+                    ws.setOption(
+                        'query' if page == 'catalog' else 'playlistUrl',
+                        (
+                            'Fixture song'
+                            if page == 'catalog'
+                            else 'https://example.com/list'
+                        ),
+                    )
                     QMetaObject.invokeMethod(button, 'clicked')
                     self.settle()
                     self.assertEqual(button.property('text'), 'Cancelar')
@@ -2068,21 +2104,26 @@ class NativeDesktopTests(unittest.TestCase):
         audio.save()
         original = source.read_bytes()
         self.ws.accept_files('effects', [str(source)])
-        self.task_done('effects_info')
-        self.assertEqual(self.ws.options['effectsRecord']['title'], 'Song title')
-        self.assertEqual(self.ws.options['effectsRecord']['artists'], ['Artist'])
-        self.assertEqual(self.ws.options['effectsRecord']['album'], 'Album')
-        self.assertTrue(
-            self.ws.options['effectsCover'].startswith('data:image/png;base64,')
+        self.wait_for(
+            lambda: self.bridge.state['ready'] and not self.bridge.state['busy'], 20000
         )
-        self.assertGreater(self.ws.options['duration'], 0)
+        self.assertEqual(self.bridge.state['title'], 'Song title')
+        self.assertEqual(self.bridge.state['artist'], 'Artist')
+        self.assertEqual(self.bridge.state['album'], 'Album')
+        self.assertTrue(self.bridge.state['cover'].startswith('data:image/png;base64,'))
+        self.assertGreater(self.bridge.sourceDuration, 0)
+        self.assertEqual(self.ws.currentPage, 'jukebox')
         self.assertEqual(source.read_bytes(), original)
         plain = self.tone('plain.wav')
         self.ws.accept_files('effects', [str(plain)])
-        self.assertEqual(self.ws.options['effectsCover'], '')
-        self.task_done('effects_info')
-        self.assertEqual(self.ws.options['effectsRecord']['title'], 'plain')
-        self.assertEqual(self.ws.options['effectsCover'], '')
+        self.wait_for(
+            lambda: not self.bridge.state['busy']
+            and Path((self.bridge.model or {}).get('source', '')).resolve()
+            == plain.resolve(),
+            20000,
+        )
+        self.assertEqual(self.bridge.state['title'], 'plain')
+        self.assertEqual(self.bridge.state['cover'], '')
 
     def test_silence_detection_and_conversion_trim_only_edges(self):
         import math, wave
@@ -2508,8 +2549,11 @@ class NativeDesktopTests(unittest.TestCase):
         source = self.tone()
         target = self.root / 'effects.mp3'
         self.ws.accept_files('effects', [str(source)])
-        self.task_done('effects_info')
-        self.assertGreater(self.ws.options['duration'], 0)
+        self.wait_for(
+            lambda: self.bridge.state['ready'] and not self.bridge.state['busy'], 20000
+        )
+        self.assertGreater(self.bridge.sourceDuration, 0)
+        self.assertEqual(self.ws.currentPage, 'jukebox')
         with patch(
             'PySide6.QtWidgets.QFileDialog.getSaveFileName',
             return_value=(str(target), ''),
@@ -2517,6 +2561,11 @@ class NativeDesktopTests(unittest.TestCase):
             self.ws.export_effects()
         self.wait_for(lambda: not self.ws.active, 20000)
         self.assertTrue(target.is_file(), self.ws.logs)
+        from mutagen.mp3 import MP3
+
+        self.assertAlmostEqual(
+            MP3(target).info.length, self.bridge.sourceDuration, delta=0.3
+        )
         self.assertTrue(self.ws.library.history())
 
     def test_settings_import_export_keeps_secrets_out(self):
@@ -2616,6 +2665,74 @@ class NativeDesktopTests(unittest.TestCase):
             self.wait_for(lambda: not self.ws.active)
             prepare.assert_called_once_with({}, self.ws.account)
         self.assertEqual(job['state'], 'Concluído')
+
+    def test_native_file_picker_translates_labels_without_changing_extensions(self):
+        from i18n import set_language
+
+        try:
+            for language, images, all_files in (
+                ('en', 'Images', 'All files'),
+                ('es', 'Imágenes', 'Todos los archivos'),
+            ):
+                set_language(language)
+                with patch(
+                    'PySide6.QtWidgets.QFileDialog.getOpenFileName',
+                    return_value=('', ''),
+                ) as picker:
+                    self.ws.pick('image')
+                    file_filter = picker.call_args.args[3]
+                    self.assertTrue(file_filter.startswith(images))
+                    self.assertIn('*.png *.jpg *.jpeg *.webp *.gif *.svg', file_filter)
+                    self.ws.pick('unrecognized')
+                    self.assertEqual(picker.call_args.args[3], all_files + ' (*)')
+                with patch(
+                    'PySide6.QtWidgets.QFileDialog.getOpenFileNames',
+                    return_value=([], ''),
+                ) as picker:
+                    self.ws.pick('converter')
+                    self.assertIn(all_files, picker.call_args.args[3])
+                    self.assertIn('*.mp3', picker.call_args.args[3])
+        finally:
+            set_language('pt-BR')
+
+    def test_startup_opens_first_visible_tab_in_custom_category_order(self):
+        from qt_jukebox_ui import JukeboxBridge
+        from qt_workspace_ui import DesktopWorkspace
+
+        defaults = dict(self.ws.defaults)
+        collection_first = ['playlists'] + [
+            key for key in defaults['tab_order'] if key != 'playlists'
+        ]
+        converter_first = ['converter'] + [
+            key for key in defaults['tab_order'] if key != 'converter'
+        ]
+        for changes, expected in (
+            ({}, 'jukebox'),
+            ({'hidden_tabs': ['effects']}, 'catalog'),
+            ({'tab_order': collection_first}, 'playlists'),
+            (
+                {'tab_group_order': ['tools', 'library'], 'tab_order': converter_first},
+                'converter',
+            ),
+            (
+                {
+                    'tab_group_order': ['tools', 'library'],
+                    'tab_order': converter_first,
+                    'hidden_tabs': ['converter'],
+                },
+                'images',
+            ),
+        ):
+            self.store.save(
+                dict(defaults, **changes, check_updates=False, clipboard_links=False)
+            )
+            bridge = JukeboxBridge(self.store)
+            workspace = DesktopWorkspace(bridge)
+            try:
+                self.assertEqual(workspace.currentPage, expected)
+            finally:
+                workspace.shutdown()
+                bridge.shutdown()
 
 
 if __name__ == '__main__':

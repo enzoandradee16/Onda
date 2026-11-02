@@ -36,6 +36,7 @@ import coil.compose.AsyncImage
     val fxQueue by vm.effectsPlaylist.collectAsStateWithLifecycle()
     val juke by vm.jukebox.presentationState.collectAsStateWithLifecycle()
     val jukeQueue by vm.jukebox.playbackQueue.collectAsStateWithLifecycle()
+    val audioReady by vm.jukebox.audioReady.collectAsStateWithLifecycle()
     var expanded by rememberSaveable {mutableStateOf(false)}
     var expandedQueue by rememberSaveable {mutableStateOf(false)}
     var devices by remember {mutableStateOf(false)}
@@ -47,8 +48,10 @@ import coil.compose.AsyncImage
         else if(fxMedia?.playing==true||fxPreparing)lastJukebox=false
     }
     val useJukebox=true
+    val currentId by vm.jukebox.currentQueueId.collectAsStateWithLifecycle()
+    val restoredRow=remember(jukeQueue,currentId){jukeQueue.firstOrNull {it.optString("_queue_id")==currentId}}
     val model=juke.model
-    val source=if(useJukebox)model?.optString("source").orEmpty() else fxSource
+    val source=if(useJukebox)model?.optString("source")?.takeIf {it.isNotBlank()} ?: restoredRow?.cleanString("_local_source")?.takeIf {it.isNotBlank()} ?: restoredRow?.cleanString("source_url").orEmpty() else fxSource
     SideEffect {vm.compactPlaybackMode.value=if(source.isBlank())null else if(useJukebox)1 else 0}
     DisposableEffect(vm){onDispose {vm.compactPlaybackMode.value=null}}
     if(source.isBlank())return
@@ -59,9 +62,9 @@ import coil.compose.AsyncImage
     val info=infos[fxSource]
     val record=info?.optJSONObject("record")
     val title=if(useJukebox)juke.title else record?.optString("title")?.ifBlank {importedAudioName(source)} ?: importedAudioName(source)
-    val artist=if(useJukebox)model?.optString("media_artist").orEmpty() else record?.stringList("artists").orEmpty()
-    val encoded=if(useJukebox)model?.optString("media_cover").orEmpty() else info?.optString("cover").orEmpty()
-    val coverUrl=if(useJukebox)model?.optString("cover_url") else info?.optJSONObject("record")?.optString("cover_url")
+    val artist=if(useJukebox)model?.optString("media_artist") ?: restoredRow?.stringList("artists").orEmpty() else record?.stringList("artists").orEmpty()
+    val encoded=if(useJukebox)model?.optString("media_cover") ?: restoredRow?.cleanString("_cover").orEmpty() else info?.optString("cover").orEmpty()
+    val coverUrl=if(useJukebox)model?.optString("cover_url") ?: restoredRow?.cleanString("cover_url") else info?.optJSONObject("record")?.optString("cover_url")
     val artwork=remember(encoded,coverUrl,useJukebox) {
         if(encoded.isNotBlank())runCatching {Base64.decode(encoded,Base64.DEFAULT)}.getOrNull()
         else coverUrl?.takeIf {it.isNotBlank()}
@@ -69,10 +72,10 @@ import coil.compose.AsyncImage
     val beats=model?.optJSONArray("beats")
     fun livePosition():Double {
         val current=vm.jukebox.state.value
-        return vm.jukebox.sessionSeconds(current.model,current.index,current.phase.toDouble())
+        return if(current.model==null)restoredRow?.optDouble("_restore_seconds",0.0) ?: 0.0 else vm.jukebox.sessionSeconds(current.model,current.index,current.phase.toDouble())
     }
-    val duration=(if(useJukebox)model?.optDouble("duration",0.0) ?: 0.0 else info?.optDouble("duration",0.0) ?: fxMedia?.duration ?: 0.0).coerceAtLeast(0.0)
-    val preparing=if(useJukebox)juke.busy else fxPreparing
+    val duration=(if(useJukebox)model?.optDouble("duration",0.0) ?: ((restoredRow?.optDouble("duration_ms",0.0) ?: 0.0)/1000.0) else info?.optDouble("duration",0.0) ?: fxMedia?.duration ?: 0.0).coerceAtLeast(0.0)
+    val preparing=if(useJukebox)juke.busy || (juke.playing && !juke.paused && model?.has("_stream")==true && !audioReady) else fxPreparing
     val playing=if(useJukebox)juke.playing&&!juke.paused else fxEnabled
     val fxRepeat by vm.effectsRepeat.collectAsStateWithLifecycle()
     val fxShuffle by vm.effectsShuffle.collectAsStateWithLifecycle()
@@ -86,7 +89,7 @@ import coil.compose.AsyncImage
     fun previous(){if(useJukebox)vm.jukebox.previousTrack() else vm.mediaPreviousEffects()}
     fun next(){if(useJukebox)vm.jukebox.nextTrack() else vm.mediaNextEffects()}
     fun seek(seconds:Double){
-        if(useJukebox){if(beats!=null)vm.jukebox.seek((0 until (beats.length()-1).coerceAtLeast(0)).lastOrNull {beats.optDouble(it)<=seconds} ?: 0)}
+        if(useJukebox)vm.jukebox.seekSeconds(seconds)
         else vm.mediaSeekEffects(seconds)
     }
     fun openQueue(){

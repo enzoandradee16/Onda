@@ -15,8 +15,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
         val b=beats?.optDouble(currentState.index+1,a) ?: a
         a+(b-a)*currentState.phase
     },state.model?.optDouble("duration",0.0) ?: 0.0,{seconds->
-        val beats=controller.state.value.model?.optJSONArray("beats")
-        if(beats!=null)controller.seek((0 until (beats.length()-1).coerceAtLeast(0)).lastOrNull {beats.optDouble(it)<=seconds} ?: 0)
+        controller.seekSeconds(seconds)
     },controller::playPause,isPlaying={controller.state.value.playing&&!controller.state.value.paused},previous=controller::previousTrack,
         next=if(controller.nextQueueIndex<queue.size)controller::nextTrack else null)
 }

@@ -673,6 +673,27 @@ def perform(action, config):
         finally:
             value.close()
 
+    if (
+        action == 'jukebox_stream_resolve'
+        or action == 'jukebox_prepare'
+        and config.get('stream')
+        and not config.get('source')
+    ):
+        from online_audio import resolve
+
+        record = config.get('record') or {'source_url': config.get('url', '')}
+        model = resolve(
+            config,
+            record,
+            _local.state['cancel'].is_set,
+            source_url=config.get('stream_source', ''),
+        )
+        model['source'] = (
+            record.get('source_url')
+            or config.get('url')
+            or model['_stream']['source_url']
+        )
+        return model
     if action == 'jukebox_transfer_prepare':
         from online_audio import prepare_stream
 

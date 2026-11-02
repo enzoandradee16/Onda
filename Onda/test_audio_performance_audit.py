@@ -100,6 +100,110 @@ class ReadAheadTests(unittest.TestCase):
         self.assertFalse(buffered.thread.is_alive())
         self.assertEqual(buffered.read(), b'')
 
+    def test_segment_reserve_covers_a_pending_network_segment(self):
+        blocked, release = threading.Event(), threading.Event()
+
+        class Reader:
+            count = 0
+
+            def read(self):
+                self.count += 1
+                if self.count <= 100:
+                    return bytes([self.count]) * 17640
+                blocked.set()
+                release.wait(3)
+                return b''
+
+            def cancel(self):
+                release.set()
+
+            def close(self):
+                release.set()
+
+        buffered = ReadAheadAudio(Reader())
+        try:
+            self.assertTrue(blocked.wait(2))
+            self.assertEqual(buffered.blocks.maxsize, 120)
+            self.assertEqual(buffered.warmup_blocks, 30)
+            for i in range(1, 101):
+                self.assertEqual(buffered.read(), bytes([i]) * 17640)
+            self.assertFalse(release.is_set())
+        finally:
+            buffered.close()
+        self.assertFalse(buffered.thread.is_alive())
+
+    def test_cancel_during_initial_buffering_unblocks_consumer(self):
+        fetching, release, done = (
+            threading.Event(),
+            threading.Event(),
+            threading.Event(),
+        )
+
+        class Reader:
+            def read(self):
+                fetching.set()
+                release.wait(3)
+                return b''
+
+            def cancel(self):
+                release.set()
+
+            def close(self):
+                release.set()
+
+        buffered = ReadAheadAudio(Reader())
+        result = []
+        consumer = threading.Thread(
+            target=lambda: (result.append(buffered.read()), done.set())
+        )
+        consumer.start()
+        try:
+            self.assertTrue(fetching.wait(2))
+            self.assertFalse(done.wait(0.05))
+            buffered.cancel()
+            self.assertTrue(done.wait(1))
+            self.assertEqual(result, [b''])
+        finally:
+            buffered.close()
+            consumer.join(1)
+        self.assertFalse(consumer.is_alive())
+
+    def test_seek_reuses_recent_and_forward_pcm_without_reopening_reader(self):
+        reader = Mock()
+        reader.read.side_effect = [bytes([i]) * 17640 for i in range(1, 41)] + [b'']
+        buffered = ReadAheadAudio(reader)
+        try:
+            self.assertTrue(buffered.ready.wait(2))
+            for i in range(1, 11):
+                self.assertEqual(buffered.read(), bytes([i]) * 17640)
+            self.assertTrue(buffered.seek(0.2))
+            self.assertEqual(buffered.read(), bytes([3]) * 17640)
+            self.assertTrue(buffered.seek(2.25))
+            self.assertEqual(buffered.read(), bytes([23]) * 8820)
+            self.assertEqual(buffered.read(), bytes([24]) * 17640)
+            self.assertFalse(buffered.seek(50))
+            reader.close.assert_not_called()
+        finally:
+            buffered.close()
+
+    def test_recent_pcm_is_bounded_and_can_be_replayed_after_eof(self):
+        reader = Mock()
+        reader.read.side_effect = [b'x' * 17640] * 150 + [b'']
+        buffered = ReadAheadAudio(reader)
+        try:
+            for _ in range(150):
+                self.assertEqual(len(buffered.read()), 17640)
+            self.assertEqual(buffered.read(), b'')
+            self.assertFalse(buffered.seek(0))
+            self.assertLessEqual(
+                sum(len(data) for _, data in buffered.history), 1764000
+            )
+            self.assertTrue(buffered.seek(14.95))
+            self.assertEqual(len(buffered.read()), 8820)
+            self.assertEqual(buffered.read(), b'')
+        finally:
+            buffered.close()
+
     def test_network_seek_is_an_input_seek(self):
         with (
             patch('online_audio.subprocess.Popen') as process,

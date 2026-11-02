@@ -31,6 +31,10 @@ Canvas {
         else if(g==="minimize")line(5,12,19,12)
         else if(g==="expand"){path([8,5,19,5,19,16]);line(19,5,5,19)}
         else if(g==="pin"){path([8,3,16,3,15,9,18,13,6,13,9,9],true);line(12,13,12,21)}
+        else if(g==="computer"){c.strokeRect(3,4,18,12);line(12,16,12,21);line(7,21,17,21)}
+        else if(g==="phone"){c.strokeRect(7,2,10,20);line(11,18,13,18)}
+        else if(g==="wifi"){for(var r=5;r<=11;r+=3){c.beginPath();c.arc(12,18,r,-2.4,-.74);c.stroke()}circle(12,18,1)}
+        else if(g==="devices"){path([13,15,2,15,2,4,19,4,19,8]);line(9,15,9,20);line(5,20,13,20);c.strokeRect(15,10,7,11);line(18,18,19,18)}
         else if(g==="queue"){for(var y=6;y<=18;y+=6){line(8,y,21,y);line(3,y,4,y)}}
         else if(g==="more"){circle(5,12,1);circle(12,12,1);circle(19,12,1)}
         else if(g==="menu"){line(4,6,20,6);line(4,12,20,12);line(4,18,20,18)}

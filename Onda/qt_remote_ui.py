@@ -7,6 +7,7 @@ import threading
 import uuid
 import math
 import time
+import socket
 from collections import deque
 from pathlib import Path
 from PySide6.QtCore import QObject, Property, Signal, Slot, QTimer
@@ -23,10 +24,14 @@ class RemoteControl(QObject):
         self.workspace = workspace
         self.server = None
         self.error = ''
+        self._computer_name = socket.gethostname()[:80] or 'ONDA PC'
         self._artwork_source = None
         self._artwork_slots = threading.BoundedSemaphore(2)
         self._addresses = []
         self._transfer_source_key = None
+        self._lyrics_next = 0.0
+        self._lyrics_key = None
+        self._lyrics_revision = ''
         self._queue_dirty = True
         self._handoff = {}
         self._handoff_closed = deque(maxlen=128)
@@ -50,6 +55,7 @@ class RemoteControl(QObject):
     def state(self):
         return dict(
             enabled=self.server is not None,
+            name=self.server.name if self.server else self._computer_name,
             code=self.server.code if self.server else '',
             addresses=(
                 [f'http://{ip}:{self.server.port}' for ip in self._addresses]
@@ -57,6 +63,7 @@ class RemoteControl(QObject):
                 else []
             ),
             paired=self.server.paired if self.server else False,
+            connected=self.server.connected if self.server else False,
             error=self.error,
         )
 
@@ -75,6 +82,8 @@ class RemoteControl(QObject):
         self.error = ''
         try:
             self.server = RemoteServer()
+            self._lyrics_key = None
+            self._lyrics_next = 0.0
             self.server.start()
             self._addresses = lan_addresses()
             self._artwork_source = None
@@ -240,6 +249,7 @@ class RemoteControl(QObject):
             self.refresh_queue()
         self.refresh_artwork(state)
         self.refresh_transfer_source()
+        self.refresh_lyrics()
         effects = self.workspace.options
         self.server.update(
             dict(
@@ -266,6 +276,7 @@ class RemoteControl(QObject):
                     else 1
                 ),
                 queue_revision=self.server.queue_revision,
+                lyrics_revision=self._lyrics_revision,
                 artwork_id=self.server.artwork_id,
                 album=str(state.get('album', ''))[:500],
                 cover_url=str(
@@ -288,9 +299,47 @@ class RemoteControl(QObject):
             )
         )
         paired = self.server.paired
-        if paired != getattr(self, '_paired', False):
+        connected = self.server.connected
+        if paired != getattr(self, '_paired', False) or connected != getattr(
+            self, '_connected', False
+        ):
             self._paired = paired
+            self._connected = connected
             self.changed.emit()
+
+    def refresh_lyrics(self):
+        now = time.monotonic()
+        if (
+            now < self._lyrics_next
+            and self._lyrics_key
+            and self._lyrics_key[0] == self.track_id()
+        ):
+            return
+        self._lyrics_next = now + 0.5
+        frame = self.workspace.lyricsClock(True)
+        key = (self.track_id(), frame.get('revision', 0))
+        if key == self._lyrics_key:
+            return
+        self._lyrics_key = key
+        lines = []
+        remaining = 120000
+        for row in self.workspace.lyricsDocument()[:2000]:
+            seconds = row.get('time')
+            if (
+                type(seconds) not in (int, float)
+                or not math.isfinite(seconds)
+                or not 0 <= seconds <= 86400
+            ):
+                continue
+            if remaining <= 0:
+                break
+            text = str(row.get('text', ''))[: min(300, remaining)]
+            remaining -= len(text)
+            lines.append(dict(time=seconds, text=text))
+        self._lyrics_revision = uuid.uuid4().hex
+        self.server.update_lyrics(
+            dict(track_id=key[0], revision=self._lyrics_revision, lines=lines)
+        )
 
     def refresh_transfer_source(self):
         bridge = self.workspace.bridge

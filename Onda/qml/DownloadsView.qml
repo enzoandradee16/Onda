@@ -65,7 +65,7 @@ ColumnLayout {
         Layout.fillWidth: true; implicitHeight: linksNoticeRow.implicitHeight+24
         RowLayout { id: linksNoticeRow; anchors.fill: parent; anchors.margins: 12; spacing: 16
             Label { text: workspace.optionValue(workspace.optionsRevision,"linksNotice") || ""; Layout.fillWidth: true; wrapMode: Text.Wrap; color: bridge.palette.text }
-            ActionButton { objectName: "viewDownloadQueueButton"; text: bridge.translate("Ver fila"); onClicked: workspace.selectPage("queue") }
+            ActionButton { objectName: "viewDownloadQueueButton"; text: bridge.translate("Ver downloads"); onClicked: workspace.selectPage("queue") }
         }
     }
     Item {
@@ -117,7 +117,7 @@ ColumnLayout {
     RowLayout { visible: page.queuePage; Layout.fillWidth: true; Label { Layout.fillWidth: true; text: workspace.queueModel.count+" · "+(workspace.optionValue(workspace.optionsRevision,"queueStorage") || ""); color: bridge.palette.muted; wrapMode: Text.Wrap } Label { text: bridge.translate("Tempo decorrido")+": "+workspace.clock(workspace.activityValue(workspace.statusRevision,"elapsed")); color: bridge.palette.muted } }
     RowLayout {visible:!page.queuePage && workspace.linksModel.count>0;Layout.fillWidth:true
         Label {text:bridge.translate("Downloads");color:bridge.palette.text;Layout.fillWidth:true;font.bold:true}
-        ActionButton {text:bridge.translate("Ver fila");onClicked:workspace.selectPage("queue")}
+        ActionButton {objectName:"linksInlineQueueButton";text:bridge.translate("Ver downloads");onClicked:workspace.selectPage("queue")}
     }
     ListView { id:downloadList; property var activeDrag:null; objectName: "downloadQueueList"; visible: page.queuePage || workspace.linksModel.count>0; Layout.fillWidth: true; Layout.fillHeight: true; clip: true; spacing: Math.round(8*bridge.spacing); model: page.queuePage ? workspace.queueModel : workspace.linksModel; reuseItems: true
         ScrollBar.vertical: OndaScrollBar {}

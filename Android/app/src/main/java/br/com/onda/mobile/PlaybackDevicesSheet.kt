@@ -24,7 +24,7 @@ import kotlinx.coroutines.launch
 
 @Composable internal fun PlaybackDeviceButton(onClick: () -> Unit, name: String = "Este telefone", remote: Boolean = false) {
     TextButton(onClick = onClick, modifier = Modifier.testTag("playback-devices")) {
-        OndaIcon(if (remote) "computer" else "phone", "Dispositivos", Modifier.size(20.dp))
+        OndaIcon("devices", "Dispositivos", Modifier.size(20.dp), tint=if(remote)MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.width(8.dp))
         Text(translateUi(name), maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
@@ -60,13 +60,13 @@ import kotlinx.coroutines.launch
             }
         }
     }
-    fun select(address: String, transfer:Boolean=false) {
+    fun select(address: String, transfer:Boolean?=null) {
         if (connecting) return
         connecting = true
         scope.launch {
             try {
-                if (RemotePlaybackRuntime.reconnect(context, address, transferPlayback=transfer)) { RemotePlaybackRuntime.expandedRequested.value = true; onDismiss() }
-                else {pairingTransfer=transfer;pairing = address}
+                if (RemotePlaybackRuntime.selectDevice(context, address, transferPlayback=transfer)) { RemotePlaybackRuntime.expandedRequested.value = true; onDismiss() }
+                else {pairingTransfer=transfer ?: (!remote.connected && local.model!=null && local.playing && !local.paused);pairing = address}
             } catch (cancelled: CancellationException) { throw cancelled
             } catch (error: Exception) { notice = error.message ?: "Não foi possível conectar. Confira o endereço, o código e a rede."
             } finally { connecting = false }

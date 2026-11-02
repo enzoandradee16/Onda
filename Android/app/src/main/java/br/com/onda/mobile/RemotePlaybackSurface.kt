@@ -61,7 +61,7 @@ import kotlinx.coroutines.delay
                     Text(state.title.ifBlank { "ONDA PC" }, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.labelLarge)
                     Text(state.artist, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodySmall, color = glass.secondary)
                     Row(Modifier.clickable { devices = true }, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        OndaIcon("computer", "Dispositivos", Modifier.size(12.dp), tint = MaterialTheme.colorScheme.primary)
+                        OndaIcon("devices", "Dispositivos", Modifier.size(12.dp), tint = MaterialTheme.colorScheme.primary)
                         Text(if (state.online) state.deviceName else translateUi("Computador desconectado"), maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                     }
                 }
@@ -76,7 +76,7 @@ import kotlinx.coroutines.delay
     }
     if (expanded) Dialog(onDismissRequest = { expanded = false }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
-            RemotePlayerContent(state, onCollapse = { expanded = false }, onQueue = { queue = true }, onAdjustments = { expanded = false; vm.effectsNavigation.value = true })
+            RemotePlayerContent(state, vm, onCollapse = { expanded = false }, onQueue = { queue = true }, onAdjustments = { expanded = false; vm.effectsNavigation.value = true })
         }
         if (queue) PlaybackQueueSheet(vm) { queue = false }
     }
@@ -93,7 +93,7 @@ import kotlinx.coroutines.delay
     LinearProgressIndicator(progress={if(state.duration>0)(position/state.duration).toFloat().coerceIn(0f,1f) else 0f},modifier=Modifier.fillMaxWidth().height(2.dp),trackColor=glass.ink.copy(alpha=.18f))
 }
 
-@Composable private fun RemotePlayerContent(state: RemotePlaybackState, onCollapse: (() -> Unit)? = null, onQueue: () -> Unit, onAdjustments: () -> Unit) {
+@Composable private fun RemotePlayerContent(state: RemotePlaybackState, vm:OndaViewModel, onCollapse: (() -> Unit)? = null, onQueue: () -> Unit, onAdjustments: () -> Unit) {
     var devices by remember { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
     BoxWithConstraints(Modifier.fillMaxSize()) {
@@ -129,6 +129,7 @@ import kotlinx.coroutines.delay
                 IconButton(onClick = { RemotePlaybackRuntime.command("next") }, enabled = state.online) { OndaIcon("next", "Avançar", Modifier.size(32.dp)) }
                 IconButton(onClick = onQueue) { OndaIcon("queue", "Fila do computador", Modifier.size(26.dp)) }
             }
+            RemoteLyricsCard(vm)
             PlaybackDeviceButton(onClick = { devices = true }, name = state.deviceName, remote = true)
             if (state.notice.isNotBlank()) UiText(state.notice, style = MaterialTheme.typography.bodySmall)
         }
@@ -151,4 +152,11 @@ import kotlinx.coroutines.delay
             UiText(mediaClock(state.duration.toLong()),style=MaterialTheme.typography.labelSmall)
         }
     }
+}
+
+@Composable private fun RemoteLyricsCard(vm:OndaViewModel) {
+    val state by RemotePlaybackRuntime.state.collectAsStateWithLifecycle()
+    val position=remotePosition(state)
+    LyricsPreviewCard(vm,"remote:${state.address}:${state.trackId}",state.title,state.artist,position,state.duration,
+        state.playing,RemotePlaybackRuntime::seek,RemotePlaybackRuntime::toggle,providedLines=state.lyrics,controlsEnabled=state.online&&state.ready)
 }

@@ -169,6 +169,7 @@ def _load_playlist(url, client, limit=LIMIT, account=None, cancelled=lambda: Fal
                 break
         return {
             "title": data.get("title") or "Playlist Deezer",
+            "created_at": data.get("creation_date"),
             "tracks": records,
             "_total": data.get("nb_tracks"),
             "_capped": bool(tracks.get('next')) and offset >= limit,

@@ -7,7 +7,6 @@ ScrollView {
     id: page
     ScrollBar.vertical: OndaScrollBar { parent: page; x: page.width-width; y: 0; height: page.height }
     property var scrollTopButton: ScrollToTop { target: page.contentItem; viewport: page }
-    RemoteControlPopup {id:remotePopup}
     objectName: "jukeboxView"
     contentWidth: availableWidth
     clip: true
@@ -31,14 +30,13 @@ ScrollView {
         RowLayout {
             Layout.fillWidth: true; spacing: Math.round(10*bridge.spacing)
             OndaTextField {
-                id: query; Layout.fillWidth: true; implicitHeight: 44; placeholderText: bridge.translate("Música, artista ou link de música, álbum ou playlist"); selectByMouse: true
+                id: query; objectName:"playbackSearchField"; Layout.fillWidth: true; implicitHeight: 44; placeholderText: bridge.translate("Música, artista ou link de música, álbum ou playlist"); selectByMouse: true
                 color: bridge.palette.text; placeholderTextColor: bridge.palette.muted; font.pixelSize: Math.round(14*bridge.fontScale)
                 background: Rectangle { radius: 8; color: bridge.palette.surface; border.color: query.activeFocus ? bridge.palette.accent : bridge.palette.line; border.width: query.activeFocus ? 2 : 1 }
                 onAccepted: if (!bridge.stateValue(bridge.stateRevision,"busy")) bridge.search(text)
             }
-            ActionButton { primary: true; text: bridge.translate(bridge.stateValue(bridge.stateRevision,"busy") ? "Cancelar" : "Pesquisar"); enabled: true; onClicked: if (bridge.stateValue(bridge.stateRevision,"busy")) bridge.cancelOperation(); else bridge.search(query.text) }
+            ActionButton { objectName:"playbackSearchButton"; primary: true; text: bridge.translate(bridge.stateValue(bridge.stateRevision,"busy") ? "Cancelar" : "Pesquisar"); enabled: true; onClicked: if (bridge.stateValue(bridge.stateRevision,"busy")) bridge.cancelOperation(); else bridge.search(query.text) }
             ActionButton { text: bridge.translate("Abrir arquivo"); enabled: !bridge.stateValue(bridge.stateRevision,"busy"); onClicked: fileDialog.open() }
-            ActionButton {text:bridge.translate("Controle remoto");onClicked:remotePopup.open()}
         }
         Card {
             Layout.fillWidth: true
@@ -81,7 +79,7 @@ ScrollView {
                 }
             }
         }
-        OndaProgressBar { Layout.fillWidth: true; visible: bridge.stateValue(bridge.stateRevision,"busy"); from: 0; to: 100; value: bridge.stateValue(bridge.stateRevision,"progress"); indeterminate: bridge.stateValue(bridge.stateRevision,"progress")===0 }
+        OndaProgressBar { objectName:"playbackPreparationProgress"; Layout.fillWidth: true; visible: bridge.stateValue(bridge.stateRevision,"busy"); from: 0; to: 100; value: bridge.stateValue(bridge.stateRevision,"progress"); indeterminate: bridge.stateValue(bridge.stateRevision,"progress")===0 }
         Card {
             objectName:"playbackTrackCard"
             Layout.fillWidth: true; implicitHeight: 166;clip:true

@@ -18,6 +18,7 @@
         android:usesCleartextTraffic="true" android:supportsRtl="true">
         <service android:name="androidx.work.impl.foreground.SystemForegroundService" android:foregroundServiceType="dataSync" tools:node="merge" />
         <service android:name=".RemotePlaybackService" android:exported="false" android:foregroundServiceType="mediaPlayback" />
+        <activity android:name="com.journeyapps.barcodescanner.CaptureActivity" android:screenOrientation="portrait" tools:replace="android:screenOrientation" android:exported="false" />
         <activity android:name=".RestartActivity" android:process=":restart" android:exported="false" android:excludeFromRecents="true" android:theme="@android:style/Theme.Material.NoActionBar" />
         <activity android:name=".MainActivity" android:exported="true" android:launchMode="singleTask">
             <intent-filter>

@@ -14,7 +14,7 @@ Pré-release candidata à versão 1.2.5. Este rascunho prepara o código e as no
 
 ## Reprodução, busca e playlists
 
-- Reprodução normal por streaming no PC; preparação de efeitos mantém o áudio atual até a nova versão ficar pronta.
+- Reprodução normal por streaming no PC e Android; preparação de efeitos mantém o áudio atual até a nova versão ficar pronta.
 - Melhorias na aplicação/remoção dos efeitos, no processamento de áudio e na continuidade da reprodução.
 - Playlists da conta Spotify disponíveis para reprodução ou download pelo motor do ONDA; o catálogo não fornece o áudio do Spotify.
 - Busca de músicas e letras com melhorias para japonês, variações de escrita, acentos e correspondência entre nomes.

@@ -455,7 +455,7 @@ class NavigationTest {
             assertEquals("Seguir o sistema",OndaStore.settings.value.getString("theme"))
             assertFalse(accents.containsKey("Menta"))
             assertEquals(accents.keys,lightAccents.keys)
-            assertEquals("Álbuns e playlists",tabLabel("Playlists / Álbuns"))
+            assertEquals("Coleção",tabLabel("Playlists / Álbuns"))
             compose.onNodeWithTag("open-menu").performClick();compose.onNodeWithText("Configurações").performScrollTo().performClick()
             compose.onNodeWithText("Verde-Água").assertIsDisplayed()
             compose.onNodeWithText("Seguir o sistema").assertIsDisplayed()

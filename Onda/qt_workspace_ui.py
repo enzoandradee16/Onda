@@ -14,10 +14,10 @@ ROOT = Path(__file__).resolve().parent
 PAGES = {
     'catalog': 'Pesquisar músicas',
     'downloads': 'Links',
-    'queue': 'Fila',
+    'queue': 'Downloads',
     'images': 'Imagens',
     'converter': 'Conversor',
-    'playlists': 'Álbuns e playlists',
+    'playlists': 'Coleção',
     'history': 'Histórico',
     'effects': 'Reprodução',
     'metadata': 'Editar metadados',
@@ -129,6 +129,9 @@ class DesktopWorkspace(QObject):
             key: RowsModel(self)
             for key in ('queue', 'links', 'catalog', 'playlists', 'history')
         }
+        from qt_collection_filter import CollectionFilterModel
+
+        self.collection_filter = CollectionFilterModel(self.models['playlists'], self)
         from queue_undo import QueueUndo
 
         self.undo_history = QueueUndo()
@@ -310,9 +313,26 @@ class DesktopWorkspace(QObject):
             lambda: self.save_playback_session(background=True)
         )
         self.session_timer.start()
+        self.session_seek_timer = QTimer(self)
+        self.session_seek_timer.setSingleShot(True)
+        self.session_seek_timer.setInterval(250)
+        self.session_seek_timer.timeout.connect(
+            lambda: self.save_playback_session(background=True)
+        )
+        self.bridge.seekRequested.connect(self.session_seek_timer.start)
         from qt_remote_ui import RemoteControl
 
         self.remote_control = RemoteControl(self)
+
+        first_page = next(
+            (
+                row['key']
+                for row in self.navigation
+                if row.get('key') and row['key'] not in self.hiddenTabs
+            ),
+            'catalog',
+        )
+        self.selectNavigationPage(first_page)
 
     def invalidate_session_queue(self):
         self._session_queue_snapshot = None
@@ -481,6 +501,10 @@ class DesktopWorkspace(QObject):
     @Property(QObject, constant=True)
     def playlistModel(self):
         return self.models['playlists']
+
+    @Property(QObject, constant=True)
+    def collectionFilterModel(self):
+        return self.collection_filter
 
     @Property(QObject, constant=True)
     def historyModel(self):
@@ -1313,10 +1337,12 @@ class DesktopWorkspace(QObject):
         elif action == 'playback_collection':
             destination = p.get('destination', 'effects')
             records = [
-                dict(row) for row in self.models['playlists'].rows if row.get('checked')
+                dict(row)
+                for row in self.collection_filter.visible_rows()
+                if row.get('checked')
             ]
             if not records:
-                records = [dict(row) for row in self.models['playlists'].rows]
+                records = [dict(row) for row in self.collection_filter.visible_rows()]
             for row in records:
                 row['_queue_collection'] = (
                     self.options.get('playlistTitle') or 'Playlist'
@@ -1428,7 +1454,7 @@ class DesktopWorkspace(QObject):
                 else dict(self.options['effectsRecord'])
             )
             source = (
-                str(record.get('source', ''))
+                self.jukebox_lyrics_source()
                 if jukebox
                 else self.options['effectsSource']
             )
@@ -1472,7 +1498,7 @@ class DesktopWorkspace(QObject):
                     )
                     return
                 if jukebox:
-                    if str((self.bridge.model or {}).get('source', '')) != source:
+                    if self.jukebox_lyrics_source() != source:
                         return
                     if automatic and getattr(self, '_jukebox_lyrics', []):
                         return
@@ -1735,7 +1761,11 @@ class DesktopWorkspace(QObject):
             )
         elif action == 'playlist_add':
             self.enqueue_tracks(
-                [row for row in self.models['playlists'].rows if row.get('checked')],
+                [
+                    row
+                    for row in self.collection_filter.visible_rows()
+                    if row.get('checked')
+                ],
                 start=bool(p.get('start')),
             )
         elif action == 'compare_playlist':
@@ -2137,7 +2167,9 @@ class DesktopWorkspace(QObject):
             self.run_task('collection', {'url': url}, loaded)
         elif action == 'playlist_playback':
             tracks = [
-                dict(row) for row in self.models['playlists'].rows if row.get('checked')
+                dict(row)
+                for row in self.collection_filter.visible_rows()
+                if row.get('checked')
             ]
             start = len(self.bridge.playlist)
             added = self.bridge.enqueueRecords(
@@ -2348,7 +2380,7 @@ class DesktopWorkspace(QObject):
             'next': 'Próxima aba',
             'previous': 'Aba anterior',
             'links': 'Links',
-            'queue': 'Fila',
+            'queue': 'Downloads',
             'history': 'Histórico',
             'search': 'Pesquisar',
             'download': 'Baixar agora',
@@ -2417,6 +2449,15 @@ class DesktopWorkspace(QObject):
         )
 
     def collection_loaded(self, result):
+        self.options['collectionKind'] = result.get('kind', 'playlist')
+        self.collection_filter.collection_kind = self.options['collectionKind']
+        self.collection_filter.collection_date = (
+            str(result.get('release_date') or '')
+            if self.options['collectionKind'] == 'album'
+            else str(result.get('created_at') or result.get('creation_date') or '')
+        )
+        self.options['collectionDate'] = self.collection_filter.collection_date
+        self.collection_filter.setFilters('', '', '')
         self.setOption('collectionCoverage', result.get('coverage_summary', ''))
         self.setOption('collectionReference', '')
         self.options['playlistTitle'] = result.get('title', '')
@@ -3623,14 +3664,14 @@ class DesktopWorkspace(QObject):
                 None,
                 tr('Escolher arquivo'),
                 '',
-                filters.get(kind, 'Todos os arquivos (*)'),
+                tr(filters.get(kind, 'Todos os arquivos (*)')),
             )
         else:
             path, _ = QFileDialog.getOpenFileName(
                 None,
                 tr('Escolher arquivo'),
                 '',
-                filters.get(kind, 'Todos os arquivos (*)'),
+                tr(filters.get(kind, 'Todos os arquivos (*)')),
             )
             paths = [path] if path else []
         if not paths:
@@ -3746,7 +3787,7 @@ class DesktopWorkspace(QObject):
             from synced_lyrics import read_lrc
 
             self._jukebox_lyrics = read_lrc(paths[0])
-            self._lyric_source = str((self.bridge.model or {}).get('source', ''))
+            self._lyric_source = self.jukebox_lyrics_source()
         elif kind == 'effectLyrics':
             self.load_lyrics(paths[0], selected=True)
         elif kind == 'metadata':
@@ -3949,7 +3990,7 @@ class DesktopWorkspace(QObject):
             None,
             tr('Exportar música'),
             str(folder / (config['export_name'] + '.' + fmt)),
-            'Áudio (*.' + fmt + ')',
+            tr('Áudio') + ' (*.' + fmt + ')',
         )
         if not target:
             return
@@ -3993,7 +4034,7 @@ class DesktopWorkspace(QObject):
                 None,
                 tr('Importar arquivo'),
                 '',
-                'Arquivos (*.json *.txt *.csv *.m3u *.m3u8)',
+                tr('Arquivos (*.json *.txt *.csv *.m3u *.m3u8)'),
             )
             if not path:
                 return
@@ -4017,7 +4058,7 @@ class DesktopWorkspace(QObject):
             (
                 'JSON (*.json)'
                 if action == 'export_settings'
-                else 'M3U (*.m3u);;Texto (*.txt)'
+                else tr('M3U (*.m3u);;Texto (*.txt)')
             ),
         )
         if not path:
@@ -4469,6 +4510,7 @@ class DesktopWorkspace(QObject):
         self.remote_control.stop()
         self.save_playback_session()
         self.session_timer.stop()
+        self.session_seek_timer.stop()
         if getattr(self, '_session_writer', None):
             self._session_writer.close()
         for tail in self.effects_tails:
@@ -4677,6 +4719,16 @@ class DesktopWorkspace(QObject):
     def openLyrics(self):
         self.lyricsRequested.emit()
 
+    def jukebox_lyrics_source(self):
+        model = self.bridge.model or {}
+        source = str(model.get('source') or '')
+        if not source and model.get('_stream'):
+            import hashlib
+
+            identity = str(model['_stream'].get('url') or '')
+            source = 'onda-stream-' + hashlib.sha256(identity.encode()).hexdigest()
+        return source
+
     @Slot(result='QVariantMap')
     @Slot(bool, result='QVariantMap')
     def lyricsClock(self, jukebox=True):
@@ -4693,9 +4745,7 @@ class DesktopWorkspace(QObject):
         if jukebox is None:
             jukebox = True
         source = (
-            str((self.bridge.model or {}).get('source', ''))
-            if jukebox
-            else self.options['effectsSource']
+            self.jukebox_lyrics_source() if jukebox else self.options['effectsSource']
         )
         position = self.options['position']
         duration = self.options['duration']
@@ -4717,7 +4767,11 @@ class DesktopWorkspace(QObject):
             from synced_lyrics import read_lrc
 
             try:
-                self._jukebox_lyrics = read_lrc(str(Path(source).with_suffix('.lrc')))
+                self._jukebox_lyrics = (
+                    read_lrc(str(Path(source).with_suffix('.lrc')))
+                    if (self.bridge.model or {}).get('source')
+                    else []
+                )
             except (OSError, ValueError):
                 self._jukebox_lyrics = []
             if not self._jukebox_lyrics and source:

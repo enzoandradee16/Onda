@@ -38,9 +38,10 @@ private object UiCatalog {
             for((key,translation) in get(context,language)) {
                 val matches=placeholder.findAll(key).toList()
                 if(matches.isEmpty())continue
+                val capture=if(key in listOf("{visible} de {total}","{position} de {duration}"))"(\\d[\\d:.,]*)" else "(.+?)"
                 var position=0
                 val pattern=buildString {
-                    for(match in matches){append(Regex.escape(key.substring(position,match.range.first)));append("(.+?)");position=match.range.last+1}
+                    for(match in matches){append(Regex.escape(key.substring(position,match.range.first)));append(capture);position=match.range.last+1}
                     append(Regex.escape(key.substring(position)))
                 }
                 add(UiTemplate(Regex(pattern,RegexOption.DOT_MATCHES_ALL),matches.map {it.value},translation))

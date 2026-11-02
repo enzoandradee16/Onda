@@ -48,7 +48,7 @@ class ListNavigationTest {
             compose.onNodeWithText("Collection track 1299").assertIsDisplayed()
             compose.onNodeWithTag("collection-first").performClick()
             compose.waitForIdle()
-            compose.onNodeWithText("Álbuns e playlists").assertIsDisplayed()
+            compose.onNodeWithText("Coleção").assertIsDisplayed()
         } finally {OndaStore.saveSettings(old);compose.runOnIdle {vm.player.release()}}
     }
     @Test fun newLabelsAndProgressTranslateInBothLanguages() {

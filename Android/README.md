@@ -6,6 +6,8 @@ A navegação principal usa **Pesquisar**, **Downloads**, **Reprodução** e **M
 
 O player compacto acompanha a navegação; toque nele para abrir capa, controles e letras, que também podem ocupar a tela inteira. Efeitos e Jukebox compartilham música, fila e player na tela Reprodução e podem funcionar juntos. Veja [Reprodução unificada](../docs/REPRODUCAO-UNIFICADA.md). As capturas em `docs/images/android novo` registram a interface anterior à unificação.
 
+Na versão 1.2.5-rc, faixas de catálogo usam o player nativo por streaming quando Slowed, Jukebox e equalização estão desligados. O buffer fica na memória, sem criar o arquivo completo no cache de áudio. Ao ativar processamento, o áudio atual continua durante o download e a análise; a troca ocorre quando a nova versão está pronta. Ao desativar os efeitos, a reprodução normal pode voltar ao streaming. Posição, pausa, controles da notificação e sessão restaurada usam a mesma faixa.
+
 Os dois APKs oficiais usam versão **1.2.4**, código **31**, com a assinatura de produção original. Não houve execução automatizada do conjunto completo em aparelho ARM64 físico na preparação desta release. Consulte [o relatório atual](../docs/VALIDACAO-RELEASE-1.2.4.md).
 
 Projeto Android separado da distribuição Windows. Kotlin/Compose fornece a interface e os serviços; Python/Chaquopy executa o motor compartilhado do ONDA. O build copia os módulos necessários de `../Onda`, sem editar o programa de PC.

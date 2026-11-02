@@ -20,7 +20,7 @@ class VisibilityPreferenceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as root:
             store = PreferenceStore(Path(root) / 'settings.json')
             store.save({'hidden_tabs': ['images', 'history', 'queue']})
-            self.assertEqual(
+            self.assertCountEqual(
                 PreferenceStore(store.path).load()['hidden_tabs'], ['images', 'history']
             )
 

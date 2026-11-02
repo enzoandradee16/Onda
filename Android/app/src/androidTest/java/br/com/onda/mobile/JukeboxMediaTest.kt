@@ -29,6 +29,7 @@ class JukeboxMediaTest {
                 controller=JukeboxController(context,scope,{}) {_,config,_->
                     JSONObject().put("media_title",config.getJSONObject("record").getString("title")).put("media_artist","Artist").put("duration",120).put("source","audio.wav").put("cache","unused-test-cache")
                 }
+                controller.stop();controller.clearPlaybackQueue()
                 controller.prepare(record=JSONObject().put("title","First"))
                 controller.prepare(record=JSONObject().put("title","Second"))
                 assertEquals(listOf("First","Second"),controller.playbackQueue.value.map {it.getString("title")})

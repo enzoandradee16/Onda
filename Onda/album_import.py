@@ -33,6 +33,9 @@ def finish(title, rows, total, limit, note, album_artists=None):
         'tracks': rows[:limit],
         'note': note,
         'kind': 'album',
+        'release_date': next(
+            (row.get('release_date') for row in rows if row.get('release_date')), None
+        ),
         '_total': total,
         '_capped': len(rows) > limit,
         'folder_title': f'{artist} - {title}',

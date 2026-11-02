@@ -5,12 +5,12 @@ import tkinter as tk
 from tkinter import ttk
 
 DEFAULT_ORDER = (
-    'catalog',
-    'downloads',
-    'queue',
-    'playlists',
-    'history',
     'effects',
+    'catalog',
+    'playlists',
+    'queue',
+    'downloads',
+    'history',
     'images',
     'converter',
     'metadata',

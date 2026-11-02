@@ -38,9 +38,15 @@ Popup {
                 Behavior on opacity { NumberAnimation { duration: workspace.preferences.lyrics_animation === "Desativada" ? 0 : 180 } }
             }
         }
-        OndaSlider { Layout.fillWidth: true; from: 0; to: Math.max(1,popup.frame.duration); value: popup.frame.position; onMoved: workspace.seekLyrics(value,popup.frame.jukebox) }
+        OndaSlider {
+            id:lyricsTimeline;objectName:"lyricsTimeline";property real previewPosition:0
+            Layout.fillWidth:true;from:0;to:Math.max(1,popup.frame.duration)
+            Binding {target:lyricsTimeline;property:"value";value:popup.frame.position;when:!lyricsTimeline.pressed;restoreMode:Binding.RestoreNone}
+            onMoved:{previewPosition=value;if(!pressed)workspace.seekLyrics(value,popup.frame.jukebox)}
+            onPressedChanged:{if(pressed)previewPosition=value;else workspace.seekLyrics(previewPosition,popup.frame.jukebox)}
+        }
         RowLayout { Layout.fillWidth: true
-            Label { text: Math.floor(popup.frame.position/60)+":"+String(Math.floor(popup.frame.position%60)).padStart(2,"0"); color: bridge.palette.muted; Layout.fillWidth: true }
+            Label { text: workspace.clock(lyricsTimeline.pressed?lyricsTimeline.previewPosition:popup.frame.position); color: bridge.palette.muted; Layout.fillWidth: true }
             PlaybackButton { glyph: "previous"; Accessible.name: bridge.translate("Retroceder"); enabled: popup.frame.jukebox ? bridge.stateValue(bridge.stateRevision,"ready") : popup.frame.duration>0; onClicked: { if(popup.frame.jukebox)bridge.previousTrack();else workspace.seekLyrics(0,false) } }
             PlaybackButton { glyph: (popup.frame.jukebox ? bridge.stateValue(bridge.stateRevision,"playing") && !bridge.stateValue(bridge.stateRevision,"paused") : workspace.optionValue(workspace.optionsRevision,"previewActive") && workspace.optionValue(workspace.optionsRevision,"previewKind")==="effects") ? "pause" : "play"; primary: true; Accessible.name: bridge.translate((popup.frame.jukebox ? bridge.stateValue(bridge.stateRevision,"playing") && !bridge.stateValue(bridge.stateRevision,"paused") : workspace.optionValue(workspace.optionsRevision,"previewActive") && workspace.optionValue(workspace.optionsRevision,"previewKind")==="effects") ? "Pausar" : "Reproduzir"); onClicked: { if(popup.frame.jukebox)bridge.playPause();else workspace.invoke("effects_play_pause",{}) } }
             PlaybackButton { glyph: "next"; Accessible.name: bridge.translate("Avançar"); enabled: popup.frame.jukebox && bridge.playbackControls.current+1<bridge.queueCount; onClicked: bridge.nextTrack() }

@@ -5,6 +5,7 @@ Pane {
     DownloadFormatPopup {}
     ImageGalleryPopup {}
     LyricsWindow { id: lyricsWindow }
+    RemoteControlPopup {id:devicesPopup}
     EffectsQueueDrawer {parent: Overlay.overlay; effects: false}
     MiniPlayer { id: floatingPlayer; mainWindow: app.Window.window; volumeValue: bridge.playbackParams.volume; onVolumeMoved: function(value){bridge.setParams(bridge.playbackParams.variation,bridge.playbackParams.smooth,value,bridge.playbackParams.normal)} }
 
@@ -132,6 +133,7 @@ Pane {
                     TimerButton { onClicked: miniTimers.open() }
                     PlaybackButton { glyph: "mini"; Accessible.name: bridge.translate("Mini player"); ToolTip.visible: hovered; ToolTip.text: Accessible.name; onClicked: {floatingPlayer.openPlayer()} }
                     PlaybackButton { glyph: "queue"; Accessible.name: bridge.translate("Fila"); ToolTip.visible: hovered; ToolTip.text: Accessible.name; onClicked: {workspace.setOption("jukeboxQueueOpen",true)} }
+                    PlaybackButton {objectName:"compactPlaybackDevicesButton";glyph:"devices";primary:remoteControl.state.connected;Accessible.name:bridge.translate("Dispositivos");ToolTip.visible:hovered;ToolTip.text:Accessible.name;property bool devicesOpenOnPress:false;onPressed:devicesOpenOnPress=devicesPopup.visible || Date.now()-devicesPopup.closedAt<100;onClicked:{if(devicesOpenOnPress||devicesPopup.visible)devicesPopup.close();else devicesPopup.open();devicesOpenOnPress=false}}
                 }
             }
             Rectangle {
@@ -148,7 +150,7 @@ Pane {
                     Rectangle {Layout.preferredWidth:48;Layout.preferredHeight:48;radius:6;color:bridge.palette.input
                         RoundedArtwork {anchors.fill:parent;source:bridge.stateValue(bridge.stateRevision,"cover");fillMode:Image.PreserveAspectCrop}
                     }
-                    ColumnLayout {Layout.maximumWidth:Math.max(80,Math.min(190,jukeboxTransport.x-110))
+                    ColumnLayout {visible:sharedPlaybackBar.width>=650;Layout.maximumWidth:Math.max(80,Math.min(190,jukeboxTransport.x-110))
                         Label {Layout.fillWidth:true;text:bridge.stateValue(bridge.stateRevision,"title");color:bridge.palette.text;elide:Text.ElideRight}
                         Label {Layout.fillWidth:true;text:bridge.stateValue(bridge.stateRevision,"artist");color:bridge.palette.muted;elide:Text.ElideRight}
                     }
@@ -156,7 +158,9 @@ Pane {
                     RowLayout {
                         id: jukeboxTransport
                         objectName: "jukeboxPlaybackControlsTransport"
-                        anchors.centerIn: parent; spacing: Math.round((sharedPlaybackBar.compact?6:12)*bridge.spacing)
+                        anchors.centerIn: parent; anchors.horizontalCenterOffset:-Math.max(0,jukeboxTransport.width/2+playbackExtras.width+36-parent.width/2); spacing: Math.round((sharedPlaybackBar.compact?6:12)*bridge.spacing)
+                    PlaybackButton {objectName:"playbackEqualizerButton";implicitWidth:sharedPlaybackBar.compact?28:44;glyph:"equalizer";Accessible.name:bridge.translate("Equalizador");ToolTip.visible:hovered;ToolTip.text:Accessible.name;onClicked:miniEqualizer.open()}
+                    TimerButton {implicitWidth:sharedPlaybackBar.compact?28:44;onClicked:miniTimers.open()}
                     PlaybackButton {implicitWidth:sharedPlaybackBar.compact?32:44;glyph:"shuffle";primary:bridge.queueShuffle;Accessible.name:bridge.translate("Reprodução aleatória");onClicked:bridge.setQueueShuffle(!bridge.queueShuffle)}
                     PlaybackButton {implicitWidth:sharedPlaybackBar.compact?32:44; glyph: "previous"; Accessible.name: bridge.translate("Retroceder"); enabled: bridge.stateValue(bridge.stateRevision,"ready"); onClicked: bridge.previousTrack() }
                     PlaybackButton {implicitWidth:sharedPlaybackBar.compact?32:44;
@@ -170,22 +174,29 @@ Pane {
                     PlaybackButton {objectName:"playbackRepeatButton";implicitWidth:sharedPlaybackBar.compact?32:44;glyph:bridge.queueRepeat==="Uma"?"repeat-one":"repeat";primary:bridge.queueRepeat!=="Desativada";Accessible.name:bridge.translate("Repetição")+": "+bridge.translate(bridge.queueRepeat);ToolTip.visible:hovered;ToolTip.text:Accessible.name;onClicked:bridge.setQueueRepeat(bridge.queueRepeat==="Desativada"?"Todas":bridge.queueRepeat==="Todas"?"Uma":"Desativada")}
                     }
                     RowLayout {
-                        objectName:"unifiedPlaybackExtras"
+                        id:playbackExtras;objectName:"unifiedPlaybackExtras"
                         anchors.right: parent.right; anchors.rightMargin: 24; anchors.verticalCenter: parent.verticalCenter
-                        width: Math.max(220,parent.width/2-jukeboxTransport.width/2-48); spacing: Math.round((sharedPlaybackBar.compact?4:6)*bridge.spacing)
-                    PlaybackButton {objectName:"playbackEqualizerButton";implicitWidth:sharedPlaybackBar.compact?32:44;glyph:"equalizer";Accessible.name:bridge.translate("Equalizador");ToolTip.visible:hovered;ToolTip.text:Accessible.name;onClicked:miniEqualizer.open()}
-                    TimerButton {implicitWidth:sharedPlaybackBar.compact?32:44;onClicked:miniTimers.open()}
-                    MicrophoneButton {implicitWidth:sharedPlaybackBar.compact?32:44;onClicked:{if(lyricsWindow.visible)lyricsWindow.close();else lyricsWindow.open()}}
-                    PlaybackButton {implicitWidth:sharedPlaybackBar.compact?32:44;glyph:"queue";Accessible.name:bridge.translate("Fila");onClicked:{workspace.setOption("jukeboxQueueOpen",true)}}
-                    PlaybackButton {implicitWidth:sharedPlaybackBar.compact?32:44; glyph: "mini"; Accessible.name: bridge.translate("Mini player"); ToolTip.visible: hovered; ToolTip.text: Accessible.name; onClicked: {floatingPlayer.openPlayer()} }
-                    PlaybackButton {glyph:"volume";implicitWidth:sharedPlaybackBar.compact?32:36;Accessible.name:bridge.translate("Volume");onClicked:compactVolume.open()}
+                        width: Math.max(220,parent.width/2-jukeboxTransport.width/2-48); spacing: Math.round((sharedPlaybackBar.compact?2:6)*bridge.spacing)
+                    MicrophoneButton {implicitWidth:sharedPlaybackBar.compact?28:44;onClicked:{if(lyricsWindow.visible)lyricsWindow.close();else lyricsWindow.open()}}
+                    PlaybackButton {implicitWidth:sharedPlaybackBar.compact?28:44;glyph:"queue";Accessible.name:bridge.translate("Fila");onClicked:{workspace.setOption("jukeboxQueueOpen",true)}}
+                    PlaybackButton {objectName:"playbackDevicesButton";implicitWidth:sharedPlaybackBar.compact?28:44;glyph:"devices";primary:remoteControl.state.connected;Accessible.name:bridge.translate("Dispositivos");ToolTip.visible:hovered;ToolTip.text:Accessible.name;property bool devicesOpenOnPress:false;onPressed:devicesOpenOnPress=devicesPopup.visible || Date.now()-devicesPopup.closedAt<100;onClicked:{if(devicesOpenOnPress||devicesPopup.visible)devicesPopup.close();else devicesPopup.open();devicesOpenOnPress=false}}
+                    PlaybackButton {implicitWidth:sharedPlaybackBar.compact?28:44; glyph: "mini"; Accessible.name: bridge.translate("Mini player"); ToolTip.visible: hovered; ToolTip.text: Accessible.name; onClicked: {floatingPlayer.openPlayer()} }
+                    PlaybackButton {glyph:"volume";implicitWidth:sharedPlaybackBar.compact?28:36;Accessible.name:bridge.translate("Volume");onClicked:compactVolume.open()}
                     OndaSlider { id: volume; visible:parent.parent.width>=1000; Layout.fillWidth: true; Layout.preferredWidth: 150; Layout.maximumWidth: 200; Layout.minimumWidth: 50; value: bridge.playbackParams.volume; Accessible.name: bridge.translate("Volume");onMoved:bridge.setParams(bridge.playbackParams.variation,bridge.playbackParams.smooth,value,bridge.playbackParams.normal) }
+                    Item {Layout.fillWidth:true;Layout.minimumWidth:0;Layout.preferredWidth:0}
                     }
                 }
                 RowLayout {
                     anchors.left:parent.left;anchors.right:parent.right;anchors.bottom:parent.bottom;anchors.leftMargin:24;anchors.rightMargin:24;anchors.bottomMargin:10;height:28;spacing:12
-                    Label {text:workspace.clock(bridge.sourcePosition);color:bridge.palette.muted}
-                    OndaSlider {Layout.fillWidth:true;from:0;to:Math.max(1,bridge.sourceDuration);value:bridge.sourcePosition;enabled:bridge.stateValue(bridge.stateRevision,"ready");Accessible.name:bridge.translate("Posição na música");onMoved:bridge.seekSeconds(value)}
+                    Label {text:workspace.clock(playbackTimeline.pressed?playbackTimeline.previewPosition:bridge.sourcePosition);color:bridge.palette.muted}
+                    OndaSlider {
+                        id:playbackTimeline;objectName:"playbackTimeline";property real previewPosition:0
+                        Layout.fillWidth:true;from:0;to:Math.max(1,bridge.sourceDuration)
+                        enabled:bridge.stateValue(bridge.stateRevision,"ready");Accessible.name:bridge.translate("Posição na música")
+                        Binding {target:playbackTimeline;property:"value";value:bridge.sourcePosition;when:!playbackTimeline.pressed;restoreMode:Binding.RestoreNone}
+                        onMoved:{previewPosition=value;if(!pressed)bridge.seekSeconds(value)}
+                        onPressedChanged:{if(pressed)previewPosition=value;else bridge.seekSeconds(previewPosition)}
+                    }
                     Label {text:workspace.clock(bridge.sourceDuration);color:bridge.palette.muted}
                 }
             }

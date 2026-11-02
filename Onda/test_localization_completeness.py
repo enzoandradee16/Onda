@@ -5,6 +5,46 @@ from unittest.mock import MagicMock
 from i18n import catalog, tr, set_language
 
 
+def ui_call_literals(source, calls):
+    """Read quoted branches inside UI calls, including nested conditionals."""
+    for call in re.finditer(calls, source):
+        start = position = call.end()
+        depth, quote, escaped = 1, None, False
+        while position < len(source) and depth:
+            char = source[position]
+            if quote:
+                if escaped:
+                    escaped = False
+                elif char == chr(92):
+                    escaped = True
+                elif char == quote:
+                    quote = None
+            elif char in ('"', "'"):
+                quote = char
+            elif char == '(':
+                depth += 1
+            elif char == ')':
+                depth -= 1
+            position += 1
+        expression = source[start : position - 1]
+        for match in re.finditer(r'"(?:[^"\\]|\\.)*"|\'(?:[^\'\\]|\\.)*\'', expression):
+            try:
+                text = ast.literal_eval(match.group())
+            except (ValueError, SyntaxError):
+                continue
+            if len(text) <= 3 or any(
+                char in text for char in ('$', ')', '}', '(', '{', '\n')
+            ):
+                continue
+            if re.fullmatch(r'[a-z][A-Za-z0-9_-]*', text) or not text[0].isalpha():
+                continue
+            if text.startswith('ONDA ') or re.fullmatch(
+                r'(?:MP3|FLAC|WAV|AAC|M4A)(?: \d+)?', text
+            ):
+                continue
+            yield text
+
+
 class CatalogCompletenessTests(unittest.TestCase):
     def tearDown(self):
         set_language("pt-BR")
@@ -169,6 +209,66 @@ class CatalogCompletenessTests(unittest.TestCase):
                     ):
                         missing.append((path.name, language, text))
         self.assertFalse(missing, 'Missing QML translations: ' + repr(missing))
+
+    def test_conditional_ui_text_and_runtime_notices_are_translated(self):
+        from i18n import patterns
+
+        root = Path(__file__).resolve().parents[1]
+        found = []
+        for path in (root / 'Onda/qml').glob('*.qml'):
+            found.extend(
+                (path.name, text)
+                for text in ui_call_literals(
+                    path.read_text(encoding='utf-8'), r'bridge\.translate\('
+                )
+            )
+        for path in (root / 'Android/app/src/main/java').rglob('*.kt'):
+            source = path.read_text(encoding='utf-8')
+            found.extend(
+                (path.name, text)
+                for text in ui_call_literals(
+                    source,
+                    r'\b(?:UiText|translateUi|a11yLabel|AccessibleSymbol|Toggle|OndaIcon)\(',
+                )
+            )
+            for pattern in (
+                r'\b(?:check|require)\([^\n]*\)\s*\{\s*"([^"$\n]*)"',
+                r'\b(?:error|IllegalArgumentException|IllegalStateException|CancellationException)\("([^"$\n]*)"',
+                r'\bnotice\s*=\s*"([^"$\n]*)"',
+                r'\b(?:status|notice)\.value\s*=\s*"([^"$\n]*)"',
+            ):
+                found.extend(
+                    (path.name, match[1])
+                    for match in re.finditer(pattern, source)
+                    if len(match[1]) > 3
+                )
+        for path in (root / 'Onda').glob('*.py'):
+            if path.name.startswith('test_'):
+                continue
+            for node in ast.walk(ast.parse(path.read_text(encoding='utf-8-sig'))):
+                if (
+                    isinstance(node, ast.Call)
+                    and isinstance(node.func, ast.Attribute)
+                    and node.func.attr
+                    in ('notify', 'showNotice', 'showerror', 'showinfo', 'showwarning')
+                ):
+                    found.extend(
+                        (path.name, arg.value)
+                        for arg in node.args
+                        if isinstance(arg, ast.Constant)
+                        and isinstance(arg.value, str)
+                        and len(arg.value) > 3
+                    )
+        missing = []
+        for path, text in found:
+            if text == 'ONDA':
+                continue
+            for language in ('en', 'es'):
+                if text not in catalog(language) and not any(
+                    pattern.fullmatch(text) for pattern, _, _ in patterns(language)
+                ):
+                    missing.append((path, language, text))
+        self.assertFalse(missing, repr(missing))
 
     def test_update_confirmation_translates_question_and_preserves_asset_name(self):
         import queue

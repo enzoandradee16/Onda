@@ -68,6 +68,162 @@ class OnlineResolveTests(unittest.TestCase):
                     )
 
 
+class StreamRecoveryTests(unittest.TestCase):
+    def test_reconnect_continues_after_pcm_already_read(self):
+        from online_audio import RecoveringNetworkAudio, StreamUnavailableError
+
+        first, second = Mock(), Mock()
+        first.read.side_effect = [b'\0' * 17640, StreamUnavailableError('denied')]
+        second.read.return_value = b'\0' * 17640
+        refresh = Mock(return_value={'url': 'https://example.com/fresh'})
+        with patch('online_audio.NetworkAudio', side_effect=[first, second]) as factory:
+            reader = RecoveringNetworkAudio(
+                {'url': 'https://example.com/old'}, start=8, refresh=refresh
+            )
+            self.assertEqual(len(reader.read()), 17640)
+            self.assertEqual(len(reader.read()), 17640)
+            self.assertAlmostEqual(factory.call_args.args[2], 8.1)
+            first.close.assert_called_once()
+            refresh.assert_called_once()
+            reader.close()
+
+    def test_reconnect_is_bounded_and_cancellation_prevents_restart(self):
+        from online_audio import RecoveringNetworkAudio, StreamUnavailableError
+
+        first, second = Mock(), Mock()
+        first.read.side_effect = StreamUnavailableError('denied')
+        second.read.side_effect = StreamUnavailableError('denied again')
+        refresh = Mock(return_value={'url': 'https://example.com/fresh'})
+        with patch('online_audio.NetworkAudio', side_effect=[first, second]):
+            reader = RecoveringNetworkAudio(
+                {'url': 'https://example.com/old'}, refresh=refresh
+            )
+            with self.assertRaises(StreamUnavailableError):
+                reader.read()
+            with self.assertRaises(StreamUnavailableError):
+                reader.read()
+            refresh.assert_called_once()
+            reader.close()
+        with patch('online_audio.NetworkAudio', return_value=first) as factory:
+            reader = RecoveringNetworkAudio(
+                {'url': 'https://example.com/old'},
+                refresh=lambda: (reader.cancel() or {}),
+            )
+            self.assertEqual(reader.read(), b'')
+            factory.assert_called_once()
+            reader.close()
+
+    def test_refresh_uses_same_video_and_probes_audio_formats(self):
+        with (
+            patch('yt_dlp.YoutubeDL') as factory,
+            patch('matching.resolve_youtube') as matching,
+        ):
+            factory.return_value.__enter__.return_value.extract_info.return_value = (
+                dict(url='https://cdn.example/audio', duration=20)
+            )
+            result = resolve(
+                dict(folder='.'),
+                dict(
+                    title='Track', source_url='https://open.spotify.com/track/original'
+                ),
+                source_url='https://www.youtube.com/watch?v=samevideo',
+            )
+            matching.assert_not_called()
+            options = factory.call_args.args[0]
+            self.assertEqual(options['check_formats'], 'selected')
+            self.assertTrue(options['format'].startswith('bestaudio[protocol^=m3u8]'))
+            self.assertEqual(
+                result['_stream']['source_url'],
+                'https://www.youtube.com/watch?v=samevideo',
+            )
+
+
+class BufferedSeekWorkerTests(unittest.TestCase):
+    def test_worker_reuses_reader_for_back_and_forward_seeks(self):
+        self._exercise(False)
+
+    def test_worker_coalesces_requests_outside_buffer(self):
+        self._exercise(True)
+
+    def _exercise(self, outside):
+        from types import SimpleNamespace
+        from qt_online_playback_ui import OnlinePlayback
+        from jukebox import Cancelled
+
+        state = dict(playing=False)
+        packets = []
+        bridge = SimpleNamespace(
+            revision=0,
+            model=dict(_stream=dict(url='https://example.com/audio'), title='Track'),
+            sourceDuration=120,
+            playlist=[],
+            queue_index=-1,
+            config=lambda: {},
+            _state=state,
+            paused=threading.Event(),
+            media_timer=Mock(),
+            clock_timer=Mock(),
+            sync_media=Mock(),
+            playback_gain=lambda: 1,
+            _equalizer={},
+            emit=Mock(),
+            start_worker=lambda job: job(),
+            update_state=lambda **values: state.update(values),
+        )
+        online = OnlinePlayback(bridge)
+
+        class Sink:
+            def __init__(self, progress=None):
+                self.buffers = []
+                self.progress = progress
+
+            def control(self, cancelled, paused):
+                if cancelled():
+                    raise Cancelled()
+                return paused()
+
+            def write(self, data, cancelled, paused):
+                packets.append(data[0])
+                if len(packets) == 1:
+                    if outside:
+                        online.seek(70)
+                        online.seek(80)
+                    else:
+                        online.seek(0.5)
+                elif len(packets) == 2:
+                    if outside:
+                        bridge.cancelled.set()
+                    else:
+                        online.seek(0.2)
+                else:
+                    bridge.cancelled.set()
+
+            def close(self):
+                pass
+
+        def source(*args):
+            reader = Mock()
+            reader.read.side_effect = [bytes([i]) * 17640 for i in range(1, 101)] + [
+                b''
+            ]
+            return reader
+
+        with (
+            patch(
+                'qt_online_playback_ui.RecoveringNetworkAudio', side_effect=source
+            ) as readers,
+            patch('jukebox_audio.PcmOutput', Sink),
+        ):
+            online.start()
+            if outside:
+                self.assertEqual(readers.call_count, 2)
+                self.assertEqual(readers.call_args.args[2], 80)
+            else:
+                readers.assert_called_once()
+                self.assertEqual(packets, [1, 6, 3])
+            self.assertIsNone(online.reader)
+
+
 @unittest.skipUnless(os.environ.get('ONDA_QT_TESTS'), 'Qt streaming controls')
 class OnlineControlsTests(unittest.TestCase):
     from test_qt_workspace import NativeDesktopTests as Fixture
@@ -108,7 +264,55 @@ class OnlineControlsTests(unittest.TestCase):
         with patch.object(bridge.online, 'start') as start:
             bridge.seekSeconds(8)
             self.assertEqual(bridge.sourcePosition, 8)
-            start.assert_called_once()
+            self.assertEqual(bridge.online.pending_seek[1], 8)
+            self.assertTrue(bridge._state['playing'])
+            start.assert_not_called()
+        bridge.paused.set()
+        bridge.seekSeconds(9)
+        self.assertTrue(bridge.paused.is_set())
+        self.assertEqual(bridge.online.pending_seek[1], 9)
+        serial = bridge.online.seek_serial
+        bridge.handle_event(bridge.revision, 'stream_position', (serial - 1, 2))
+        self.assertEqual(bridge.sourcePosition, 9)
+        bridge.handle_event(bridge.revision, 'stream_position', (serial, 9.1))
+        self.assertEqual(bridge.sourcePosition, 9.1)
+
+    def test_timeline_drag_previews_but_only_seeks_on_release(self):
+        from PySide6.QtCore import QObject, QPointF, Qt
+        from PySide6.QtTest import QTest
+        from qt_desktop_ui import create_application, close_application
+
+        app, engine, bridge = create_application(complete=False)
+        try:
+            window = engine.rootObjects()[0]
+            window.setWidth(1360)
+            window.setHeight(900)
+            window.show()
+            engine.workspace.selectPage('jukebox')
+            bridge.model = self.streamed_model()
+            bridge.update_state(ready=True, playing=False, title='Fixture')
+            QTest.qWait(100)
+            slider = window.findChild(QObject, 'playbackTimeline')
+
+            def point(fraction):
+                return slider.mapToScene(
+                    QPointF(slider.width() * fraction, slider.height() / 2)
+                ).toPoint()
+
+            with patch.object(bridge.online, 'seek') as seek:
+                QTest.mousePress(window, Qt.LeftButton, Qt.NoModifier, point(0.2))
+                QTest.mouseMove(window, point(0.5))
+                QTest.mouseMove(window, point(0.8))
+                QTest.qWait(30)
+                seek.assert_not_called()
+                self.assertGreater(slider.property('previewPosition'), 20)
+                QTest.mouseRelease(window, Qt.LeftButton, Qt.NoModifier, point(0.8))
+                QTest.qWait(30)
+                seek.assert_called_once()
+                self.assertGreater(seek.call_args.args[0], 20)
+                self.assertLess(seek.call_args.args[0], 26)
+        finally:
+            close_application(engine, bridge)
 
     def begin_preparation(self):
         bridge = self.bridge

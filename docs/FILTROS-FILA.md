@@ -6,4 +6,4 @@ Estados: Todos, Pendentes, Em andamento, Concluídos, Com falha e Cancelados. A 
 
 Filtrar não remove nem reordena os itens da execução. Baixar fila continua processando toda a fila; seleção, Ctrl+A e ações sobre selecionados ficam limitados aos itens visíveis. Limpar fila continua sendo uma ação sobre toda a fila.
 
-No PC, Ctrl+F na aba Fila leva ao campo de busca.
+No PC, Ctrl+F na aba Downloads leva ao campo de busca.

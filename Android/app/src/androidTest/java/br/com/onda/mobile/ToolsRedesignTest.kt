@@ -90,7 +90,7 @@ class ToolsRedesignTest {
             compose.onNodeWithText("Salvar alterações").performScrollTo().assertIsEnabled()
             instrumentation.removeMonitor(monitors.removeAt(0))
             compose.runOnIdle {vm.collection.value=JSONObject().put("title","Coleção de teste").put("subtitle","Artista de teste").put("kind","album").put("tracks",JSONArray().put(JSONObject().put("title","Faixa de teste").put("artists",JSONArray().put("Artista de teste")).put("source_url","https://example.com/track")))}
-            open("Álbuns e playlists");compose.onNodeWithText("Importar").performClick()
+            open("Coleção");compose.onNodeWithText("Importar").performClick()
             compose.onNodeWithText("Salvar coleção").performScrollTo().performClick()
             compose.waitUntil(10000){runBlocking {CollectionsLibrary.read()}.any {it.optString("title")=="Coleção de teste"}}
             compose.onNodeWithText("Salvos").performScrollTo().performClick();compose.onNodeWithText("Coleção de teste").assertExists();capture("collections")

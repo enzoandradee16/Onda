@@ -188,7 +188,6 @@ class PlaybackQueueDrawerTests(unittest.TestCase):
         source.write_bytes(b'fixture')
         cache = Path(self.temp.name) / 'analysis'
         cache.mkdir()
-        (cache / 'analysis.json').write_text('{}')
         self.bridge.playlist = [
             dict(id='missing', kind='file', source=str(source.with_name('gone.wav'))),
             dict(id='current', kind='file', source=str(source)),
@@ -203,10 +202,23 @@ class PlaybackQueueDrawerTests(unittest.TestCase):
             links=3,
             duration=3,
         )
+        import json
+        from jukebox import VERSION
+
+        self.bridge.model['version'] = VERSION
+        (cache / 'audio.wav').write_bytes(b'fixture')
+        (cache / 'analysis.json').write_text(
+            json.dumps(self.bridge.model), encoding='utf-8'
+        )
         self.bridge._position = 1
         self.bridge._phase = 0.4
         self.bridge._params = (30.0, 20.0, 75.0, True)
         save(self.ws)
+        # An older graph cursor/index must not override the saved source time/identity.
+        session_path = self.ws.store.path.with_name('playback-session.json')
+        snapshot = json.loads(session_path.read_text(encoding='utf-8'))
+        snapshot['jukebox'].update(index=0, position=0, phase=0)
+        session_path.write_text(json.dumps(snapshot), encoding='utf-8')
         self.bridge.playlist = []
         self.bridge.queue_index = -1
         self.bridge.model = None
@@ -220,7 +232,7 @@ class PlaybackQueueDrawerTests(unittest.TestCase):
             juke.assert_not_called()
         self.assertEqual(self.bridge.queue_index, 0)
         self.assertEqual(self.bridge.playlist[0]['id'], 'current')
-        self.assertEqual(self.bridge.position, 1)
+        self.assertAlmostEqual(self.bridge.sourcePosition, 1.4)
         self.assertAlmostEqual(self.bridge.phase, 0.4)
         self.assertFalse(self.bridge.state['playing'])
         self.assertEqual(self.bridge._params, (30.0, 20.0, 75.0, True))
@@ -255,6 +267,9 @@ class PlaybackQueueDrawerTests(unittest.TestCase):
             restore(self.ws)
             play.assert_not_called()
         self.assertEqual(self.bridge.playlist[0]['restore_seconds'], 15)
+        self.assertTrue(self.bridge.state['ready'])
+        self.assertEqual(self.bridge.state['title'], 'Resume')
+        self.assertEqual(self.bridge.sourcePosition, 15)
         self.assertFalse(self.bridge.state['playing'])
         save(self.ws)
         self.bridge.playlist = []
@@ -270,6 +285,145 @@ class PlaybackQueueDrawerTests(unittest.TestCase):
             play.assert_called_once()
         self.assertEqual(self.bridge.sourcePosition, 15)
         self.assertNotIn('restore_seconds', self.bridge.playlist[0])
+
+    def test_session_recovers_missing_download_from_original_record(self):
+        from playback_session import save, restore
+
+        self.bridge.playlist = [
+            dict(
+                id='recoverable',
+                kind='file',
+                source=str(Path(self.temp.name) / 'expired.wav'),
+                title='Recovered',
+                record=dict(
+                    title='Recovered',
+                    source_url='https://example.com/track',
+                    artists=['Artist'],
+                    duration_ms=90000,
+                ),
+                restore_seconds=25,
+            )
+        ]
+        self.bridge.queue_index = 0
+        self.bridge.model = None
+        save(self.ws)
+        restore(self.ws)
+        self.assertEqual(self.bridge.playlist[0]['kind'], 'catalog')
+        self.assertEqual(self.bridge.sourcePosition, 25)
+        self.assertEqual(self.bridge.sourceDuration, 90)
+        self.assertEqual(self.bridge.state['artist'], 'Artist')
+        self.assertTrue(self.bridge.state['ready'])
+        self.assertFalse(self.bridge.state['playing'])
+
+    def test_streaming_session_restores_identity_and_position_without_expired_url(self):
+        from playback_session import save, restore
+
+        self.bridge.playlist = [
+            dict(
+                id='stream',
+                kind='catalog',
+                title='Stream track',
+                artist='Artist',
+                duration=120,
+                record=dict(
+                    title='Stream track',
+                    artists=['Artist'],
+                    source_url='https://example.com/song',
+                    duration_ms=120000,
+                ),
+            )
+        ]
+        self.bridge.queue_index = 0
+        self.bridge.model = dict(
+            _stream=dict(url='https://temporary.example/expired'), duration=120
+        )
+        self.bridge.online.position = 42
+        save(self.ws)
+        self.bridge.model = None
+        self.bridge.playlist = []
+        with patch.object(self.bridge, 'start_worker') as worker:
+            restore(self.ws)
+            worker.assert_not_called()
+        self.assertTrue(self.bridge.state['ready'])
+        self.assertEqual(self.bridge.state['title'], 'Stream track')
+        self.assertEqual(self.bridge.sourcePosition, 42)
+        self.assertEqual(self.bridge.sourceDuration, 120)
+        self.assertIsNone(self.bridge.model)
+        save(self.ws)
+        restore(self.ws)
+        self.assertEqual(self.bridge.sourcePosition, 42)
+        self.assertEqual(
+            self.bridge.playlist[0]['record']['source_url'], 'https://example.com/song'
+        )
+
+    def test_restored_track_accepts_seek_before_preparation_and_checkpoints_quickly(
+        self,
+    ):
+        import json
+        from PySide6.QtTest import QTest
+        from playback_session import restore
+
+        self.bridge.playlist = [
+            dict(
+                id='resume',
+                kind='catalog',
+                title='Resume',
+                duration=120,
+                record=dict(
+                    title='Resume',
+                    source_url='https://example.com/track',
+                    duration_ms=120000,
+                ),
+                restore_seconds=12,
+            )
+        ]
+        self.bridge.queue_index = 0
+        self.bridge.model = None
+        self.bridge.seekSeconds(42.25)
+        self.assertEqual(self.bridge.sourcePosition, 42.25)
+        self.assertTrue(self.ws.session_seek_timer.isActive())
+        QTest.qWait(450)
+        path = self.ws.store.path.with_name('playback-session.json')
+        saved = json.loads(path.read_text(encoding='utf-8'))
+        self.assertEqual(saved['jukebox']['seconds'], 42.25)
+        self.assertEqual(saved['jukebox']['current_id'], 'resume')
+        self.bridge.playlist = []
+        restore(self.ws)
+        self.assertEqual(self.bridge.sourcePosition, 42.25)
+        self.assertFalse(self.bridge.state['playing'])
+
+    def test_old_local_clock_message_does_not_undo_a_new_seek(self):
+        self.bridge.model = dict(
+            cache='fixture', beats=[0, 1, 2, 3], neighbors=[[], [], []], duration=3
+        )
+        old_serial = self.bridge._seek_serial
+        self.bridge.seekSeconds(1.75)
+        self.bridge.handle_event(
+            self.bridge.revision,
+            'position',
+            dict(
+                seek_serial=old_serial,
+                index=0,
+                phase=0.2,
+                elapsed=0.2,
+                jumps=0,
+                edges=[],
+            ),
+        )
+        self.assertEqual(self.bridge.sourcePosition, 1.75)
+        self.bridge.handle_event(
+            self.bridge.revision,
+            'position',
+            dict(
+                seek_serial=self.bridge._seek_serial,
+                index=1,
+                phase=0.8,
+                elapsed=1.8,
+                jumps=0,
+                edges=[],
+            ),
+        )
+        self.assertEqual(self.bridge.sourcePosition, 1.8)
 
     def test_image_gallery_remains_complete_under_history_search_filter(self):
         for name in ['first.png', 'second.png']:

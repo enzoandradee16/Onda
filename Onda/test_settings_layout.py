@@ -167,7 +167,7 @@ class SettingsLayoutUiTests(unittest.TestCase):
                     ('Agendar downloads', 'Downloads'),
                     ('Verificar atualizações do ONDA ao abrir', 'Ferramentas'),
                     ('Manter proporção', 'Imagens'),
-                    ('Tamanho dos cards da fila', 'Aparência'),
+                    ('Tamanho dos cards de downloads', 'Aparência'),
                 ]:
                     app.settings_search.query.set(query)
                     app.settings_search.search()

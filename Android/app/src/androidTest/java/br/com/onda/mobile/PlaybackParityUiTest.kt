@@ -174,6 +174,26 @@ class PlaybackParityUiTest {
             compose.onNodeWithTag("lyrics-preview-card").assertIsDisplayed()
         } finally {compose.runOnUiThread {store.clear()}}
     }
+    @Test fun remoteLyricsUsePcDocumentAndSendControlsWithoutLocalLookup() {
+        val vm=model()
+        val position=androidx.compose.runtime.mutableDoubleStateOf(0.0)
+        val playing=androidx.compose.runtime.mutableStateOf(true)
+        val source="remote:fixture:pc-song"
+        val document=listOf(0.0 to "First remote verse",15.0 to "Second remote verse",30.0 to "Third remote verse")
+        try {
+            compose.setContent {MaterialTheme {LyricsPreviewCard(vm,source,"PC song","PC artist",position.doubleValue,45.0,playing.value,{position.doubleValue=it},{playing.value=!playing.value},providedLines=document)}}
+            compose.onNodeWithTag("lyrics-preview-card").performClick()
+            compose.onNodeWithTag("lyrics-fullscreen").assertIsDisplayed()
+            compose.onNodeWithText("PC song").assertIsDisplayed()
+            compose.onNodeWithTag("lyric-line-1").performClick()
+            compose.runOnIdle {assertEquals(15.0,position.doubleValue,.001);assertFalse(vm.lyricsCache.value.containsKey(source))}
+            compose.onNodeWithTag("lyrics-play-pause").performClick()
+            compose.runOnIdle {assertFalse(playing.value)}
+            compose.onNodeWithContentDescription("Recolher letra").performClick()
+            compose.onNodeWithTag("lyrics-preview-card").assertIsDisplayed()
+        } finally {compose.runOnUiThread {store.clear()}}
+    }
+
     @Test fun effectsQueueReordersWithoutChangingTheSelectedFile() {
         val vm=model();val first=audio("parity-first.wav");val second=audio("parity-second.wav")
         try {

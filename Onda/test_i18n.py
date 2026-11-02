@@ -45,6 +45,24 @@ class LocalizationTests(unittest.TestCase):
             )
         )
 
+    def test_numeric_counts_do_not_translate_arbitrary_names_or_sentences(self):
+        for language, count in (('en', '2 of 12'), ('es', '2 de 12')):
+            self.assertEqual(tr('2 de 12', language), count)
+            self.assertEqual(
+                tr('Canção de verão sem tradução cadastrada', language),
+                'Canção de verão sem tradução cadastrada',
+            )
+            self.assertEqual(tr('A Night de Tokyo', language), 'A Night de Tokyo')
+        self.assertEqual(tr('00:12 de 04:30', 'en'), '00:12 of 04:30')
+        self.assertEqual(
+            tr('A conexão mudou. Tente novamente.', 'en'),
+            'The connection changed. Try again.',
+        )
+        self.assertEqual(
+            tr('A conexão mudou. Tente novamente.', 'es'),
+            'La conexión ha cambiado. Inténtalo de nuevo.',
+        )
+
     def test_public_album_note_and_visible_count(self):
         set_language('en')
         self.assertEqual(tr('14 de 14'), '14 of 14')

@@ -88,6 +88,11 @@ def save(workspace, strict=False, background=False):
         'jukebox': {
             'queue': workspace._session_queue_snapshot,
             'index': bridge.queue_index,
+            'current_id': (
+                bridge.playlist[bridge.queue_index]['id']
+                if 0 <= bridge.queue_index < len(bridge.playlist)
+                else None
+            ),
             'model': (
                 prepared_reference(bridge.model)
                 if bridge.model and not bridge.model.get('_stream')
@@ -189,11 +194,26 @@ def restore(workspace):
         )
         old_queue = [row for row in jukebox.get('queue', []) if isinstance(row, dict)]
         old_index = int(jukebox.get('index', -1))
-        current_id = (
-            old_queue[old_index].get('id') if 0 <= old_index < len(old_queue) else None
-        )
+        current_id = jukebox.get('current_id')
+        if (
+            not isinstance(current_id, str)
+            or not current_id
+            or not any(row.get('id') == current_id for row in old_queue)
+        ):
+            current_id = (
+                old_queue[old_index].get('id')
+                if 0 <= old_index < len(old_queue)
+                else None
+            )
         bridge.playlist = [
-            dict(row, analysis='pending')
+            (
+                dict(row, kind='catalog', analysis='pending')
+                if row.get('kind') == 'file'
+                and not Path(row.get('source', '')).is_file()
+                and isinstance(row.get('record'), dict)
+                and row['record'].get('source_url')
+                else dict(row, analysis='pending')
+            )
             for row in old_queue
             if row.get('id')
             and (
@@ -201,19 +221,19 @@ def restore(workspace):
                 and isinstance(row.get('record'), dict)
                 or row.get('kind') == 'file'
                 and isinstance(row.get('source'), str)
-                and Path(row['source']).is_file()
+                and (
+                    Path(row['source']).is_file()
+                    or isinstance(row.get('record'), dict)
+                    and row['record'].get('source_url')
+                )
             )
         ]
         bridge._prepared.clear()
         restored_index = next(
             (i for i, row in enumerate(bridge.playlist) if row['id'] == current_id), 0
         )
-        from playback_preparation import preparation_ahead
-
-        ahead = preparation_ahead(bridge.preferences.get('playback_prepare_ahead', 2))
-        for entry in bridge.playlist[
-            max(0, restored_index - 1) : restored_index + ahead + 1
-        ]:
+        # Neighbours are restored by the preparation worker when actually needed.
+        for entry in bridge.playlist[restored_index : restored_index + 1]:
             model = restored_prepared(entry.get('prepared_cache'))
             if model:
                 model['_cover'] = (
@@ -258,8 +278,15 @@ def restore(workspace):
             if isinstance(identity, str)
         ][-200:]
         model = jukebox.get('model')
+        if not model and bridge.queue_index >= 0:
+            model = bridge._prepared.get(bridge.playlist[bridge.queue_index]['id'])
         if isinstance(model, dict) and 'beats' not in model:
-            model = restored_prepared(model)
+            cached = bridge._prepared.get(current_id)
+            model = (
+                cached
+                if cached and cached.get('cache') == model.get('cache')
+                else restored_prepared(model)
+            )
         seconds = jukebox.get('seconds')
         if seconds is None and isinstance(model, dict):
             beats = model.get('beats', [])
@@ -281,14 +308,24 @@ def restore(workspace):
             and (Path(model.get('cache', '')) / 'analysis.json').is_file()
         ):
             bridge.handle_event(bridge.revision, 'result', model)
-            position = float(jukebox.get('position', 0))
-            phase = float(jukebox.get('phase', 0))
-            bridge._position = (
-                max(0, min(position, max(0, len(model.get('beats', [])) - 2)))
-                if math.isfinite(position)
-                else 0
-            )
-            bridge._phase = max(0, min(phase, 1)) if math.isfinite(phase) else 0
+            import bisect
+
+            beats = model.get('beats', [])
+            if len(beats) >= 2:
+                seconds = min(seconds, beats[-1])
+                index = max(
+                    0, min(len(beats) - 2, bisect.bisect_right(beats, seconds) - 1)
+                )
+                phase = max(
+                    0.0,
+                    min(
+                        1.0,
+                        (seconds - beats[index])
+                        / max(0.000001, beats[index + 1] - beats[index]),
+                    ),
+                )
+                bridge._position = index + phase
+                bridge._phase = phase
             params = jukebox.get('params')
             if (
                 isinstance(params, list)
@@ -323,7 +360,15 @@ def restore(workspace):
             ):
                 bridge.setParams(*params)
             bridge.update_state(
-                title=current.get('title', ''),
+                title=current.get('title')
+                or current.get('record', {}).get('title', ''),
+                artist=current.get('artist')
+                or ', '.join(current.get('record', {}).get('artists', [])),
+                album=current.get('album')
+                or current.get('record', {}).get('album', ''),
+                cover=current.get('cover')
+                or current.get('record', {}).get('cover_url', ''),
+                ready=True,
                 status=__import__('i18n').tr('Sessão restaurada. Toque em reproduzir.'),
                 playing=False,
                 paused=False,

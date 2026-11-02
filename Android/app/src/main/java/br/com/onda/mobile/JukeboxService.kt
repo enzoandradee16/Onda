@@ -39,23 +39,25 @@ class JukeboxService:Service() {
         manager.createNotificationChannel(NotificationChannel("jukebox",translateUi("Reprodução"),NotificationManager.IMPORTANCE_LOW))
         wake=getSystemService(PowerManager::class.java).newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,"ONDA:Jukebox").apply {setReferenceCounted(false)}
         session=MediaSession(this,"ONDA Jukebox")
+        scope.launch {while(isActive){delay(1000);if(controller.state.value.playing)refreshPosition()}}
         session.setCallback(object:MediaSession.Callback() {
             override fun onPlay(){if(!controller.state.value.playing || controller.state.value.paused)controller.playPause()}
             override fun onPause(){controller.pause()}
             override fun onStop(){controller.stop()}
+            override fun onSeekTo(pos:Long){controller.seekSeconds(pos/1000.0)}
             override fun onSkipToPrevious(){controller.previousTrack()}
             override fun onSkipToNext(){controller.nextTrack()}
         },Handler(Looper.getMainLooper()))
         val notification=notification()
         if(Build.VERSION.SDK_INT>=29)startForeground(13,notification,ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK) else startForeground(13,notification)
         scope.launch {
-            combine(controller.presentationState,controller.playbackQueue,controller.currentQueueId) {state,rows,id->
+            combine(controller.presentationState,controller.playbackQueue,controller.currentQueueId,controller.audioReady) {state,rows,id,ready->
                 val row=rows.firstOrNull {it.optString("_queue_id")==id}
                 val model=state.model
                 listOf(state.playing.toString(),state.paused.toString(),model?.optString("source").orEmpty(),
                     model?.optString("media_title").orEmpty(),model?.optString("media_artist").orEmpty(),
                     model?.optString("media_cover").orEmpty().ifBlank {model?.optString("_cover").orEmpty()}.ifBlank {row?.optString("_cover").orEmpty()},
-                    model?.optString("cover_url").orEmpty().ifBlank {row?.optString("cover_url").orEmpty()},state.busy.toString())
+                    model?.optString("cover_url").orEmpty().ifBlank {row?.optString("cover_url").orEmpty()},state.busy.toString(),ready.toString())
             }.distinctUntilChanged().collect {state->
                 val stopRequest=idleStop.changed()
                 idleStopTask?.cancel()
@@ -112,13 +114,19 @@ class JukeboxService:Service() {
     }
     private fun refresh() {
         val state=controller.state.value;val model=state.model
-        session.setPlaybackState(PlaybackState.Builder().setActions(PlaybackState.ACTION_PLAY or PlaybackState.ACTION_PAUSE or PlaybackState.ACTION_PLAY_PAUSE or PlaybackState.ACTION_STOP or PlaybackState.ACTION_SKIP_TO_PREVIOUS or PlaybackState.ACTION_SKIP_TO_NEXT)
-            .setState(if(state.paused)PlaybackState.STATE_PAUSED else PlaybackState.STATE_PLAYING,PlaybackState.PLAYBACK_POSITION_UNKNOWN,if(state.paused)0f else 1f).build())
+        refreshPosition()
         session.setMetadata(MediaMetadata.Builder().putString(MediaMetadata.METADATA_KEY_TITLE,model?.optString("media_title")?.takeIf {it.isNotBlank()} ?: state.title.ifBlank {translateUi("Reprodução")})
-            .putString(MediaMetadata.METADATA_KEY_ARTIST,model?.optString("media_artist").orEmpty())
+            .putString(MediaMetadata.METADATA_KEY_ARTIST,model?.optString("media_artist").orEmpty()).putLong(MediaMetadata.METADATA_KEY_DURATION,((model?.optDouble("duration",0.0) ?: 0.0)*1000).toLong())
             .putBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART,artwork).putBitmap(MediaMetadata.METADATA_KEY_ART,artwork)
             .putBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON,artwork).build())
         getSystemService(NotificationManager::class.java).notify(13,notification())
+    }
+    private fun refreshPosition() {
+        val state=controller.state.value
+        val ready=controller.audioReady.value
+        val speed=if(state.paused || !ready)0f else if(controller.effects.value.optBoolean("enabled") && !state.effectsPending && state.model?.has("_stream")!=true)controller.effects.value.optInt("speed",100)/100f else 1f
+        session.setPlaybackState(PlaybackState.Builder().setActions(PlaybackState.ACTION_PLAY or PlaybackState.ACTION_PAUSE or PlaybackState.ACTION_PLAY_PAUSE or PlaybackState.ACTION_STOP or PlaybackState.ACTION_SKIP_TO_PREVIOUS or PlaybackState.ACTION_SKIP_TO_NEXT or PlaybackState.ACTION_SEEK_TO)
+            .setState(if(state.paused)PlaybackState.STATE_PAUSED else if(!ready)PlaybackState.STATE_BUFFERING else PlaybackState.STATE_PLAYING,(controller.sessionSeconds(state.model,state.index,state.phase.toDouble())*1000).toLong(),speed).build())
     }
     override fun onStartCommand(intent:Intent?,flags:Int,startId:Int):Int {
         when(intent?.action){"play"->if(controller.state.value.paused)controller.playPause();"pause"->controller.pause();"stop"->controller.stop()}
