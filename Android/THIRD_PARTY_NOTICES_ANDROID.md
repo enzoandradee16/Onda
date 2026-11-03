@@ -15,6 +15,8 @@ O código próprio mantém a licença GPL-2.0-only do repositório. Bibliotecas 
 | Requests 2.32.5 | https://github.com/psf/requests | Apache-2.0 |
 | Pillow 11.0.0 | https://github.com/python-pillow/Pillow | HPND e avisos das bibliotecas nativas |
 | Coil 2.7.0 | https://github.com/coil-kt/coil | Apache-2.0 |
+| ONNX Runtime 1.23.2 (remoção de fundo) | https://github.com/microsoft/onnxruntime | MIT; aviso em `assets/licenses/ONNXRuntime.txt` |
+| U2NetP (modelo opcional, obtido no primeiro uso) | https://github.com/xuebinqin/U-2-Net | Apache-2.0; aviso em `assets/licenses/U2NET.txt` |
 | kotlinx.coroutines | https://github.com/Kotlin/kotlinx.coroutines | Apache-2.0 |
 | FFmpeg / FFprobe 7.1.3 | https://ffmpeg.org/ | GPL-3.0-or-later na configuração utilizada |
 | QuickJS 2025-09-13 | https://bellard.org/quickjs/ | MIT |
@@ -30,6 +32,6 @@ FFmpeg, FFprobe e QuickJS são executáveis separados, chamados como processos. 
 
 O pacote `Fontes-nativos-Android` da mesma release contém os fontes originais completos dos componentes desses executáveis, receitas, configurações e licenças. `nativebuild/README.md` explica a reconstrução. Os binários anteriores youtubedl-android e os arquivos ZIP de suporte Termux deixaram de ser usados.
 
-`nativebuild/RUNTIME_DEPENDENCIES.json` lista as 98 bibliotecas de execução resolvidas pelo Gradle, com versões, hashes e informações de licença do POM. Os avisos embutidos nos artefatos e nas dependências Python foram preservados em `nativebuild/licenses/` e no APK, acessíveis por Menu → Licenças e fontes. Python 3.11.14, Chaquopy 17.0.0, Pillow e bibliotecas auxiliares mantêm suas licenças originais; não são parte da reconstrução FFmpeg.
+`nativebuild/RUNTIME_DEPENDENCIES.json` preserva o inventário-base das bibliotecas de execução, com versões, hashes e informações de licença do POM. As dependências acrescentadas depois desse inventário, incluindo ONNX Runtime e Media3 OkHttp, estão declaradas em `app/build.gradle.kts`. Os avisos embutidos nos artefatos e nas dependências Python foram preservados em `nativebuild/licenses/` e no APK, acessíveis por Menu → Licenças e fontes. Python 3.11.14, Chaquopy 17.0.0, Pillow e bibliotecas auxiliares mantêm suas licenças originais; não são parte da reconstrução FFmpeg.
 
-A assinatura de produção foi verificada. A validação atual da versão 1.2.1 usa BlueStacks com Android 11/API 30, x86_64. Os APKs ARM64 são compilados e verificados; a validação física ARM64 permanece pendente.
+A assinatura de produção dos APKs 1.2.5 foi verificada. Os testes instrumentados e a atualização da RC para a versão final usam BlueStacks 5, x86_64. O APK ARM64 foi compilado e verificado; a validação física ARM64 permanece pendente. Consulte `VALIDACAO.md` no pacote da release.

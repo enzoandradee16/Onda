@@ -1,6 +1,6 @@
-# ONDA 1.2.5-rc
+# ONDA 1.2.5
 
-Pré-release candidata à versão 1.2.5. Este rascunho prepara o código e as notas; os pacotes específicos da RC ainda não foram compilados nem anexados.
+Versão 1.2.5 para Windows x64 e Android ARM64 e x86_64.
 
 ## Controle remoto e transferência PC ↔ Android
 
@@ -22,6 +22,9 @@ Pré-release candidata à versão 1.2.5. Este rascunho prepara o código e as no
 - Busca de músicas e letras com melhorias para japonês, variações de escrita, acentos e correspondência entre nomes.
 - Correções dos sliders: valores acompanham o movimento; os efeitos são aplicados ao soltar. O volume é aplicado durante o ajuste.
 - Retroceder reinicia a música depois de três segundos; antes disso, volta à faixa anterior.
+- Reordenar a fila prepara a nova próxima faixa, preservando a identidade das músicas; correções no arrastar e remover no Android.
+- Preparações aproveitam o áudio já carregado e falhas demoradas permitem nova tentativa, sem interromper a faixa atual.
+- Abrir um arquivo local mantém o streaming atual até o arquivo ficar pronto; capas das faixas não são substituídas pelo mosaico da playlist.
 
 ## Desempenho e estabilidade
 
@@ -38,12 +41,12 @@ Pré-release candidata à versão 1.2.5. Este rascunho prepara o código e as no
 - Reprodução passa para Biblioteca no PC; no Android, permanece na barra inferior.
 - Mensagens de operação/cache mais claras e aviso de pesquisa vazia.
 - Foto com música em MP4 nos formatos de download de publicações compatíveis.
+- Imagens: remoção de fundo opcional, prévia automática, colar arquivos/imagens no PC, comparação com o original, fundo transparente, cor sólida ou imagem, recorte central e rotação.
+- Exportação de trecho da música com posições formatadas em minutos e segundos; desfazer remoções da fila.
 
-## Verificações da base candidata
+## Verificações
 
-- 77 testes de protocolo, transferência e player Qt no PC.
-- 106 testes unitários Android e 31 testes instrumentados no BlueStacks 5; os 12 testes remotos também passaram em repetição.
+- Testes automatizados de fila, streaming, efeitos, sessão, metadados e controle remoto no PC.
+- Testes unitários Android e testes instrumentados no BlueStacks 5, incluindo reordenação durante preparação, remoção por gesto e transições com sobreposição real de áudio.
 - Testes com HTTP local, áudio sintético, saída PCM nativa e falhas de rede simuladas. Não representam uma validação completa em aparelho ARM64 físico nem de todos os provedores externos.
-- Portátil anterior à mudança de versão: autoteste e nove telas sem avisos QML.
-
-Os testes funcionais acima validam a base de código; os artefatos atualmente existentes com nome 1.2.4 não são pacotes da 1.2.5-rc. A compilação, assinatura e validação dos pacotes da RC ficam para a etapa de distribuição.
+- O relatório de validação que acompanha os pacotes registra os resultados da compilação final, assinaturas e limitações dos testes.

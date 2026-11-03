@@ -2,6 +2,7 @@ const repo = "https://github.com/enzoandradee16/Onda";
 const latest = `${repo}/releases/latest`;
 const copy = {
   pt: {
+    newScreenLabels: ["Remoção de fundo no Windows", "Jukebox no Windows", "Reprodução no Android", "Jukebox no Android", "Dispositivos de reprodução no Android"],
     emulator: "Android para emulador",
     emulatorBody: "Android 8 ou superior · x86_64. Para emuladores compatíveis, como BlueStacks.",
     visualTitle: "Reprodução, com outra cara.",
@@ -105,6 +106,7 @@ const copy = {
       "A preferência de idioma pode não ser salva se o armazenamento do navegador estiver bloqueado.",
   },
   es: {
+    newScreenLabels: ["Eliminar fondo en Windows", "Jukebox en Windows", "Reproducción en Android", "Jukebox en Android", "Dispositivos de reproducción en Android"],
     emulator: "Android para emulador",
     emulatorBody: "Android 8 o superior · x86_64. Para emuladores compatibles, como BlueStacks.",
     visualTitle: "La reproducción tiene nueva cara.",
@@ -207,6 +209,7 @@ const copy = {
     privacyMore: "Declaración de privacidad de GitHub ↗",
   },
   en: {
+    newScreenLabels: ["Background removal on Windows", "Jukebox on Windows", "Playback on Android", "Jukebox on Android", "Playback devices on Android"],
     emulator: "Android for emulators",
     emulatorBody: "Android 8 or later · x86_64. For compatible emulators, such as BlueStacks.",
     visualTitle: "A fresh look for playback.",
@@ -503,7 +506,7 @@ function render() {
       <section class="showcase" aria-labelledby="more-screens-title">
         <div class="section-heading"><p class="eyebrow">Windows & Android</p><h2 id="more-screens-title">${t.moreTitle}</h2><p>${t.moreIntro}</p></div>
         <div class="gallery more-desktop">
-          ${[['desktop-metadata.png',1005],['desktop-downloads.png',1014],['desktop-effects.png',1016],['desktop-images.png',1015]].map(([file,height],index) => `
+          ${[['desktop-metadata.png',1005],['desktop-downloads.png',1014],['desktop-effects.png',1017],['desktop-images.png',1013]].map(([file,height],index) => `
             <figure><a href="assets/${file}" aria-label="${t.enlarge}: ${t.moreLabels[index]}"><img src="assets/${file}" alt="${t.moreLabels[index]}" width="1920" height="${height}" loading="lazy" decoding="async"></a><figcaption>${t.moreLabels[index]}</figcaption></figure>
           `).join('')}
         </div>
@@ -511,6 +514,14 @@ function render() {
           ${['android-library.png','android-downloads.png'].map((file,index) => `
             <figure><a href="assets/${file}" aria-label="${t.enlarge}: ${t.moreLabels[index+4]}"><img src="assets/${file}" alt="${t.moreLabels[index+4]}" width="576" height="1193" loading="lazy" decoding="async"></a><figcaption>${t.moreLabels[index+4]}</figcaption></figure>
           `).join('')}
+        </div>
+      <div class="gallery more-desktop latest-screens">
+          ${[["desktop-background-removal.png", 1011], ["desktop-jukebox.png", 1013]].map(([file, height], index) => `
+            <figure><a href="assets/${file}" aria-label="${t.enlarge}: ${t.newScreenLabels[index]}"><img src="assets/${file}" alt="${t.newScreenLabels[index]}" width="1920" height="${height}" loading="lazy" decoding="async"></a><figcaption>${t.newScreenLabels[index]}</figcaption></figure>`).join("")}
+        </div>
+        <div class="gallery latest-mobile">
+          ${["android-playback.png", "android-jukebox.png", "android-devices.png"].map((file, index) => `
+            <figure><a href="assets/${file}" aria-label="${t.enlarge}: ${t.newScreenLabels[index+2]}"><img src="assets/${file}" alt="${t.newScreenLabels[index+2]}" width="576" height="1193" loading="lazy" decoding="async"></a><figcaption>${t.newScreenLabels[index+2]}</figcaption></figure>`).join("")}
         </div>
       </section>
     `;
@@ -571,7 +582,7 @@ function render() {
             <h2>${t.features[2][0]}</h2><p>${t.features[2][1]}</p>
           </div>
           <div class="feature-tools">
-            ${[["desktop-metadata.png", 0, 1005], ["desktop-effects.png", 2, 1016], ["desktop-images.png", 3, 1015]].map(([file, index, height]) => `
+            ${[["desktop-metadata.png", 0, 1005], ["desktop-effects.png", 2, 1017], ["desktop-images.png", 3, 1013]].map(([file, index, height]) => `
               <figure>${preview(file, t.moreLabels[index], "", 1920, height)}<figcaption>${t.moreLabels[index]}</figcaption></figure>`).join("")}
           </div>
         </article>

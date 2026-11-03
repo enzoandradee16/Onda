@@ -12,11 +12,11 @@ ONDA started as a personal project, initially made for me and my friends. I deci
 
 The project is still in development. Suggestions, contributions and bug reports are welcome.
 
-**Version 1.2.4 for Windows 10 or later (x64) and Android 8 or later (ARM64 and x86_64).**
+**Version 1.2.5 for Windows 10 or later (x64) and Android 8 or later (ARM64 and x86_64).**
 
-Source prepared for **1.2.5-rc**. See the [prerelease notes](RELEASE_NOTES.md); the stable downloads below remain at 1.2.4.
+Version **1.2.5** prepared locally. See the [release notes](RELEASE_NOTES.md). Download links point to the last published version until 1.2.5 is published.
 
-![ONDA Windows 1.2.0](docs/images/pc%20novo/pesquisa-musicas-preto-puro.png)
+![ONDA Windows 1.2.5](docs/images/pc%20novo/pesquisa-musicas-preto-puro.png)
 
 On Android, updates can download within ONDA, with progress and background continuation. When finished, tap Install update; the first time, allow installation from ONDA in Android settings. The system asks for confirmation and your data is preserved.
 
@@ -85,7 +85,7 @@ For the current feature catalog, platform differences and code references, see t
 
 ## ONDA on Windows
 
-Real screenshots of version 1.2.0 in Portuguese. Click to enlarge.
+Real ONDA screenshots in Portuguese, including updated screens from version 1.2.5. Click to enlarge.
 
 <table>
   <tr>
@@ -93,20 +93,20 @@ Real screenshots of version 1.2.0 in Portuguese. Click to enlarge.
     <td align="center" width="50%"><strong>Metadata editor</strong><br><a href="docs/images/pc%20novo/editar-metadados-preto-puro.png"><img src="docs/images/pc%20novo/editar-metadados-preto-puro.png" width="460" alt="ONDA: Metadata editor"></a></td>
   </tr>
   <tr>
-    <td align="center" width="50%"><strong>Images</strong><br><a href="docs/images/pc%20novo/imagens-claro.png"><img src="docs/images/pc%20novo/imagens-claro.png" width="460" alt="ONDA: Images"></a></td>
-    <td align="center" width="50%"><strong>Download queue</strong><br><a href="docs/images/pc%20novo/fila-downloads-preto-puro.png"><img src="docs/images/pc%20novo/fila-downloads-preto-puro.png" width="460" alt="ONDA: Download queue"></a></td>
+    <td align="center" width="50%"><strong>Images — original</strong><br><a href="docs/images/pc%20novo/imagens-claro.png"><img src="docs/images/pc%20novo/imagens-claro.png" width="460" alt="ONDA: Images — original"></a></td>
+    <td align="center" width="50%"><strong>Images — background removed</strong><br><a href="docs/images/pc%20novo/imagens-remover-fundo-preto-puro.png"><img src="docs/images/pc%20novo/imagens-remover-fundo-preto-puro.png" width="460" alt="ONDA: Images — background removed"></a></td>
   </tr>
   <tr>
-    <td align="center" width="50%"><strong>Effects</strong><br><a href="docs/images/pc%20novo/reproducao-efeitos-claro.png"><img src="docs/images/pc%20novo/reproducao-efeitos-claro.png" width="460" alt="ONDA: Effects"></a></td>
-    <td align="center" width="50%"><strong>Infinite Jukebox</strong><br><a href="docs/images/pc%20novo/reproducao-jukebox-claro.png"><img src="docs/images/pc%20novo/reproducao-jukebox-claro.png" width="460" alt="ONDA: Infinite Jukebox"></a></td>
+    <td align="center" width="50%"><strong>Downloads</strong><br><a href="docs/images/pc%20novo/fila-downloads-preto-puro.png"><img src="docs/images/pc%20novo/fila-downloads-preto-puro.png" width="460" alt="ONDA: Downloads"></a></td>
+    <td align="center" width="50%"><strong>Playback</strong><br><a href="docs/images/pc%20novo/reproducao-efeitos-claro.png"><img src="docs/images/pc%20novo/reproducao-efeitos-claro.png" width="460" alt="ONDA: Playback"></a></td>
   </tr>
 </table>
 
-More screenshots: [Synchronized lyrics](docs/images/pc%20novo/letras-sincronizadas-claro.png) · [Mini player with lyrics](docs/images/pc%20novo/miniplayer-jukebox-letras-preto-puro.png).
+More screenshots: [Infinite Jukebox](docs/images/pc%20novo/reproducao-jukebox-claro.png) · [Synchronized lyrics](docs/images/pc%20novo/letras-sincronizadas-claro.png) · [Mini player with lyrics](docs/images/pc%20novo/miniplayer-jukebox-letras-preto-puro.png).
 
 ## ONDA on Android
 
-Real screenshots of version 1.2.0 in Portuguese. Click to enlarge.
+Real ONDA screenshots in Portuguese, including updated screens from version 1.2.5. Click to enlarge.
 
 <table>
   <tr>
@@ -115,13 +115,17 @@ Real screenshots of version 1.2.0 in Portuguese. Click to enlarge.
     <td align="center" width="33%"><strong>Saved albums and playlists</strong><br><a href="docs/images/android%20novo/albuns-playlists-salvos-claro.png"><img src="docs/images/android%20novo/albuns-playlists-salvos-claro.png" width="230" alt="ONDA: Saved albums and playlists"></a></td>
   </tr>
   <tr>
-    <td align="center" width="33%"><strong>Effects</strong><br><a href="docs/images/android%20novo/reproducao-efeitos-claro.png"><img src="docs/images/android%20novo/reproducao-efeitos-claro.png" width="230" alt="ONDA: Effects"></a></td>
+    <td align="center" width="33%"><strong>Playback</strong><br><a href="docs/images/android%20novo/reproducao-claro.png"><img src="docs/images/android%20novo/reproducao-claro.png" width="230" alt="ONDA: Playback"></a></td>
     <td align="center" width="33%"><strong>Infinite Jukebox</strong><br><a href="docs/images/android%20novo/reproducao-jukebox-claro.png"><img src="docs/images/android%20novo/reproducao-jukebox-claro.png" width="230" alt="ONDA: Infinite Jukebox"></a></td>
-    <td align="center" width="33%"><strong>Expanded player</strong><br><a href="docs/images/android%20novo/player-efeitos-claro.png"><img src="docs/images/android%20novo/player-efeitos-claro.png" width="230" alt="ONDA: Expanded player"></a></td>
+    <td align="center" width="33%"><strong>Expanded player</strong><br><a href="docs/images/android%20novo/player-expandido-claro.png"><img src="docs/images/android%20novo/player-expandido-claro.png" width="230" alt="ONDA: Expanded player"></a></td>
+  </tr>
+  <tr>
+    <td align="center" width="33%"><strong>Devices</strong><br><a href="docs/images/android%20novo/dispositivos-claro.png"><img src="docs/images/android%20novo/dispositivos-claro.png" width="230" alt="ONDA: Devices"></a></td>
+    <td align="center" width="33%"><strong>Full-screen lyrics</strong><br><a href="docs/images/android%20novo/letras-tela-cheia-escuro.png"><img src="docs/images/android%20novo/letras-tela-cheia-escuro.png" width="230" alt="ONDA: Full-screen lyrics"></a></td>
   </tr>
 </table>
 
-More screenshots: [Album and tracks](docs/images/android%20novo/album-discovery-escuro.png) · [Format selection](docs/images/android%20novo/escolha-formato-escuro.png) · [Full-screen lyrics](docs/images/android%20novo/letras-tela-cheia-escuro.png) · [Playback queue](docs/images/android%20novo/fila-reproducao-claro.png).
+More screenshots: [Album and tracks](docs/images/android%20novo/album-discovery-escuro.png) · [Format selection](docs/images/android%20novo/escolha-formato-escuro.png) · [Playback queue](docs/images/android%20novo/fila-reproducao-claro.png).
 
 ## Quick start
 

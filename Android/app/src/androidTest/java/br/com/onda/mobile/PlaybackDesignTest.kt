@@ -54,11 +54,11 @@ class PlaybackDesignTest {
             val oldCount=vm.jukebox.playbackQueue.value.size
             compose.runOnIdle {vm.collection.value=result.put("_collection_url","https://open.spotify.com/playlist/3QVBmvKuaiT3uuGlFsWCMA")}
             compose.onNodeWithTag("nav-Mais").performClick()
-            compose.onNodeWithText("Coleção").performClick()
-            compose.onNodeWithText("Usar em reprodução").performScrollTo().performClick()
+            compose.onNodeWithTag("more-list").performScrollToNode(hasTestTag("more-Coleção"));compose.onNodeWithTag("more-Coleção").performClick()
+            compose.onNodeWithTag("collection-list").performScrollToNode(hasText("Usar em reprodução"));compose.onNodeWithText("Usar em reprodução").performClick()
             compose.waitUntil(120000){vm.jukebox.playbackQueue.value.size>oldCount && vm.jukebox.currentQueueId.value==vm.jukebox.playbackQueue.value[oldCount].optString("_queue_id") && vm.jukebox.audioReady.value}
             compose.onNodeWithTag("nav-Efeitos").assertIsSelected()
-            compose.runOnIdle {assertTrue(vm.jukebox.state.value.playing);assertFalse(vm.jukebox.state.value.paused);assertEquals(records.first().getString("title"),vm.jukebox.state.value.title)}
+            compose.runOnIdle {assertTrue(vm.jukebox.state.value.playing);assertFalse(vm.jukebox.state.value.paused);assertEquals(records.first().getString("title"),vm.jukebox.state.value.title);assertTrue(requireNotNull(vm.jukebox.state.value.model).optString("cover_url").isNotBlank());assertNotEquals(result.optString("cover_url"),requireNotNull(vm.jukebox.state.value.model).optString("cover_url"))}
         } finally {server.close()}
     }
 
@@ -69,8 +69,8 @@ class PlaybackDesignTest {
             compose.waitUntil(90000){vm.jukebox.audioReady.value}
             val old=vm.jukebox.currentQueueId.value
             compose.runOnIdle {vm.collection.value=JSONObject().put("title","Collection with missing source").put("tracks",JSONArray().put(JSONObject().put("title","Missing file").put("_local_source",File(context.cacheDir,"nonexistent-collection-track.wav").absolutePath)))}
-            compose.onNodeWithTag("nav-Mais").performClick();compose.onNodeWithText("Coleção").performClick()
-            compose.onNodeWithText("Usar em reprodução").performScrollTo().performClick()
+            compose.onNodeWithTag("nav-Mais").performClick();compose.onNodeWithTag("more-list").performScrollToNode(hasTestTag("more-Coleção"));compose.onNodeWithTag("more-Coleção").performClick()
+            compose.onNodeWithTag("collection-list").performScrollToNode(hasText("Usar em reprodução"));compose.onNodeWithText("Usar em reprodução").performClick()
             compose.waitUntil(30000){vm.jukebox.state.value.playbackError.isNotBlank()}
             compose.onNodeWithTag("playback-request-error").assertIsDisplayed()
             compose.runOnIdle {assertEquals(old,vm.jukebox.currentQueueId.value);assertEquals("",vm.jukebox.pendingPlaybackId.value);assertTrue(vm.jukebox.state.value.playing)}
@@ -103,12 +103,12 @@ class PlaybackDesignTest {
                 vm.spotifyPlaylists.value=listOf(JSONObject().put("id",identity).put("title","Yo").put("source_url",url))
                 vm.collection.value=JSONObject()
             }
-            compose.onNodeWithTag("nav-Mais").performClick();compose.onNodeWithText("Coleção").performClick()
+            compose.onNodeWithTag("nav-Mais").performClick();compose.onNodeWithTag("more-list").performScrollToNode(hasTestTag("more-Coleção"));compose.onNodeWithTag("more-Coleção").performClick()
             var start=vm.jukebox.playbackQueue.value.size
             compose.onNodeWithText("Usar em reprodução").performScrollTo().assertIsEnabled().performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick){it()}
             awaitPlayback(start)
             compose.onNodeWithTag("nav-Efeitos").assertIsSelected()
-            compose.onNodeWithTag("nav-Mais").performClick();compose.onNodeWithText("Coleção").performClick()
+            compose.onNodeWithTag("nav-Mais").performClick();compose.onNodeWithTag("more-list").performScrollToNode(hasTestTag("more-Coleção"));compose.onNodeWithTag("more-Coleção").performClick()
             compose.onNodeWithText("Abrir coleção").performScrollTo().assertIsEnabled().performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick){it()}
             compose.waitUntil(30000){!vm.busy.value}
             start=vm.jukebox.playbackQueue.value.size

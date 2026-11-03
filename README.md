@@ -12,11 +12,11 @@ O ONDA nasceu como um projeto pessoal, feito inicialmente para meu uso e de amig
 
 O projeto continua em desenvolvimento. Sugestões, contribuições e relatos de problemas são bem-vindos.
 
-**Versão 1.2.4 para Windows 10 ou superior (x64) e Android 8 ou superior (ARM64 e x86_64).**
+**Versão 1.2.5 para Windows 10 ou superior (x64) e Android 8 ou superior (ARM64 e x86_64).**
 
-Código-fonte em preparação para **1.2.5-rc**. Consulte as [notas da pré-release](RELEASE_NOTES.md); os downloads estáveis abaixo continuam na 1.2.4.
+Versão **1.2.5** preparada localmente. Consulte as [notas da versão](RELEASE_NOTES.md). Os links de download apontam para a última versão publicada até a publicação da 1.2.5.
 
-![ONDA Windows 1.2.1](docs/images/pc%20novo/pesquisa-musicas-preto-puro.png)
+![ONDA Windows 1.2.5](docs/images/pc%20novo/pesquisa-musicas-preto-puro.png)
 
 No Android, novas versões podem ser baixadas dentro do ONDA, com progresso e continuidade em segundo plano. Ao terminar, toque em Instalar atualização; na primeira vez, permita a instalação pelo ONDA nas configurações do Android. O sistema pede confirmação e os dados são preservados.
 
@@ -87,7 +87,7 @@ Os [guias de uso e desenvolvimento](docs/GUIAS.md) separam as instruções atuai
 
 ## ONDA no Windows
 
-Capturas reais da versão 1.2.1 em português. Clique para ampliar.
+Capturas reais do ONDA em português, incluindo telas atualizadas da versão 1.2.5. Clique para ampliar.
 
 <table>
   <tr>
@@ -95,12 +95,12 @@ Capturas reais da versão 1.2.1 em português. Clique para ampliar.
     <td align="center" width="50%"><strong>Editar metadados</strong><br><a href="docs/images/pc%20novo/editar-metadados-preto-puro.png"><img src="docs/images/pc%20novo/editar-metadados-preto-puro.png" width="460" alt="ONDA: Editar metadados"></a></td>
   </tr>
   <tr>
-    <td align="center" width="50%"><strong>Imagens</strong><br><a href="docs/images/pc%20novo/imagens-claro.png"><img src="docs/images/pc%20novo/imagens-claro.png" width="460" alt="ONDA: Imagens"></a></td>
-    <td align="center" width="50%"><strong>Fila de downloads</strong><br><a href="docs/images/pc%20novo/fila-downloads-preto-puro.png"><img src="docs/images/pc%20novo/fila-downloads-preto-puro.png" width="460" alt="ONDA: Fila de downloads"></a></td>
+    <td align="center" width="50%"><strong>Imagens — original</strong><br><a href="docs/images/pc%20novo/imagens-claro.png"><img src="docs/images/pc%20novo/imagens-claro.png" width="460" alt="ONDA: Imagens — original"></a></td>
+    <td align="center" width="50%"><strong>Imagens — fundo removido</strong><br><a href="docs/images/pc%20novo/imagens-remover-fundo-preto-puro.png"><img src="docs/images/pc%20novo/imagens-remover-fundo-preto-puro.png" width="460" alt="ONDA: Imagens — fundo removido"></a></td>
   </tr>
   <tr>
-    <td align="center" width="50%"><strong>Efeitos</strong><br><a href="docs/images/pc%20novo/reproducao-efeitos-claro.png"><img src="docs/images/pc%20novo/reproducao-efeitos-claro.png" width="460" alt="ONDA: Efeitos"></a></td>
-    <td align="center" width="50%"><strong>Jukebox infinito</strong><br><a href="docs/images/pc%20novo/reproducao-jukebox-claro.png"><img src="docs/images/pc%20novo/reproducao-jukebox-claro.png" width="460" alt="ONDA: Jukebox infinito"></a></td>
+    <td align="center" width="50%"><strong>Downloads</strong><br><a href="docs/images/pc%20novo/fila-downloads-preto-puro.png"><img src="docs/images/pc%20novo/fila-downloads-preto-puro.png" width="460" alt="ONDA: Downloads"></a></td>
+    <td align="center" width="50%"><strong>Reprodução</strong><br><a href="docs/images/pc%20novo/reproducao-efeitos-claro.png"><img src="docs/images/pc%20novo/reproducao-efeitos-claro.png" width="460" alt="ONDA: Reprodução"></a></td>
   </tr>
 </table>
 
@@ -108,7 +108,7 @@ Outras capturas: [Letras sincronizadas](docs/images/pc%20novo/letras-sincronizad
 
 ## ONDA no Android
 
-Capturas reais da versão 1.2.1 em português. Clique para ampliar.
+Capturas reais do ONDA em português, incluindo telas atualizadas da versão 1.2.5. Clique para ampliar.
 
 <table>
   <tr>
@@ -117,13 +117,17 @@ Capturas reais da versão 1.2.1 em português. Clique para ampliar.
     <td align="center" width="33%"><strong>Álbuns e playlists salvos</strong><br><a href="docs/images/android%20novo/albuns-playlists-salvos-claro.png"><img src="docs/images/android%20novo/albuns-playlists-salvos-claro.png" width="230" alt="ONDA: Álbuns e playlists salvos"></a></td>
   </tr>
   <tr>
-    <td align="center" width="33%"><strong>Efeitos</strong><br><a href="docs/images/android%20novo/reproducao-efeitos-claro.png"><img src="docs/images/android%20novo/reproducao-efeitos-claro.png" width="230" alt="ONDA: Efeitos"></a></td>
+    <td align="center" width="33%"><strong>Reprodução</strong><br><a href="docs/images/android%20novo/reproducao-claro.png"><img src="docs/images/android%20novo/reproducao-claro.png" width="230" alt="ONDA: Reprodução"></a></td>
     <td align="center" width="33%"><strong>Jukebox infinito</strong><br><a href="docs/images/android%20novo/reproducao-jukebox-claro.png"><img src="docs/images/android%20novo/reproducao-jukebox-claro.png" width="230" alt="ONDA: Jukebox infinito"></a></td>
-    <td align="center" width="33%"><strong>Player expandido</strong><br><a href="docs/images/android%20novo/player-efeitos-claro.png"><img src="docs/images/android%20novo/player-efeitos-claro.png" width="230" alt="ONDA: Player expandido"></a></td>
+    <td align="center" width="33%"><strong>Player expandido</strong><br><a href="docs/images/android%20novo/player-expandido-claro.png"><img src="docs/images/android%20novo/player-expandido-claro.png" width="230" alt="ONDA: Player expandido"></a></td>
+  </tr>
+  <tr>
+    <td align="center" width="33%"><strong>Dispositivos</strong><br><a href="docs/images/android%20novo/dispositivos-claro.png"><img src="docs/images/android%20novo/dispositivos-claro.png" width="230" alt="ONDA: Dispositivos"></a></td>
+    <td align="center" width="33%"><strong>Letras em tela cheia</strong><br><a href="docs/images/android%20novo/letras-tela-cheia-escuro.png"><img src="docs/images/android%20novo/letras-tela-cheia-escuro.png" width="230" alt="ONDA: Letras em tela cheia"></a></td>
   </tr>
 </table>
 
-Outras capturas: [Álbum e faixas](docs/images/android%20novo/album-discovery-escuro.png) · [Escolha de formato](docs/images/android%20novo/escolha-formato-escuro.png) · [Letras em tela cheia](docs/images/android%20novo/letras-tela-cheia-escuro.png) · [Fila de reprodução](docs/images/android%20novo/fila-reproducao-claro.png).
+Outras capturas: [Álbum e faixas](docs/images/android%20novo/album-discovery-escuro.png) · [Escolha de formato](docs/images/android%20novo/escolha-formato-escuro.png) · [Fila de reprodução](docs/images/android%20novo/fila-reproducao-claro.png).
 
 ## Uso rápido
 

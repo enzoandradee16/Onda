@@ -808,3 +808,9 @@ body.viewing-image { overflow: hidden; }
 }
 
 .brand svg { flex-shrink: 0; }
+.latest-screens { margin-top: 36px; }
+.latest-mobile { grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: 940px; margin: 36px auto 0; }
+.latest-mobile a { transition: transform .2s; }
+.latest-mobile a:hover { transform: translateY(-3px); }
+@media (max-width: 700px) { .latest-mobile { grid-template-columns: 1fr; max-width: 320px; } }
+@media (prefers-reduced-motion: reduce) { .latest-mobile a { transition: none; } .latest-mobile a:hover { transform: none; } }

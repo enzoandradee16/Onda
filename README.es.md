@@ -12,11 +12,11 @@ ONDA nació como un proyecto personal, creado inicialmente para mí y mis amigos
 
 El proyecto sigue en desarrollo. Las sugerencias, contribuciones e informes de errores son bienvenidos.
 
-**Versión 1.2.4 para Windows 10 o superior (x64) y Android 8 o superior (ARM64 y x86_64).**
+**Versión 1.2.5 para Windows 10 o superior (x64) y Android 8 o superior (ARM64 y x86_64).**
 
-Código preparado para **1.2.5-rc**. Consulta las [notas de la versión preliminar](RELEASE_NOTES.md); las descargas estables siguientes siguen en 1.2.4.
+Versión **1.2.5** preparada localmente. Consulta las [notas de la versión](RELEASE_NOTES.md). Los enlaces de descarga apuntan a la última versión publicada hasta que se publique la 1.2.5.
 
-![ONDA Windows 1.2.0](docs/images/pc%20novo/pesquisa-musicas-preto-puro.png)
+![ONDA Windows 1.2.5](docs/images/pc%20novo/pesquisa-musicas-preto-puro.png)
 
 En Android, las actualizaciones pueden descargarse dentro de ONDA, con progreso y continuidad en segundo plano. Al terminar, toca Instalar actualización; la primera vez, permite la instalación desde ONDA en los ajustes de Android. El sistema pide confirmación y tus datos se conservan.
 
@@ -85,7 +85,7 @@ Para consultar las funciones actuales, diferencias entre plataformas y referenci
 
 ## ONDA en Windows
 
-Capturas reales de la versión 1.2.0 en portugués. Haz clic para ampliar.
+Capturas reales de ONDA en portugués, incluidas pantallas actualizadas de la versión 1.2.5. Haz clic para ampliar.
 
 <table>
   <tr>
@@ -93,20 +93,20 @@ Capturas reales de la versión 1.2.0 en portugués. Haz clic para ampliar.
     <td align="center" width="50%"><strong>Editar metadatos</strong><br><a href="docs/images/pc%20novo/editar-metadados-preto-puro.png"><img src="docs/images/pc%20novo/editar-metadados-preto-puro.png" width="460" alt="ONDA: Editar metadatos"></a></td>
   </tr>
   <tr>
-    <td align="center" width="50%"><strong>Imágenes</strong><br><a href="docs/images/pc%20novo/imagens-claro.png"><img src="docs/images/pc%20novo/imagens-claro.png" width="460" alt="ONDA: Imágenes"></a></td>
-    <td align="center" width="50%"><strong>Cola de descargas</strong><br><a href="docs/images/pc%20novo/fila-downloads-preto-puro.png"><img src="docs/images/pc%20novo/fila-downloads-preto-puro.png" width="460" alt="ONDA: Cola de descargas"></a></td>
+    <td align="center" width="50%"><strong>Imágenes — original</strong><br><a href="docs/images/pc%20novo/imagens-claro.png"><img src="docs/images/pc%20novo/imagens-claro.png" width="460" alt="ONDA: Imágenes — original"></a></td>
+    <td align="center" width="50%"><strong>Imágenes — fondo eliminado</strong><br><a href="docs/images/pc%20novo/imagens-remover-fundo-preto-puro.png"><img src="docs/images/pc%20novo/imagens-remover-fundo-preto-puro.png" width="460" alt="ONDA: Imágenes — fondo eliminado"></a></td>
   </tr>
   <tr>
-    <td align="center" width="50%"><strong>Efectos</strong><br><a href="docs/images/pc%20novo/reproducao-efeitos-claro.png"><img src="docs/images/pc%20novo/reproducao-efeitos-claro.png" width="460" alt="ONDA: Efectos"></a></td>
-    <td align="center" width="50%"><strong>Jukebox infinito</strong><br><a href="docs/images/pc%20novo/reproducao-jukebox-claro.png"><img src="docs/images/pc%20novo/reproducao-jukebox-claro.png" width="460" alt="ONDA: Jukebox infinito"></a></td>
+    <td align="center" width="50%"><strong>Descargas</strong><br><a href="docs/images/pc%20novo/fila-downloads-preto-puro.png"><img src="docs/images/pc%20novo/fila-downloads-preto-puro.png" width="460" alt="ONDA: Descargas"></a></td>
+    <td align="center" width="50%"><strong>Reproducción</strong><br><a href="docs/images/pc%20novo/reproducao-efeitos-claro.png"><img src="docs/images/pc%20novo/reproducao-efeitos-claro.png" width="460" alt="ONDA: Reproducción"></a></td>
   </tr>
 </table>
 
-Más capturas: [Letras sincronizadas](docs/images/pc%20novo/letras-sincronizadas-claro.png) · [Minirreproductor con letras](docs/images/pc%20novo/miniplayer-jukebox-letras-preto-puro.png).
+Más capturas: [Jukebox infinito](docs/images/pc%20novo/reproducao-jukebox-claro.png) · [Letras sincronizadas](docs/images/pc%20novo/letras-sincronizadas-claro.png) · [Minirreproductor con letras](docs/images/pc%20novo/miniplayer-jukebox-letras-preto-puro.png).
 
 ## ONDA en Android
 
-Capturas reales de la versión 1.2.0 en portugués. Haz clic para ampliar.
+Capturas reales de ONDA en portugués, incluidas pantallas actualizadas de la versión 1.2.5. Haz clic para ampliar.
 
 <table>
   <tr>
@@ -115,13 +115,17 @@ Capturas reales de la versión 1.2.0 en portugués. Haz clic para ampliar.
     <td align="center" width="33%"><strong>Álbumes y listas guardados</strong><br><a href="docs/images/android%20novo/albuns-playlists-salvos-claro.png"><img src="docs/images/android%20novo/albuns-playlists-salvos-claro.png" width="230" alt="ONDA: Álbumes y listas guardados"></a></td>
   </tr>
   <tr>
-    <td align="center" width="33%"><strong>Efectos</strong><br><a href="docs/images/android%20novo/reproducao-efeitos-claro.png"><img src="docs/images/android%20novo/reproducao-efeitos-claro.png" width="230" alt="ONDA: Efectos"></a></td>
+    <td align="center" width="33%"><strong>Reproducción</strong><br><a href="docs/images/android%20novo/reproducao-claro.png"><img src="docs/images/android%20novo/reproducao-claro.png" width="230" alt="ONDA: Reproducción"></a></td>
     <td align="center" width="33%"><strong>Jukebox infinito</strong><br><a href="docs/images/android%20novo/reproducao-jukebox-claro.png"><img src="docs/images/android%20novo/reproducao-jukebox-claro.png" width="230" alt="ONDA: Jukebox infinito"></a></td>
-    <td align="center" width="33%"><strong>Reproductor ampliado</strong><br><a href="docs/images/android%20novo/player-efeitos-claro.png"><img src="docs/images/android%20novo/player-efeitos-claro.png" width="230" alt="ONDA: Reproductor ampliado"></a></td>
+    <td align="center" width="33%"><strong>Reproductor ampliado</strong><br><a href="docs/images/android%20novo/player-expandido-claro.png"><img src="docs/images/android%20novo/player-expandido-claro.png" width="230" alt="ONDA: Reproductor ampliado"></a></td>
+  </tr>
+  <tr>
+    <td align="center" width="33%"><strong>Dispositivos</strong><br><a href="docs/images/android%20novo/dispositivos-claro.png"><img src="docs/images/android%20novo/dispositivos-claro.png" width="230" alt="ONDA: Dispositivos"></a></td>
+    <td align="center" width="33%"><strong>Letras a pantalla completa</strong><br><a href="docs/images/android%20novo/letras-tela-cheia-escuro.png"><img src="docs/images/android%20novo/letras-tela-cheia-escuro.png" width="230" alt="ONDA: Letras a pantalla completa"></a></td>
   </tr>
 </table>
 
-Más capturas: [Álbum y canciones](docs/images/android%20novo/album-discovery-escuro.png) · [Elección de formato](docs/images/android%20novo/escolha-formato-escuro.png) · [Letras a pantalla completa](docs/images/android%20novo/letras-tela-cheia-escuro.png) · [Cola de reproducción](docs/images/android%20novo/fila-reproducao-claro.png).
+Más capturas: [Álbum y canciones](docs/images/android%20novo/album-discovery-escuro.png) · [Elección de formato](docs/images/android%20novo/escolha-formato-escuro.png) · [Cola de reproducción](docs/images/android%20novo/fila-reproducao-claro.png).
 
 ## Inicio rápido
 

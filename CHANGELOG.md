@@ -1,5 +1,12 @@
 # Histórico de versões
 
+## 1.2.5 — 2026-11-03
+
+- Finalização da 1.2.5 com as melhorias da RC, streaming progressivo, retomada de sessão e controle remoto PC ↔ Android.
+- Correções na preparação da próxima faixa, reordenação, transição gradual e continuidade ao abrir arquivos locais.
+- Ferramentas de imagens com remoção de fundo, prévia automática, fundos personalizados, comparação, recorte e rotação.
+- Windows 1.2.5.0 / 1.2.5; Android 1.2.5, código 33.
+
 ## 1.2.5-rc — 2026-11-01
 
 - Pré-release candidata à 1.2.5, com controle remoto PC ↔ Android, pareamento por QR Code e transferência da música atual com posição e pausa.
