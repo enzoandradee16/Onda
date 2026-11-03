@@ -76,4 +76,5 @@ ColumnLayout {
         ActionButton { objectName: root.field.key === "folder" ? "changeDownloadDestination" : ""; visible: root.settings && root.field.key === "folder"; primary: true; text: bridge.translate("Alterar destino"); onClicked: workspace.invoke("pick",{kind:"folder"}) }
     }
     Label { visible: !!root.field.hint; text: bridge.translate(root.field.hint || ""); color: bridge.palette.muted; wrapMode: Text.Wrap; Layout.fillWidth: true; Layout.minimumWidth: 0; font.pixelSize: Math.round(12*bridge.fontScale) }
+    Label { visible: root.settings && root.field.key === "discord_presence_enabled"; text: workspace.discordStatus; color: bridge.palette.muted; wrapMode: Text.Wrap; Layout.fillWidth: true; Layout.minimumWidth: 0; font.pixelSize: Math.round(12*bridge.fontScale) }
 }

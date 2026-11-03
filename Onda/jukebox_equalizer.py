@@ -1,4 +1,4 @@
-"""Ten peaking biquads, stereo state and settings restricted to Jukebox PCM."""
+"""Selectable peaking biquads, stereo state and bounded Jukebox PCM settings."""
 
 from array import array
 import json
@@ -8,6 +8,27 @@ from pathlib import Path
 from functools import lru_cache
 
 FREQUENCIES = (31.25, 62.5, 125, 250, 500, 1000, 2000, 4000, 8000, 16000)
+BAND_LAYOUTS = {
+    5: (63, 250, 1000, 4000, 16000),
+    10: FREQUENCIES,
+    15: (
+        25,
+        40,
+        63,
+        100,
+        160,
+        250,
+        400,
+        630,
+        1000,
+        1600,
+        2500,
+        4000,
+        6300,
+        10000,
+        16000,
+    ),
+}
 
 
 def number(value, default, low, high):
@@ -29,8 +50,11 @@ def clean(value=None):
     bands = value.get('bands', [])
     if not isinstance(bands, list):
         bands = []
+    count = value.get('band_count', len(bands) if len(bands) in BAND_LAYOUTS else 10)
+    if type(count) is not int or count not in BAND_LAYOUTS:
+        count = 10
     result = []
-    for i, f in enumerate(FREQUENCIES):
+    for i, f in enumerate(BAND_LAYOUTS[count]):
         band = bands[i] if i < len(bands) and isinstance(bands[i], dict) else {}
         result.append(
             {
@@ -42,24 +66,55 @@ def clean(value=None):
     return {
         'enabled': value.get('enabled') is True,
         'preamp': number(value.get('preamp'), -6, -24, 0),
+        'band_count': count,
         'bands': result,
     }
 
 
-@lru_cache(maxsize=1)
-def presets():
+def resize(value, count):
+    """Resample gains and widths in log frequency; keep enable/preamp unchanged."""
+    value = clean(value)
+    if (
+        type(count) is not int
+        or count not in BAND_LAYOUTS
+        or count == value['band_count']
+    ):
+        return value
+    points = sorted({band['frequency']: band for band in value['bands']}.items())
+
+    def interpolate(frequency, key):
+        if frequency <= points[0][0]:
+            return points[0][1][key]
+        for (lo, left), (hi, right) in zip(points, points[1:]):
+            if frequency <= hi:
+                weight = math.log(frequency / lo) / math.log(hi / lo)
+                return left[key] + weight * (right[key] - left[key])
+        return points[-1][1][key]
+
+    bands = [
+        dict(frequency=f, gain=interpolate(f, 'gain'), q=interpolate(f, 'q'))
+        for f in BAND_LAYOUTS[count]
+    ]
+    return clean(dict(value, band_count=count, bands=bands))
+
+
+@lru_cache(maxsize=3)
+def presets(count=10):
     rows = json.loads(
         (Path(__file__).parent / 'settings_schema/equalizer_presets.json').read_text(
             encoding='utf-8'
         )
     )
     return {
-        row['name']: clean(
-            {
-                'enabled': True,
-                'preamp': row['preamp'],
-                'bands': [{'gain': gain} for gain in row['gains']],
-            }
+        row['name']: resize(
+            clean(
+                {
+                    'enabled': True,
+                    'preamp': row['preamp'],
+                    'bands': [{'gain': gain} for gain in row['gains']],
+                }
+            ),
+            count,
         )
         for row in rows
     }
@@ -67,7 +122,7 @@ def presets():
 
 def preset_name(value):
     value = clean(value)
-    for name, preset in presets().items():
+    for name, preset in presets(value['band_count']).items():
         if abs(value['preamp'] - preset['preamp']) < 0.01 and all(
             abs(band[key] - reference[key]) < 0.01
             for band, reference in zip(value['bands'], preset['bands'])

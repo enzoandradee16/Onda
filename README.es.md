@@ -28,6 +28,8 @@ Las canciones de catálogo pueden reproducirse por streaming en PC y Android. La
 
 ## Características destacadas
 
+- **Ecualizador:** elige 5, 10 o 15 bandas en PC y Android, con 10 por defecto. Los presets y ajustes se adaptan a las frecuencias del modo elegido.
+- **Discord en PC:** opción “Mostrar actividad en Discord” en Configuración → General, desactivada por defecto. Muestra la canción, el artista, el álbum/portada disponibles y el tiempo de reproducción; refleja las pausas y borra la actividad al detener o cerrar. Requiere Discord abierto. [Cómo funciona](docs/DISCORD.md).
 - **Windows:** Descargar ahora en la búsqueda abre la elección de formato y calidad: MP3, M4A, FLAC o audio original. Parte de las preferencias guardadas. Permite descargar o añadir a la cola; cancelar no inicia nada. La elección se aplica a esa canción.
 - **Minirreproductor del PC:** reproducción unificada de Efectos y Jukebox, con portada, álbum, controles, volumen, letras y cola. Sigue visible al minimizar ONDA. Apariencia permite elegir si ONDA se minimiza al abrirlo; el encabezado, la portada y los datos de la canción permiten mover la ventana.
 - **Android:** navegación por Buscar, Descargas, Reproducción y Más. Efectos y Jukebox pueden aplicarse juntos a la misma canción y cola, con reproductor ampliado y letras a pantalla completa.

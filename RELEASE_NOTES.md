@@ -35,6 +35,10 @@ Versão 1.2.5 para Windows x64 e Android ARM64 e x86_64.
 
 ## Aparência e ferramentas
 
+- Equalizador com seleção de 5, 10 ou 15 bandas no PC e Android, mantendo 10 como padrão e adaptando presets e ajustes às novas frequências.
+
+- Discord Rich Presence no PC, opcional e desativado por padrão: música, artista, álbum/capa e tempo; acompanha pausa e limpa a atividade ao parar ou fechar.
+
 - Claro Puro, opções de bordas e cor de destaque personalizada nas duas versões.
 - Barra compacta Android acompanha as cores da capa.
 - Menu da bandeja do PC com o tema do programa, reinício após mudar o idioma e melhorias de rolagem.

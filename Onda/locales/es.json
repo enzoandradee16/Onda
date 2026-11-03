@@ -1265,6 +1265,7 @@
   "Copiar": "Copiar",
   "Copiar link": "Copiar enlace",
   "Copiar caminho": "Copiar ruta",
+  "Mover como próxima": "Mover para reproducir a continuación",
   "Mover para cima": "Mover hacia arriba",
   "Mover para baixo": "Mover hacia abajo",
   "Cards: Pequeno": "Tarjetas: Pequeño",
@@ -2444,5 +2445,15 @@
   "Use tempos como 1:30 ou 90 segundos.": "Usa tiempos como 1:30 o 90 segundos.",
   "O fim do trecho deve ser depois do início.": "El fragmento debe terminar después del inicio.",
   "O trecho está fora da duração da música.": "El fragmento está fuera de la duración de la pista.",
-  "Não foi possível preparar esta música a tempo. Tente novamente.": "No se pudo preparar esta pista a tiempo. Inténtalo de nuevo."
+  "Não foi possível preparar esta música a tempo. Tente novamente.": "No se pudo preparar esta pista a tiempo. Inténtalo de nuevo.",
+  "Mostrar atividade no Discord": "Mostrar actividad en Discord",
+  "Compartilha música, artista, álbum e capa com o Discord aberto neste PC. Não compartilha arquivos locais nem letras.": "Comparte la canción, el artista, el álbum y la portada con Discord abierto en este PC. No comparte archivos locales ni letras.",
+  "ID do aplicativo Discord inválido.": "ID de la aplicación de Discord no válido.",
+  "Conectando ao Discord…": "Conectando con Discord…",
+  "Abra o Discord neste computador para mostrar a atividade.": "Abre Discord en este equipo para mostrar la actividad.",
+  "Reconectando ao Discord…": "Reconectando con Discord…",
+  "Discord recusou a atividade. Verifique o ID do aplicativo.": "Discord rechazó la actividad. Comprueba el ID de la aplicación.",
+  "Conectado ao Discord": "Conectado con Discord",
+  "Quantidade de bandas": "Cantidad de bandas",
+  "Os ajustes são adaptados às novas frequências ao mudar a quantidade de bandas.": "Los ajustes se adaptan a las nuevas frecuencias al cambiar la cantidad de bandas."
 }

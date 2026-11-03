@@ -364,7 +364,7 @@ Nos caminhos abreviados `Android/.../`, o diretório é `Android/app/src/main/ja
 - Ajuste de variação e suavidade da transição; contagem de saltos e tempo ouvido.
 - Reprodução normal opcional, distinta do modo infinito.
 - Preparação da próxima música, navegação da fila e limites/timer por faixa conforme os controles.
-- Equalizador de dez bandas, frequência/ganho/Q, pré-amplificação, ativar/desativar, presets e restauração. É próprio do caminho PCM do Jukebox.
+- Equalizador com 5, 10 ou 15 bandas selecionáveis (10 por padrão), frequência/ganho/Q, pré-amplificação, ativar/desativar, presets e restauração. É próprio do caminho PCM do Jukebox.
 - Análise reaproveitada quando compatível, progresso e cancelamento.
 
 <details>

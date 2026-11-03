@@ -1265,6 +1265,7 @@
   "Copiar": "Copy",
   "Copiar link": "Copy link",
   "Copiar caminho": "Copy path",
+  "Mover como próxima": "Move to play next",
   "Mover para cima": "Move up",
   "Mover para baixo": "Move down",
   "Cards: Pequeno": "Cards: Small",
@@ -2444,5 +2445,15 @@
   "Use tempos como 1:30 ou 90 segundos.": "Use times such as 1:30 or 90 seconds.",
   "O fim do trecho deve ser depois do início.": "The excerpt must end after it starts.",
   "O trecho está fora da duração da música.": "The excerpt is outside the track duration.",
-  "Não foi possível preparar esta música a tempo. Tente novamente.": "This track could not be prepared in time. Try again."
+  "Não foi possível preparar esta música a tempo. Tente novamente.": "This track could not be prepared in time. Try again.",
+  "Mostrar atividade no Discord": "Show activity on Discord",
+  "Compartilha música, artista, álbum e capa com o Discord aberto neste PC. Não compartilha arquivos locais nem letras.": "Shares the song, artist, album and artwork with Discord running on this PC. Does not share local files or lyrics.",
+  "ID do aplicativo Discord inválido.": "Invalid Discord application ID.",
+  "Conectando ao Discord…": "Connecting to Discord…",
+  "Abra o Discord neste computador para mostrar a atividade.": "Open Discord on this computer to show activity.",
+  "Reconectando ao Discord…": "Reconnecting to Discord…",
+  "Discord recusou a atividade. Verifique o ID do aplicativo.": "Discord rejected the activity. Check the application ID.",
+  "Conectado ao Discord": "Connected to Discord",
+  "Quantidade de bandas": "Number of bands",
+  "Os ajustes são adaptados às novas frequências ao mudar a quantidade de bandas.": "Adjustments are adapted to the new frequencies when changing the number of bands."
 }

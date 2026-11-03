@@ -17,7 +17,7 @@ OndaScrollView {
         OndaMenuItem {text:bridge.translate("Buscar letra online");enabled:bridge.stateValue(bridge.stateRevision,"ready");onTriggered:workspace.invoke("lyrics_online",{jukebox:true})}
         OndaMenuItem {text:bridge.translate("Equalizador");onTriggered:equalizer.open()}
     }
-    TapHandler {enabled:!bridge.stateValue(bridge.stateRevision,"results").length;acceptedButtons:Qt.RightButton;onTapped:jukeboxActions.popup()}
+    TapHandler {enabled:!workspace.optionValue(workspace.optionsRevision,"jukeboxQueueOpen") && !bridge.stateValue(bridge.stateRevision,"results").length;acceptedButtons:Qt.RightButton;onTapped:jukeboxActions.popup()}
 
     FileDialog { id: fileDialog; title: bridge.translate("Abrir arquivo"); nameFilters: [bridge.translate("Áudio")+" (*.mp3 *.m4a *.flac *.wav *.ogg *.opus *.aac *.webm)",bridge.translate("Todos os arquivos")+" (*)"]; onAccepted: bridge.openFile(selectedFile) }
     property string currentLyric: ""
@@ -63,6 +63,11 @@ OndaScrollView {
                         TapHandler {acceptedButtons:Qt.RightButton;onTapped:resultActions.popup()}
 
                     width: resultList.contentAreaWidth; height: modelData.release_date ? 108 : 84
+                    background: Rectangle {
+                        radius: 6
+                        color: parent.hovered || parent.down || parent.activeFocus
+                               ? bridge.palette.hover : "transparent"
+                    }
                     contentItem: RowLayout {
                         Rectangle { Layout.preferredWidth: 64; Layout.preferredHeight: 64; radius: 6; color: bridge.palette.input
                             RoundedArtwork { id: searchCover; objectName: "jukeboxSearchArtwork"; anchors.fill: parent; source: modelData.cover || ""; fillMode: Image.PreserveAspectFit; sourceSize.width: 128; sourceSize.height: 128; asynchronous: true }
@@ -79,7 +84,16 @@ OndaScrollView {
                 }
             }
         }
-        OndaProgressBar { objectName:"playbackPreparationProgress"; Layout.fillWidth: true; visible: bridge.stateValue(bridge.stateRevision,"busy"); from: 0; to: 100; value: bridge.stateValue(bridge.stateRevision,"progress"); indeterminate: bridge.stateValue(bridge.stateRevision,"progress")===0 }
+        OndaProgressBar {
+            objectName: "playbackPreparationProgress"
+            Layout.fillWidth: true
+            readonly property var selectedProgress: bridge.queuePreparation[bridge.searchPlaybackEntry]
+            visible: bridge.stateValue(bridge.stateRevision, "busy") || selectedProgress !== undefined
+            from: 0
+            to: 100
+            value: selectedProgress === undefined ? bridge.stateValue(bridge.stateRevision, "progress") : selectedProgress
+            indeterminate: value === 0
+        }
         Card {
             objectName:"playbackTrackCard"
             Layout.fillWidth: true; implicitHeight: 166;clip:true

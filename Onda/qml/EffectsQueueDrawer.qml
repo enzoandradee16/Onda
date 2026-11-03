@@ -5,9 +5,10 @@ import QtQuick.Dialogs
 Drawer {
     id: drawer
     StableQueueModel { id: stableTracks; rows: drawer.tracks }
+    StableQueueModel { id: stableResults; rows: drawer.results }
     property bool effects: true
     property bool recent:false
-    onRecentChanged:if(bridge.animations&&visible)tabReveal.restart();else {tabReveal.stop();queueList.opacity=1;tabSlide.x=0}
+    onRecentChanged:{stableTracks.selectedIds=[];stableTracks.anchorId="";if(bridge.animations&&visible)tabReveal.restart();else {tabReveal.stop();queueList.opacity=1;tabSlide.x=0}}
     ParallelAnimation {
         id:tabReveal
         NumberAnimation {target:queueList;property:"opacity";from:0.6;to:1;duration:200;easing.type:Easing.OutCubic}
@@ -114,8 +115,8 @@ Drawer {
             QueueIconButton {objectName:"playbackQueueSearchButton";glyph:drawer.searching?"close":"catalog";text:bridge.translate(drawer.searching?"Cancelar":"Pesquisar");onClicked:drawer.search()}
             QueueIconButton {objectName:"closePlaybackQueueSearch";glyph:"close";text:bridge.translate("Fechar pesquisa");onClicked:drawer.closeSearch()}
         }
-        OndaListView {Layout.fillWidth:true;Layout.preferredHeight:Math.min(240,contentHeight);visible:drawer.results.length>0;clip:true;spacing:8;model:drawer.results
-            delegate:RowLayout {required property var modelData;required property int index;width:ListView.view.contentAreaWidth;height:modelData.release_date ? 98 : 78
+        OndaListView {Layout.fillWidth:true;Layout.preferredHeight:Math.min(240,contentHeight);visible:drawer.results.length>0;clip:true;spacing:8;model:stableResults
+            delegate:RowLayout {required property var modelData;required property int index;width:ListView.view.contentAreaWidth;height:78
                 Component.onCompleted:workspace.invoke("request_card_details",{model:drawer.effects ? "effectsQueueResults" : "jukeboxQueueResults",source:modelData.source_url || ""})
                 RoundedArtwork {Layout.preferredWidth:48;Layout.preferredHeight:48;source:modelData.cover_url || "";asynchronous:true;fillMode:Image.PreserveAspectFit}
                 ColumnLayout {Layout.fillWidth:true;Layout.minimumWidth:0;spacing:2
@@ -154,13 +155,27 @@ Drawer {
                 readonly property bool failed:!!modelData.error||modelData.analysis==="error"
                 readonly property bool section:!!modelData.section&&!drawer.recent
                 width:queueList.contentAreaWidth;height:60
-                z:playbackDrag.dragging?20:0
+                z:playbackDrag.dragging || (selected && queueList.activeDrag && queueList.activeDrag.dragItem.selected) ? 20 : 0
                 transform:Translate {y:playbackDrag.cardOffset;Behavior on y {enabled:queueList.activeDrag!==null&&!playbackDrag.dragging;NumberAnimation {duration:140;easing.type:Easing.OutCubic}}}
                 activeFocusOnTab:true;Accessible.role:Accessible.ListItem;Accessible.name:record.title||""
                 Keys.onReturnPressed:failed?drawer.retry(index):drawer.play(index)
+                readonly property bool selected: (!drawer.recent && !queueTrack.current && !drawer.effects) && stableTracks.selected(modelData)
+                Accessible.selected: selected
+                Keys.onShortcutOverride: function(event) {
+                    if ((!drawer.recent && !queueTrack.current && !drawer.effects) && stableTracks.handlesShortcut(event))
+                        event.accepted = true
+                }
+                Keys.onPressed: function(event) {
+                    if (event.key === Qt.Key_Menu || (event.key === Qt.Key_F10 && event.modifiers === Qt.ShiftModifier)) {
+                        trackActions.popup()
+                        event.accepted = true
+                    } else if (!drawer.recent && !queueTrack.current && !drawer.effects) {
+                        stableTracks.handleKey(event, index, queueList)
+                    }
+                }
                 HoverHandler {id:rowHover}
-                Rectangle {anchors.fill:parent;radius:5;color:bridge.palette.hover;visible:rowHover.hovered||playbackDrag.dragging||queueTrack.activeFocus}
-                QueueDragHandle {doubleClickEnabled:true;showIndicator:false;id:playbackDrag;objectName:"playbackQueueDrag";anchors.right:parent.right;anchors.bottom:parent.bottom;width:16;height:60;opacity:rowHover.hovered||dragging||activeFocus?1:0;enabled:!drawer.recent && !queueTrack.current;dragItem:queueTrack;listView:queueList;rowIndex:queueTrack.index;itemCount:drawer.tracks.length;onMoved:function(target){drawer.move(queueTrack.index,target-queueTrack.index)};onDoubleTapped:queueTrack.failed?drawer.retry(queueTrack.index):drawer.play(queueTrack.index)}
+                Rectangle {anchors.fill:parent;radius:5;color:queueTrack.selected ? bridge.palette.accent : bridge.palette.hover;opacity:queueTrack.selected ? 0.20 : 1;visible:queueTrack.selected||rowHover.hovered||playbackDrag.dragging||queueTrack.activeFocus}
+                QueueDragHandle {doubleClickEnabled:true;showIndicator:false;id:playbackDrag;selectedRows:queueTrack.selected ? stableTracks.selectedRows : [];objectName:"playbackQueueDrag";anchors.right:parent.right;anchors.bottom:parent.bottom;width:16;height:60;opacity:rowHover.hovered||dragging||activeFocus?1:0;enabled:!drawer.recent && !queueTrack.current;dragItem:queueTrack;listView:queueList;rowIndex:queueTrack.index;itemCount:drawer.tracks.length;onMoved:function(target){drawer.effects?drawer.move(queueTrack.index,target-queueTrack.index):stableTracks.moveSelection(queueTrack.index,target)};onClickedWithModifiers:function(modifiers){if (!drawer.effects) {queueTrack.forceActiveFocus();stableTracks.select(queueTrack.index,modifiers)}};onDoubleTapped:queueTrack.failed?drawer.retry(queueTrack.index):drawer.play(queueTrack.index)}
                 RowLayout {
                     anchors.fill:parent;anchors.rightMargin:16;spacing:10
                     Rectangle {Layout.preferredWidth:44;Layout.preferredHeight:44;radius:4;color:bridge.palette.input
@@ -177,11 +192,16 @@ Drawer {
                 }
                 OndaMenu {id:trackActions
                     OndaMenuItem {text:bridge.translate(queueTrack.failed?"Tentar novamente":"Reproduzir");onTriggered:queueTrack.failed?drawer.retry(index):drawer.play(index)}
-                    OndaMenuItem {text:bridge.translate("Mover para cima");enabled:!drawer.recent&&index>0;onTriggered:drawer.move(index,-1)}
-                    OndaMenuItem {text:bridge.translate("Mover para baixo");enabled:!drawer.recent&&index+1<drawer.tracks.length;onTriggered:drawer.move(index,1)}
-                    OndaMenuItem {text:bridge.translate("Remover da fila");onTriggered:drawer.remove(index)}
+                    OndaMenuItem {text:bridge.translate("Mover para cima");enabled:!drawer.recent&&index>0;onTriggered:drawer.effects ? drawer.move(index, -1) : stableTracks.moveStep(index,-1)}
+                    OndaMenuItem {text:bridge.translate("Mover para baixo");enabled:!drawer.recent&&index+1<drawer.tracks.length;onTriggered:drawer.effects ? drawer.move(index, 1) : stableTracks.moveStep(index,1)}
+                    OndaMenuItem {text:bridge.translate("Mover como próxima");enabled:!drawer.recent && !queueTrack.current && !drawer.effects;onTriggered:stableTracks.moveNext(index)}
+                    OndaMenuItem {text:bridge.translate("Remover da fila");enabled:drawer.effects||(!drawer.recent&&!queueTrack.current);onTriggered:drawer.effects?drawer.remove(index):bridge.removeQueuedGroup(stableTracks.actionIndices(index))}
                 }
-                TapHandler {acceptedButtons:Qt.RightButton;onTapped:trackActions.popup()}
+                MouseArea {
+                    anchors.fill: parent
+                    acceptedButtons: Qt.RightButton
+                    onClicked: trackActions.popup()
+                }
                 TapHandler {acceptedButtons:Qt.LeftButton;enabled:drawer.recent;onDoubleTapped:queueTrack.failed?drawer.retry(index):drawer.play(index)}
                 ToolTip.visible:rowHover.hovered&&queueTrack.failed
                 ToolTip.text:bridge.translateError(modelData.error||"")

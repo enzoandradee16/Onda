@@ -44,6 +44,7 @@ class DesktopWorkspace(QObject):
     changed = Signal()
     optionsChanged = Signal()
     settingsChanged = Signal()
+    discordPresenceChanged = Signal()
     navigationChanged = Signal()
     shortcutFieldsChanged = Signal()
     choiceChanged = Signal()
@@ -311,6 +312,18 @@ class DesktopWorkspace(QObject):
         self.media_owner = 'jukebox'
         self.bridge.media_state_provider = self.effects_media_state
         self.bridge.media_command_handler = self.media_command
+        from discord_presence import DiscordPresence
+
+        self.discord_presence = DiscordPresence(self.discord_snapshot, self)
+        self.discord_presence.changed.connect(self.discordPresenceChanged)
+        self.settingsChanged.connect(
+            lambda: self.discord_presence.configure(
+                self.settings.get('discord_presence_enabled', False)
+            )
+        )
+        self.discord_presence.configure(
+            self.settings.get('discord_presence_enabled', False)
+        )
         self.session_timer = QTimer(self)
         self.session_timer.setInterval(5000)
         self.session_timer.timeout.connect(
@@ -391,6 +404,49 @@ class DesktopWorkspace(QObject):
     @Property('QVariantMap', notify=settingsChanged)
     def preferences(self):
         return dict(self.settings)
+
+    @Property(str, notify=discordPresenceChanged)
+    def discordStatus(self):
+        return tr(self.discord_presence.status)
+
+    def discord_snapshot(self):
+        state = self.bridge.media_state()
+        if state.get('owner') == 'effects':
+            record = self.options.get('effectsRecord') or {}
+            return dict(
+                state,
+                album=record.get('album', ''),
+                cover_url=record.get('cover_url', ''),
+                position=self.options.get('position', 0),
+                duration=self.options.get('duration', 0),
+                track_id=self.options.get('effectsSource', ''),
+                speed=(
+                    self.options.get('speed', 100) / 100
+                    if self.options.get('effectsEnabled')
+                    else 1
+                ),
+                paused_label=tr('Pausado'),
+            )
+        model = self.bridge.model or {}
+        return dict(
+            state,
+            album=model.get('album', ''),
+            cover_url=model.get('cover_url', ''),
+            position=self.bridge.sourcePosition,
+            duration=self.bridge.sourceDuration,
+            track_id=(
+                self.bridge.playlist[self.bridge.queue_index]['id']
+                if 0 <= self.bridge.queue_index < len(self.bridge.playlist)
+                else model.get('source', '')
+            ),
+            speed=(
+                self.options.get('speed', 100) / 100
+                if self.options.get('effectsEnabled')
+                and not state.get('effects_pending')
+                else 1
+            ),
+            paused_label=tr('Pausado'),
+        )
 
     @Property('QVariantList', constant=True)
     def settingsFields(self):
@@ -877,6 +933,8 @@ class DesktopWorkspace(QObject):
         if key == 'playback_prepare_ahead':
             self.bridge.prepare_next_queued()
             self.bridge.effect_prepare_timer.start()
+        if key == 'discord_presence_enabled':
+            self.discord_presence.configure(self.settings[key])
         if (
             self._page in self.hiddenTabs
             or self._page == 'jukebox'
@@ -4688,6 +4746,7 @@ class DesktopWorkspace(QObject):
     def shutdown(self):
         if self.closed:
             return
+        self.discord_presence.close()
         self.remote_control.stop()
         self.save_playback_session()
         self.session_timer.stop()

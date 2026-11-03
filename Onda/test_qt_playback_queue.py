@@ -55,6 +55,28 @@ class PlaybackQueueDrawerTests(unittest.TestCase):
         )
         self.assertEqual(self.bridge.queue_index, 0)
 
+    def test_search_selection_prepares_without_stopping_current_track(self):
+        self.seed()
+        bridge = self.bridge
+        bridge.records = [{'title': 'Search result', 'source_url': 'https://example.com/track'}]
+        bridge.refreshSearchResults()
+        bridge.update_state(playing=True)
+        current_index = bridge.queue_index
+        current = bridge.playlist[current_index]
+        with patch.object(bridge, 'prepare_next_queued') as prepare, patch.object(bridge, 'stop') as stop:
+            bridge.selectResult(0)
+            prepare.assert_called_once()
+            stop.assert_not_called()
+        self.assertIs(bridge.playlist[bridge.queue_index], current)
+        selected = bridge.playlist[current_index + 1]
+        self.assertEqual(bridge._autoplay_entry, selected['id'])
+        self.assertTrue(bridge._state['results'])
+        bridge.handle_event(bridge.revision, 'stream_position', 1.0)
+        self.assertTrue(bridge._state['results'])
+        bridge.queue_index += 1
+        bridge.handle_event(bridge.revision, 'stream_position', 1.0)
+        self.assertFalse(bridge._state['results'])
+
     def test_opening_local_file_keeps_stream_alive_until_preparation_finishes(self):
         from PySide6.QtCore import QUrl
 
@@ -316,6 +338,72 @@ class PlaybackQueueDrawerTests(unittest.TestCase):
         self.assertEqual([row['id'] for row in self.bridge.playlist], ['1', '2'])
         self.assertEqual(self.ws.values['effectsQueueIndex'], 1)
         self.assertEqual(len(self.ws.values['effectsQueue']), 3)
+
+    def test_queue_drawer_accepts_selection_clicks_and_shortcuts(self):
+        from PySide6.QtCore import QPoint, Qt
+        from PySide6.QtQuick import QQuickItem
+        from PySide6.QtTest import QTest
+
+        self.seed()
+        self.bridge.queue_index = -1
+        self.bridge.queueChanged.emit()
+        self.ws.setOption('jukeboxQueueOpen', True)
+        self.window.show()
+        QTest.qWait(450)
+        view = self.drawer(False).findChild(QQuickItem, 'playbackQueueList')
+        children = view.property('contentItem').childItems()
+        rows = sorted(
+            (row for row in children if row.metaObject().indexOfProperty('selected') >= 0),
+            key=lambda row: row.property('index'),
+        )
+        self.assertEqual(len(rows), 3)
+
+        def click(index, modifier=Qt.NoModifier):
+            position = rows[index].mapToScene(QPoint(85, 25)).toPoint()
+            QTest.mouseClick(self.window, Qt.LeftButton, modifier, position)
+
+        click(0)
+        click(1, Qt.ControlModifier)
+        start = rows[0].mapToScene(QPoint(85, 25)).toPoint()
+        end = rows[2].mapToScene(QPoint(85, 25)).toPoint()
+        QTest.mousePress(self.window, Qt.LeftButton, Qt.NoModifier, start)
+        QTest.mouseMove(self.window, end, 20)
+        handles = [row.findChild(QQuickItem, 'playbackQueueDrag') for row in rows]
+        self.assertGreater(handles[0].property('cardOffset'), 0)
+        self.assertEqual(handles[1].property('cardOffset'), handles[0].property('cardOffset'))
+        self.assertEqual(handles[2].property('cardOffset'), -2 * (rows[2].height() + view.property('spacing')))
+        QTest.mouseRelease(self.window, Qt.LeftButton, Qt.NoModifier, end)
+        self.assertEqual([row['id'] for row in self.bridge.playlist], ['2', '0', '1'])
+        self.settle()
+        rows.sort(key=lambda row: row.property('index'))
+        click(0)
+        click(2, Qt.ControlModifier)
+        self.assertEqual([row.property('selected') for row in rows], [True, False, True])
+        click(0, Qt.ShiftModifier)
+        self.assertTrue(all(row.property('selected') for row in rows))
+        click(1)
+        QTest.keyClick(self.window, Qt.Key_A, Qt.ControlModifier)
+        self.assertTrue(all(row.property('selected') for row in rows))
+        QTest.keyClick(self.window, Qt.Key_Delete)
+        self.assertFalse(self.bridge.playlist)
+
+    def test_group_queue_move_remove_and_undo(self):
+        self.seed()
+        self.bridge.queue_index = 0
+        self.bridge.playlist.extend(
+            dict(self.bridge.playlist[-1], id=identity) for identity in ('4', '5')
+        )
+        with patch.object(self.bridge, 'prepare_next_queued') as prepare:
+            self.bridge.moveQueuedGroup([2, 4], 1, False)
+            self.assertEqual([row['id'] for row in self.bridge.playlist], ['0', '2', '5', '1', '4'])
+            self.assertEqual(self.bridge.queue_index, 0)
+            prepare.assert_called_once()
+            self.bridge.removeQueuedGroup([1, 3])
+            self.assertEqual([row['id'] for row in self.bridge.playlist], ['0', '5', '4'])
+            self.bridge.undoQueueRemoval()
+            self.assertEqual(len(self.bridge.playlist), 5)
+            self.assertEqual(self.bridge.playlist[2]['id'], '5')
+            self.assertEqual(self.bridge.queue_index, 0)
 
     def test_play_routes_to_corresponding_transport(self):
         self.seed()

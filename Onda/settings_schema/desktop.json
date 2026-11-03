@@ -109,7 +109,8 @@
     "image_crop": "Original",
     "image_background": "transparent",
     "image_background_color": "#ffffff",
-    "image_background_image": ""
+    "image_background_image": "",
+    "discord_presence_enabled": false
   },
   "fields": [
     {
@@ -125,6 +126,13 @@
       "label": "Ativar notificações",
       "kind": "bool",
       "hint": "Mostrar avisos de conclusão no app e no Windows. Erros e confirmações continuam visíveis."
+    },
+    {
+      "category": "Geral",
+      "key": "discord_presence_enabled",
+      "label": "Mostrar atividade no Discord",
+      "kind": "bool",
+      "hint": "Compartilha música, artista, álbum e capa com o Discord aberto neste PC. Não compartilha arquivos locais nem letras."
     },
     {
       "category": "Geral",

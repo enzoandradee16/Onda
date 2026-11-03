@@ -23,7 +23,7 @@ No Android, o player compacto e expandido pertence à interface do app. Efeitos 
 
 Traduções: português, inglês e espanhol. As identidades das abas antigas são mantidas para preservar ordem e ocultação. Os relatórios de versões anteriores preservam apenas as validações realizadas na época.
 
-O equalizador de 10 bandas permite frequência, ganho e Q, pré-amplificação e sete presets. Atua na reprodução compartilhada e respeita Lembrar configurações. O grafo distingue conexões possíveis do trajeto reproduzido e acompanha o relógio da saída de áudio.
+O equalizador com 5, 10 ou 15 bandas selecionáveis (10 por padrão) permite frequência, ganho e Q, pré-amplificação e sete presets. Atua na reprodução compartilhada e respeita Lembrar configurações. O grafo distingue conexões possíveis do trajeto reproduzido e acompanha o relógio da saída de áudio.
 
 ## Fila, preparação e restauração
 

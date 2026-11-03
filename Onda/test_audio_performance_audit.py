@@ -124,7 +124,7 @@ class ReadAheadTests(unittest.TestCase):
         try:
             self.assertTrue(blocked.wait(2))
             self.assertEqual(buffered.blocks.maxsize, 120)
-            self.assertEqual(buffered.warmup_blocks, 30)
+            self.assertEqual(buffered.warmup_blocks, 4)
             for i in range(1, 101):
                 self.assertEqual(buffered.read(), bytes([i]) * 17640)
             self.assertFalse(release.is_set())

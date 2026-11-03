@@ -7,6 +7,7 @@ Item {
     property int rowIndex: -1
     property int targetIndex: -1
     property int itemCount: 0
+    property var selectedRows: []
     property bool dragging: false
     property bool showIndicator: true
     property bool doubleClickEnabled: false
@@ -18,6 +19,19 @@ Item {
         if(dragging)return offsetY
         var active=listView ? listView.activeDrag : null
         if(!active || active.targetIndex<0 || !active.dragItem)return 0
+        if (active.selectedRows.length > 1) {
+            const group = active.selectedRows
+            const member = group.indexOf(rowIndex)
+            const stride = active.dragItem.height + listView.spacing
+            if (member >= 0)
+                return active.offsetY + (active.rowIndex - rowIndex + member - group.indexOf(active.rowIndex)) * stride
+
+            const boundary = active.targetIndex + (active.targetIndex > active.rowIndex ? 1 : 0)
+            const insertion = boundary - group.filter(index => index < boundary).length
+            const compacted = rowIndex - group.filter(index => index < rowIndex).length
+            const projected = compacted + (compacted >= insertion ? group.length : 0)
+            return (projected - rowIndex) * stride
+        }
         var from=active.rowIndex,to=active.targetIndex
         var distance=active.dragItem.height+listView.spacing
         if(from<to && rowIndex>from && rowIndex<=to)return -distance
@@ -26,6 +40,7 @@ Item {
     }
     signal moved(int target)
     signal tapped()
+    signal clickedWithModifiers(int modifiers)
     signal doubleTapped()
     implicitWidth: 32; implicitHeight: 44
     activeFocusOnTab: true
@@ -64,12 +79,12 @@ Item {
                 }
             }
     }
-    function finish(point) {
+    function finish(point, modifiers) {
         update(point)
         var target=targetIndex, wasDragging=dragging
         cancel()
         if(wasDragging && target>=0 && target!==rowIndex)moved(target)
-        else if(!wasDragging)tapped()
+        else if(!wasDragging){tapped();clickedWithModifiers(modifiers)}
     }
     function cancel(){if(listView && listView.activeDrag===handle)listView.activeDrag=null;dragging=false;offsetY=0;targetIndex=-1}
     Rectangle {visible:handle.showIndicator;anchors.fill:parent;radius:6;color:handle.activeFocus || handle.dragging ? bridge.palette.hover : "transparent";border.color:handle.activeFocus ? bridge.palette.accent : "transparent"}
@@ -79,7 +94,7 @@ Item {
         cursorShape:pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor
         onPressed:function(mouse){handle.begin(mapToGlobal(mouse.x,mouse.y))}
         onPositionChanged:function(mouse){if(pressed)handle.update(mapToGlobal(mouse.x,mouse.y))}
-        onReleased:function(mouse){handle.finish(mapToGlobal(mouse.x,mouse.y))}
+        onReleased:function(mouse){handle.finish(mapToGlobal(mouse.x,mouse.y),mouse.modifiers)}
         onDoubleClicked:function(mouse){if(handle.doubleClickEnabled)handle.doubleTapped();else mouse.accepted=false}
         onCanceled:handle.cancel()
     }
@@ -90,7 +105,7 @@ Item {
         cursorShape:pressed ? Qt.ClosedHandCursor : Qt.ArrowCursor
         onPressed:function(mouse){var point=mapToGlobal(mouse.x,mouse.y);if(handle.interactiveAt(handle.dragItem,point)){mouse.accepted=false;return}handle.begin(point)}
         onPositionChanged:function(mouse){if(pressed)handle.update(mapToGlobal(mouse.x,mouse.y))}
-        onReleased:function(mouse){handle.finish(mapToGlobal(mouse.x,mouse.y))}
+        onReleased:function(mouse){handle.finish(mapToGlobal(mouse.x,mouse.y),mouse.modifiers)}
         onDoubleClicked:function(mouse){if(handle.doubleClickEnabled)handle.doubleTapped();else mouse.accepted=false}
         onCanceled:handle.cancel()
     }

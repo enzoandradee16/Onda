@@ -91,6 +91,8 @@ class PreferenceStore:
         if not isinstance(data, dict):
             return {}
         extras = {}
+        if type(data.get('discord_presence_enabled')) is bool:
+            extras['discord_presence_enabled'] = data['discord_presence_enabled']
         if type(data.get("minimize_on_miniplayer")) is bool:
             extras["minimize_on_miniplayer"] = data["minimize_on_miniplayer"]
         if data.get('lyrics_animation') in ('Desativada', 'Suave', 'Deslizar', 'Zoom'):

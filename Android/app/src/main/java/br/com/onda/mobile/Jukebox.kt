@@ -106,7 +106,7 @@ internal class JukeboxController(private val context:Context,private val scope:C
         checkpointPosition()
     }
     private fun reprioritizeQueue() {
-        val next=autoplayQueueId.ifBlank {priorityQueueId}.ifBlank {playbackQueue.value.getOrNull(nextQueueIndex)?.optString("_queue_id").orEmpty()}
+        val next=autoplayQueueId.ifBlank {priorityQueueId}.ifBlank {normalNextIndex()?.let {playbackQueue.value.getOrNull(it)?.optString("_queue_id")}.orEmpty()}
         if(next.isNotBlank() && !preparedModels.containsKey(next) && queuePreparing.isNotBlank() && queuePreparing!=next) {
             cancelQueuePreparation()
         }
@@ -211,13 +211,18 @@ internal class JukeboxController(private val context:Context,private val scope:C
     private var queueWorker:Job?=null
     private var queuePreparing=""
     private var queuePreparationId=""
+    private var queueEffectsId = ""
     private var queuePreparationEpoch=0
     private fun cancelQueuePreparation() {
         val obsolete=queuePreparing
         queuePreparationEpoch++
         if(queuePreparationId.isNotBlank())MobileEngine.cancel(queuePreparationId)
+        cancelQueueEffects()
         queueWorker?.cancel();queueWorker=null;queuePreparing="";queuePreparationId=""
         if(obsolete.isNotBlank() && !preparedModels.containsKey(obsolete))updateQueue(obsolete,"Pendente")
+    }
+    private fun cancelQueueEffects() {
+        if (queueEffectsId.isNotBlank()) MobileEngine.cancel(queueEffectsId)
     }
     private var priorityQueueId=""
     private fun preparationWindow():Set<String> {
@@ -225,6 +230,7 @@ internal class JukeboxController(private val context:Context,private val scope:C
         val current=nextQueueIndex-1
         return buildSet {
             for(index in maxOf(0,current-1)..minOf(rows.lastIndex,current+preparationAhead(OndaStore.settings.value)))add(rows[index].optString("_queue_id"))
+            normalNextIndex()?.let {rows.getOrNull(it)?.optString("_queue_id")?.let {id->add(id)}}
             if(autoplayQueueId.isNotBlank())add(autoplayQueueId)
             if(priorityQueueId.isNotBlank())add(priorityQueueId)
             switchRequest.get()?.let {add(it.row.optString("_queue_id"))}
@@ -264,16 +270,35 @@ internal class JukeboxController(private val context:Context,private val scope:C
                     ?: pending.firstOrNull() ?: break
                 val id=row.getString("_queue_id");val operationId="jukebox-preload-$id-$owner";queuePreparing=id;queuePreparationId=operationId;updateQueue(id,"Analisando")
                 try {
-                    val model=withContext(Dispatchers.IO) {restoreQueueModel(row)} ?: call("jukebox_prepare",prepareConfig(row.optString("_local_source"),row.takeUnless {it.cleanString("_local_source").isNotBlank() && !it.optBoolean("_catalog_source")}),operationId)
+                    var model=withContext(Dispatchers.IO) {restoreQueueModel(row)} ?: call("jukebox_prepare",prepareConfig(row.optString("_local_source"),row.takeUnless {it.cleanString("_local_source").isNotBlank() && !it.optBoolean("_catalog_source")}),operationId)
                     if(model.has("_stream") && state.value.playing && id!=autoplayQueueId) {
                         try {withTimeoutOrNull(6000){StreamAudioCache.prefetch(context,model)}}
                         catch(cancelled:CancellationException){throw cancelled}
                         catch(error:Exception){android.util.Log.w("ONDA-preload","Optional streaming preload failed: ${error.javaClass.simpleName}")}
-                    } else if(!model.has("_stream")) {
+                    }
+                    if (model.has("_stream") && !canStream()) {
+                        model = call("jukebox_transfer_prepare", OndaStore.config().put("model", model), operationId)
+                    }
+                    if(!model.has("_stream")) {
                         while(isActive) {
-                            val snapshot=JSONObject(effects.value.toString())
-                            if(snapshot.optBoolean("enabled"))call("jukebox_effects",JSONObject().put("cache",model.getString("cache")).put("effects",snapshot),operationId)
-                            if(snapshot.toString()==effects.value.toString())break
+                            val currentEffects = effects.value
+                            val snapshot = copyJsonObject(currentEffects)
+                            if(snapshot.optBoolean("enabled")) {
+                                val effectsId = "jukebox-queue-effects-${UUID.randomUUID()}"
+                                queueEffectsId = effectsId
+                                try {
+                                    val prepared = call("jukebox_effects", JSONObject().put("cache", model.getString("cache")).put("effects", snapshot), effectsId)
+                                    if (currentEffects === effects.value) {
+                                        check(prepared.optString("error_detail").isBlank()) { prepared.optString("error_detail") }
+                                    }
+                                } catch (error: Exception) {
+                                    ensureActive()
+                                    if (currentEffects === effects.value) throw error
+                                } finally {
+                                    if (queueEffectsId == effectsId) queueEffectsId = ""
+                                }
+                            }
+                            if (currentEffects === effects.value) break
                         }
                     }
                     if(isActive && owner==queuePreparationEpoch && playbackQueue.value.any {it.optString("_queue_id")==id}) {
@@ -290,7 +315,6 @@ internal class JukeboxController(private val context:Context,private val scope:C
                             }
                         }}
                         updateQueue(id,"Pronta")
-                        prewarmEffects()
                         if(priorityQueueId==id)priorityQueueId=""
                         if(autoplayQueueId==id){autoplayQueueId="";playQueued(playbackQueue.value.indexOfFirst {it.optString("_queue_id")==id})}
                     }
@@ -348,8 +372,8 @@ internal class JukeboxController(private val context:Context,private val scope:C
         switchRequest.get()?.takeIf {it.row.optString("_queue_id")==id}?.let {switchRequest.compareAndSet(it,null)}
         if(autoplayQueueId==id)autoplayQueueId=""
         if(priorityQueueId==id)priorityQueueId=""
+        if (queuePreparing == id) cancelQueuePreparation()
         startQueuePreparation()
-        if(queuePreparing==id && queuePreparationId.isNotBlank())MobileEngine.cancel(queuePreparationId)
     }
     private data class TrackSwitch(val row:JSONObject,val model:JSONObject,val seconds:Int)
     private val switchRequest=java.util.concurrent.atomic.AtomicReference<TrackSwitch?>(null)
@@ -409,12 +433,21 @@ internal class JukeboxController(private val context:Context,private val scope:C
     val effects=MutableStateFlow(JSONObject().put("enabled",false).put("speed",85).put("reverb",25).put("keep_pitch",false))
     private var effectPreparation:Job?=null
     private var effectPreparationId=""
-    fun setEffects(key:String,value:Any){if(effects.value.opt(key)==value)return;effects.value=JSONObject(effects.value.toString()).put(key,value);if(key=="enabled")restartPreparationMode();prewarmEffects()}
+    fun setEffects(key: String, value: Any) {
+        if (effects.value.opt(key) == value) return
+        effects.value = JSONObject(effects.value.toString()).put(key, value)
+        prewarmEffects()
+        val obsolete = preparedModels.keys.filter { it != currentQueueId.value }
+        obsolete.forEach {
+            preparedModels.remove(it)
+            updateQueue(it, "Pendente")
+        }
+        cancelQueueEffects()
+        startQueuePreparation()
+    }
     private fun restartPreparationMode() {
         if(state.value.model==null && queueWorker?.isActive!=true)return
-        queueWorker?.cancel();queueWorker=null
-        if(queuePreparationId.isNotBlank())MobileEngine.cancel(queuePreparationId)
-        queuePreparing=""
+        cancelQueuePreparation()
         if(!canStream())preparedModels.keys.toList().filter {it!=currentQueueId.value && preparedModels[it]?.has("_stream")==true}.forEach {preparedModels.remove(it);updateQueue(it,"Pendente")}
         startQueuePreparation()
     }
@@ -521,7 +554,7 @@ internal class JukeboxController(private val context:Context,private val scope:C
             delay(400)
             if(!effects.value.optBoolean("enabled"))return@launch
             val settings=JSONObject(effects.value.toString())
-            val models=(listOfNotNull(state.value.model)+playbackQueue.value.drop(nextQueueIndex.coerceAtLeast(0)).take(preparationAhead(OndaStore.settings.value)).mapNotNull {preparedModels[it.optString("_queue_id")]}).filter {!it.has("_stream")}.distinctBy {it.optString("cache")}
+            val models=listOfNotNull(state.value.model).filter {!it.has("_stream")}
             for(model in models) {
                 if(preparationRevision!=revision || settings.toString()!=effects.value.toString())break
                 val id="playback-effects-"+UUID.randomUUID();effectPreparationId=id
@@ -935,7 +968,7 @@ internal class JukeboxController(private val context:Context,private val scope:C
         state.value=state.value.copy(index=snapshot.index,phase=snapshot.phase)
         runCatching {savePlaybackSession()}.onFailure {android.util.Log.w("ONDA","Could not save stopped playback session",it)}
     }
-    fun close(){checkpoint?.cancel();stopPreservingPosition();queueIndex.clear();effectPreparation?.cancel();if(effectPreparationId.isNotBlank())MobileEngine.cancel(effectPreparationId);queueWorker?.cancel();if(queuePreparationId.isNotBlank())MobileEngine.cancel(queuePreparationId);preparedModels.clear()}
+    fun close(){checkpoint?.cancel();stopPreservingPosition();queueIndex.clear();effectPreparation?.cancel();if(effectPreparationId.isNotBlank())MobileEngine.cancel(effectPreparationId);cancelQueuePreparation();preparedModels.clear()}
 }
 
 @Composable internal fun PlaybackPage(vm:OndaViewModel) {

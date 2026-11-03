@@ -24,6 +24,59 @@ def settings(frequency=1000, gain=6, q=1.4):
 
 
 class EqualizerTests(unittest.TestCase):
+    def test_layouts_presets_and_old_settings_remain_compatible(self):
+        from jukebox_equalizer import BAND_LAYOUTS, presets, preset_name, resize
+
+        self.assertEqual(clean()['band_count'], 10)
+        for count, frequencies in BAND_LAYOUTS.items():
+            value = clean({'enabled': True, 'band_count': count, 'preamp': 0})
+            self.assertEqual(len(value['bands']), count)
+            self.assertEqual(
+                [b['frequency'] for b in value['bands']], list(frequencies)
+            )
+            for name, preset in presets(count).items():
+                self.assertEqual(preset['band_count'], count)
+                self.assertEqual(preset_name(preset), name)
+            eq = Equalizer()
+            value['bands'][-1]['gain'] = -6
+            eq.configure(value)
+            raw = tone(16000)
+            self.assertAlmostEqual(
+                rms(eq.process(raw)) / rms(raw), 10 ** (-6 / 20), delta=0.02
+            )
+            self.assertEqual(resize(value, count), value)
+        self.assertEqual(clean({'band_count': 999})['band_count'], 10)
+        self.assertEqual(clean({'band_count': True})['band_count'], 10)
+        self.assertEqual(clean({'bands': [{}] * 15})['band_count'], 15)
+
+    def test_resize_interpolates_in_log_frequency_without_losing_enable_or_preamp(self):
+        from jukebox_equalizer import resize
+
+        value = clean({'enabled': True, 'preamp': -9})
+        for band in value['bands']:
+            band['gain'] = math.log2(band['frequency'] / 1000)
+            band['q'] = 2.5
+        for count in (5, 15):
+            converted = resize(value, count)
+            self.assertTrue(converted['enabled'])
+            self.assertEqual(converted['preamp'], -9)
+            for band in converted['bands']:
+                expected = math.log2(max(31.25, band['frequency']) / 1000)
+                self.assertAlmostEqual(band['gain'], expected)
+                self.assertEqual(band['q'], 2.5)
+        value['bands'][0]['frequency'] = value['bands'][1]['frequency']
+        self.assertEqual(len(resize(value, 15)['bands']), 15)
+
+    def test_variable_band_count_survives_saved_preferences(self):
+        from preferences import PreferenceStore
+
+        with tempfile.TemporaryDirectory() as folder:
+            store = PreferenceStore(Path(folder) / 'settings.json')
+            value = clean({'band_count': 15, 'enabled': True})
+            value['bands'][14]['gain'] = -3
+            store.save({'jukebox_equalizer': json.dumps(value)})
+            self.assertEqual(clean(store.load()['jukebox_equalizer']), value)
+
     def test_disabled_and_flat_are_exact_bypass(self):
         raw = tone()
         eq = Equalizer()

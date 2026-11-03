@@ -67,7 +67,7 @@ import org.json.JSONObject
     val swipeThreshold=with(LocalDensity.current){64.dp.toPx()}
     var previousSize by remember {mutableIntStateOf(queue.size)}
     LaunchedEffect(queue.size) {
-        if(queue.size>previousSize){recent=false;listState.scrollToItem(0)}
+        if(queue.size>previousSize)recent=false
         previousSize=queue.size
     }
     BackHandler(searching){searching=false}

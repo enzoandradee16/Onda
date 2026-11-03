@@ -28,6 +28,8 @@ Músicas de catálogo podem ser ouvidas por streaming no PC e no Android. A repr
 
 ## Destaques do aplicativo
 
+- **Equalizador:** escolha 5, 10 ou 15 bandas no PC e Android, com 10 como padrão. Presets e ajustes são adaptados às frequências do modo escolhido.
+- **Discord no PC:** opção “Mostrar atividade no Discord” em Configurações → Geral, desativada por padrão. Mostra música, artista, álbum/capa disponíveis e tempo de reprodução; acompanha pausa e encerra a atividade ao parar ou fechar. Requer Discord aberto. [Como funciona](docs/DISCORD.md).
 - **Windows:** ao clicar em Baixar agora na pesquisa, escolha MP3, M4A, FLAC ou áudio original e a qualidade disponível. A janela parte das preferências salvas e permite baixar ou adicionar à fila; cancelar não inicia o download. A escolha vale para aquela música.
 - **Miniplayer no PC:** reprodução unificada de Efeitos e Jukebox, com capa, álbum, controles, volume, letras e fila. Continua visível ao minimizar o ONDA. A opção de minimizar ao abrir fica em Aparência; capa e informações da faixa também permitem arrastar a janela.
 - **Android:** navegação por Pesquisar, Downloads, Reprodução e Mais. Efeitos e Jukebox podem ser aplicados juntos à mesma música e fila, com player expandido e letras em tela cheia.

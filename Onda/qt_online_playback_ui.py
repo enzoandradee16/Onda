@@ -138,6 +138,7 @@ class OnlinePlayback:
         bridge.sync_media()
 
         def worker():
+            started = False
             reader = output = cache = None
             try:
                 from jukebox_audio import PcmOutput
@@ -300,6 +301,9 @@ class OnlinePlayback:
                         )
                     except InterruptedError:
                         continue
+                    if not started:
+                        started = True
+                        bridge.emit(revision, 'audio_started', None)
                     if cache is not None:
                         cache.start()
             except Cancelled:

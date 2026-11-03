@@ -51,7 +51,7 @@ Ambos aceitam arquivos locais, pesquisa e links de música, álbum ou playlist. 
 
 Efeitos oferece velocidade, Reverb, presets, manter tom e exportação. O Android renderiza o áudio pelos parâmetros escolhidos e pode preparar a próxima faixa durante a atual. Parâmetros alterados invalidam resultados incompatíveis.
 
-Jukebox analisa conexões entre trechos, com variação, suavidade, grafo, tempo ouvido e saltos. Desligar Jukebox infinito ativa a reprodução normal; repetição e aleatório da fila controlam a ordem entre faixas. Efeitos pode permanecer ligado junto ao Jukebox. O equalizador de dez bandas atua no áudio compartilhado. Veja [Reprodução unificada](../docs/REPRODUCAO-UNIFICADA.md).
+Jukebox analisa conexões entre trechos, com variação, suavidade, grafo, tempo ouvido e saltos. Desligar Jukebox infinito ativa a reprodução normal; repetição e aleatório da fila controlam a ordem entre faixas. Efeitos pode permanecer ligado junto ao Jukebox. O equalizador com 5, 10 ou 15 bandas selecionáveis (10 por padrão) atua no áudio compartilhado. Veja [Reprodução unificada](../docs/REPRODUCAO-UNIFICADA.md).
 
 ### Player compacto, expandido e sessão
 

@@ -90,6 +90,43 @@ class PlaybackRegressionTests(unittest.TestCase):
         JukeboxBridge.prepare_next_queued(bridge)
         self.assertEqual(list(bridge._queue_cancel), ['retry'])
 
+    def test_disabling_effects_during_render_keeps_prepared_audio(self):
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import patch
+        from types import SimpleNamespace
+        from qt_jukebox_ui import Cancelled, JukeboxBridge
+
+        with tempfile.TemporaryDirectory() as folder:
+            Path(folder, 'analysis.json').touch()
+            model = {'cache': folder}
+            bridge = SimpleNamespace(
+                closed=False, _queue_preparing=False, _queue_timeout_timer=Mock(),
+                preferences={}, queue_index=-1,
+                playlist=[dict(id='next', kind='file', source='next.wav', analysis='pending')],
+                _prepared={}, _queue_cancel={}, _autoplay_entry=None,
+                _switch_pending=None, _switch_after=None, _switch_models={},
+                normal_next_index=lambda: 0, config=lambda: {}, can_stream=lambda: False,
+                _state={'playing': True}, _effects={'enabled': True},
+                queueChanged=Mock(), preparationChanged=Mock(), emit=Mock(),
+                start_worker=lambda worker: worker(), prepare_local=Mock(return_value=model),
+                _queue_slots=Mock(),
+            )
+
+            def render(cache, effects, cancelled):
+                bridge._effects = {'enabled': False}
+                self.assertTrue(cancelled())
+                raise Cancelled()
+
+            with patch('playback_effects.prepare', side_effect=render) as prepare:
+                JukeboxBridge.prepare_next_queued(bridge)
+            prepare.assert_called_once()
+            bridge.prepare_local.assert_called_once()
+            _, event, result = bridge.emit.call_args.args
+            self.assertEqual(event, 'queue_prepared')
+            self.assertIs(result['model'], model)
+            self.assertEqual(result['effects'], {'enabled': False})
+
     def test_original_never_silently_selects_censored_edition(self):
         for label in ['Clean Version', 'Censored', 'Censurada', 'Sem palavrões']:
             self.assertTrue(

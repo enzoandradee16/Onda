@@ -15,7 +15,7 @@ from types import SimpleNamespace
 from PySide6.QtCore import QObject, Property, Signal, Slot, Qt, QTimer, QUrl
 from jukebox import prepare, fetch_audio, Cancelled, RATE
 from jukebox_stream import Stream
-from jukebox_equalizer import clean, presets, preset_name
+from jukebox_equalizer import clean, presets, preset_name, resize, BAND_LAYOUTS
 from preferences import PreferenceStore
 from i18n import tr, set_language
 from error_localization import error_text
@@ -73,6 +73,7 @@ class JukeboxBridge(QObject):
         self.queue_index = -1
         self.track_minutes = 0
         self.autoplay_revision = None
+        self._search_playback_entry = None
         self.request_number = 0
         self.lookup_cancelled = threading.Event()
         self.task_is_lookup = False
@@ -234,6 +235,10 @@ class JukeboxBridge(QObject):
     @Property('QVariantMap', notify=changed)
     def playbackControls(self):
         return self._playback_state()
+
+    @Property(str, notify=changed)
+    def searchPlaybackEntry(self):
+        return self._search_playback_entry or ''
 
     @Property('QVariantMap', notify=preparationChanged)
     def queuePreparation(self):
@@ -712,6 +717,7 @@ class JukeboxBridge(QObject):
                             entry['record'], config, cancel, progress
                         )
                     )
+                effects = dict(self._effects)
                 if model.get('_stream') and background_stream:
                     from online_audio import prefetch_stream
 
@@ -732,9 +738,17 @@ class JukeboxBridge(QObject):
                     while not cancel.is_set():
                         effects = dict(self._effects)
                         if effects.get('enabled'):
-                            error = prepare_effects(
-                                model['cache'], effects, cancel.is_set
-                            )
+                            try:
+                                error = prepare_effects(
+                                    model['cache'], effects,
+                                    lambda: cancel.is_set() or effects != self._effects,
+                                )
+                            except Cancelled:
+                                if cancel.is_set():
+                                    raise
+                                continue
+                            if effects != self._effects:
+                                continue
                             if error:
                                 raise ValueError(error)
                         if effects == self._effects:
@@ -742,7 +756,7 @@ class JukeboxBridge(QObject):
                 self.emit(
                     0,
                     'queue_prepared',
-                    {'id': identity, 'owner': cancel, 'model': model},
+                    {'id': identity, 'owner': cancel, 'model': model, 'effects': effects},
                 )
             except Exception as error:
                 self.emit(
@@ -785,7 +799,7 @@ class JukeboxBridge(QObject):
     def enqueueRecord(self, record):
         return self.enqueueRecords([record])
 
-    def enqueueRecords(self, records):
+    def enqueueRecords(self, records, *, play_now=False, from_search=False):
         accepted = records[: max(0, 5000 - len(self.playlist))]
         added = []
         for record in accepted:
@@ -799,7 +813,9 @@ class JukeboxBridge(QObject):
                 'collection': record.get('_queue_collection', ''),
             }
             self.queue_info(entry, record)
-            if entry['manual'] and self.queue_index >= 0:
+            if play_now:
+                self.playlist.insert(self.queue_index + 1, entry)
+            elif entry['manual'] and self.queue_index >= 0:
                 insertion = self.queue_index + 1
                 while insertion < len(self.playlist) and self.playlist[insertion].get(
                     'manual'
@@ -810,9 +826,14 @@ class JukeboxBridge(QObject):
                 self.playlist.append(entry)
             added.append(entry['id'])
         if accepted:
+            if play_now:
+                self._search_playback_entry = added[0] if from_search else None
             self.queueChanged.emit()
             self.changed.emit()
-            self.prepare_next_queued()
+            if play_now:
+                self.playQueued(self.queue_index + 1)
+            else:
+                self.prepare_next_queued()
             self.tracksAdded.emit(added)
         if len(accepted) < len(records):
             self.update_state(
@@ -829,28 +850,32 @@ class JukeboxBridge(QObject):
 
     @Slot(int)
     def removeQueued(self, index):
-        if not 0 <= index < len(self.playlist):
+        self.removeQueuedGroup([index])
+
+    @Slot('QVariantList')
+    def removeQueuedGroup(self, indices):
+        indices = sorted({index for index in indices if 0 <= index < len(self.playlist)})
+        if not indices:
             return
-        if (
-            index == self.queue_index
-            and self._state['busy']
-            and self.autoplay_revision is not None
-        ):
+        if self.queue_index in indices and self._state['busy'] and self.autoplay_revision is not None:
             self.cancelOperation()
-        removed = self.playlist.pop(index)
-        self._removed_queue_entry = (index, dict(removed))
+        self._removed_queue_entry = [(index, dict(self.playlist[index])) for index in indices]
         self._queue_undo_timer.start()
-        self._prepared.pop(removed['id'], None)
-        if self._autoplay_entry == removed['id']:
-            self._autoplay_entry = None
-        if removed['id'] in self._queue_cancel:
-            self._queue_cancel[removed['id']].set()
-        if index < self.queue_index:
-            self.queue_index -= 1
-        elif index == self.queue_index:
+        for index in reversed(indices):
+            removed = self.playlist.pop(index)
+            identity = removed['id']
+            self._prepared.pop(identity, None)
+            if self._autoplay_entry == identity:
+                self._autoplay_entry = None
+            if identity in self._queue_cancel:
+                self._queue_cancel[identity].set()
+        if self.queue_index in indices:
             self.queue_index = -1
+        else:
+            self.queue_index -= sum(index < self.queue_index for index in indices)
         self.queueChanged.emit()
         self.changed.emit()
+        self.prepare_next_queued()
 
     @Property(bool, notify=queueChanged)
     def canUndoQueueRemoval(self):
@@ -862,16 +887,17 @@ class JukeboxBridge(QObject):
 
     @Slot()
     def undoQueueRemoval(self):
-        if self._removed_queue_entry is None or len(self.playlist) >= 5000:
+        removed = self._removed_queue_entry
+        if not removed or len(self.playlist) + len(removed) > 5000:
             return
-        index, entry = self._removed_queue_entry
         self._removed_queue_entry = None
         self._queue_undo_timer.stop()
-        entry = dict(entry, id=uuid.uuid4().hex, analysis='pending')
-        index = min(index, len(self.playlist))
-        self.playlist.insert(index, entry)
-        if self.queue_index >= index:
-            self.queue_index += 1
+        for index, entry in removed:
+            entry = dict(entry, id=uuid.uuid4().hex, analysis='pending')
+            index = min(index, len(self.playlist))
+            self.playlist.insert(index, entry)
+            if self.queue_index >= index:
+                self.queue_index += 1
         self.queueChanged.emit()
         self.changed.emit()
         self.prepare_next_queued()
@@ -890,6 +916,25 @@ class JukeboxBridge(QObject):
         self.queue_index = next(
             (i for i, row in enumerate(self.playlist) if row['id'] == current), -1
         )
+        self.queueChanged.emit()
+        self.changed.emit()
+        self.prepare_next_queued()
+
+    @Slot('QVariantList', int, bool)
+    def moveQueuedGroup(self, indices, target, after):
+        first = self.queue_index + 1
+        indices = sorted({index for index in indices if first <= index < len(self.playlist)})
+        if not indices:
+            return
+        boundary = max(first, min(len(self.playlist), target + int(after)))
+        selected = [self.playlist[index] for index in indices]
+        selected_indices = set(indices)
+        remaining = [row for index, row in enumerate(self.playlist) if index not in selected_indices]
+        insertion = boundary - sum(index < boundary for index in indices)
+        remaining[insertion:insertion] = selected
+        if remaining == self.playlist:
+            return
+        self.playlist[:] = remaining
         self.queueChanged.emit()
         self.changed.emit()
         self.prepare_next_queued()
@@ -1497,7 +1542,18 @@ class JukeboxBridge(QObject):
         if effects == self._effects:
             return
         self._effects = effects
+        from playback_session import prepared_reference
+
+        for index, row in enumerate(self.playlist):
+            if index == self.queue_index:
+                continue
+            model = self._prepared.pop(row['id'], None)
+            if model is not None:
+                row['prepared_cache'] = prepared_reference(model)
+                row.update(analysis='pending', preparation_progress=0)
         self.prepare_stream_effects()
+        self.queueChanged.emit()
+        self.prepare_next_queued()
         self.changed.emit()
         self._effect_prepare_cancel.set()
         self.effect_prepare_timer.start()
@@ -1514,16 +1570,7 @@ class JukeboxBridge(QObject):
         cancel = threading.Event()
         self._effect_prepare_cancel = cancel
         effects = dict(self._effects)
-        from playback_preparation import preparation_ahead
-
-        ahead = preparation_ahead(self.preferences.get('playback_prepare_ahead', 2))
-        models = ([self.model] if self.model else []) + [
-            self._prepared[row['id']]
-            for row in self.playlist[
-                max(0, self.queue_index + 1) : self.queue_index + ahead + 1
-            ]
-            if row['id'] in self._prepared
-        ]
+        models = [self.model] if self.model else []
 
         def worker():
             from playback_effects import prepare as prepare_effects
@@ -1541,8 +1588,20 @@ class JukeboxBridge(QObject):
 
     @Slot(str)
     def applyPreset(self, name):
-        if name in presets():
-            self.set_equalizer(presets()[name])
+        choices = presets(self._equalizer['band_count'])
+        if name in choices:
+            self.set_equalizer(choices[name])
+
+    @Slot(int)
+    def setEqualizerBandCount(self, count):
+        if count in BAND_LAYOUTS:
+            name = preset_name(self._equalizer)
+            preset = presets(count).get(name)
+            self.set_equalizer(
+                dict(preset, enabled=self._equalizer['enabled'])
+                if preset
+                else resize(self._equalizer, count)
+            )
 
     def set_equalizer(self, value):
         self._equalizer = clean(value)
@@ -1559,7 +1618,7 @@ class JukeboxBridge(QObject):
 
     @Slot(int, float, float, float)
     def setBand(self, index, frequency, gain, q):
-        if not 0 <= index < 10:
+        if not 0 <= index < len(self._equalizer['bands']):
             return
         value = clean(self._equalizer)
         value['bands'][index] = {'frequency': frequency, 'gain': gain, 'q': q}
@@ -1567,7 +1626,14 @@ class JukeboxBridge(QObject):
 
     @Slot()
     def resetEqualizer(self):
-        self.set_equalizer(dict(clean(), enabled=self._equalizer['enabled']))
+        self.set_equalizer(
+            clean(
+                dict(
+                    band_count=self._equalizer['band_count'],
+                    enabled=self._equalizer['enabled'],
+                )
+            )
+        )
 
     def config(self):
         if self.config_provider is not None:
@@ -1627,7 +1693,9 @@ class JukeboxBridge(QObject):
                     value,
                 )
 
-        self.update_state(busy=True, progress=0, results=[])
+        if not stop_current:
+            self.update_state(results=[])
+        self.update_state(busy=True, progress=0)
 
         def worker():
             try:
@@ -1698,19 +1766,19 @@ class JukeboxBridge(QObject):
 
     @Slot(int)
     def selectResult(self, index):
-        if not 0 <= index < len(self.records) or self._state['busy']:
+        if (
+            not 0 <= index < len(self.records)
+            or self._state['busy']
+            or not self.records[index].get('source_url')
+        ):
             return
-        self.openRecord(dict(self.records[index]))
+        self.enqueueRecords([self.records[index]], play_now=True, from_search=True)
 
     @Slot('QVariantMap')
     def openRecord(self, record):
         if self._state['busy'] or not record.get('source_url'):
             return
-        self._stream_resume = None
-        self.online.position = 0.0
-        self._selection_insert = max(0, self.queue_index + 1)
-        self.queue_index = -1
-        self.prepare_record(dict(record))
+        self.enqueueRecords([record], play_now=True)
 
     def can_stream(self):
         return self._params[3] and not (
@@ -1737,14 +1805,6 @@ class JukeboxBridge(QObject):
             job.cancel()
         self._stream_preparation = StreamPreparation(self)
         self._stream_preparation.start()
-
-    def prepare_record(self, record):
-        self._selected_record = dict(record)
-        config = dict(self.config(), _direct_stream=self.can_stream())
-        self.update_state(status=tr('Obtendo áudio para análise…'))
-        self.task(
-            lambda cancel, progress: self.fetch_record(record, config, cancel, progress)
-        )
 
     @Slot(int, str, object)
     def handle_event(self, revision, kind, value):
@@ -1820,6 +1880,17 @@ class JukeboxBridge(QObject):
             entry = next(
                 (row for row in self.playlist if row['id'] == value['id']), None
             )
+            model = value.get('model')
+            if entry is not None and model is not None and (
+                (model.get('_stream') and not self.can_stream())
+                or ('effects' in value and value['effects'] != self._effects)
+            ):
+                from playback_session import prepared_reference
+
+                entry['prepared_cache'] = prepared_reference(model)
+                entry.update(analysis='pending', preparation_progress=0)
+                self.prepare_next_queued()
+                return
             if entry is not None:
                 entry['analysis'] = 'error' if 'error' in value else 'ready'
                 entry['error'] = value.get('error', '')
@@ -1888,6 +1959,16 @@ class JukeboxBridge(QObject):
             if self.model and self.model.get('_stream'):
                 self.model['_stream'] = value
             return
+        if kind in ('audio_started', 'stream_position', 'position'):
+            if (
+                self._search_playback_entry is not None
+                and self._state['playing']
+                and 0 <= self.queue_index < len(self.playlist)
+                and self.playlist[self.queue_index]['id'] == self._search_playback_entry
+            ):
+                self._search_playback_entry = None
+                self.records = []
+                self.update_state(results=[])
         if kind == 'stream_position':
             if isinstance(value, tuple):
                 serial, value = value
@@ -1969,7 +2050,6 @@ class JukeboxBridge(QObject):
                         else value.get('cover_url', '')
                     ),
                     ready=True,
-                    results=[],
                     status=tr(
                         'Análise concluída.'
                         if value['links']
@@ -2041,6 +2121,7 @@ class JukeboxBridge(QObject):
                     -1,
                 )
                 self.handle_event(revision, 'result', model)
+                self.handle_event(revision, 'audio_started', None)
                 self._track_started = 0.0
                 self.queueChanged.emit()
                 self.prepare_next_queued()
@@ -2136,6 +2217,7 @@ class JukeboxBridge(QObject):
                 )
                 return
             self.autoplay_revision = None
+            self._search_playback_entry = None
             self.update_state(
                 status=str(value), status_error=True, playing=False, paused=False
             )
@@ -2201,6 +2283,7 @@ class JukeboxBridge(QObject):
         self.media_timer.start()
 
         def worker():
+            started = False
             session = output = None
             try:
                 from jukebox_audio import PcmOutput
@@ -2374,6 +2457,9 @@ class JukeboxBridge(QObject):
                         output.write(part['pcm'], seek_interrupted, self.paused.is_set)
                     except InterruptedError:
                         continue
+                    if not started:
+                        started = True
+                        self.emit(revision, 'audio_started', None)
                     if part.get('finished') and part.get('edge_completed', True):
                         try:
                             while output.buffers:
@@ -2402,6 +2488,7 @@ class JukeboxBridge(QObject):
     def closeSearch(self):
         if self.task_is_lookup and self._state['busy']:
             self.cancelOperation()
+        self._search_playback_entry = None
         self.records = []
         self.update_state(
             results=[],

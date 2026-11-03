@@ -12,50 +12,65 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.testTag
 import org.json.JSONArray
 import org.json.JSONObject
 import kotlin.math.*
 
-private val equalizerFrequencies=listOf(31.25f,62.5f,125f,250f,500f,1000f,2000f,4000f,8000f,16000f)
-
 @Composable internal fun JukeboxEqualizerDialog(onDismiss:()->Unit) {
-    val original=remember {OndaStore.settings.value.optJSONObject("jukebox_equalizer") ?: JSONObject()}
+    val original=remember {cleanEqualizerSettings(OndaStore.settings.value.optJSONObject("jukebox_equalizer"))}
     var enabled by remember {mutableStateOf(original.optBoolean("enabled"))}
-    var preamp by remember {mutableFloatStateOf(original.optDouble("preamp",-6.0).toFloat().let {if(it.isFinite())it.coerceIn(-24f,0f) else -6f})}
-    val frequencies=remember {mutableStateListOf<Float>().apply {equalizerFrequencies.forEachIndexed {i,f->add(original.optJSONArray("bands")?.optJSONObject(i)?.optDouble("frequency",f.toDouble())?.toFloat()?.takeIf {it.isFinite()}?.coerceIn(20f,20000f) ?: f)}}}
-    val gains=remember {mutableStateListOf<Float>().apply {equalizerFrequencies.indices.forEach {i->add(original.optJSONArray("bands")?.optJSONObject(i)?.optDouble("gain",0.0)?.toFloat()?.takeIf {it.isFinite()}?.coerceIn(-12f,12f) ?: 0f)}}}
-    val widths=remember {mutableStateListOf<Float>().apply {equalizerFrequencies.indices.forEach {i->add(original.optJSONArray("bands")?.optJSONObject(i)?.optDouble("q",1.4)?.toFloat()?.takeIf {it.isFinite()}?.coerceIn(.1f,10f) ?: 1.4f)}}}
+    var preamp by remember {mutableFloatStateOf(original.getDouble("preamp").toFloat())}
+    var bandCount by remember {mutableIntStateOf(original.getInt("band_count"))}
+    val frequencies=remember {mutableStateListOf<Float>().apply {(0 until bandCount).forEach {add(original.getJSONArray("bands").getJSONObject(it).getDouble("frequency").toFloat())}}}
+    val gains=remember {mutableStateListOf<Float>().apply {(0 until bandCount).forEach {add(original.getJSONArray("bands").getJSONObject(it).getDouble("gain").toFloat())}}}
+    val widths=remember {mutableStateListOf<Float>().apply {(0 until bandCount).forEach {add(original.getJSONArray("bands").getJSONObject(it).getDouble("q").toFloat())}}}
     val presets=remember {JSONArray(OndaStore.context.assets.open("equalizer_presets.json").bufferedReader().use {it.readText()}).let {a->(0 until a.length()).map {a.getJSONObject(it)}}}
-    val selectedPreset=presets.firstOrNull {row->
-        abs(preamp-row.getDouble("preamp").toFloat())<.01f && equalizerFrequencies.indices.all {i->
-            abs(gains[i]-row.getJSONArray("gains").getDouble(i).toFloat())<.01f && abs(frequencies[i]-equalizerFrequencies[i])<.01f && abs(widths[i]-1.4f)<.01f
+    val presetValues=remember(bandCount) {presets.associate {row->
+        row.getString("name") to equalizerPreset(row,bandCount)
+    }}
+    val selectedPreset=presetValues.entries.firstOrNull {(_,value)->
+        abs(preamp-value.getDouble("preamp").toFloat())<.01f && (0 until bandCount).all {i->
+            val reference=value.getJSONArray("bands").getJSONObject(i)
+            abs(gains[i]-reference.getDouble("gain").toFloat())<.01f && abs(frequencies[i]-reference.getDouble("frequency").toFloat())<.01f && abs(widths[i]-reference.getDouble("q").toFloat())<.01f
         }
-    }?.getString("name") ?: "Personalizado"
+    }?.key ?: "Personalizado"
     var expanded by remember {mutableIntStateOf(-1)}
-    fun save() {
-        val value=JSONObject().put("enabled",enabled).put("preamp",preamp).put("bands",JSONArray().apply {
-            equalizerFrequencies.indices.forEach {i->put(JSONObject().put("frequency",frequencies[i]).put("gain",gains[i]).put("q",widths[i]))}
-        })
-        OndaStore.saveSettings(JSONObject(OndaStore.settings.value.toString()).put("jukebox_equalizer",value))
+    fun current()=JSONObject().put("enabled",enabled).put("preamp",preamp).put("band_count",bandCount).put("bands",JSONArray().apply {
+        (0 until bandCount).forEach {i->put(JSONObject().put("frequency",frequencies[i]).put("gain",gains[i]).put("q",widths[i]))}
+    })
+    fun save() {OndaStore.saveSettings(JSONObject(OndaStore.settings.value.toString()).put("jukebox_equalizer",current()))}
+    fun replace(value:JSONObject) {
+        val clean=cleanEqualizerSettings(value);val bands=clean.getJSONArray("bands")
+        enabled=clean.getBoolean("enabled");preamp=clean.getDouble("preamp").toFloat();expanded=-1
+        frequencies.clear();gains.clear();widths.clear()
+        for(i in 0 until bands.length()) {val row=bands.getJSONObject(i);frequencies.add(row.getDouble("frequency").toFloat());gains.add(row.getDouble("gain").toFloat());widths.add(row.getDouble("q").toFloat())}
+        bandCount=clean.getInt("band_count");save()
     }
     fun close(){save();onDismiss()}
     AlertDialog(onDismissRequest={close()},title={UiText("Equalizador")},text={
-        Column(Modifier.fillMaxWidth().heightIn(max=510.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(8.dp)) {
+        Column(
+            Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
             Toggle("Ativar equalizador",enabled){enabled=it;save()}
-            Select("Preset",selectedPreset,presets.map {it.getString("name")}+"Personalizado") {name->
-                presets.firstOrNull {it.getString("name")==name}?.let {row->
-                    enabled=true;preamp=row.getDouble("preamp").toFloat()
-                    equalizerFrequencies.forEachIndexed {i,f->frequencies[i]=f;gains[i]=row.getJSONArray("gains").getDouble(i).toFloat();widths[i]=1.4f}
-                    save()
-                }
+            Select("Preset",selectedPreset,presetValues.keys.toList()+"Personalizado") {name->presetValues[name]?.let {replace(it)}}
+            Select("Quantidade de bandas",bandCount.toString(),equalizerLayouts.keys.map {it.toString()},Modifier.testTag("equalizer-band-count")) {choice->
+                val count=choice.toInt()
+                val preset=presets.firstOrNull {it.getString("name")==selectedPreset}
+                replace(if(preset!=null)equalizerPreset(preset,count).put("enabled",enabled) else resizeEqualizerSettings(current(),count))
             }
+            UiText("Os ajustes são adaptados às novas frequências ao mudar a quantidade de bandas.",style=MaterialTheme.typography.bodySmall)
             UiText(translateUi("Pré-amplificação")+" · %.1f dB".format(preamp))
             RoundSlider(preamp,{preamp=it},valueRange=-24f..0f,onValueChangeFinished={save()})
-            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-                equalizerFrequencies.indices.forEach {i->
-                    Column(Modifier.width(56.dp),horizontalAlignment=Alignment.CenterHorizontally) {
+            Row(
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+            ) {
+                (0 until bandCount).forEach {i->
+                    Column(Modifier.width(56.dp).testTag("equalizer-band-$i"),horizontalAlignment=Alignment.CenterHorizontally) {
                         UiText("%+.1f".format(gains[i]),style=MaterialTheme.typography.labelSmall)
-                        RoundSlider(gains[i],{gains[i]=it},valueRange=-12f..12f,onValueChangeFinished={save()},modifier=Modifier
+                        RoundSlider(gains[i],{if(i<gains.size)gains[i]=it},valueRange=-12f..12f,onValueChangeFinished={save()},modifier=Modifier
                             .width(48.dp).height(190.dp)
                             .graphicsLayer {rotationZ=270f}
                             .layout {measurable,constraints->
@@ -68,7 +83,7 @@ private val equalizerFrequencies=listOf(31.25f,62.5f,125f,250f,500f,1000f,2000f,
                     }
                 }
             }
-            if(expanded>=0) {
+            if(expanded in 0 until bandCount) {
                 val i=expanded
                 UiText("${i+1} · "+translateUi("Frequência (Hz)")+" · %.0f".format(frequencies[i]))
                 RoundSlider(log10(frequencies[i]),{frequencies[i]=10f.pow(it)},valueRange=log10(20f)..log10(20000f),onValueChangeFinished={save()})
@@ -78,6 +93,6 @@ private val equalizerFrequencies=listOf(31.25f,62.5f,125f,250f,500f,1000f,2000f,
             UiText("Q menor: banda mais larga. Reduza a pré-amplificação ao aumentar os ganhos.",style=MaterialTheme.typography.bodySmall)
         }
     },confirmButton={TextButton(onClick={close()}){UiText("Pronto")}},dismissButton={TextButton(onClick={
-        equalizerFrequencies.forEachIndexed {i,f->frequencies[i]=f;gains[i]=0f;widths[i]=1.4f};preamp=-6f;save()
+        replace(JSONObject().put("enabled",enabled).put("band_count",bandCount).put("preamp",-6))
     }){UiText("Restaurar")}})
 }

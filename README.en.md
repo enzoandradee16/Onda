@@ -28,6 +28,8 @@ Catalog tracks can stream on PC and Android. Playback starts with a small buffer
 
 ## Application highlights
 
+- **Equalizer:** choose 5, 10 or 15 bands on PC and Android, with 10 by default. Presets and adjustments adapt to the selected frequency layout.
+- **Discord on PC:** enable “Show activity on Discord” in Settings → General; off by default. Shares the song, artist, available album/artwork and playback time, follows pauses, and clears activity when stopped or closed. Requires the Discord desktop app. [How it works](docs/DISCORD.md).
 - **Windows:** clicking Download now in search opens format and quality selection: MP3, M4A, FLAC or original audio. Saved preferences are preselected. Download immediately or add to the queue; cancelling starts nothing. The selection applies to that track.
 - **Desktop mini player:** unified Effects and Jukebox playback, with artwork, album, transport, volume, lyrics and queue. It remains visible when ONDA is minimized. Appearance settings control whether ONDA minimizes when opening the mini player; drag the header, artwork or track information to move it.
 - **Android:** Search, Downloads, Playback and More navigation. Effects and Jukebox can be applied together to the same track and queue, with an expanded player and full-screen lyrics.
