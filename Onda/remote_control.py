@@ -256,6 +256,7 @@ class RemoteServer:
                     'seek',
                     'queue_play',
                     'queue_remove',
+                    'queue_undo',
                     'queue_move',
                     'shuffle',
                     'repeat',

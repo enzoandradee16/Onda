@@ -6,12 +6,17 @@ import threading
 from urllib.parse import urlsplit
 
 
-def resolve(config, record, cancelled=lambda: False, *, source_url=""):
+def resolve(
+    config, record, cancelled=lambda: False, *, source_url="", _reuse_reference=True
+):
     from yt_dlp import YoutubeDL
     from engine import build_options, validate_url
     from jukebox import SearchLog, check
     from metadata import is_streaming_link
 
+    from catalog_details import track_artwork
+
+    record = track_artwork(record, config, cancelled)
     source = source_url or record.get('source_url') or config.get('url', '')
     options = build_options(
         dict(config, mode='original', playlist=False, playlist_limit=1)
@@ -19,12 +24,19 @@ def resolve(config, record, cancelled=lambda: False, *, source_url=""):
     if config.get('youtube_cookies_file'):
         options['cookiefile'] = config['youtube_cookies_file']
     logger = SearchLog(options, cancelled)
+    selected = None
+    remembered = False
+    references = None
     if is_streaming_link(source):
         from matching import resolve_youtube
+        from validated_audio import ValidatedAudioStore
 
-        source = resolve_youtube(record, logger, lambda *_: None, automatic=True)[
-            'source_url'
-        ]
+        references = ValidatedAudioStore()
+        selected = references.get(record) if _reuse_reference else None
+        remembered = selected is not None
+        if selected is None:
+            selected = resolve_youtube(record, logger, lambda *_: None, automatic=True)
+        source = selected['source_url']
     check(cancelled)
     options.update(
         quiet=True,
@@ -47,9 +59,37 @@ def resolve(config, record, cancelled=lambda: False, *, source_url=""):
             format='bestaudio[protocol^=m3u8]/bestaudio/best', check_formats='selected'
         )
     options.pop('postprocessors', None)
-    with YoutubeDL(options) as downloader:
-        info = downloader.extract_info(validate_url(source), download=False)
-    check(cancelled)
+    try:
+        with YoutubeDL(options) as downloader:
+            info = downloader.extract_info(validate_url(source), download=False)
+        check(cancelled)
+        if selected is not None:
+            from matching import revalidate_match
+
+            revalidate_match(record, selected, info)
+    except Exception as error:
+        check(cancelled)
+        transient = any(
+            token in str(error).casefold()
+            for token in (
+                'not a bot',
+                'confirm you',
+                'too many requests',
+                'http error 429',
+                'http error 403',
+                'timed out',
+                'timeout',
+                'connection reset',
+                'network is unreachable',
+                'name resolution',
+            )
+        )
+        if remembered and not transient:
+            references.forget(record)
+            return resolve(
+                config, record, cancelled, source_url=source_url, _reuse_reference=False
+            )
+        raise
     url = info.get('url', '')
     if urlsplit(url).scheme not in ('http', 'https'):
         raise ValueError('A fonte não disponibilizou um fluxo de áudio compatível.')
@@ -65,6 +105,8 @@ def resolve(config, record, cancelled=lambda: False, *, source_url=""):
         for k, v in (info.get('http_headers') or {}).items()
         if not any(c in str(k) + str(v) for c in '\r\n')
     }
+    if references is not None:
+        references.set(record, selected)
     return dict(
         _stream=dict(
             url=url,
@@ -241,7 +283,7 @@ class ReadAheadAudio:
 
         self.reader = reader
         self.blocks = queue.Queue(maxsize=max(1, min(120, int(blocks))))
-        self.warmup_blocks = min(30, self.blocks.maxsize)
+        self.warmup_blocks = min(4, self.blocks.maxsize)
         self.ready = threading.Event()
         self.primed = False
         from collections import deque
@@ -317,6 +359,7 @@ class ReadAheadAudio:
 
     def read(self, interrupted=lambda: False):
         import queue
+        import time
 
         if interrupted():
             raise InterruptedError()
@@ -341,7 +384,13 @@ class ReadAheadAudio:
                 if time.monotonic() >= deadline:
                     break
             self.primed = True
+        deadline = time.monotonic() + 25
         while not self.finished and not self.cancelled.is_set():
+            if time.monotonic() >= deadline:
+                self.cancel()
+                raise StreamUnavailableError(
+                    'Não foi possível reproduzir o áudio online. Tente abrir a música novamente.'
+                )
             if interrupted():
                 raise InterruptedError()
             try:
@@ -374,13 +423,46 @@ def prepare_stream(model, config, cancelled=lambda: False, progress=lambda _: No
     import tempfile
     import wave
     from pathlib import Path
-    from jukebox import cache_root, check, prepare
+    from jukebox import cache_root, check, prepare, Cancelled
 
     root = cache_root()
     root.mkdir(parents=True, exist_ok=True)
+    check(cancelled)
+    from stream_file_cache import lookup
+
+    cached_file = lookup(model)
+    if cached_file:
+        try:
+            prepared = prepare(
+                cached_file['path'], config.get('ffmpeg', ''), cancelled, progress
+            )
+        except Cancelled:
+            raise
+        except (OSError, ValueError):
+            # A deleted or damaged optional cache must not prevent preparation
+            # from the already resolved stream.
+            pass
+        else:
+            return _retain_stream_metadata(prepared, model)
     with tempfile.TemporaryDirectory(prefix='stream-effects-', dir=root) as temporary:
         source = Path(temporary) / 'audio.wav'
-        reader = NetworkAudio(model['_stream'], config.get('ffmpeg', ''))
+        from progressive_audio_cache import ProgressiveAudioCache
+
+        pcm_cache = None
+        try:
+            stream = model['_stream']
+            pcm_cache = ProgressiveAudioCache(
+                stream.get('source_url') or stream['url'],
+                model['duration'],
+                lambda _: None,
+                existing_only=True,
+            )
+            reader = pcm_cache.reader()
+        except (OSError, ValueError):
+            if pcm_cache is not None:
+                pcm_cache.close()
+                pcm_cache = None
+            reader = NetworkAudio(model['_stream'], config.get('ffmpeg', ''))
         try:
             with wave.open(str(source), 'wb') as sound:
                 sound.setparams((2, 2, 44100, 0, 'NONE', ''))
@@ -399,6 +481,8 @@ def prepare_stream(model, config, cancelled=lambda: False, progress=lambda _: No
                     progress(min(40, int(frames / 44100 / model['duration'] * 40)))
         finally:
             reader.close()
+            if pcm_cache is not None:
+                pcm_cache.close()
         check(cancelled)
         prepared = prepare(
             source,
@@ -406,9 +490,54 @@ def prepare_stream(model, config, cancelled=lambda: False, progress=lambda _: No
             cancelled,
             lambda value: progress(40 + int(value * 0.5)),
         )
-        for key in ('media_title', 'media_artist', 'album', 'cover_url', '_cover'):
-            if key in model:
-                prepared[key] = model[key]
-        prepared['source'] = ''
-        prepared['title'] = model['title']
-        return prepared
+        return _retain_stream_metadata(prepared, model)
+
+
+def _retain_stream_metadata(prepared, model):
+    for key in ('media_title', 'media_artist', 'album', 'cover_url', '_cover'):
+        if key in model:
+            prepared[key] = model[key]
+    prepared['source'] = ''
+    prepared['title'] = model['title']
+    return prepared
+
+
+def prefetch_stream(model, config, cancelled=lambda: False, progress=lambda _: None):
+    """Only report a queued stream ready once its decoded audio is cached."""
+    if config.get('_queue_warmup'):
+        from stream_warmup import prepare
+
+        return prepare(model, config, cancelled, progress)
+    from progressive_audio_cache import ProgressiveAudioCache
+    from jukebox import check
+
+    descriptor = dict(model['_stream'])
+
+    def refresh():
+        fresh = resolve(
+            config, {}, cancelled, source_url=descriptor.get('source_url', '')
+        )
+        descriptor.update(fresh['_stream'])
+        model['_stream'] = dict(descriptor)
+        return descriptor
+
+    cache = ProgressiveAudioCache(
+        descriptor.get('source_url') or descriptor['url'],
+        model['duration'],
+        lambda seconds: RecoveringNetworkAudio(
+            descriptor, config.get('ffmpeg', ''), seconds, refresh
+        ),
+        automatic=config.get('automatic_cache_cleanup', True),
+    )
+    try:
+        cache.start()
+        while not cache.complete:
+            check(cancelled)
+            if cache.error is not None:
+                raise cache.error
+            progress(round(99 * cache.buffered_seconds / model['duration']))
+            if cache.thread is not None:
+                cache.thread.join(0.1)
+        check(cancelled)
+    finally:
+        cache.close()

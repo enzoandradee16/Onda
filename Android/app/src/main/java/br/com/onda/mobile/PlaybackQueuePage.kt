@@ -48,13 +48,17 @@ import org.json.JSONObject
 /** Playback queue is a page inside the shell: one header, player and navigation bar. */
 @Composable internal fun PlaybackQueuePage(vm:OndaViewModel,onClose:()->Unit={vm.playbackQueueOpen.value=false}) {
     val controller=vm.jukebox
+    val canUndoRemoval by controller.canUndoQueueRemoval.collectAsStateWithLifecycle()
     val localQueue by controller.playbackQueue.collectAsStateWithLifecycle()
     val localCurrent by controller.currentQueueId.collectAsStateWithLifecycle()
+    val localShuffle by controller.queueShuffle.collectAsStateWithLifecycle()
     val remote by RemotePlaybackRuntime.presentationState.collectAsStateWithLifecycle()
     val queue=remember(remote.connected,remote.queue,localQueue){if(remote.connected)remote.queue.map {it.queueRecord()} else localQueue}
     val current=if(remote.connected)remote.trackId else localCurrent
     val summaryFlow=remember(controller){controller.presentationState.map {it.model to it.title}.distinctUntilChanged()}
     val summary by summaryFlow.collectAsStateWithLifecycle(initialValue=controller.state.value.let {it.model to it.title})
+    var remoteUndo by remember {mutableStateOf(false)}
+    LaunchedEffect(remoteUndo,remote.connected){if(remoteUndo){kotlinx.coroutines.delay(8000);remoteUndo=false}}
     var recent by rememberSaveable {mutableStateOf(false)}
     var searching by rememberSaveable {mutableStateOf(false)}
     var actions by remember {mutableStateOf(false)}
@@ -68,7 +72,7 @@ import org.json.JSONObject
     }
     BackHandler(searching){searching=false}
     val files=rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) {uris->
-        vm.importConversionBatch(uris){paths->controller.enqueueAll(paths.map {path->JSONObject().put("title",importedAudioName(path).substringBeforeLast('.')).put("_local_source",path)})}
+        vm.importConversionBatch(uris){paths->controller.enqueueAll(paths.map {path->JSONObject().put("title",importedAudioName(path).substringBeforeLast('.')).put("_local_source",path)},manual=true)}
     }
     val active=remember(queue,current,remote.connected,controller.nextQueueIndex) {
         if(remote.connected)queue.indexOfFirst {it.optString("_queue_id")==current}
@@ -107,8 +111,16 @@ import org.json.JSONObject
     }) {
         val searchHeight=(maxHeight*.45f).coerceAtMost(260.dp)
         Column(Modifier.fillMaxSize().padding(horizontal=LayoutSpacing.inset),verticalArrangement=Arrangement.spacedBy(8.dp)) {
+            if((canUndoRemoval && !remote.connected) || (remoteUndo && remote.connected))Snackbar(action={TextButton(onClick={if(remote.connected){RemotePlaybackRuntime.command("queue_undo");remoteUndo=false}else controller.undoQueueRemoval()}){UiText("Desfazer")}}){UiText("Música removida da fila")}
             Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
                 PlaybackQueueTabs(recent,Modifier.weight(1f)){recent=it}
+                IconToggleButton(
+                    checked=if(remote.connected)remote.shuffle else localShuffle,
+                    onCheckedChange={enabled->if(remote.connected)RemotePlaybackRuntime.command("shuffle",enabled) else controller.setQueueShuffle(enabled)},
+                    enabled=!remote.connected || remote.online,
+                    modifier=Modifier.testTag("queue-shuffle"),
+                    colors=IconButtonDefaults.iconToggleButtonColors(contentColor=LocalContentColor.current,checkedContentColor=MaterialTheme.colorScheme.primary)
+                ) {OndaIcon("shuffle","Reprodução aleatória",Modifier.size(23.dp))}
                 IconButton(onClick={searching=!searching},modifier=Modifier.testTag("queue-toggle-search")) {
                     OndaIcon(if(searching)"close" else "search",if(searching)"Fechar pesquisa" else "Pesquisar",Modifier.size(22.dp))
                 }
@@ -158,9 +170,17 @@ import org.json.JSONObject
                             val toIndex=rows.indexOfFirst {it.optString("_queue_id")==shown[to].optString("_queue_id")}
                             if(fromIndex>=0 && toIndex>=0)controller.moveQueued(fromIndex,toIndex-fromIndex)
                         }
-                        DraggableQueueCard(tabListState,index,shown.size,enabled=!visibleRecent,move=::move) {
-                            SwipeRemoveQueueTrack(record.optString("_queue_id"),onRemove={
-                                if(remote.connected)RemotePlaybackRuntime.command("queue_remove",trackId=record.optString("_queue_id")) else {
+                        DraggableQueueCard(tabListState,index,shown.size,enabled=!visibleRecent,move=::move,moveToIdentity={targetId->
+                            val sourceId=record.optString("_queue_id")
+                            if(remote.connected)RemotePlaybackRuntime.command("queue_move_to",targetId,trackId=sourceId)
+                            else {
+                                val rows=controller.playbackQueue.value
+                                val from=rows.indexOfFirst {it.optString("_queue_id")==sourceId};val to=rows.indexOfFirst {it.optString("_queue_id")==targetId}
+                                if(from>=0 && to>=0)controller.moveQueued(from,to-from)
+                            }
+                        }) {
+                            SwipeRemoveQueueTrack(record.optString("_queue_id"),enabled=!queueDragActive(tabListState),onRemove={
+                                if(remote.connected){RemotePlaybackRuntime.command("queue_remove",trackId=record.optString("_queue_id"));remoteUndo=true} else {
                                 val actual=controller.playbackQueue.value.indexOfFirst {it.optString("_queue_id")==record.optString("_queue_id")}
                                 if(actual>=0)controller.removeQueued(actual)
                                 }
@@ -170,7 +190,7 @@ import org.json.JSONObject
                                 val actual=controller.playbackQueue.value.indexOfFirst {it.optString("_queue_id")==record.optString("_queue_id")}
                                 if(actual>=0){if(record.optString("_analysis")=="Erro")controller.retryQueued(actual) else controller.playQueued(actual)}
                                 }
-                            },Modifier.testTag("queue-track-"+record.optString("_queue_id"))) {
+                            },Modifier.testTag("queue-track-"+record.optString("_queue_id")),onRemoved={if(remote.connected)remoteUndo=true}) {
                                 QueueDragHandle(tabListState,index,shown.size,enabled=!visibleRecent,itemLabel=record.optString("title"),icon="drag-lines",move=::move)
                             }
                             }
@@ -203,11 +223,18 @@ import org.json.JSONObject
     }
 }
 
-@Composable private fun SwipeRemoveQueueTrack(identity:String,onRemove:()->Unit,content:@Composable ()->Unit) {
-    val dismiss=rememberSwipeToDismissBoxState(positionalThreshold={it*.4f})
+@Composable internal fun SwipeRemoveQueueTrack(identity:String,enabled:Boolean=true,onRemove:()->Unit,content:@Composable ()->Unit) {
+    val allowed by rememberUpdatedState(enabled)
+    var suppressed by remember(identity){mutableStateOf(false)}
+    val dismiss=rememberSwipeToDismissBoxState(positionalThreshold={it*.4f},confirmValueChange={it==SwipeToDismissBoxValue.Settled || (allowed && !suppressed)})
     val remove by rememberUpdatedState(onRemove)
-    LaunchedEffect(dismiss.currentValue) {if(dismiss.currentValue==SwipeToDismissBoxValue.EndToStart)remove()}
-    SwipeToDismissBox(state=dismiss,enableDismissFromStartToEnd=false,enableDismissFromEndToStart=true,
+    var removed by remember(identity){mutableStateOf(false)}
+    LaunchedEffect(enabled){
+        if(!enabled)suppressed=true
+        else if(suppressed){dismiss.snapTo(SwipeToDismissBoxValue.Settled);kotlinx.coroutines.delay(150);suppressed=false}
+    }
+    LaunchedEffect(dismiss.currentValue,enabled,suppressed) {if(enabled && !suppressed && !removed && dismiss.currentValue==SwipeToDismissBoxValue.EndToStart){removed=true;remove()}}
+    SwipeToDismissBox(state=dismiss,enableDismissFromStartToEnd=false,enableDismissFromEndToStart=true,gesturesEnabled=enabled,
         modifier=Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).testTag("queue-swipe-"+identity),
         backgroundContent={
             if(dismiss.dismissDirection==SwipeToDismissBoxValue.EndToStart)Row(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.errorContainer).padding(horizontal=16.dp),horizontalArrangement=Arrangement.End,verticalAlignment=Alignment.CenterVertically) {
@@ -225,7 +252,7 @@ import org.json.JSONObject
     }
 }
 
-@Composable private fun PlaybackQueueTrack(record:JSONObject,vm:OndaViewModel,current:Boolean,recent:Boolean,play:()->Unit,modifier:Modifier=Modifier,drag:@Composable ()->Unit={}) {
+@Composable private fun PlaybackQueueTrack(record:JSONObject,vm:OndaViewModel,current:Boolean,recent:Boolean,play:()->Unit,modifier:Modifier=Modifier,onRemoved:()->Unit={},drag:@Composable ()->Unit={}) {
     val controller=vm.jukebox
     val remote by RemotePlaybackRuntime.presentationState.collectAsStateWithLifecycle()
     var actions by remember {mutableStateOf(false)}
@@ -262,7 +289,7 @@ import org.json.JSONObject
                     DropdownMenuItem(text={UiText("Mover para baixo")},enabled=index()>=0 && index()<(if(remote.connected)remote.queueTotal-1 else controller.playbackQueue.value.lastIndex),onClick={actions=false;move(1)})
                 }
                 if(record.optString("_error").isNotBlank())DropdownMenuItem(text={UiText(translateError(record.optString("_error")))},onClick={actions=false;vm.showNotice("Erro",failureAdvice(record.optString("_error")).first,true)})
-                DropdownMenuItem(text={UiText("Remover")},enabled=index()>=0,onClick={actions=false;if(remote.connected)RemotePlaybackRuntime.command("queue_remove",trackId=record.optString("_queue_id")) else controller.removeQueued(index())})
+                DropdownMenuItem(text={UiText("Remover")},enabled=index()>=0,onClick={actions=false;if(remote.connected)RemotePlaybackRuntime.command("queue_remove",trackId=record.optString("_queue_id")) else controller.removeQueued(index());onRemoved()})
             }
         }
     }

@@ -102,7 +102,7 @@ object OndaStore {
         .put("schedule_enabled",false).put("schedule_start","22:00").put("schedule_stop","07:00").put("check_updates",true).put("automatic_cache_cleanup",true).put("notice_duration","Após 3 segundos").put("notice_animation",true)
         .put("playback_prepare_ahead",2)
         .put("playback_tab_order","Efeitos primeiro").put("jukebox_transition_seconds",2).put("jukebox_gradual_transition",true).put("jukebox_equalizer",JSONObject()).put("jukebox_background",true).put("synced_lyrics",false).put("search_preview",25).put("effects_preview",25).put("keep_preview",false).put("remember",true)
-        .put("image_format","Original").put("image_size","Original").put("image_width",0).put("image_height",0).put("keep_ratio",true)
+        .put("image_format","Original").put("image_size","Original").put("image_width",0).put("image_height",0).put("keep_ratio",true).put("image_remove_background",false).put("image_rotation",0).put("image_crop","Original").put("image_background","transparent").put("image_background_color","#ffffff").put("image_background_image","")
         .put("bottom_bar_order",JSONArray(bottomBarDefaults))
         .put("tab_group_order",JSONArray(moreGroups.keys.toList()))
         .put("hidden_tabs",JSONArray())
@@ -157,7 +157,9 @@ object OndaStore {
         if(includeSecrets) put("spotify_client_secret", SecureVault.get("spotify-api") ?: "")
         if(optString("mode")=="photos") put("image_options",JSONObject().put("format", options.optString("image_format","Original"))
             .put("width",options.optInt("image_width")).put("height",options.optInt("image_height"))
-            .put("keep_ratio",options.optBoolean("keep_ratio",true)))
+            .put("keep_ratio",options.optBoolean("keep_ratio",true)).put("remove_background",options.optBoolean("image_remove_background",false))
+            .put("rotation",options.optInt("image_rotation")).put("crop",options.optString("image_crop","Original")).put("background",options.optString("image_background","transparent"))
+            .put("background_color",options.optString("image_background_color","#ffffff")).put("background_image",options.optString("image_background_image")))
     }
     fun executionConfig(stored:JSONObject):JSONObject=JSONObject(stored.toString()).apply {
         val live=settings.value

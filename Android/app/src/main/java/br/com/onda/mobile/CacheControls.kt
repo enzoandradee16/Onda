@@ -30,7 +30,7 @@ import kotlinx.coroutines.withContext
                 MobileEngine.call(OndaStore.context,"cache-info-"+java.util.UUID.randomUUID(),"cache_info",JSONObject(),EventCallback {})
             }
             if(result.has("error"))readError=result.optString("error")
-            else bytes=result.optLong("bytes")+(loader.diskCache?.size ?: 0L)
+            else bytes=result.optLong("bytes")+(loader.diskCache?.size ?: 0L)+withContext(Dispatchers.IO){StreamAudioCache.size(OndaStore.context)}
         } catch(cancelled:CancellationException) {throw cancelled}
         catch(error:Exception) {readError=uiExceptionMessage(error,"Erro na operação")}
         finally {reading=false}
@@ -38,15 +38,17 @@ import kotlinx.coroutines.withContext
     fun clear() {
         if(busy || cleaning || reading || active.isNotBlank())return
         readError="";vm.stopPreview()
-        vm.operation("cache_clear",JSONObject(),dialog=false) {result->
+        vm.operation("cache_clear",JSONObject().put("_stream_cache_protected",org.json.JSONArray(StreamAudioCache.protectedPaths())),dialog=false) {result->
             cleaning=true
             freed=result.optLong("removed")+(loader.diskCache?.size ?: 0L)
             if(result.optInt("failed")>0)readError="Alguns arquivos não puderam ser removidos. Tente novamente depois de fechar as operações em andamento."
             scope.launch {
                 try {
-                    withContext(Dispatchers.IO) {loader.memoryCache?.clear();loader.diskCache?.clear()}
+                    val playingStream=vm.jukebox.state.value.let {it.playing && it.model?.has("_stream")==true}
+                    val streamFreed=withContext(Dispatchers.IO) {loader.memoryCache?.clear();loader.diskCache?.clear();if(playingStream)0L else StreamAudioCache.clear(OndaStore.context)}
+                    freed+=streamFreed
                     invalidateHistoryDetails();cleaned=true
-                    bytes=result.optLong("bytes")+(loader.diskCache?.size ?: 0L)
+                    bytes=result.optLong("bytes")+(loader.diskCache?.size ?: 0L)+withContext(Dispatchers.IO){StreamAudioCache.size(OndaStore.context)}
                 } finally {cleaning=false}
             }
         }

@@ -42,6 +42,83 @@ class PlaybackDesignTest {
         } finally {compose.runOnUiThread {vm.jukebox.stop();store.clear();OndaStore.saveSettings(previous)}}
     }
 
+    @Test fun openedUserPlaylistStartsFromCollectionsWithAnExistingQueue()=screen {vm->
+        org.junit.Assume.assumeTrue(InstrumentationRegistry.getArguments().getString("live_stream")=="true")
+        val server=AndroidStreamingParityTest.AudioServer(120)
+        try {
+            compose.runOnIdle {vm.jukebox.setVolume(0f);vm.jukebox.prepare(record=JSONObject().put("title","Previous local playback").put("source_url",server.url).put("duration_ms",120000),autoPlay=true)}
+            compose.waitUntil(90000){vm.jukebox.audioReady.value}
+            val result=kotlinx.coroutines.runBlocking(kotlinx.coroutines.Dispatchers.IO){MobileEngine.call(context,"user-playlist-test","collection",OndaStore.config().put("url","https://open.spotify.com/playlist/3QVBmvKuaiT3uuGlFsWCMA").put("playlist_limit",2),EventCallback {})}
+            assertFalse(result.toString(),result.has("error"))
+            val records=result.getJSONArray("tracks").objects();assertTrue(records.isNotEmpty())
+            val oldCount=vm.jukebox.playbackQueue.value.size
+            compose.runOnIdle {vm.collection.value=result.put("_collection_url","https://open.spotify.com/playlist/3QVBmvKuaiT3uuGlFsWCMA")}
+            compose.onNodeWithTag("nav-Mais").performClick()
+            compose.onNodeWithText("Coleção").performClick()
+            compose.onNodeWithText("Usar em reprodução").performScrollTo().performClick()
+            compose.waitUntil(120000){vm.jukebox.playbackQueue.value.size>oldCount && vm.jukebox.currentQueueId.value==vm.jukebox.playbackQueue.value[oldCount].optString("_queue_id") && vm.jukebox.audioReady.value}
+            compose.onNodeWithTag("nav-Efeitos").assertIsSelected()
+            compose.runOnIdle {assertTrue(vm.jukebox.state.value.playing);assertFalse(vm.jukebox.state.value.paused);assertEquals(records.first().getString("title"),vm.jukebox.state.value.title)}
+        } finally {server.close()}
+    }
+
+    @Test fun collectionPreparationFailureIsVisibleWithPreviousTrackLoaded()=screen {vm->
+        val server=AndroidStreamingParityTest.AudioServer(120)
+        try {
+            compose.runOnIdle {vm.jukebox.setVolume(0f);vm.jukebox.prepare(record=JSONObject().put("title","Previous track").put("source_url",server.url).put("duration_ms",120000),autoPlay=true)}
+            compose.waitUntil(90000){vm.jukebox.audioReady.value}
+            val old=vm.jukebox.currentQueueId.value
+            compose.runOnIdle {vm.collection.value=JSONObject().put("title","Collection with missing source").put("tracks",JSONArray().put(JSONObject().put("title","Missing file").put("_local_source",File(context.cacheDir,"nonexistent-collection-track.wav").absolutePath)))}
+            compose.onNodeWithTag("nav-Mais").performClick();compose.onNodeWithText("Coleção").performClick()
+            compose.onNodeWithText("Usar em reprodução").performScrollTo().performClick()
+            compose.waitUntil(30000){vm.jukebox.state.value.playbackError.isNotBlank()}
+            compose.onNodeWithTag("playback-request-error").assertIsDisplayed()
+            compose.runOnIdle {assertEquals(old,vm.jukebox.currentQueueId.value);assertEquals("",vm.jukebox.pendingPlaybackId.value);assertTrue(vm.jukebox.state.value.playing)}
+        } finally {server.close()}
+    }
+
+    @Test fun spotifyTabEnqueuesDirectlyAndAfterOpeningCollection()=screen {vm->
+        org.junit.Assume.assumeTrue(InstrumentationRegistry.getArguments().getString("live_stream")=="true")
+        val identity="3QVBmvKuaiT3uuGlFsWCMA"
+        val url="https://open.spotify.com/playlist/$identity"
+        val server=AndroidStreamingParityTest.AudioServer(120)
+        fun awaitPlayback(start:Int) {
+            try {compose.waitUntil(45000){vm.jukebox.playbackQueue.value.size>start}}
+            catch(error:Throwable){throw AssertionError("Playlist was not enqueued: busy=${vm.busy.value}, status=${vm.status.value}, notice=${vm.dialogNotice.value}, tracks=${vm.collection.value.optJSONArray("tracks")?.length()}",error)}
+            try {compose.waitUntil(90000){vm.jukebox.state.value.playbackError.isNotBlank() || (vm.jukebox.currentQueueId.value==vm.jukebox.playbackQueue.value[start].optString("_queue_id") && vm.jukebox.audioReady.value)}}
+            catch(error:Throwable){throw AssertionError("Playback did not start: pending=${vm.jukebox.pendingPlaybackId.value}, message=${vm.jukebox.state.value.message}, error=${vm.jukebox.state.value.playbackError}, target=${vm.jukebox.playbackQueue.value[start].optString("_analysis")}",error)}
+            assertEquals("aruarian dance",vm.jukebox.playbackQueue.value[start].optString("title"))
+            val error=vm.jukebox.state.value.playbackError
+            if(error.isNotBlank()) {
+                assertTrue(error,error.contains("YouTube exigiu uma verificação"))
+                compose.onNodeWithTag("playback-request-error").assertIsDisplayed()
+                android.util.Log.w("OndaSpotifyTest","Playlist enqueued; live audio blocked by YouTube verification")
+            } else compose.runOnIdle {assertTrue(vm.jukebox.state.value.playing);assertFalse(vm.jukebox.state.value.paused)}
+        }
+        try {
+            compose.runOnIdle {vm.jukebox.setVolume(0f);vm.jukebox.prepare(record=JSONObject().put("title","Existing queue track").put("source_url",server.url).put("duration_ms",120000),autoPlay=true)}
+            compose.waitUntil(90000){vm.jukebox.audioReady.value}
+            compose.runOnIdle {
+                vm.spotifyConnected.value=true;vm.spotifyPlaylistsLoaded.value=true
+                vm.spotifyPlaylists.value=listOf(JSONObject().put("id",identity).put("title","Yo").put("source_url",url))
+                vm.collection.value=JSONObject()
+            }
+            compose.onNodeWithTag("nav-Mais").performClick();compose.onNodeWithText("Coleção").performClick()
+            var start=vm.jukebox.playbackQueue.value.size
+            compose.onNodeWithText("Usar em reprodução").performScrollTo().assertIsEnabled().performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick){it()}
+            awaitPlayback(start)
+            compose.onNodeWithTag("nav-Efeitos").assertIsSelected()
+            compose.onNodeWithTag("nav-Mais").performClick();compose.onNodeWithText("Coleção").performClick()
+            compose.onNodeWithText("Abrir coleção").performScrollTo().assertIsEnabled().performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick){it()}
+            compose.waitUntil(30000){!vm.busy.value}
+            start=vm.jukebox.playbackQueue.value.size
+            compose.onNodeWithText("Usar em reprodução").performScrollTo()
+            compose.waitUntil(5000){compose.onAllNodesWithText("Usar em reprodução").filter(isEnabled()).fetchSemanticsNodes().size==1}
+            compose.onNodeWithText("Usar em reprodução").assertIsEnabled().performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick){it()}
+            awaitPlayback(start)
+        } finally {server.close()}
+    }
+
     @Test fun presetPitchExportAndJukeboxAreAvailableOnThePlaybackPage()=screen {vm->
         compose.onNodeWithTag("playback-search-input").assertExists().performTextInput("Artista ou playlist")
         compose.onNodeWithTag("playback-search-submit").assertIsEnabled()

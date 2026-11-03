@@ -51,7 +51,7 @@ internal fun duplicateJob(first:JSONObject,second:JSONObject):Boolean =
     jobSource(first).isNotBlank() && jobSource(first)==jobSource(second) &&
     first.optString("mode").equals(second.optString("mode"),true) && first.optBoolean("playlist")==second.optBoolean("playlist") && first.optString("playlist_title")==second.optString("playlist_title") &&
     listOf("audio_quality","height","fps").all {key->first.cleanString(key)==second.cleanString(key)} &&
-    listOf("format","width","height","keep_ratio").all {key->first.optJSONObject("image_options")?.cleanString(key)==second.optJSONObject("image_options")?.cleanString(key)}
+    listOf("format","width","height","keep_ratio","remove_background","rotation","crop","background","background_color","background_image").all {key->first.optJSONObject("image_options")?.cleanString(key)==second.optJSONObject("image_options")?.cleanString(key)}
 
 /** Compute once per insertion instead of reparsing every queued URL for each track. */
 internal data class QueueDuplicateKey(val source:String,val mode:String,val playlist:Boolean,val group:String,val options:List<String?>)
@@ -59,5 +59,5 @@ internal fun queueDuplicateKey(config:JSONObject):QueueDuplicateKey? {
     if(config.optString("_operation").isNotBlank())return null
     val source=jobSource(config);if(source.isBlank())return null
     return QueueDuplicateKey(source,config.optString("mode").lowercase(),config.optBoolean("playlist"),config.optString("playlist_title"),
-        listOf("audio_quality","height","fps").map {config.cleanString(it)} + listOf("format","width","height","keep_ratio").map {config.optJSONObject("image_options")?.cleanString(it)})
+        listOf("audio_quality","height","fps").map {config.cleanString(it)} + listOf("format","width","height","keep_ratio","remove_background","rotation","crop","background","background_color","background_image").map {config.optJSONObject("image_options")?.cleanString(it)})
 }

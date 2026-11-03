@@ -4,6 +4,8 @@ Copyright (c) 2026 Enzo Andrade para o código próprio do ONDA, licenciado sob 
 
 | Componente | Licença / localização no pacote |
 | --- | --- |
+| ONNX Runtime (remoção de fundo) | MIT; `Onda/assets/background-licenses/licenses/ONNXRuntime.txt`; no Android, `assets/licenses/ONNXRuntime.txt` |
+| Modelo U2NetP (download no primeiro uso) | Projeto U-2-Net, Apache-2.0; `Onda/assets/background-licenses/licenses/U2NET.txt`; origem: https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2netp.onnx |
 | Inter | SIL Open Font License 1.1; `Onda/assets/fonts/OFL-Inter.txt`; no Android, `assets/licenses/OFL-Inter.txt` |
 | gallery-dl | GPL-2.0-only; `_runtime/python/Lib/site-packages/gallery_dl-*.dist-info/licenses/LICENSE` |
 | Mutagen | GPL-2.0-or-later; licença na pasta `.dist-info/licenses` correspondente |

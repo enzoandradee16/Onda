@@ -30,6 +30,155 @@ class PlaybackQueueDrawerTests(unittest.TestCase):
         self.env.stop()
         self.temp.cleanup()
 
+    def test_manual_tracks_and_files_are_next_before_collection(self):
+        from PySide6.QtCore import QUrl
+
+        self.bridge.playlist = [
+            dict(id='current', title='Current'),
+            dict(id='collection', title='Collection', manual=False),
+        ]
+        self.bridge.queue_index = 0
+        with (
+            patch.object(self.bridge, 'prepare_next_queued'),
+            patch.object(self.bridge, 'queue_info'),
+        ):
+            self.bridge.enqueueRecords([dict(title='Manual')])
+            self.bridge.enqueueFiles(
+                [
+                    QUrl.fromLocalFile(str(Path(self.temp.name) / 'one.wav')),
+                    QUrl.fromLocalFile(str(Path(self.temp.name) / 'two.wav')),
+                ]
+            )
+        self.assertEqual(
+            [row['title'] for row in self.bridge.playlist],
+            ['Current', 'Manual', 'one', 'two', 'Collection'],
+        )
+        self.assertEqual(self.bridge.queue_index, 0)
+
+    def test_opening_local_file_keeps_stream_alive_until_preparation_finishes(self):
+        from PySide6.QtCore import QUrl
+
+        self.bridge.playlist = [dict(id='playing', title='Playing', analysis='ready')]
+        self.bridge.queue_index = 0
+        self.bridge.model = dict(
+            _stream={'url': 'https://example.test/audio'},
+            duration=120,
+            beats=[0, 120],
+            neighbors=[[]],
+            title='Playing',
+            links=0,
+        )
+        self.bridge.online.position = 45
+        self.bridge._state.update(playing=True, paused=False)
+        with (
+            patch.object(self.bridge, 'prepare_next_queued'),
+            patch.object(self.bridge, 'stop') as stop,
+        ):
+            self.bridge.openFile(
+                QUrl.fromLocalFile(str(Path(self.temp.name) / 'new.wav'))
+            )
+            stop.assert_not_called()
+            self.assertEqual(self.bridge.queue_index, 0)
+            self.assertEqual(self.bridge.online.position, 45)
+            self.assertEqual(self.bridge._autoplay_entry, self.bridge.playlist[1]['id'])
+        self.bridge._state['playing'] = False
+        self.bridge._autoplay_entry = None
+
+    def test_upcoming_track_cannot_disappear_behind_current_when_reordered(self):
+        self.bridge.playlist = [
+            dict(id='playing', title='Playing'),
+            dict(id='a', title='A'),
+            dict(id='b', title='B'),
+        ]
+        self.bridge.queue_index = 0
+        with patch.object(self.bridge, 'prepare_next_queued'):
+            self.bridge.moveQueued(2, -2)
+        self.assertEqual([r['id'] for r in self.bridge.playlist], ['playing', 'b', 'a'])
+        self.assertEqual(self.bridge.queue_index, 0)
+
+    def test_new_next_prepares_without_waiting_for_an_uncooperative_old_job(self):
+        import threading, time
+        from jukebox import Cancelled
+
+        gate = threading.Event()
+        started = threading.Event()
+
+        def fetch(record, config, cancel, progress):
+            if record['title'] == 'Old':
+                started.set()
+                gate.wait(5)
+                raise Cancelled()
+            return dict(
+                _stream={'url': 'https://example.test/new'},
+                duration=120,
+                beats=[0, 120],
+                neighbors=[[]],
+                title='New',
+                links=0,
+            )
+
+        self.bridge.playlist = [
+            dict(
+                id=name,
+                title=name,
+                kind='catalog',
+                analysis='pending',
+                record=dict(title=title),
+            )
+            for name, title in [('current', 'Current'), ('old', 'Old'), ('new', 'New')]
+        ]
+        self.bridge.queue_index = 0
+        self.bridge._prepared['current'] = dict(
+            _stream={'url': 'https://example.test/current'},
+            duration=120,
+            beats=[0, 120],
+            neighbors=[[]],
+            title='Current',
+            links=0,
+        )
+        with (
+            patch.object(self.bridge, 'fetch_record', side_effect=fetch),
+            patch('online_audio.prefetch_stream'),
+        ):
+            try:
+                self.bridge.prepare_next_queued()
+                end = time.monotonic() + 2
+                while not started.is_set() and time.monotonic() < end:
+                    self.settle()
+                self.assertTrue(started.is_set())
+                self.bridge.moveQueued(2, -1)
+                end = time.monotonic() + 2
+                while 'new' not in self.bridge._prepared and time.monotonic() < end:
+                    self.settle()
+                self.assertIn('new', self.bridge._prepared)
+                self.assertEqual(self.bridge.playlist[1]['id'], 'new')
+            finally:
+                gate.set()
+                self.settle()
+
+    def test_stalled_preparation_becomes_retryable_error_without_stopping_current(self):
+        import threading
+
+        owner = threading.Event()
+        self.bridge.playlist = [
+            dict(id='current', title='Current', analysis='ready'),
+            dict(id='next', title='Next', analysis='preparing'),
+        ]
+        self.bridge.queue_index = 0
+        self.bridge._state.update(playing=True, paused=False)
+        self.bridge._queue_preparing = True
+        self.bridge._queue_cancel = {'next': owner}
+        self.bridge._queue_current = ('next', owner)
+        self.bridge._autoplay_entry = 'next'
+        with patch.object(self.bridge, 'prepare_next_queued'):
+            self.bridge.expire_queue_preparation()
+        self.assertTrue(owner.is_set())
+        self.assertEqual(self.bridge.playlist[1]['analysis'], 'error')
+        self.assertIsNone(self.bridge._autoplay_entry)
+        self.assertFalse(self.bridge._queue_preparing)
+        self.assertTrue(self.bridge._state['playing'])
+        self.bridge._state['playing'] = False
+
     def settle(self):
         from PySide6.QtCore import QEventLoop, QTimer
 
@@ -88,6 +237,49 @@ class PlaybackQueueDrawerTests(unittest.TestCase):
         self.bridge.queueChanged.emit()
         self.bridge.changed.emit()
         self.settle()
+
+    def test_collection_playback_uses_all_visible_when_none_are_selected(self):
+        rows = [
+            dict(title='First', source_url='https://example.com/1', checked=False),
+            dict(title='Second', source_url='https://example.com/2', checked=False),
+        ]
+        with (
+            patch.object(self.ws.collection_filter, 'visible_rows', return_value=rows),
+            patch.object(self.bridge, 'enqueueRecords', return_value=2) as enqueue,
+            patch.object(self.bridge, 'playQueued'),
+            patch.object(self.ws, 'selectPage'),
+        ):
+            self.ws.dispatch('playlist_playback', {})
+            self.assertEqual(
+                [r['title'] for r in enqueue.call_args.args[0]], ['First', 'Second']
+            )
+            rows[1]['checked'] = True
+            self.ws.dispatch('playlist_playback', {})
+            self.assertEqual(
+                [r['title'] for r in enqueue.call_args.args[0]], ['Second']
+            )
+
+    def test_stream_selection_records_history_and_prepares_successors(self):
+        self.bridge.playlist = [
+            dict(id='first', title='First'),
+            dict(id='second', title='Second'),
+        ]
+        self.bridge.queue_index = 0
+        self.bridge._prepared['second'] = {
+            '_stream': {'url': 'https://example.com/audio'},
+            'duration': 30,
+        }
+        with (
+            patch.object(self.bridge, 'can_stream', return_value=True),
+            patch.object(self.bridge, 'stop'),
+            patch.object(self.bridge, 'handle_event'),
+            patch.object(self.bridge, 'playPause'),
+            patch.object(self.bridge, 'prepare_next_queued') as prepare,
+        ):
+            self.bridge.playQueued(1)
+            prepare.assert_called_once()
+        self.assertEqual(self.bridge._queue_history, ['first'])
+        self.assertEqual(self.bridge.queue_index, 1)
 
     def test_both_drawers_open_close_without_changing_tab_or_other_queue(self):
         self.seed()

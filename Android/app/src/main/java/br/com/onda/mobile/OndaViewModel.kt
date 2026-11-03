@@ -105,8 +105,10 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
     fun collectionToPlayback(records:List<JSONObject>) {
+        if(records.isEmpty()){showNotice("Coleção","Nenhuma música encontrada.");return}
         val start=jukebox.playbackQueue.value.size
-        if(jukebox.enqueueAll(records)>0){jukebox.playQueued(start);effectsNavigation.value=true}
+        if(jukebox.enqueueAll(records)>0){playbackMode.value=1;jukebox.playQueued(start);effectsNavigation.value=true}
+        else showNotice("Coleção",jukebox.state.value.message)
     }
     fun openSpotifyPlaylist(identity:String,options:JSONObject,action:String="open") {
         val row=spotifyPlaylists.value.firstOrNull {it.optString("id")==identity} ?: return
@@ -184,7 +186,9 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
     fun downloadOnlineImages(keepPreview:Boolean=false) {
         val url=onlineImageGallery.value?.optString("source_url").orEmpty()
         if(url.isBlank())return
-        val id=OndaStore.enqueue(url,options=JSONObject(OndaStore.settings.value.toString()).put("mode","photos"),extra=JSONObject().put("_immediate",true))
+        val options=JSONObject(OndaStore.settings.value.toString()).put("mode","photos")
+        if(keepPreview)options.put("social_best_quality",false).put("simple_download_ui",false)
+        val id=OndaStore.enqueue(url,options=options,extra=JSONObject().put("_immediate",true))
         if(!keepPreview)closeOnlineImages()
         if(id.isNotBlank())DownloadService.start(getApplication(),id)
     }

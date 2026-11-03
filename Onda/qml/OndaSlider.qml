@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 Slider {
     id: control
+    property real bufferedValue: from
     implicitHeight: 34
     from: 0; to: 100
     background: Rectangle {
@@ -10,6 +11,7 @@ Slider {
         implicitWidth: 180; implicitHeight: 5
         width: control.availableWidth; height: implicitHeight; radius: 3
         color: bridge.palette.mode === "Preto puro" ? "#555b64" : bridge.palette.line
+        Rectangle {width:Math.max(0,Math.min(1,(control.bufferedValue-control.from)/Math.max(.001,control.to-control.from)))*parent.width;height:parent.height;radius:3;color:bridge.palette.accent;opacity:.3}
         Rectangle { width: control.visualPosition * parent.width; height: parent.height; radius: 3; color: bridge.palette.accent }
     }
     handle: Rectangle {

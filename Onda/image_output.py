@@ -5,7 +5,7 @@ import io
 import os
 import tempfile
 from pathlib import Path
-from PIL import Image, ImageOps, ImageSequence
+from PIL import Image, ImageOps, ImageSequence, ImageColor
 
 FORMATS = {'Original': None, 'JPG': 'JPEG', 'PNG': 'PNG', 'WebP': 'WEBP', 'SVG': 'SVG'}
 
@@ -29,7 +29,80 @@ def validate_options(options):
         raise ValueError('Informe largura e altura.')
     if type(options.get('keep_ratio', True)) is not bool:
         raise ValueError('Opção de proporção inválida.')
+    if type(options.get('remove_background', False)) is not bool:
+        raise ValueError('Opção de remoção de fundo inválida.')
+    if options.get('remove_background') and options['format'] not in (
+        'PNG',
+        'WebP',
+        'SVG',
+    ):
+        options = dict(options, format='PNG')
+    if options.get('rotation', 0) not in (0, 90, 180, 270):
+        raise ValueError('Rotação inválida.')
+    if options.get('crop', 'Original') not in (
+        'Original',
+        '1:1',
+        '4:3',
+        '16:9',
+        '9:16',
+    ):
+        raise ValueError('Proporção de recorte inválida.')
+    if options.get('background', 'transparent') not in (
+        'transparent',
+        'color',
+        'image',
+    ):
+        raise ValueError('Fundo inválido.')
+    if options.get('background') == 'color':
+        ImageColor.getrgb(options.get('background_color', '#ffffff'))
+    if (
+        options.get('background') == 'image'
+        and not Path(options.get('background_image', '')).is_file()
+    ):
+        raise ValueError('Escolha uma imagem de fundo.')
     return {**options, 'width': width, 'height': height}
+
+
+def has_image_edits(options):
+    return bool(
+        options.get('rotation')
+        or options.get('crop', 'Original') != 'Original'
+        or options.get('background', 'transparent') != 'transparent'
+    )
+
+
+def edit_frame(image, options):
+    if options.get('rotation'):
+        image = image.rotate(-options['rotation'], expand=True)
+    crop = options.get('crop', 'Original')
+    if crop != 'Original':
+        a, b = map(int, crop.split(':'))
+        width, height = image.size
+        if width / height > a / b:
+            width = max(1, round(height * a / b))
+        else:
+            height = max(1, round(width * b / a))
+        left, top = (image.width - width) // 2, (image.height - height) // 2
+        image = image.crop((left, top, left + width, top + height))
+    background = options.get('background', 'transparent')
+    if background == 'color':
+        base = Image.new(
+            'RGBA',
+            image.size,
+            ImageColor.getrgb(options.get('background_color', '#ffffff')),
+        )
+        base.alpha_composite(image)
+        image = base
+    elif background == 'image':
+        with Image.open(options['background_image']) as source:
+            base = ImageOps.fit(
+                ImageOps.exif_transpose(source).convert('RGBA'),
+                image.size,
+                method=Image.Resampling.LANCZOS,
+            )
+        base.alpha_composite(image)
+        image = base
+    return image
 
 
 def output_size(size, options):
@@ -45,7 +118,12 @@ def output_size(size, options):
 
 def transform_image(source, options, emit=lambda *a, **kw: None):
     options = validate_options(options)
-    if options['format'] == 'Original' and not options['width']:
+    if (
+        options['format'] == 'Original'
+        and not options['width']
+        and not options.get('remove_background')
+        and not has_image_edits(options)
+    ):
         return Path(source)
     source = Path(source)
     # Encode in an isolated directory; neither partial files nor format changes
@@ -69,6 +147,11 @@ def _render_image(source, options, directory, emit):
         with Image.open(source) as image:
             animated = getattr(image, 'n_frames', 1) > 1
             frame = ImageOps.exif_transpose(image).convert('RGBA')
+            if options.get('remove_background'):
+                from image_background import remove_background
+
+                frame = remove_background(frame, emit)
+            frame = edit_frame(frame, options)
             frame = frame.resize(
                 output_size(frame.size, options), Image.Resampling.LANCZOS
             )
@@ -110,6 +193,11 @@ def _render_image(source, options, directory, emit):
         animated = getattr(image, 'n_frames', 1) > 1
         for frame in ImageSequence.Iterator(image):
             value = ImageOps.exif_transpose(frame).convert('RGBA')
+            if options.get('remove_background'):
+                from image_background import remove_background
+
+                value = remove_background(value, emit)
+            value = edit_frame(value, options)
             value = value.resize(
                 output_size(value.size, options), Image.Resampling.LANCZOS
             )
@@ -119,7 +207,11 @@ def _render_image(source, options, directory, emit):
                 value = background
             frames.append(value)
             durations.append(frame.info.get('duration', 100))
-            if not animated or fmt in ('JPEG', 'AVIF'):
+            if (
+                not animated
+                or fmt in ('JPEG', 'AVIF')
+                or options.get('remove_background')
+            ):
                 break
         args = {'format': fmt}
         if fmt in ('JPEG', 'WEBP'):

@@ -27,12 +27,12 @@ Popup {
     function reply(value) { workspace.replyChoice(decision.identity,value) }
     contentItem: ColumnLayout { id: body; spacing: Math.round(14*bridge.spacing)
         Label { id: decisionHeading; text: decisionDialog.decision.title || bridge.translate(decisionDialog.media ? "Escolher mídias" : decisionDialog.review ? "Revisar metadados" : "Confirmar escolha"); color: bridge.palette.text; font.pixelSize: Math.round(22*bridge.fontScale); Layout.fillWidth: true; wrapMode: Text.Wrap }
-        ScrollView { Layout.fillWidth: true; Layout.preferredHeight: Math.min(240,decisionText.contentHeight); contentWidth: availableWidth; clip: true
+        OndaScrollView { Layout.fillWidth: true; Layout.preferredHeight: Math.min(240,decisionText.contentHeight); contentWidth: availableWidth; clip: true
             TextArea { id: decisionText; width: parent.availableWidth; padding: 0; text: decisionDialog.decision.message || decisionDialog.decision.path || ""; textFormat: Text.PlainText; color: bridge.palette.muted; readOnly: true; selectByMouse: true; wrapMode: Text.Wrap; background: null }
         }
         OndaSwitch { id: remember; visible: decisionDialog.decision.type === "choose_version"; text: bridge.translate("Lembrar esta escolha"); checked: false }
         ActionButton { visible: decisionDialog.media; text: bridge.translate(decisionDialog.selected.length === (decisionDialog.decision.candidates || []).length ? "Desmarcar todas" : "Selecionar todas"); onClicked: decisionDialog.selected=decisionDialog.selected.length === decisionDialog.decision.candidates.length ? [] : decisionDialog.decision.candidates.map(function(item) { return item.id }) }
-        ScrollView { id: candidatesScroll; visible: !decisionDialog.compact; Layout.fillWidth: true; Layout.fillHeight: true; clip: true; contentWidth: availableWidth
+        OndaScrollView { id: candidatesScroll; visible: !decisionDialog.compact; Layout.fillWidth: true; Layout.fillHeight: true; clip: true; contentWidth: availableWidth
             ColumnLayout { width: candidatesScroll.availableWidth; spacing: Math.round(9*bridge.spacing)
                 Repeater { model: decisionDialog.decision.candidates || []
                     Card { required property var modelData; visible: decisionDialog.rejected.indexOf(modelData.id) < 0; Layout.fillWidth: true; Layout.minimumWidth: 0; implicitHeight: Math.max(124,candidateRow.implicitHeight+24)

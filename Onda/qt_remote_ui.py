@@ -206,6 +206,8 @@ class RemoteControl(QObject):
                                 for row in batch
                                 if all(row is not added for added in records)
                             ]
+                elif command == 'queue_undo':
+                    bridge.undoQueueRemoval()
                 elif command == 'queue_clear':
                     bridge.clearPlaybackQueue()
                 elif command == 'seek':

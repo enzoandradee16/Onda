@@ -1,13 +1,13 @@
 """Conservative evidence shared by desktop and Android music matching."""
 
 import re
-from matching import words, version_signature
+from matching import words, version_signature, matching_tokens
 
 
 def explicit_conflict(anchor, other):
     left, right = anchor.get("explicit"), other.get("explicit")
-    tokens = words(other.get("title"))
-    anchor_tokens = words(anchor.get('title'))
+    tokens = matching_tokens(other.get("title"))
+    anchor_tokens = matching_tokens(anchor.get('title'))
     if not isinstance(left, bool):
         if 'clean' in anchor_tokens and 'clean' not in tokens:
             left = False
@@ -18,6 +18,8 @@ def explicit_conflict(anchor, other):
             right = False
         elif "explicit" in tokens and "explicit" not in words(anchor.get("title")):
             right = True
+    if right is False and left is None and 'clean' not in anchor_tokens:
+        return True
     return isinstance(left, bool) and isinstance(right, bool) and left != right
 
 

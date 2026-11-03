@@ -36,7 +36,7 @@ import androidx.compose.ui.window.Dialog
     }
 }
 
-@Composable private fun CustomAccentDialog(initial: String, dismiss: () -> Unit, apply: (String) -> Unit) {
+@Composable internal fun CustomAccentDialog(initial: String, dismiss: () -> Unit, themePreview:Boolean=true,title:String="Cor personalizada",apply: (String) -> Unit) {
     val start=remember {accentHsv(Color(0xFF000000 or initial.removePrefix("#").toLong(16)))}
     var hue by remember {mutableFloatStateOf(start[0])}
     var saturation by remember {mutableFloatStateOf(start[1])}
@@ -45,12 +45,12 @@ import androidx.compose.ui.window.Dialog
     val valid=normalizeAccent(hex)
     val dark=MaterialTheme.colorScheme.background.luminance()<.5f
     val highContrast=OndaStore.settings.value.optString("theme")=="Alto contraste"
-    val preview=if(highContrast)Color.Yellow else valid?.let {readableCustomAccent(it,dark)} ?: MaterialTheme.colorScheme.primary
+    val preview=if(!themePreview && valid!=null)Color(0xFF000000 or valid.removePrefix("#").toLong(16)) else if(highContrast)Color.Yellow else valid?.let {readableCustomAccent(it,dark)} ?: MaterialTheme.colorScheme.primary
     fun writeHex(){hex=Color.hsv(hue,saturation,brightness).hexRgb()}
     Dialog(onDismissRequest=dismiss) {
         Surface(shape=RoundedCornerShape(24.dp),color=ondaDialogContainerColor(),modifier=Modifier.fillMaxWidth().testTag("custom-accent-dialog")) {
             Column(Modifier.heightIn(max=640.dp).verticalScroll(rememberScrollState()).padding(20.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
-                UiText("Cor personalizada",style=MaterialTheme.typography.titleLarge)
+                UiText(title,style=MaterialTheme.typography.titleLarge)
                 AccentPlane(hue,saturation,brightness) {s,v->saturation=s;brightness=v;writeHex()}
                 UiText("Matiz",style=MaterialTheme.typography.labelMedium)
                 AccentHue(hue) {hue=it;writeHex()}
@@ -68,8 +68,8 @@ import androidx.compose.ui.window.Dialog
                         UiText("Texto de exemplo",modifier=Modifier.padding(horizontal=16.dp,vertical=12.dp))
                     }
                 }
-                UiText("A tonalidade pode ser ajustada para manter o contraste.",style=MaterialTheme.typography.bodySmall)
-                UiText("O ícone da tela inicial usa a cor predefinida mais próxima.",style=MaterialTheme.typography.bodySmall)
+                if(themePreview)UiText("A tonalidade pode ser ajustada para manter o contraste.",style=MaterialTheme.typography.bodySmall)
+                if(themePreview)UiText("O ícone da tela inicial usa a cor predefinida mais próxima.",style=MaterialTheme.typography.bodySmall)
                 Row(Modifier.align(Alignment.End),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
                     TextButton(onClick=dismiss){UiText("Cancelar")}
                     Button(onClick={valid?.let(apply)},enabled=valid!=null,modifier=Modifier.testTag("apply-custom-accent")){UiText("Aplicar cor")}

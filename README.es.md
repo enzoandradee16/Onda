@@ -24,7 +24,7 @@ En PC, haz clic derecho en las listas o tarjetas para abrir las acciones disponi
 
 En PC, la pestaña **Reproducción** está en la categoría **Biblioteca** de la barra lateral. En Android, permanece en la barra inferior.
 
-Las canciones de catálogo pueden reproducirse por streaming en PC y Android sin guardar el archivo de audio completo en la caché de reproducción cuando los efectos están desactivados. Los efectos se preparan en segundo plano y el audio actual continúa hasta que la versión procesada está lista.
+Las canciones de catálogo pueden reproducirse por streaming en PC y Android. La reproducción comienza con un pequeño búfer y carga el resto en una caché temporal de hasta 256 MB, permitiendo saltar por las partes ya cargadas sin otra espera de red. Esta caché desechable está separada de las descargas y se puede borrar en los ajustes. Los efectos se preparan en segundo plano y el audio actual continúa hasta que la versión procesada está lista.
 
 ## Características destacadas
 

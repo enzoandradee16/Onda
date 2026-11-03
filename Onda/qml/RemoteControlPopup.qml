@@ -65,11 +65,11 @@ Popup {
                 }
             }
         }
-        ScrollView {
+        OndaScrollView {
             id:scroll
             Layout.fillWidth:true;Layout.fillHeight:true;clip:true;contentWidth:availableWidth
             ScrollBar.horizontal.policy:ScrollBar.AlwaysOff
-            ScrollBar.vertical:OndaScrollBar {parent:scroll;x:scroll.width-width;y:0;height:scroll.height;visible:scroll.contentHeight>scroll.availableHeight+1}
+
             ColumnLayout {
                 id:body
                 width:scroll.availableWidth;spacing:18

@@ -28,9 +28,9 @@ Popup {
                 }
                 Item { Layout.fillHeight: true }
             }
-            ScrollView {
+            OndaScrollView {
                 id: settingsScroll
-                ScrollBar.vertical: OndaScrollBar { parent: settingsScroll; x: settingsScroll.width-width; y: 0; height: settingsScroll.height }
+
                 property var scrollTopButton: ScrollToTop { target: settingsScroll.contentItem; viewport: settingsScroll }
                 Layout.fillWidth: true; Layout.fillHeight: true; Layout.minimumWidth: 0; Layout.preferredWidth: 700
                 clip: true; contentWidth: availableWidth

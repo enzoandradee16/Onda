@@ -13,9 +13,9 @@ Popup {
     background: Card { }
     enter: Transition { NumberAnimation { property: "opacity"; from: 0; to: 1; duration: bridge.animations ? 160 : 0 } NumberAnimation { property: "scale"; from: 0.97; to: 1; duration: bridge.animations ? 180 : 0; easing.type: Easing.OutCubic } }
     exit: Transition { NumberAnimation { property: "opacity"; to: 0; duration: bridge.animations ? 100 : 0 } }
-    ScrollView {
+    OndaScrollView {
             id: equalizerScroll
-            ScrollBar.vertical: OndaScrollBar { parent: equalizerScroll; x: equalizerScroll.width-width; y: 0; height: equalizerScroll.height }
+
             property var scrollTopButton: ScrollToTop { target: equalizerScroll.contentItem; viewport: equalizerScroll }
         anchors.fill: parent; contentWidth: availableWidth; clip: true
         ColumnLayout {
@@ -37,7 +37,7 @@ Popup {
                 OndaSlider { id: preampSlider; Layout.fillWidth: true; from: -24; to: 0; value: bridge.equalizer.preamp; onMoved: if(!pressed)bridge.setPreamp(value); onPressedChanged: if(!pressed)bridge.setPreamp(value) }
                 Text { text: preampSlider.value.toFixed(1)+" dB"; color: bridge.palette.muted; font.pixelSize: Math.round(12*bridge.fontScale); Layout.preferredWidth: 55 }
             }
-            ScrollView {
+            OndaScrollView {
                 Layout.fillWidth: true; Layout.preferredHeight: 260
                 contentWidth: bank.implicitWidth; contentHeight: 245; clip: true
                 RowLayout {

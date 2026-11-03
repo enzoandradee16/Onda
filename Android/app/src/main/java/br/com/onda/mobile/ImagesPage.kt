@@ -15,6 +15,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import org.json.JSONObject
 import java.io.File
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 
@@ -29,9 +30,11 @@ import kotlinx.coroutines.flow.first
     var link by rememberSaveable {mutableStateOf("")}
     var source by rememberSaveable {mutableStateOf("")}
     var preview by remember {mutableStateOf("")}
+    var originalPreview by remember {mutableStateOf("")}
+    var showOriginal by remember {mutableStateOf(false)}
     var dimensions by remember {mutableStateOf("")}
     var more by remember {mutableStateOf(false)}
-    fun clearPreview(){if(preview.isNotBlank())File(preview).delete();preview="";dimensions=""}
+    fun clearPreview(){if(preview.isNotBlank())File(preview).delete();if(originalPreview.isNotBlank())File(originalPreview).delete();preview="";originalPreview="";showOriginal=false;dimensions=""}
     fun clearRemote(){vm.cancelOnlineImagePreview();vm.closeOnlineImages()}
     val local=rememberImageSourcePicker(arrayOf("image/*")) {uri->
         clearRemote();clearPreview();source=""
@@ -44,30 +47,32 @@ import kotlinx.coroutines.flow.first
     fun imageConfig()=OndaStore.config(JSONObject(settings.toString()).put("mode","photos")).put("url",link).apply {
         if(source.isNotBlank())put("source",source).put("name",File(source).name.replaceFirst(Regex("^image-[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}-"),""))
     }
-    fun previewOptions(config:JSONObject)=listOf("image_format","image_size","image_width","image_height","keep_ratio").joinToString("|"){config.optString(it)}
+    fun previewOptions(config:JSONObject)=listOf("image_format","image_size","image_width","image_height","keep_ratio","image_remove_background","image_rotation","image_crop","image_background","image_background_color","image_background_image").joinToString("|"){config.optString(it)}
     val optionsKey=previewOptions(settings)
     var requestedLocalPreview by remember {mutableStateOf("")}
     fun loadPreview() {
         val inputSource=source;val inputLink=link;val inputOptions=previewOptions(settings)
-        requestedLocalPreview=inputSource+"|"+inputOptions
         vm.operation("image_preview",imageConfig()){result->
             val path=result.getString("path")
             if(source==inputSource && link==inputLink && previewOptions(OndaStore.settings.value)==inputOptions) {
                 if(preview.isNotBlank() && preview!=path)File(preview).delete()
-                preview=path;dimensions="${result.optInt("width")} × ${result.optInt("height")} · ${result.optString("format")}"
-            } else File(path).delete()
+                if(originalPreview.isNotBlank())File(originalPreview).delete()
+                requestedLocalPreview=inputSource+"|"+inputLink+"|"+inputOptions
+                originalPreview=result.optString("original_preview");preview=path;dimensions="${result.optInt("width")} × ${result.optInt("height")} · ${result.optString("format")}"
+            } else {File(path).delete();result.optString("original_preview").takeIf {it.isNotBlank()}?.let {File(it).delete()}}
         }
     }
     fun search(){
         if(searching)vm.cancelOnlineImagePreview()
         else if(source.isNotBlank() && !busy)loadPreview()
+        else if(link.isNotBlank() && !busy && settings.let {it.optBoolean("image_remove_background") || it.optInt("image_rotation")!=0 || it.optString("image_crop","Original")!="Original" || it.optString("image_background","transparent")!="transparent"}){clearRemote();loadPreview()}
         else if(link.isNotBlank() && !busy)vm.previewOnlineImages(link.trim(),embedded=true)
     }
     fun download(){
         if(source.isNotBlank())vm.operation("image_convert",imageConfig())
         else if(gallery!=null)vm.downloadOnlineImages(keepPreview=true)
         else if(link.isNotBlank()) {
-            val id=OndaStore.enqueue(link,options=JSONObject(settings.toString()).put("mode","photos"),extra=JSONObject().put("_immediate",true))
+            val id=OndaStore.enqueue(link,options=JSONObject(settings.toString()).put("mode","photos").put("social_best_quality",false).put("simple_download_ui",false),extra=JSONObject().put("_immediate",true))
             if(id.isNotBlank())DownloadService.start(OndaStore.context,id)
         }
     }
@@ -78,19 +83,38 @@ import kotlinx.coroutines.flow.first
         runCatching {OndaStore.context.startActivity(android.content.Intent.createChooser(intent,translateUi("Compartilhar link")).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))}
             .onFailure {vm.showNotice("Compartilhar","Não foi possível abrir este arquivo.")}
     }
-    LaunchedEffect(source,optionsKey) {
-        if(source.isNotBlank()) {
-            delay(250);vm.busy.first {!it}
-            if(requestedLocalPreview!=source+"|"+optionsKey)loadPreview()
+    LaunchedEffect(source,link,optionsKey) {
+        showOriginal=false
+        val uri=android.net.Uri.parse(link.trim())
+        if(source.isNotBlank() || (uri.scheme in listOf("http","https") && !uri.host.isNullOrBlank())) {
+            delay(400);vm.busy.first {!it}
+            if(settings.optString("image_background")=="image" && !File(settings.optString("image_background_image")).isFile)return@LaunchedEffect
+            if(source.isNotBlank()) {
+                if(requestedLocalPreview!=source+"|"+link+"|"+optionsKey)loadPreview()
+            } else if(OndaStore.settings.value.let {it.optBoolean("image_remove_background") || it.optInt("image_rotation")!=0 || it.optString("image_crop","Original")!="Original" || it.optString("image_background","transparent")!="transparent"}) {
+                clearRemote();loadPreview()
+            } else {
+                clearPreview();vm.previewOnlineImages(link.trim(),embedded=true)
+            }
         }
     }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).imePadding().padding(horizontal=LayoutSpacing.inset).testTag("images-page"),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+        val context=androidx.compose.ui.platform.LocalContext.current
+        OutlinedButton(onClick={
+            val clipboard=context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+            val item=clipboard.primaryClip?.takeIf {it.itemCount>0}?.getItemAt(0)
+            val uri=item?.uri
+            if(uri!=null && context.contentResolver.getType(uri)?.startsWith("image/")==true) {
+                clearRemote();clearPreview();source=""
+                vm.importLocal(uri,"image"){source=it.absolutePath;link=""}
+            } else item?.coerceToText(context)?.toString()?.let {link=it;source="";clearPreview();clearRemote()}
+        }){UiText("Colar imagem ou link")}
         ToolHeading("Imagens") {
             Box {
                 IconButton(onClick={more=true},modifier=Modifier.testTag("images-more-actions")){OndaIcon("more-vertical","Mais ações",Modifier.size(22.dp))}
                 DropdownMenu(more,{more=false}) {
                     DropdownMenuItem(text={UiText("Escolher arquivo")},onClick={more=false;local()})
-                    DropdownMenuItem(text={UiText("Adicionar à fila")},enabled=link.isNotBlank(),onClick={more=false;OndaStore.enqueue(link,options=JSONObject(settings.toString()).put("mode","photos"))})
+                    DropdownMenuItem(text={UiText("Adicionar à fila")},enabled=link.isNotBlank(),onClick={more=false;OndaStore.enqueue(link,options=JSONObject(settings.toString()).put("mode","photos").put("social_best_quality",false).put("simple_download_ui",false))})
                 }
             }
         }
@@ -103,7 +127,6 @@ import kotlinx.coroutines.flow.first
                     keyboardOptions=androidx.compose.foundation.text.KeyboardOptions(imeAction=androidx.compose.ui.text.input.ImeAction.Search),
                     keyboardActions=androidx.compose.foundation.text.KeyboardActions(onSearch={search()}),modifier=Modifier.fillMaxWidth().testTag("images-source-link").a11yLabel("Link da imagem ou publicação"))
                 UiText("Imagens e carrosséis",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-                Button(onClick=::search,enabled=searching||(!busy&&(link.isNotBlank()||source.isNotBlank())),shape=RoundedCornerShape(12.dp),modifier=Modifier.align(Alignment.End).heightIn(min=48.dp).testTag("images-search")){UiText(if(searching)"Cancelar" else "Pesquisar")}
             }
         }
         Surface(shape=RoundedCornerShape(14.dp),color=MaterialTheme.colorScheme.surfaceContainerLow,border=BorderStroke(1.dp,MaterialTheme.colorScheme.outlineVariant),modifier=Modifier.fillMaxWidth().testTag("images-options")) {
@@ -120,7 +143,9 @@ import kotlinx.coroutines.flow.first
             if(images.isNotEmpty())Text("${active+1} / ${images.size}",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
             else if(preview.isNotBlank())Text("1 / 1",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
         }
+        if(originalPreview.isNotBlank())TextButton(onClick={showOriginal=!showOriginal}){UiText(if(showOriginal)"Mostrar resultado" else "Mostrar original")}
         when {
+            showOriginal && originalPreview.isNotBlank()->AsyncImage(File(originalPreview),translateUi("Original"),Modifier.fillMaxWidth().aspectRatio(4f/3f),contentScale=androidx.compose.ui.layout.ContentScale.Fit)
             gallery!=null && images.isNotEmpty()->InlineOnlineImageGallery(vm)
             preview.isNotBlank()->AsyncImage(File(preview),translateUi("Prévia da imagem"),Modifier.fillMaxWidth().aspectRatio(4f/3f).clip(RoundedCornerShape(14.dp)).testTag("images-local-preview"),contentScale=androidx.compose.ui.layout.ContentScale.Fit)
             remoteError.isNotBlank() && embedded->Surface(shape=RoundedCornerShape(14.dp),color=MaterialTheme.colorScheme.surfaceContainerLow,modifier=Modifier.fillMaxWidth()) {
@@ -177,4 +202,42 @@ import kotlinx.coroutines.flow.first
     }
     if(separated)SettingsDivider()
     ToolSwitch("Manter proporção",config.optBoolean("keep_ratio",true),"Sem ampliar ou distorcer"){put("keep_ratio",it)}
+    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(12.dp),verticalAlignment=Alignment.Bottom) {
+        Select("Recorte central",config.optString("image_crop","Original"),listOf("Original","1:1","4:3","16:9","9:16"),Modifier.weight(1f)){put("image_crop",it)}
+        OutlinedButton(onClick={put("image_rotation",(config.optInt("image_rotation")+90)%360)},modifier=Modifier.heightIn(min=48.dp),shape=RoundedCornerShape(16.dp)){UiText("Girar 90°")}
+    }
+    ToolSwitch("Remover fundo",config.optBoolean("image_remove_background",false),"Processamento local. No primeiro uso, baixa um recurso de aproximadamente 5 MB. A transparência é salva em PNG, WebP ou SVG."){put("image_remove_background",it)}
+    val context=androidx.compose.ui.platform.LocalContext.current
+    val scope=rememberCoroutineScope()
+    val backgroundPicker=androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) {uri->
+        if(uri!=null)scope.launch {
+            val result=runCatching {kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                val file=File(context.filesDir,"image-background-${java.util.UUID.randomUUID()}.png")
+                try {
+                    val input=context.contentResolver.openInputStream(uri) ?: error("Missing image")
+                    input.use {stream->file.outputStream().use {stream.copyTo(it)}}
+                    file.absolutePath
+                } catch(error:Exception){file.delete();throw error}
+            }}
+            result.onSuccess {path->change(JSONObject(config.toString()).put("image_background_image",path).put("image_background","image"))}
+                .onFailure {android.widget.Toast.makeText(context,translateUi("Não foi possível abrir este arquivo."),android.widget.Toast.LENGTH_LONG).show()}
+        }
+    }
+    val backgrounds=linkedMapOf("Transparente" to "transparent","Cor sólida" to "color","Outra imagem" to "image")
+    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(12.dp),verticalAlignment=Alignment.Bottom) {
+        Select("Fundo",backgrounds.entries.firstOrNull {it.value==config.optString("image_background","transparent")}?.key ?: "Transparente",backgrounds.keys.toList(),Modifier.weight(1f)){put("image_background",backgrounds.getValue(it))}
+        if(config.optString("image_background")=="image")OutlinedButton(onClick={backgroundPicker.launch(arrayOf("image/*"))},modifier=Modifier.heightIn(min=48.dp),shape=RoundedCornerShape(16.dp)){UiText("Escolher fundo")}
+    }
+    if(config.optString("image_background")=="color") {
+        var picking by remember {mutableStateOf(false)}
+        val selected=normalizeAccent(config.optString("image_background_color")) ?: "#FFFFFF"
+        OutlinedButton(onClick={picking=true},modifier=Modifier.testTag("image-background-color-picker")) {
+            Box(Modifier.size(22.dp).clip(RoundedCornerShape(4.dp)).background(androidx.compose.ui.graphics.Color(0xFF000000 or selected.removePrefix("#").toLong(16))))
+            Spacer(Modifier.width(8.dp));UiText("Cor do fundo")
+        }
+        if(picking)CustomAccentDialog(selected,{picking=false},themePreview=false,title="Cor do fundo") {put("image_background_color",it);picking=false}
+        var color by remember(config.optString("image_background_color")){mutableStateOf(config.optString("image_background_color","#ffffff"))}
+        OutlinedTextField(color,{color=it;if(Regex("#[0-9a-fA-F]{6}").matches(it))put("image_background_color",it)},label={UiText("Cor do fundo")},placeholder={Text("#RRGGBB")},singleLine=true,modifier=Modifier.fillMaxWidth())
+    }
+
 }

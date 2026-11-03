@@ -24,7 +24,7 @@ No PC, clique com o botão direito nas listas ou cards para abrir as ações dis
 
 No PC, a aba **Reprodução** fica na categoria **Biblioteca** da barra lateral. No Android, permanece na barra inferior.
 
-Músicas de catálogo podem ser ouvidas por streaming no PC e no Android, sem salvar o arquivo completo no cache de áudio quando os efeitos estão desligados. A preparação dos efeitos acontece em segundo plano e mantém o áudio atual até a nova versão ficar pronta.
+Músicas de catálogo podem ser ouvidas por streaming no PC e no Android. A reprodução começa com um pequeno buffer e carrega o restante em um cache temporário de até 256 MB, permitindo saltar sem nova espera pelos trechos já carregados. Esse cache é descartável, fica separado dos downloads e pode ser limpo nas configurações. A preparação dos efeitos acontece em segundo plano e mantém o áudio atual até a nova versão ficar pronta.
 
 ## Destaques do aplicativo
 

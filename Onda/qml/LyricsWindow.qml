@@ -19,16 +19,16 @@ Popup {
             ActionButton { text: bridge.translate("Escolher letra"); onClicked: workspace.invoke("pick",{kind:popup.frame.jukebox ? "jukeboxLyrics" : "effectLyrics"}) }
             ActionButton { text: bridge.translate("Pronto"); onClicked: popup.close() }
         }
-        ListView {
+        OndaListView {
             id: linesView; Layout.fillWidth: true; Layout.fillHeight: true; clip: true; spacing: 18
             model: popup.lyricLines
             property int activeLine: popup.frame.active === undefined ? -1 : popup.frame.active
             onActiveLineChanged: if(activeLine>=0)Qt.callLater(function(){linesView.positionViewAtIndex(linesView.activeLine,ListView.Center)})
-            ScrollBar.vertical: ScrollBar {}
+
             delegate: Label {
                 required property var modelData; required property int index
                 TapHandler { onTapped: workspace.seekLyrics(modelData.time,popup.frame.jukebox) }
-                width: linesView.width; text: index===linesView.activeLine ? popup.frame.text : modelData.text
+                width: linesView.contentAreaWidth; text: index===linesView.activeLine ? popup.frame.text : modelData.text
                 textFormat: index===linesView.activeLine ? Text.RichText : Text.PlainText
                 wrapMode: Text.Wrap; horizontalAlignment: Text.AlignHCenter
                 color: index===linesView.activeLine ? bridge.palette.accent : bridge.palette.muted
@@ -39,7 +39,7 @@ Popup {
             }
         }
         OndaSlider {
-            id:lyricsTimeline;objectName:"lyricsTimeline";property real previewPosition:0
+            id:lyricsTimeline;objectName:"lyricsTimeline";property real previewPosition:0;bufferedValue:popup.frame.jukebox?bridge.sourceBufferedEnd:popup.frame.duration
             Layout.fillWidth:true;from:0;to:Math.max(1,popup.frame.duration)
             Binding {target:lyricsTimeline;property:"value";value:popup.frame.position;when:!lyricsTimeline.pressed;restoreMode:Binding.RestoreNone}
             onMoved:{previewPosition=value;if(!pressed)workspace.seekLyrics(value,popup.frame.jukebox)}

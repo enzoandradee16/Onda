@@ -9,7 +9,7 @@ Popup {
     background: Card {}
     contentItem: ColumnLayout { spacing: Math.round(14*bridge.spacing)
         Label { text: bridge.translate("Escolher quais configurações restaurar…"); font.pixelSize: Math.round(21*bridge.fontScale); color: bridge.palette.text; Layout.fillWidth: true; wrapMode: Text.Wrap }
-        ScrollView { Layout.fillWidth: true; Layout.fillHeight: true; contentWidth: availableWidth; clip: true
+        OndaScrollView { Layout.fillWidth: true; Layout.fillHeight: true; contentWidth: availableWidth; clip: true
             ColumnLayout { width: parent.availableWidth; spacing: Math.round(9*bridge.spacing)
                 Repeater { model: workspace.settingsFields
                     CheckBox { required property var modelData; Layout.fillWidth: true; text: bridge.translate(modelData.label); checked: reset.selected.indexOf(modelData.key) >= 0

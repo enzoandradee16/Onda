@@ -21,6 +21,7 @@ class JukeboxQueuePreparationTest {
         })
         try {
             withContext(Dispatchers.Main){
+                controller.clearPlaybackQueue();controller.effects.value=JSONObject().put("enabled",false)
                 controller.state.value=JukeboxState(title="Current",model=current)
                 controller.enqueue(JSONObject().put("title","First"))
                 controller.enqueue(JSONObject().put("title","Second"))
@@ -35,4 +36,31 @@ class JukeboxQueuePreparationTest {
             assertEquals(listOf("First","Second"),controller.playbackQueue.value.map {it.optString("title")})
         } finally {withContext(Dispatchers.Main){controller.close()};scope.cancel()}
     }
+    @Test fun reorderAndManualInsertionRetargetPreparation()=runBlocking {
+        val context=ApplicationProvider.getApplicationContext<android.content.Context>()
+        withContext(Dispatchers.Main){OndaStore.initialize(context)}
+        val scope=CoroutineScope(SupervisorJob()+Dispatchers.Main.immediate)
+        val firstStarted=CompletableDeferred<Unit>();val firstCancelled=CompletableDeferred<Unit>()
+        val controller=JukeboxController(context,scope,{}, {_,config,_->
+            val title=config.getJSONObject("record").getString("title")
+            if(title=="First") {
+                firstStarted.complete(Unit)
+                try {awaitCancellation()} finally {firstCancelled.complete(Unit)}
+            }
+            delay(30)
+            JSONObject().put("media_title",title)
+        })
+        try {
+            withContext(Dispatchers.Main){
+                controller.stop();controller.clearPlaybackQueue();controller.effects.value=JSONObject().put("enabled",false)
+                controller.enqueueAll(listOf("First","Second","Third").map {JSONObject().put("title",it)})
+            }
+            withTimeout(5000){firstStarted.await()}
+            withContext(Dispatchers.Main){controller.moveQueued(2,-2);controller.enqueue(JSONObject().put("title","Manual"))}
+            withTimeout(5000){firstCancelled.await();while(controller.playbackQueue.value.take(2).any {it.optString("_analysis")!="Pronta"})delay(30)}
+            assertEquals(listOf("Manual","Third"),controller.playbackQueue.value.take(2).map {it.optString("title")})
+            assertEquals("0:10",exportPositionText("10"));assertEquals("1:05",exportPositionText("65"));assertEquals("1:00:00",exportPositionText("3600"))
+        } finally {withContext(Dispatchers.Main){controller.close()};scope.cancel()}
+    }
+
 }

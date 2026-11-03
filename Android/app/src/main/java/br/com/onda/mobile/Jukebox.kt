@@ -52,7 +52,7 @@ import org.json.JSONObject
 import java.util.UUID
 import kotlin.math.*
 
-internal data class JukeboxState(val title:String="Escolha suas músicas.",val message:String="Abra arquivos, pesquise músicas ou adicione álbuns e playlists à fila.",val model:JSONObject?=null,val records:List<JSONObject> = emptyList(),val busy:Boolean=false,val playing:Boolean=false,val paused:Boolean=false,val index:Int=0,val phase:Float=0f,val flow:List<Pair<Int,Int>> = emptyList(),val used:Set<Pair<Int,Int>> = emptySet(),val elapsed:Double=0.0,val jumps:Int=0,val nextIndex:Int=-1,val jumpBlend:Float=0f,val effectsPending:Boolean=false,val effectsError:String="",val restoredSeconds:Double=0.0)
+internal data class JukeboxState(val title:String="Escolha suas músicas.",val message:String="Abra arquivos, pesquise músicas ou adicione álbuns e playlists à fila.",val model:JSONObject?=null,val records:List<JSONObject> = emptyList(),val busy:Boolean=false,val playing:Boolean=false,val paused:Boolean=false,val index:Int=0,val phase:Float=0f,val flow:List<Pair<Int,Int>> = emptyList(),val used:Set<Pair<Int,Int>> = emptySet(),val elapsed:Double=0.0,val jumps:Int=0,val nextIndex:Int=-1,val jumpBlend:Float=0f,val effectsPending:Boolean=false,val effectsError:String="",val restoredSeconds:Double=0.0,val playbackError:String="")
 
 internal class JukeboxController(private val context:Context,private val scope:CoroutineScope,var stopOtherAudio:()->Unit,private val callOverride:(suspend (String,JSONObject,String)->JSONObject)?=null) {
     val state=MutableStateFlow(JukeboxState())
@@ -71,18 +71,60 @@ internal class JukeboxController(private val context:Context,private val scope:C
     private var startGain=1f
     private var normalEndGain=1f
     internal val audioReady=MutableStateFlow(false)
+    val streamBuffer=MutableStateFlow(0.0 to 0.0)
     val volume=MutableStateFlow(1f)
     fun setVolume(value:Float){volume.value=value.coerceIn(0f,1f);applyGain()}
     private var streaming:AndroidStreamPlayback?=null
+    private var outgoingStream:AndroidStreamPlayback?=null
+    private class PcmTail(val output:AudioTrack,val job:Job?,val identity:String) {
+        fun volume(value:Float){runCatching {output.setVolume(value)}}
+        fun close(){if(identity.isNotBlank())MobileEngine.cancel(identity);job?.cancel()}
+    }
+    @Volatile private var outgoingPcm:PcmTail?=null
+    private var streamFade:Job?=null
+    private var streamGain=1f
+    private fun finishStreamOverlap() {
+        val old=outgoingStream;val pcm=outgoingPcm
+        outgoingStream=null;outgoingPcm=null
+        val fade=streamFade;streamFade=null
+        fade?.cancel();old?.close();pcm?.close();streamGain=1f;applyGain()
+    }
+    private var shuffleOrder=emptyList<String>()
+    fun setQueueShuffle(enabled:Boolean) {
+        if(queueShuffle.value==enabled)return
+        val rows=playbackQueue.value
+        val start=nextQueueIndex.coerceIn(0,rows.size)
+        playbackQueue.value=if(enabled) {
+            shuffleOrder=rows.map {it.optString("_queue_id")}
+            rows.take(start)+rows.drop(start).shuffled()
+        } else {
+            val order=shuffleOrder.withIndex().associate {it.value to it.index}
+            rows.take(start)+rows.drop(start).sortedBy {order[it.optString("_queue_id")] ?: Int.MAX_VALUE}
+        }
+        queueShuffle.value=enabled
+        reprioritizeQueue()
+        checkpointPosition()
+    }
+    private fun reprioritizeQueue() {
+        val next=autoplayQueueId.ifBlank {priorityQueueId}.ifBlank {playbackQueue.value.getOrNull(nextQueueIndex)?.optString("_queue_id").orEmpty()}
+        if(next.isNotBlank() && !preparedModels.containsKey(next) && queuePreparing.isNotBlank() && queuePreparing!=next) {
+            cancelQueuePreparation()
+        }
+        startQueuePreparation()
+    }
     private var sourceChange:Job?=null
     private var sourceChangeId=""
     private var checkpoint:Job?=null
     private val seekEpoch=AtomicInteger(0)
-    private fun canStream()=normal && !effects.value.optBoolean("enabled") && !OndaStore.settings.value.optJSONObject("jukebox_equalizer").let {it?.optBoolean("enabled")==true}
+    private fun canStream():Boolean {
+        val fx=effects.value
+        val changesAudio=fx.optBoolean("enabled") && (fx.optInt("speed",85)!=100 || fx.optInt("reverb",25)!=0)
+        return normal && !changesAudio && !OndaStore.settings.value.optJSONObject("jukebox_equalizer").let {it?.optBoolean("enabled")==true}
+    }
     private fun checkpointPosition(){checkpoint?.cancel();checkpoint=scope.launch {delay(250);savePlaybackSession()}}
     private val appliedGain=AppliedAudioGain()
     private fun applyGain(){
-        streaming?.volume(volume.value*minOf(stopGain,switchGain,startGain))
+        streaming?.volume(volume.value*minOf(stopGain,switchGain,startGain)*streamGain)
         val output=track ?: return
         val value=volume.value*minOf(stopGain,switchGain,startGain,if(normal&&gradual())normalEndGain else 1f)
         runCatching {appliedGain.apply(output,value){output.setVolume(it)}}
@@ -101,6 +143,7 @@ internal class JukeboxController(private val context:Context,private val scope:C
         return next.takeIf {it in playbackQueue.value.indices}
     }
     private fun normalTransition() {
+        if(outgoingStream!=null || outgoingPcm!=null || streamFade!=null)return
         if(!normal||!gradual()||!state.value.playing||state.value.paused)return
         val target=normalNextIndex()
         val ready=target!=null&&preparedModels.containsKey(playbackQueue.value[target].optString("_queue_id"))
@@ -116,18 +159,20 @@ internal class JukeboxController(private val context:Context,private val scope:C
     private var queueCursor=-1
     private val queueIndex=PlaybackQueueIndex()
     val nextQueueIndex:Int get()=(queueIndex.index(playbackQueue.value,currentQueueId.value).takeIf {it>=0} ?: queueCursor)+1
-    private var autoplayQueueId=""
+    val pendingPlaybackId=MutableStateFlow("")
+    private var autoplayQueueId:String
+        get()=pendingPlaybackId.value
+        set(value){pendingPlaybackId.value=value}
     fun previousTrack(){val current=state.value;if(sessionSeconds(current.model,current.index,current.phase.toDouble())>=3.0){seek(0);return};val index=nextQueueIndex-1;if(index>0)playQueued(index-1) else seek(0)}
     fun nextTrack(){
         if(autoplayQueueId.isNotBlank() || switchRequest.get()!=null)return
         val rows=playbackQueue.value.toMutableList()
         val target=nextPlaybackIndex(rows.size,nextQueueIndex-1,queueRepeat.value)
         if(target in rows.indices){
-            if(queueShuffle.value){val chosen=shuffledNextIndex(rows.size,nextQueueIndex-1,target);val temp=rows[target];rows[target]=rows[chosen];rows[chosen]=temp;playbackQueue.value=rows}
             playQueued(target)
         } else {setTimer(0,true);state.update {it.copy(message="Fim da fila de reprodução. A música atual continua.")}}}
-    fun moveQueued(index:Int,direction:Int){val rows=playbackQueue.value;if(index !in rows.indices||index+direction !in rows.indices)return;queueCursor=playbackCursorAfterMove(nextQueueIndex-1,index,index+direction);playbackQueue.value=movePlaybackEntry(rows,index,direction);startQueuePreparation()}
-    fun clearPlaybackQueue(){autoplayQueueId="";priorityQueueId="";switchRequest.set(null);if(queuePreparing.isNotBlank())MobileEngine.cancel("jukebox-preload-$queuePreparing");playbackQueue.value=emptyList();preparedModels.clear();currentQueueId.value="";queueCursor=-1}
+    fun moveQueued(index:Int,direction:Int){val rows=playbackQueue.value;val current=nextQueueIndex-1;val target=if(index>current && current>=0)(index+direction).coerceAtLeast(current+1) else index+direction;if(index !in rows.indices||target !in rows.indices)return;queueCursor=playbackCursorAfterMove(current,index,target);playbackQueue.value=movePlaybackEntry(rows,index,target-index);reprioritizeQueue()}
+    fun clearPlaybackQueue(){cancelQueuePreparation();queueUndoJob?.cancel();removedQueueEntry=null;canUndoQueueRemoval.value=false;autoplayQueueId="";priorityQueueId="";switchRequest.set(null);if(queuePreparationId.isNotBlank())MobileEngine.cancel(queuePreparationId);playbackQueue.value=emptyList();preparedModels.clear();currentQueueId.value="";queueCursor=-1}
     private fun gradual()=OndaStore.settings.value.optBoolean("jukebox_gradual_transition",true)
     fun setTimer(minutes:Int,nextSong:Boolean=false) {
         val duration=minutes.coerceIn(0,180)
@@ -165,6 +210,15 @@ internal class JukeboxController(private val context:Context,private val scope:C
     private val preparedModels=mutableMapOf<String,JSONObject>()
     private var queueWorker:Job?=null
     private var queuePreparing=""
+    private var queuePreparationId=""
+    private var queuePreparationEpoch=0
+    private fun cancelQueuePreparation() {
+        val obsolete=queuePreparing
+        queuePreparationEpoch++
+        if(queuePreparationId.isNotBlank())MobileEngine.cancel(queuePreparationId)
+        queueWorker?.cancel();queueWorker=null;queuePreparing="";queuePreparationId=""
+        if(obsolete.isNotBlank() && !preparedModels.containsKey(obsolete))updateQueue(obsolete,"Pendente")
+    }
     private var priorityQueueId=""
     private fun preparationWindow():Set<String> {
         val rows=playbackQueue.value
@@ -198,18 +252,31 @@ internal class JukeboxController(private val context:Context,private val scope:C
                 else->row
             }
         }}
+        val owner=++queuePreparationEpoch
         queueWorker=scope.launch {
-            while(isActive) {
+            while(isActive && owner==queuePreparationEpoch) {
                 val wanted=preparationWindow()
                 trimPreparedModels(wanted)
                 val pending=playbackQueue.value.filter {it.optString("_analysis")=="Pendente" && it.optString("_queue_id") in wanted}
                 val row=pending.firstOrNull {it.optString("_queue_id")==autoplayQueueId}
                     ?: pending.firstOrNull {it.optString("_queue_id")==priorityQueueId}
+                    ?: pending.firstOrNull {it.optString("_queue_id")==playbackQueue.value.getOrNull(normalNextIndex() ?: -1)?.optString("_queue_id")}
                     ?: pending.firstOrNull() ?: break
-                val id=row.getString("_queue_id");queuePreparing=id;updateQueue(id,"Analisando")
+                val id=row.getString("_queue_id");val operationId="jukebox-preload-$id-$owner";queuePreparing=id;queuePreparationId=operationId;updateQueue(id,"Analisando")
                 try {
-                    val model=withContext(Dispatchers.IO) {restoreQueueModel(row)} ?: call("jukebox_prepare",prepareConfig(row.optString("_local_source"),row.takeUnless {it.has("_local_source")}),"jukebox-preload-$id")
-                    if(playbackQueue.value.any {it.optString("_queue_id")==id}) {
+                    val model=withContext(Dispatchers.IO) {restoreQueueModel(row)} ?: call("jukebox_prepare",prepareConfig(row.optString("_local_source"),row.takeUnless {it.cleanString("_local_source").isNotBlank() && !it.optBoolean("_catalog_source")}),operationId)
+                    if(model.has("_stream") && state.value.playing && id!=autoplayQueueId) {
+                        try {withTimeoutOrNull(6000){StreamAudioCache.prefetch(context,model)}}
+                        catch(cancelled:CancellationException){throw cancelled}
+                        catch(error:Exception){android.util.Log.w("ONDA-preload","Optional streaming preload failed: ${error.javaClass.simpleName}")}
+                    } else if(!model.has("_stream")) {
+                        while(isActive) {
+                            val snapshot=JSONObject(effects.value.toString())
+                            if(snapshot.optBoolean("enabled"))call("jukebox_effects",JSONObject().put("cache",model.getString("cache")).put("effects",snapshot),operationId)
+                            if(snapshot.toString()==effects.value.toString())break
+                        }
+                    }
+                    if(isActive && owner==queuePreparationEpoch && playbackQueue.value.any {it.optString("_queue_id")==id}) {
                         preparedModels[id]=model
                         playbackQueue.update {rows->rows.map {entry->
                             if(entry.optString("_queue_id")!=id)entry else copyJsonObject(entry).apply {
@@ -217,7 +284,7 @@ internal class JukeboxController(private val context:Context,private val scope:C
                                 put("_prepared_cache",preparedQueueReference(model))
                                 put("duration_ms",model.optDouble("duration",0.0)*1000)
                                 if(has("_local_source") && model.cleanString("media_title").isNotBlank())put("title",model.getString("media_title"))
-                                if(cleanString("cover_url").isBlank())put("cover_url",model.optString("cover_url"))
+                                if(model.cleanString("cover_url").isNotBlank())put("cover_url",model.getString("cover_url"))
                                 if(stringList("artists").isBlank())put("artists",org.json.JSONArray(listOf(model.cleanString("media_artist")).filter {it.isNotBlank()}))
                                 if(cleanString("album").isBlank())put("album",model.cleanString("album"))
                             }
@@ -227,24 +294,54 @@ internal class JukeboxController(private val context:Context,private val scope:C
                         if(priorityQueueId==id)priorityQueueId=""
                         if(autoplayQueueId==id){autoplayQueueId="";playQueued(playbackQueue.value.indexOfFirst {it.optString("_queue_id")==id})}
                     }
-                } catch(e:CancellationException){updateQueue(id,"Pendente");throw e}
-                catch(e:Exception){updateQueue(id,"Erro",uiExceptionMessage(e,"Não foi possível analisar."))}
-                finally {queuePreparing=""}
+                } catch(e:CancellationException){if(owner==queuePreparationEpoch)updateQueue(id,"Pendente");throw e}
+                catch(e:Exception){
+                    if(owner!=queuePreparationEpoch)throw CancellationException()
+                    val message=uiExceptionMessage(e,"Não foi possível analisar.")
+                    updateQueue(id,"Erro",message)
+                    if(autoplayQueueId==id){autoplayQueueId="";state.update {it.copy(message=message,playbackError=message)}}
+                    if(priorityQueueId==id)priorityQueueId=""
+                }
+                finally {if(owner==queuePreparationEpoch && queuePreparing==id){queuePreparing="";queuePreparationId=""}}
             }
         }
     }
     fun enqueue(record:JSONObject) {
-        enqueueAll(listOf(record))
+        enqueueAll(listOf(record),manual=true)
     }
-    internal fun enqueueAll(records:List<JSONObject>):Int {
-        val accepted=records.take((5000-playbackQueue.value.size).coerceAtLeast(0)).map {record->copyJsonObject(record).put("_queue_id",UUID.randomUUID().toString()).put("_analysis","Pendente")}
-        if(accepted.isNotEmpty()){playbackQueue.update {it+accepted};startQueuePreparation()}
+    internal fun enqueueAll(records:List<JSONObject>,manual:Boolean=false):Int {
+        val accepted=records.take((5000-playbackQueue.value.size).coerceAtLeast(0)).map {record->copyJsonObject(record).put("_queue_id",UUID.randomUUID().toString()).put("_analysis","Pendente").put("_queue_manual",manual)}
+        if(accepted.isNotEmpty()){
+            playbackQueue.update {rows->
+                var insertion=if(manual)nextQueueIndex.coerceIn(0,rows.size) else rows.size
+                if(manual)while(insertion<rows.size && rows[insertion].optBoolean("_queue_manual"))insertion++
+                rows.toMutableList().apply {addAll(insertion,accepted)}
+            }
+            reprioritizeQueue()
+        }
         if(accepted.size<records.size)state.update {it.copy(message="Limite de 5.000 músicas na fila de reprodução. Remova músicas antes de adicionar outras.")}
         return accepted.size
     }
     fun retryQueued(index:Int,autoplay:Boolean=false){if(!autoplay)autoplayQueueId="";playbackQueue.value.getOrNull(index)?.optString("_queue_id")?.let {priorityQueueId=it;preparedModels.remove(it);updateQueue(it,"Pendente");startQueuePreparation()}}
+    val canUndoQueueRemoval=MutableStateFlow(false)
+    private var removedQueueEntry:Pair<Int,JSONObject>?=null
+    private var queueUndoJob:Job?=null
+    fun undoQueueRemoval() {
+        val (index,record)=removedQueueEntry ?: return
+        if(playbackQueue.value.size>=5000)return
+        queueUndoJob?.cancel();removedQueueEntry=null;canUndoQueueRemoval.value=false
+        val restored=copyJsonObject(record).put("_queue_id",UUID.randomUUID().toString()).put("_analysis","Pendente")
+        val position=index.coerceAtMost(playbackQueue.value.size)
+        if(position<=queueCursor)queueCursor++
+        playbackQueue.update {it.toMutableList().apply {add(position,restored)}}
+        startQueuePreparation()
+    }
     fun removeQueued(index:Int) {
         val id=playbackQueue.value.getOrNull(index)?.optString("_queue_id") ?: return
+        removedQueueEntry=index to copyJsonObject(playbackQueue.value[index])
+        canUndoQueueRemoval.value=true
+        queueUndoJob?.cancel()
+        queueUndoJob=scope.launch {delay(8000);removedQueueEntry=null;canUndoQueueRemoval.value=false}
         queueCursor=nextQueueIndex-1;if(index<=queueCursor)queueCursor--
         playbackQueue.update {rows->rows.filter {it.optString("_queue_id")!=id}}
         preparedModels.remove(id)
@@ -252,7 +349,7 @@ internal class JukeboxController(private val context:Context,private val scope:C
         if(autoplayQueueId==id)autoplayQueueId=""
         if(priorityQueueId==id)priorityQueueId=""
         startQueuePreparation()
-        if(queuePreparing==id)MobileEngine.cancel("jukebox-preload-$id")
+        if(queuePreparing==id && queuePreparationId.isNotBlank())MobileEngine.cancel(queuePreparationId)
     }
     private data class TrackSwitch(val row:JSONObject,val model:JSONObject,val seconds:Int)
     private val switchRequest=java.util.concurrent.atomic.AtomicReference<TrackSwitch?>(null)
@@ -260,7 +357,8 @@ internal class JukeboxController(private val context:Context,private val scope:C
     private fun transitionSeconds()=OndaStore.settings.value.optInt("jukebox_transition_seconds",2).coerceIn(1,10)
     fun playQueued(index:Int) {
         val row=playbackQueue.value.getOrNull(index) ?: return
-        val model=preparedModels[row.optString("_queue_id")] ?: run {autoplayQueueId=row.optString("_queue_id");if(row.optString("_analysis")=="Erro")retryQueued(index,autoplay=true) else startQueuePreparation();return}
+        state.update {it.copy(playbackError="")}
+        val model=preparedModels[row.optString("_queue_id")] ?: run {autoplayQueueId=row.optString("_queue_id");if(row.optString("_analysis")=="Erro")retryQueued(index,autoplay=true) else reprioritizeQueue();return}
         if(model.has("_stream") && !canStream()) {
             val id=row.optString("_queue_id");autoplayQueueId=id;preparedModels.remove(id);updateQueue(id,"Pendente");startQueuePreparation();return
         }
@@ -271,13 +369,23 @@ internal class JukeboxController(private val context:Context,private val scope:C
             updateQueue(id,"Pendente");startQueuePreparation();return
         }
         autoplayQueueId=""
-        if(state.value.playing && !state.value.paused && !model.has("_stream") && state.value.model?.has("_stream")!=true) {
+        if(outgoingStream!=null || outgoingPcm!=null || streamFade!=null)finishStreamOverlap()
+        if(state.value.playing && !state.value.paused && task?.isActive==true && track!=null && audioReady.value && !model.has("_stream") && state.value.model?.has("_stream")!=true) {
             val request=TrackSwitch(row,model,if(gradual())transitionSeconds() else 0)
             // Keep the most recent navigation request while a crossfade finishes.
             switchRequest.set(request)
             return
         }
-        stop(clearTimer=false);currentQueueId.value=row.optString("_queue_id");queueCursor=index
+        val overlap=state.value.playing && !state.value.paused && gradual()
+        val previous=streaming.takeIf {overlap}
+        if(previous!=null)streaming=null
+        if(overlap && model.has("_stream") && track!=null && task?.isActive==true) {
+            outgoingPcm=PcmTail(track!!,task,identity);track=null;task=null;identity=""
+        }
+        outgoingStream=previous
+        val keep=previous!=null || outgoingPcm!=null
+        stop(clearTimer=false,keepAudioFocus=keep,keepOverlap=keep)
+        currentQueueId.value=row.optString("_queue_id");queueCursor=index
         val beats=model.optJSONArray("beats")
         val restored=row.optDouble("_restore_seconds",0.0)
         val restoredIndex=if(beats==null)0 else (0 until (beats.length()-1).coerceAtLeast(0)).lastOrNull {beats.optDouble(it)<=restored} ?: 0
@@ -305,7 +413,7 @@ internal class JukeboxController(private val context:Context,private val scope:C
     private fun restartPreparationMode() {
         if(state.value.model==null && queueWorker?.isActive!=true)return
         queueWorker?.cancel();queueWorker=null
-        if(queuePreparing.isNotBlank())MobileEngine.cancel("jukebox-preload-$queuePreparing")
+        if(queuePreparationId.isNotBlank())MobileEngine.cancel(queuePreparationId)
         queuePreparing=""
         if(!canStream())preparedModels.keys.toList().filter {it!=currentQueueId.value && preparedModels[it]?.has("_stream")==true}.forEach {preparedModels.remove(it);updateQueue(it,"Pendente")}
         startQueuePreparation()
@@ -357,18 +465,35 @@ internal class JukeboxController(private val context:Context,private val scope:C
     private fun startStreaming(model:JSONObject) {
         val before=state.value
         val seconds=sessionSeconds(model,before.index,before.phase.toDouble())
-        stopOtherAudio();stop(clearTimer=false)
+        val previous=outgoingStream ?: streaming.takeIf {before.playing && !before.paused && gradual()}
+        if(previous!=null)streaming=null
+        outgoingStream=previous
+        val keep=previous!=null || outgoingPcm!=null
+        stopOtherAudio();stop(clearTimer=false,keepAudioFocus=keep,keepOverlap=keep)
+        streamGain=if(keep)0f else 1f
         val own=++revision
         state.value=before.copy(model=model,playing=true,paused=false,index=0,phase=if(model.optDouble("duration")>0)(seconds/model.optDouble("duration")).toFloat().coerceIn(0f,.999999f) else 0f,message="Reproduzindo…")
         try {
             ContextCompat.startForegroundService(context,Intent(context,JukeboxService::class.java))
-            if(audio.requestAudioFocus(focus)!=AudioManager.AUDIOFOCUS_REQUEST_GRANTED){state.update {it.copy(playing=false,message="A saída de áudio está ocupada.")};return}
-            ContextCompat.registerReceiver(context,noisy,IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY),ContextCompat.RECEIVER_NOT_EXPORTED);noisyRegistered=true
+            if(!keep && audio.requestAudioFocus(focus)!=AudioManager.AUDIOFOCUS_REQUEST_GRANTED){finishStreamOverlap();state.update {it.copy(playing=false,message="A saída de áudio está ocupada.",playbackError="A saída de áudio está ocupada.")};return}
+            if(!noisyRegistered){ContextCompat.registerReceiver(context,noisy,IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY),ContextCompat.RECEIVER_NOT_EXPORTED);noisyRegistered=true}
             streaming=AndroidStreamPlayback(context,scope,model,seconds,
-                onClock={position,ready->if(own==revision){
+                prefetchAllowed={nextQueueIndex>=playbackQueue.value.size || queueRepeat.value=="Uma"},
+                onClock={position,ready,bufferStart,bufferEnd->if(own==revision){
+                    streamBuffer.value=bufferStart to bufferEnd
                     audioReady.value=ready
+                    if(ready && (outgoingStream!=null || outgoingPcm!=null) && streamFade==null) {
+                        val old=outgoingStream;val pcm=outgoingPcm
+                        streamFade=scope.launch {
+                            try {
+                                val steps=transitionSeconds()*20
+                                for(step in 1..steps){while(state.value.paused)delay(50);streamGain=step.toFloat()/steps;applyGain();old?.volume(volume.value*(1f-streamGain));pcm?.volume(volume.value*(1f-streamGain));delay(50)}
+                            } finally {old?.close();pcm?.close();if(outgoingStream===old && outgoingPcm===pcm){outgoingStream=null;outgoingPcm=null;streamGain=1f;applyGain();streamFade=null}}
+                        }
+                    }
                     val duration=model.optDouble("duration",0.0)
                     state.update {it.copy(index=0,phase=if(duration>0)(position/duration).toFloat().coerceIn(0f,.999999f) else 0f,elapsed=position)}
+                    normalTransition()
                 }},
                 onEnded={if(own==revision){
                     if(queueRepeat.value=="Uma"){seekSeconds(0.0);streaming?.resume()}
@@ -382,25 +507,27 @@ internal class JukeboxController(private val context:Context,private val scope:C
                     if(own!=revision)throw CancellationException()
                     model.put("_stream",fresh.getJSONObject("_stream"));fresh
                 },
-                onFailure={error->if(own==revision){streaming?.close();streaming=null;audioReady.value=false;releaseNoisy();audio.abandonAudioFocusRequest(focus);state.update {it.copy(playing=false,paused=false,message="Não foi possível reproduzir o áudio online. Tente abrir a música novamente.")}}})
+                onFailure={error->if(own==revision){finishStreamOverlap();streaming?.close();streaming=null;audioReady.value=false;streamBuffer.value=0.0 to 0.0;releaseNoisy();audio.abandonAudioFocusRequest(focus);state.update {it.copy(playing=false,paused=false,message="Não foi possível reproduzir o áudio online. Tente abrir a música novamente.",playbackError="Não foi possível reproduzir o áudio online. Tente abrir a música novamente.")}}})
             applyGain()
-        } catch(error:Exception){releaseNoisy();audio.abandonAudioFocusRequest(focus);state.update {it.copy(playing=false,message=uiExceptionMessage(error,"Não foi possível reproduzir."))}}
+        } catch(error:Exception){finishStreamOverlap();streaming?.close();streaming=null;releaseNoisy();audio.abandonAudioFocusRequest(focus);state.update {it.copy(playing=false,message=uiExceptionMessage(error,"Não foi possível reproduzir."),playbackError=uiExceptionMessage(error,"Não foi possível reproduzir."))}}
     }
 
     private fun prewarmEffects() {
         effectPreparation?.cancel();if(effectPreparationId.isNotBlank())MobileEngine.cancel(effectPreparationId)
         reconcileSource()
         if(state.value.model?.has("_stream")==true)return
+        val preparationRevision=revision
         effectPreparation=scope.launch {
             delay(400)
             if(!effects.value.optBoolean("enabled"))return@launch
             val settings=JSONObject(effects.value.toString())
             val models=(listOfNotNull(state.value.model)+playbackQueue.value.drop(nextQueueIndex.coerceAtLeast(0)).take(preparationAhead(OndaStore.settings.value)).mapNotNull {preparedModels[it.optString("_queue_id")]}).filter {!it.has("_stream")}.distinctBy {it.optString("cache")}
             for(model in models) {
+                if(preparationRevision!=revision || settings.toString()!=effects.value.toString())break
                 val id="playback-effects-"+UUID.randomUUID();effectPreparationId=id
                 try {call("jukebox_effects",JSONObject().put("cache",model.getString("cache")).put("effects",settings),id)}
                 catch(e:CancellationException){throw e}
-                catch(e:Exception){state.update {it.copy(effectsError=uiExceptionMessage(e,"Não foi possível preparar os efeitos desta música."))}}
+                catch(e:Exception){if(preparationRevision==revision && settings.toString()==effects.value.toString())state.update {it.copy(effectsError=uiExceptionMessage(e,"Não foi possível preparar os efeitos desta música."))}}
             }
             effectPreparationId=""
         }
@@ -408,8 +535,8 @@ internal class JukeboxController(private val context:Context,private val scope:C
     var normal:Boolean
         get()=normalPlayback.value
         set(value){if(normalPlayback.value==value)return;normalPlayback.value=value;normalEndGain=1f;applyGain();restartPreparationMode();reconcileSource()}
-    private val pendingSeek=AtomicInteger(-1)
-    private val pendingSeekPhase=java.util.concurrent.atomic.AtomicReference(0f)
+    private data class SeekRequest(val index:Int,val phase:Float,val epoch:Int)
+    private val pendingSeek=java.util.concurrent.atomic.AtomicReference<SeekRequest?>(null)
     fun seek(index:Int) {
         val model=state.value.model ?: return
         val beats=model.optJSONArray("beats") ?: return
@@ -421,13 +548,13 @@ internal class JukeboxController(private val context:Context,private val scope:C
         val row=playbackQueue.value.firstOrNull {it.optString("_queue_id")==currentQueueId.value}
         val duration=current.model?.optDouble("duration",0.0) ?: ((row?.optDouble("duration_ms",0.0) ?: 0.0)/1000)
         val target=seconds.coerceIn(0.0,duration.coerceAtLeast(0.0))
+        finishStreamOverlap()
         if(current.model==null){row?.put("_restore_seconds",target);state.update {it.copy(restoredSeconds=target)};checkpointPosition();return}
         val beats=current.model.optJSONArray("beats") ?: return
         val index=(0 until (beats.length()-1).coerceAtLeast(0)).lastOrNull {beats.optDouble(it)<=target} ?: 0
         val a=beats.optDouble(index);val b=beats.optDouble(index+1,a)
         val phase=if(b>a)((target-a)/(b-a)).coerceIn(0.0,.999999).toFloat() else 0f
-        seekEpoch.incrementAndGet()
-        pendingSeekPhase.set(phase);pendingSeek.set(index)
+        pendingSeek.set(SeekRequest(index,phase,seekEpoch.incrementAndGet()))
         state.update {it.copy(index=index,phase=phase,flow=emptyList(),used=emptySet(),nextIndex=-1,jumpBlend=0f)}
         streaming?.seek(target)
         checkpointPosition()
@@ -443,9 +570,14 @@ internal class JukeboxController(private val context:Context,private val scope:C
     private val focus=AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN).setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA).setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build()).setOnAudioFocusChangeListener {change->if(change<0)pause()}.build()
     private suspend fun call(action:String,config:JSONObject,id:String):JSONObject {
         callOverride?.let {return it(action,config,id)}
-        return withContext(Dispatchers.IO) {
-        MobileEngine.call(context,id,action,config,EventCallback {}).also {currentCoroutineContext().ensureActive();require(!it.has("error")){it.optString("error")}}
-    }
+        return coroutineScope {
+            val worker=async(Dispatchers.IO) {
+                ensureActive()
+                MobileEngine.call(context,id,action,config,EventCallback {}).also {ensureActive();require(!it.has("error")){it.optString("error")}}
+            }
+            try {worker.await()}
+            catch(cancelled:CancellationException){MobileEngine.cancel(id);throw cancelled}
+        }
     }
     private suspend fun handoffPreparation(action:String,config:JSONObject):JSONObject = coroutineScope {
         val id="jukebox-handoff-"+UUID.randomUUID()
@@ -638,12 +770,13 @@ internal class JukeboxController(private val context:Context,private val scope:C
         }
     }
     fun pauseForRestart(){autoplayQueueId="";pause()}
-    fun pause() {if(state.value.playing){state.update {it.copy(paused=true)};streaming?.pause();runCatching {track?.pause()};checkpointPosition()}}
+    fun pause() {if(state.value.playing){state.update {it.copy(paused=true)};streaming?.pause();outgoingStream?.pause();runCatching {outgoingPcm?.output?.pause();track?.pause()};checkpointPosition()}}
     fun playPause() = playPauseInternal(true)
     private fun playPauseInternal(disconnectRemote:Boolean) {
+        state.update {it.copy(playbackError="")}
         if(disconnectRemote && RemotePlaybackRuntime.state.value.connected)RemotePlaybackRuntime.disconnect()
         if(state.value.playing) {
-            if(state.value.paused){if(audio.requestAudioFocus(focus)!=AudioManager.AUDIOFOCUS_REQUEST_GRANTED)return;stopOtherAudio();streaming?.resume();if(pendingSeek.get()<0)runCatching {track?.play()};state.update {it.copy(paused=false)}} else pause()
+            if(state.value.paused){if(audio.requestAudioFocus(focus)!=AudioManager.AUDIOFOCUS_REQUEST_GRANTED)return;stopOtherAudio();streaming?.resume();outgoingStream?.resume();runCatching {outgoingPcm?.output?.play()};if(pendingSeek.get()==null)runCatching {track?.play()};state.update {it.copy(paused=false)}} else pause()
             return
         }
         val model=state.value.model ?: run {if(playbackQueue.value.isNotEmpty())playQueued((nextQueueIndex-1).coerceAtLeast(0));return}
@@ -655,18 +788,22 @@ internal class JukeboxController(private val context:Context,private val scope:C
             playQueued((nextQueueIndex-1).coerceAtLeast(0));return
         }
         val initial=state.value.index;val initialPhase=state.value.phase
-        stopOtherAudio();stop(clearTimer=false);pendingSeekPhase.set(initialPhase);pendingSeek.set(initial);val own=++revision;val id="jukebox-play-"+UUID.randomUUID();identity=id
+        val keep=outgoingStream!=null || outgoingPcm!=null
+        stopOtherAudio();stop(clearTimer=false,keepAudioFocus=keep,keepOverlap=keep);pendingSeek.set(SeekRequest(initial,initialPhase,seekEpoch.get()));val own=++revision;val id="jukebox-play-"+UUID.randomUUID();identity=id
         state.value=state.value.copy(model=model,playing=true,paused=false,message="Reproduzindo…",elapsed=0.0,jumps=0,index=initial,phase=initialPhase,flow=emptyList(),used=emptySet(),nextIndex=-1,jumpBlend=0f)
         try {ContextCompat.startForegroundService(context,Intent(context,JukeboxService::class.java))}
         catch(e:Exception){state.update {it.copy(playing=false,message=uiExceptionMessage(e,"Não foi possível reproduzir."))};return}
-        if(audio.requestAudioFocus(focus)!=AudioManager.AUDIOFOCUS_REQUEST_GRANTED){state.value=state.value.copy(playing=false,message="A saída de áudio está ocupada.");return}
-        ContextCompat.registerReceiver(context,noisy,IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY),ContextCompat.RECEIVER_NOT_EXPORTED);noisyRegistered=true
+        if(audio.requestAudioFocus(focus)!=AudioManager.AUDIOFOCUS_REQUEST_GRANTED){state.value=state.value.copy(playing=false,message="A saída de áudio está ocupada.",playbackError="A saída de áudio está ocupada.");return}
+        if(!noisyRegistered){ContextCompat.registerReceiver(context,noisy,IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY),ContextCompat.RECEIVER_NOT_EXPORTED);noisyRegistered=true}
         fadeTask?.cancel()
         startGain=if(gradual())0f else 1f
         if(gradual())fadeTask=scope.launch {
-            while(track==null && state.value.playing)delay(20)
-            val steps=transitionSeconds()*20
-            repeat(steps){while(state.value.paused)delay(50);startGain=(it+1)/steps.toFloat();applyGain();delay(50)}
+            val old=outgoingStream;val pcm=outgoingPcm
+            try {
+                while(!audioReady.value && state.value.playing)delay(20)
+                val steps=transitionSeconds()*20
+                repeat(steps){while(state.value.paused)delay(50);startGain=(it+1)/steps.toFloat();applyGain();old?.volume(volume.value*(1f-startGain));pcm?.volume(volume.value*(1f-startGain));delay(50)}
+            } finally {old?.close();pcm?.close();if(outgoingStream===old && outgoingPcm===pcm){outgoingStream=null;outgoingPcm=null}}
         }
         task=scope.launch(Dispatchers.IO) {
             var output:AudioTrack?=null
@@ -717,18 +854,18 @@ internal class JukeboxController(private val context:Context,private val scope:C
                     scope.launch(Dispatchers.Main.immediate) {if(own==revision)normalTransition()}
                 }
                 var transitioning=false
-                while(isActive && own==revision) {
+                while(isActive && (own==revision || outgoingPcm?.output===output)) {
                     if(state.value.paused)state.first {!it.paused}
                     ensureActive()
-                    (if(!transitioning)switchRequest.getAndSet(null) else null)?.let {request->
+                    (if(own==revision && !transitioning)switchRequest.getAndSet(null) else null)?.let {request->
                         switchModels[request.model.getString("cache")]=request
                         try {call("jukebox_switch",JSONObject().put("session",id).put("cache",request.model.getString("cache")).put("seconds",request.seconds),id)}
                         catch(e:CancellationException){throw e}
                         catch(e:Exception){switchModels.remove(request.model.optString("cache"));state.update {it.copy(message=uiExceptionMessage(e,"Não foi possível trocar a música."))}}
                     }
                     val config=JSONObject().put("equalizer",OndaStore.settings.value.optJSONObject("jukebox_equalizer")).put("session",id).put("variation",variation).put("smooth",smooth).put("volume",100).put("normal",normal).put("effects",effects.value)
-                    val seek=pendingSeek.getAndSet(-1)
-                    if(seek>=0){activeSeek=seekEpoch.get();output.pause();output.flush();submitted=0L;trackBase=0L;timeline.clear();output.play();config.put("seek",seek).put("seek_phase",pendingSeekPhase.getAndSet(0f))}
+                    val seek=if(own==revision)pendingSeek.getAndSet(null) else null
+                    if(seek!=null){activeSeek=seek.epoch;output.pause();output.flush();submitted=0L;trackBase=0L;timeline.clear();output.play();config.put("seek",seek.index).put("seek_phase",seek.phase)}
                     val packet=if(callOverride!=null) {
                         val metadata=call("jukebox_chunk",config,id)
                         val pcm=Base64.decode(metadata.getString("pcm"),Base64.NO_WRAP)
@@ -736,11 +873,11 @@ internal class JukeboxController(private val context:Context,private val scope:C
                     } else withContext(Dispatchers.IO){MobileEngine.pcmChunk(context,id,config)}
                     if(activeSeek!=seekEpoch.get())continue
                     val part=packet.first
-                    state.update {it.copy(effectsPending=part.optBoolean("effects_pending"),effectsError=part.optString("effects_error"))}
+                    if(own==revision)state.update {it.copy(effectsPending=part.optBoolean("effects_pending"),effectsError=part.optString("effects_error"))}
                     transitioning=part.optBoolean("crossfade_active",false)
                     val data=packet.second;var offset=0
                     submitted+=data.size/4;timeline.addLast(submitted to part)
-                    while(offset<data.size && isActive && own==revision) {
+                    while(offset<data.size && isActive && (own==revision || outgoingPcm?.output===output)) {
                         if(state.value.paused)state.first {!it.paused}
                         ensureActive()
                         if(activeSeek!=seekEpoch.get())break
@@ -752,9 +889,10 @@ internal class JukeboxController(private val context:Context,private val scope:C
                     if(activeSeek!=seekEpoch.get())continue
                     progress()
                     if(part.optBoolean("finished")&&part.optBoolean("edge_completed",true)) {
-                        while(isActive&&own==revision&&(output.playbackHeadPosition.toLong() and 0xffffffffL)<submitted){if(state.value.paused)state.first {!it.paused};delay(10);progress()}
+                        while(isActive&&own==revision&&activeSeek==seekEpoch.get()&&(output.playbackHeadPosition.toLong() and 0xffffffffL)<submitted){if(state.value.paused)state.first {!it.paused};delay(10);progress()}
+                        if(activeSeek!=seekEpoch.get())continue
                         withContext(Dispatchers.Main) {
-                            if(own==revision) {
+                            if(own==revision && activeSeek==seekEpoch.get()) {
                                 stop(clearTimer=false)
                                 if(queueRepeat.value=="Uma")playPause()
                                 else if(nextQueueIndex<playbackQueue.value.size || queueRepeat.value=="Todas"&&playbackQueue.value.isNotEmpty())nextTrack()
@@ -764,20 +902,21 @@ internal class JukeboxController(private val context:Context,private val scope:C
                         break
                     }
                 }
-            } catch(e:CancellationException){throw e} catch(e:Exception){if(own==revision)state.value=state.value.copy(message=uiExceptionMessage(e,"Não foi possível reproduzir."))}
+            } catch(e:CancellationException){throw e} catch(e:Exception){if(own==revision)state.value=state.value.copy(message=uiExceptionMessage(e,"Não foi possível reproduzir."),playbackError=uiExceptionMessage(e,"Não foi possível reproduzir."))}
             finally {
                 runCatching {output?.pause();output?.flush();output?.release()}
                 appliedGain.clear(output)
                 withContext(NonCancellable+Dispatchers.IO) {runCatching {call("jukebox_close",JSONObject().put("session",id),id+"-close")}}
-                if(own==revision){track=null;state.update {it.copy(playing=false,paused=false)};releaseNoisy();audio.abandonAudioFocusRequest(focus)}
+                if(own==revision){track=null;audioReady.value=false;state.update {it.copy(playing=false,paused=false)};releaseNoisy();audio.abandonAudioFocusRequest(focus)}
             }
         }
     }
-    fun stop(clearTimer:Boolean=true) {
+    fun stop(clearTimer:Boolean=true,keepAudioFocus:Boolean=false,keepOverlap:Boolean=false) {
         sourceChange?.cancel();sourceChange=null
         if(sourceChangeId.isNotBlank())MobileEngine.cancel(sourceChangeId)
         sourceChangeId=""
-        streaming?.close();streaming=null;audioReady.value=false
+        if(!keepOverlap)finishStreamOverlap()
+        streaming?.close();streaming=null;audioReady.value=false;streamBuffer.value=0.0 to 0.0
         audioReady.value=false
         switchRequest.set(null);switchModels.clear()
         cancelSearch()
@@ -787,7 +926,7 @@ internal class JukeboxController(private val context:Context,private val scope:C
         if(identity.isNotBlank())MobileEngine.cancel(identity)
         task?.cancel();task=null;runCatching {track?.pause();track?.flush()};track=null
         appliedGain.clear()
-        releaseNoisy();audio.abandonAudioFocusRequest(focus)
+        if(!keepAudioFocus){releaseNoisy();audio.abandonAudioFocusRequest(focus)}
         state.value=state.value.copy(busy=false,playing=false,paused=false,effectsPending=false,index=0,phase=0f,flow=emptyList(),used=emptySet(),nextIndex=-1,jumpBlend=0f,message=if(state.value.playing||state.value.busy)"Reprodução encerrada." else state.value.message)
     }
     fun stopPreservingPosition() {
@@ -796,7 +935,7 @@ internal class JukeboxController(private val context:Context,private val scope:C
         state.value=state.value.copy(index=snapshot.index,phase=snapshot.phase)
         runCatching {savePlaybackSession()}.onFailure {android.util.Log.w("ONDA","Could not save stopped playback session",it)}
     }
-    fun close(){checkpoint?.cancel();stopPreservingPosition();queueIndex.clear();effectPreparation?.cancel();if(effectPreparationId.isNotBlank())MobileEngine.cancel(effectPreparationId);queueWorker?.cancel();if(queuePreparing.isNotBlank())MobileEngine.cancel("jukebox-preload-$queuePreparing");preparedModels.clear()}
+    fun close(){checkpoint?.cancel();stopPreservingPosition();queueIndex.clear();effectPreparation?.cancel();if(effectPreparationId.isNotBlank())MobileEngine.cancel(effectPreparationId);queueWorker?.cancel();if(queuePreparationId.isNotBlank())MobileEngine.cancel(queuePreparationId);preparedModels.clear()}
 }
 
 @Composable internal fun PlaybackPage(vm:OndaViewModel) {
@@ -817,6 +956,7 @@ internal class JukeboxController(private val context:Context,private val scope:C
     val controller=vm.jukebox
     val state by controller.presentationState.collectAsStateWithLifecycle()
     val searching by controller.searching.collectAsStateWithLifecycle()
+    val pendingPlaybackId by controller.pendingPlaybackId.collectAsStateWithLifecycle()
     val streamReady by controller.audioReady.collectAsStateWithLifecycle()
     val queuedTracks by controller.playbackQueue.collectAsStateWithLifecycle()
     val currentQueueId by controller.currentQueueId.collectAsStateWithLifecycle()
@@ -837,7 +977,8 @@ internal class JukeboxController(private val context:Context,private val scope:C
                     }},modifier=Modifier.weight(1f).testTag("playback-search-input").a11yLabel(PLAYBACK_INPUT_HINT))
                 OutlinedIconButton(onClick={chooser.launch(arrayOf("audio/*"))},enabled=!state.busy,shape=RoundedCornerShape(12.dp),modifier=Modifier.size(56.dp).testTag("playback-open-file")) {OndaIcon("folder","Abrir arquivo",Modifier.size(24.dp))}
             }
-            if(state.busy || searching || (state.playing && !state.paused && state.model?.has("_stream")==true && !streamReady))LinearProgressIndicator(Modifier.fillMaxWidth().testTag("playback-source-progress"))
+            if(pendingPlaybackId.isNotBlank() || state.busy || searching || (state.playing && !state.paused && !streamReady))LinearProgressIndicator(Modifier.fillMaxWidth().testTag("playback-source-progress"))
+            if(state.playbackError.isNotBlank())UiErrorText(state.playbackError,modifier=Modifier.testTag("playback-request-error"),color=MaterialTheme.colorScheme.error)
             if(state.records.isNotEmpty())PlaybackCard {
                 Row(Modifier.fillMaxWidth(),verticalAlignment=androidx.compose.ui.Alignment.CenterVertically) {
                     UiText("Resultados",Modifier.weight(1f),style=MaterialTheme.typography.titleSmall)

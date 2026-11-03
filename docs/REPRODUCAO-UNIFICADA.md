@@ -13,7 +13,7 @@ PC e Android passam a apresentar uma tela **Reprodução**, com uma música sele
 
 ## Streaming na versão 1.2.5-rc
 
-Faixas de catálogo podem tocar por streaming no PC e no Android, sem salvar o arquivo completo no cache de áudio quando não há processamento ativo. O PC usa uma reserva de áudio em memória; o Android usa o player nativo com buffer e histórico de reprodução em memória. Endereços de streaming podem expirar e são resolvidos novamente quando necessário.
+Faixas de catálogo podem tocar por streaming no PC e no Android. A reprodução começa com uma reserva pequena e completa o carregamento em segundo plano em um cache temporário de até 256 MB. O PC guarda PCM decodificado em disco e o Android guarda segmentos do player nativo e, para HLS, um arquivo temporário com os pacotes de áudio originais sem recodificação; a barra mostra a região disponível. Saltos pelos trechos carregados dispensam nova conexão. O cache é separado dos downloads, pode ser limpo nas configurações e respeita a limpeza automática de arquivos antigos. Trechos ainda não carregados dependem da rede. Endereços de streaming podem expirar e são resolvidos novamente quando necessário.
 
 Slowed, Jukebox e outros efeitos que exigem processamento preparam o áudio em segundo plano. A faixa atual continua tocando; a posição mais recente é usada quando a versão processada está pronta. A preparação pode usar o cache de áudio. Desligar o processamento permite voltar à reprodução normal. A sessão conserva a faixa e a posição, sem persistir os endereços temporários e seus cabeçalhos de acesso.
 

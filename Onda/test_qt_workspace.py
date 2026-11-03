@@ -541,8 +541,9 @@ class NativeDesktopTests(unittest.TestCase):
             'hidden_tabs', ['catalog', 'downloads', 'queue', 'images', 'metadata']
         )
         self.assertEqual(self.ws.hiddenTabs, ['images', 'metadata'])
+        current_page = self.ws.currentPage
         self.ws.selectPage('images')
-        self.assertEqual(self.ws.currentPage, 'catalog')
+        self.assertEqual(self.ws.currentPage, current_page)
         self.ws.invoke('tab_move', {'key': 'history', 'direction': -1})
         self.assertLess(
             self.ws.settings['tab_order'].index('history'),

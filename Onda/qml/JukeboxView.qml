@@ -3,9 +3,9 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Dialogs
 import Onda 1.0
-ScrollView {
+OndaScrollView {
     id: page
-    ScrollBar.vertical: OndaScrollBar { parent: page; x: page.width-width; y: 0; height: page.height }
+
     property var scrollTopButton: ScrollToTop { target: page.contentItem; viewport: page }
     objectName: "jukeboxView"
     contentWidth: availableWidth
@@ -48,7 +48,7 @@ ScrollView {
                 Label { Layout.fillWidth: true; text: bridge.translate("Resultados"); color: bridge.palette.text }
                 PlaybackButton { objectName: "closeJukeboxSearch"; glyph: "close"; Accessible.name: bridge.translate("Fechar pesquisa"); ToolTip.visible: hovered; ToolTip.text: Accessible.name; onClicked: bridge.closeSearch() }
             }
-            ListView {
+            OndaListView {
                 id: resultList; anchors.fill: parent; anchors.margins: 6; anchors.topMargin: 56; clip: true; model: bridge.stateValue(bridge.stateRevision,"results")
                 delegate: ItemDelegate {
                     required property var modelData; required property int index
@@ -62,7 +62,7 @@ ScrollView {
                         }
                         TapHandler {acceptedButtons:Qt.RightButton;onTapped:resultActions.popup()}
 
-                    width: resultList.width; height: modelData.release_date ? 108 : 84
+                    width: resultList.contentAreaWidth; height: modelData.release_date ? 108 : 84
                     contentItem: RowLayout {
                         Rectangle { Layout.preferredWidth: 64; Layout.preferredHeight: 64; radius: 6; color: bridge.palette.input
                             RoundedArtwork { id: searchCover; objectName: "jukeboxSearchArtwork"; anchors.fill: parent; source: modelData.cover || ""; fillMode: Image.PreserveAspectFit; sourceSize.width: 128; sourceSize.height: 128; asynchronous: true }

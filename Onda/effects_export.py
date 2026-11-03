@@ -9,6 +9,46 @@ import tempfile
 from audio_tools import effect_name
 
 
+def segment_times(start='', end=''):
+    import math
+
+    def seconds(value):
+        if value in ('', None):
+            return None
+        parts = str(value).strip().replace(',', '.').split(':')
+        if len(parts) > 3:
+            raise ValueError('Use tempos como 1:30 ou 90 segundos.')
+        try:
+            values = [float(part) for part in parts]
+        except ValueError:
+            raise ValueError('Use tempos como 1:30 ou 90 segundos.') from None
+        if any(not math.isfinite(n) or n < 0 for n in values) or any(
+            n >= 60 for n in values[1:]
+        ):
+            raise ValueError('Use tempos como 1:30 ou 90 segundos.')
+        result = 0.0
+        for n in values:
+            result = result * 60 + n
+        return result
+
+    start, end = seconds(start) or 0.0, seconds(end)
+    if end is not None and end <= start:
+        raise ValueError('O fim do trecho deve ser depois do início.')
+    return start, end
+
+
+def position_text(value):
+    if not str(value or '').strip():
+        return ''
+    seconds, _ = segment_times(value, '')
+    milliseconds = round(seconds * 1000)
+    whole, fraction = divmod(milliseconds, 1000)
+    minutes, second = divmod(whole, 60)
+    hours, minute = divmod(minutes, 60)
+    text = f'{hours}:{minute:02d}:{second:02d}' if hours else f'{minutes}:{second:02d}'
+    return text + (f'.{fraction:03d}'.rstrip('0') if fraction else '')
+
+
 def export_config(
     source,
     record=None,
@@ -18,7 +58,10 @@ def export_config(
     keep_pitch=False,
     enabled=True,
     cover_data='',
+    segment_start='',
+    segment_end='',
 ):
+    start, end = segment_times(segment_start, segment_end)
     from audio_library import read_audio, FIELDS
 
     record = dict(record or {})
@@ -100,6 +143,8 @@ def export_config(
     )
     return dict(
         source=str(source),
+        segment_start=start,
+        segment_end=end,
         speed=speed,
         reverb=reverb,
         keep_pitch=bool(keep_pitch),

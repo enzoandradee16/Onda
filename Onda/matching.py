@@ -189,6 +189,13 @@ def matching_tokens(value):
         "regrabacion": "rerecording",
         "versao instrumental": "instrumental",
         "version instrumental": "instrumental",
+        "off vocal": "instrumental",
+        "backing track": "instrumental",
+        "minus one": "instrumental",
+        "censored": "clean",
+        "censurada": "clean",
+        "censurado": "clean",
+        "sem palavroes": "clean",
     }
     for phrase, canonical in aliases.items():
         parts = set(phrase.split())

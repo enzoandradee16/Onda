@@ -177,6 +177,10 @@ class DesktopWorkspace(QObject):
         self.preview_timer.setSingleShot(True)
         self.preview_timer.setInterval(150)
         self.preview_timer.timeout.connect(self.play_effects_preview)
+        self.image_preview_timer = QTimer(self)
+        self.image_preview_timer.setSingleShot(True)
+        self.image_preview_timer.setInterval(400)
+        self.image_preview_timer.timeout.connect(self.auto_image_preview)
         self.options = {
             'spotifyPlaylists': [],
             'spotifyPlaylistsNext': -1,
@@ -710,6 +714,12 @@ class DesktopWorkspace(QObject):
             'width': width,
             'height': height,
             'keep_ratio': self.settings.get('image_keep_ratio', True),
+            'remove_background': self.settings.get('image_remove_background', False),
+            'rotation': self.settings.get('image_rotation', 0),
+            'crop': self.settings.get('image_crop', 'Original'),
+            'background': self.settings.get('image_background', 'transparent'),
+            'background_color': self.settings.get('image_background_color', '#ffffff'),
+            'background_image': self.settings.get('image_background_image', ''),
         }
 
     def notify(self, text, error=False):
@@ -735,11 +745,13 @@ class DesktopWorkspace(QObject):
         if key in ('speed', 'reverb', 'keep_pitch', 'effectsEnabled'):
             self.sync_unified_effects()
         if key == 'imageUrl':
+            self.schedule_image_preview()
             self.cancel_task('image_info')
             self.cancel_task('image_preview')
             self.options['imageInfo'] = {}
             self.options['imageSource'] = ''
             self.options['imagePreview'] = ''
+            self.options['imageOriginalPreview'] = ''
             if self.options.get('imageGalleryEmbedded'):
                 self.cancel_task('image_gallery_manifest')
                 self.cancel_task('image_gallery_thumbnail')
@@ -810,6 +822,20 @@ class DesktopWorkspace(QObject):
             if key not in cleaned:
                 return
             self.settings[key] = cleaned[key]
+        if key in (
+            'image_format',
+            'image_size',
+            'image_width',
+            'image_height',
+            'image_keep_ratio',
+            'image_remove_background',
+            'image_rotation',
+            'image_crop',
+            'image_background',
+            'image_background_color',
+            'image_background_image',
+        ):
+            self.schedule_image_preview()
         if (
             key in ('jukebox_gradual_transition', 'jukebox_transition_seconds')
             and self.player.active
@@ -1247,7 +1273,12 @@ class DesktopWorkspace(QObject):
             if source:
                 self.enqueue(
                     [source],
-                    overrides={'mode': 'photos', 'playlist': False},
+                    overrides={
+                        'mode': 'photos',
+                        'playlist': False,
+                        'social_best_quality': False,
+                        'simple_download_ui': False,
+                    },
                     start=True,
                 )
         elif action == 'request_history_details':
@@ -1785,6 +1816,37 @@ class DesktopWorkspace(QObject):
                 self.models['playlists'].update(
                     i, checked=row.get('comparison') == 'missing'
                 )
+        elif action == 'image_paste':
+            path = self.clipboard_image_path()
+            if path:
+                self.accept_files('image', [path])
+                return
+            clipboard = QGuiApplication.clipboard()
+            image = clipboard.image()
+            if not image.isNull():
+                folder = self.store.path.parent / 'image-preview'
+                folder.mkdir(parents=True, exist_ok=True)
+                path = folder / ('clipboard-' + uuid.uuid4().hex + '.png')
+                if not image.save(str(path), 'PNG'):
+                    raise ValueError('Não foi possível abrir este arquivo.')
+                self.setOption('imageUrl', '')
+                self.options['imageSource'] = str(path)
+                self.options['imageOriginalPreview'] = QUrl.fromLocalFile(
+                    str(path)
+                ).toString()
+                self.optionsChanged.emit()
+                self.schedule_image_preview()
+            elif clipboard.text().strip():
+                self.setOption('imageUrl', clipboard.text().strip())
+        elif action == 'image_background_pick':
+            from PySide6.QtWidgets import QFileDialog
+
+            path, _ = QFileDialog.getOpenFileName(
+                None, tr('Imagem de fundo'), '', 'Images (*.png *.jpg *.jpeg *.webp)'
+            )
+            if path:
+                self.setSetting('image_background_image', path)
+                self.setSetting('image_background', 'image')
         elif action == 'pick':
             self.pick(p['kind'])
         elif action == 'convert':
@@ -1847,12 +1909,27 @@ class DesktopWorkspace(QObject):
         elif action == 'effects_export':
             self.export_effects()
         elif action in ('image_preview', 'image_export'):
-            if action == 'image_preview' and self.options.get('imageUrl'):
+            if (
+                action == 'image_preview'
+                and self.options.get('imageUrl')
+                and not self.settings.get('image_remove_background')
+                and not __import__('image_output').has_image_edits(self.image_options())
+            ):
                 self.dispatch(
                     'preview_images',
                     {'url': self.options['imageUrl'].strip(), 'embedded': True},
                 )
                 return
+            if action == 'image_preview':
+                self.cancel_task('image_gallery_manifest')
+                self.cancel_task('image_gallery_thumbnail')
+                self.options.update(
+                    imageGallery=[],
+                    imageGalleryToken='',
+                    imageGallerySource='',
+                    imageGalleryEmbedded=True,
+                )
+                self.optionsChanged.emit()
             if not self.options['imageSource']:
                 if action == 'image_preview':
                     if not self.options['imageUrl'].strip():
@@ -1867,7 +1944,12 @@ class DesktopWorkspace(QObject):
                     return
                 added = self.enqueue(
                     [self.options['imageUrl']],
-                    overrides={'mode': 'photos', 'playlist': False},
+                    overrides={
+                        'mode': 'photos',
+                        'playlist': False,
+                        'social_best_quality': False,
+                        'simple_download_ui': False,
+                    },
                     start=True,
                 )
                 for job in added:
@@ -2166,11 +2248,12 @@ class DesktopWorkspace(QObject):
 
             self.run_task('collection', {'url': url}, loaded)
         elif action == 'playlist_playback':
-            tracks = [
-                dict(row)
-                for row in self.collection_filter.visible_rows()
-                if row.get('checked')
-            ]
+            visible = list(self.collection_filter.visible_rows())
+            selected = [row for row in visible if row.get('checked')]
+            tracks = [dict(row) for row in (selected or visible)]
+            if not tracks:
+                self.notify('Nenhuma música encontrada.')
+                return
             start = len(self.bridge.playlist)
             added = self.bridge.enqueueRecords(
                 [
@@ -3815,8 +3898,12 @@ class DesktopWorkspace(QObject):
             self.cancel_task('image_preview')
             self.options['imageInfo'] = {}
             self.options['imageUrl'] = ''
+            self.options['imageOriginalPreview'] = QUrl.fromLocalFile(
+                paths[0]
+            ).toString()
             self.options['imageSource'] = paths[0]
             self.options['imagePreview'] = QUrl.fromLocalFile(paths[0]).toString()
+            self.schedule_image_preview()
             self.run_task(
                 'image_info',
                 {'source': paths[0]},
@@ -3904,7 +3991,90 @@ class DesktopWorkspace(QObject):
         self.options['originalCover'] = cover
         self.optionsChanged.emit()
 
+    @Slot(str, result=str)
+    def positionText(self, value):
+        from effects_export import position_text
+
+        try:
+            return position_text(value)
+        except ValueError:
+            return value
+
+    @Slot(result=bool)
+    def clipboardHasImage(self):
+        data = QGuiApplication.clipboard().mimeData()
+        return bool(data and (data.hasImage() or self.clipboard_image_path()))
+
+    def clipboard_image_path(self):
+        clipboard = QGuiApplication.clipboard()
+        data = clipboard.mimeData()
+        if data is None:
+            return ''
+        paths = [url.toLocalFile() for url in data.urls() if url.isLocalFile()]
+        text = clipboard.text().strip().strip('"')
+        if text:
+            url = QUrl(text)
+            if url.isLocalFile():
+                paths.append(url.toLocalFile())
+            elif not url.scheme() or len(url.scheme()) == 1:
+                paths.append(text)
+        for value in paths:
+            path = Path(value)
+            if (
+                path.suffix.lower()
+                in (
+                    '.png',
+                    '.jpg',
+                    '.jpeg',
+                    '.webp',
+                    '.gif',
+                    '.svg',
+                    '.bmp',
+                    '.tif',
+                    '.tiff',
+                    '.avif',
+                    '.ico',
+                )
+                and path.is_file()
+            ):
+                return str(path)
+        return ''
+
+    def schedule_image_preview(self):
+        for action in (
+            'image_preview',
+            'image_gallery_manifest',
+            'image_gallery_thumbnail',
+        ):
+            self.cancel_task(action)
+        self.image_preview_timer.start()
+
+    def auto_image_preview(self):
+        if (
+            self.settings.get('image_background') == 'image'
+            and not Path(self.settings.get('image_background_image', '')).is_file()
+        ):
+            return
+        from urllib.parse import urlparse
+
+        try:
+            url = urlparse(self.options.get('imageUrl', '').strip())
+        except ValueError:
+            return
+        if self.closed or not (
+            self.options.get('imageSource')
+            or (url.scheme in ('http', 'https') and url.netloc)
+        ):
+            return
+        self.invoke('image_preview', {})
+
     def image_result(self, result):
+        if result.get('original_preview'):
+            self.options['imageOriginalPreview'] = (
+                QUrl.fromLocalFile(result['original_preview']).toString()
+                + '?v='
+                + str(time.time())
+            )
         if result.get('image_info'):
             self.options['imageInfo'] = result['image_info']
             self.optionsChanged.emit()
@@ -3955,6 +4125,8 @@ class DesktopWorkspace(QObject):
         source = (
             self.bridge.model['source'] if unified else self.options['effectsSource']
         )
+        if not source and unified:
+            source = (self.bridge.model.get('_stream') or {}).get('source_url', '')
         if not source:
             raise ValueError('Abra um arquivo de áudio primeiro.')
         if unified:
@@ -3984,6 +4156,13 @@ class DesktopWorkspace(QObject):
                 cover_data=self.options['effectsCover'],
                 **{key: self.options[key] for key in ('speed', 'reverb', 'keep_pitch')},
             )
+        if self.options.get('exportSegment'):
+            from effects_export import segment_times
+
+            config['segment_start'], config['segment_end'] = segment_times(
+                self.options.get('exportStart', ''), self.options.get('exportEnd', '')
+            )
+            config['export_name'] += ' - trecho'
         fmt = self.options['effectFormat'].lower()
         folder = Path(self.settings.get('folder') or Path.home() / 'Downloads' / 'Onda')
         target, _ = QFileDialog.getSaveFileName(
@@ -4012,6 +4191,8 @@ class DesktopWorkspace(QObject):
             replace=Path(target).exists(),
             bitrate=320,
             conversion_threads=self.settings.get('conversion_threads', 'Automático'),
+            youtube_cookies_file=self.config().get('youtube_cookies_file', ''),
+            youtube_user_agent=self.config().get('youtube_user_agent', ''),
         )
         self.launch_thread(
             lambda: self.process_worker(identity, config, cancel, 'effects_worker.py')

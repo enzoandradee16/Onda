@@ -14,6 +14,8 @@ Pré-release candidata à versão 1.2.5. Este rascunho prepara o código e as no
 
 ## Reprodução, busca e playlists
 
+- A preparação da fila aguarda o áudio e os efeitos ativos; troca entre streams preserva o foco de áudio no Android.
+- Carregamento progressivo em cache temporário limitado a 256 MB no PC e Android, com indicação na barra e saltos pelos trechos carregados sem nova espera de rede.
 - Reprodução normal por streaming no PC e Android; preparação de efeitos mantém o áudio atual até a nova versão ficar pronta.
 - Melhorias na aplicação/remoção dos efeitos, no processamento de áudio e na continuidade da reprodução.
 - Playlists da conta Spotify disponíveis para reprodução ou download pelo motor do ONDA; o catálogo não fornece o áudio do Spotify.

@@ -10,6 +10,8 @@ Popup {
     padding: 20
     modal: true
     focus: true
+    property bool themePreview:true
+    property string titleText:"Cor personalizada"
     property string initialColor: "#79E2C4"
     property real hue: 0
     property real saturation: 1
@@ -29,7 +31,7 @@ Popup {
     background: Card {}
     contentItem: ColumnLayout {
         spacing: 12
-        Label { text: bridge.translate("Cor personalizada"); color: bridge.palette.text; font.pixelSize: 22; Layout.fillWidth: true }
+        Label { text: bridge.translate(popup.titleText); color: bridge.palette.text; font.pixelSize: 22; Layout.fillWidth: true }
         Rectangle {
             id: plane
             Layout.fillWidth: true; Layout.preferredHeight: 160
@@ -64,16 +66,16 @@ Popup {
         Label { visible: !popup.preview.valid; text: bridge.translate("Use o formato #RRGGBB."); color: bridge.palette.error; Layout.fillWidth: true }
         Rectangle {
             Layout.fillWidth: true; Layout.preferredHeight: 76; radius: 12
-            color: popup.preview.valid ? popup.preview.bg : bridge.palette.bg
+            color: popup.preview.valid ? (popup.themePreview ? popup.preview.bg : popup.preview.hex) : bridge.palette.bg
             border.color: bridge.palette.line
-            RowLayout { anchors.fill: parent; anchors.margins: 12
+            RowLayout { visible:popup.themePreview; anchors.fill: parent; anchors.margins: 12
                 Label { Layout.fillWidth: true; text: bridge.translate("Prévia"); color: popup.preview.valid ? popup.preview.text : bridge.palette.text }
                 Rectangle { Layout.preferredWidth: Math.max(140,exampleText.implicitWidth+24); Layout.preferredHeight: 40; radius: 9; color: popup.preview.valid ? popup.preview.accent : bridge.palette.accent
                     Label { id: exampleText; anchors.centerIn: parent; text: bridge.translate("Texto de exemplo"); color: popup.preview.valid ? popup.preview.accent_text : bridge.palette.accent_text }
                 }
             }
         }
-        Label { text: bridge.translate("A tonalidade pode ser ajustada para manter o contraste."); color: bridge.palette.muted; wrapMode: Text.Wrap; Layout.fillWidth: true }
+        Label { visible:popup.themePreview; text: bridge.translate("A tonalidade pode ser ajustada para manter o contraste."); color: bridge.palette.muted; wrapMode: Text.Wrap; Layout.fillWidth: true }
         RowLayout { Layout.alignment: Qt.AlignRight
             ActionButton { text: bridge.translate("Cancelar"); onClicked: popup.close() }
             ActionButton { objectName: "applyCustomAccent"; primary: true; text: bridge.translate("Aplicar cor"); enabled: popup.preview.valid; onClicked: { popup.selected(popup.preview.hex);popup.close() } }

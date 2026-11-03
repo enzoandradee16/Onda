@@ -9,6 +9,7 @@ ApplicationWindow {
         background: Rectangle {
             x: slider.leftPadding; y: slider.topPadding+slider.availableHeight/2-1.5
             width: slider.availableWidth; height: 3; radius: 2; color: bridge.palette.line
+            Rectangle {width:Math.max(0,Math.min(1,(slider.bufferedValue-slider.from)/Math.max(.001,slider.to-slider.from)))*parent.width;height:parent.height;radius:2;color:bridge.palette.accent;opacity:.3}
             Rectangle {width: slider.visualPosition*parent.width;height: parent.height;radius: 2;color: bridge.palette.accent}
         }
         handle: Rectangle {
@@ -126,7 +127,7 @@ ApplicationWindow {
             Layout.preferredHeight:20;Layout.maximumHeight:20
             Label {text: workspace.clock(miniTimeline.pressed?miniTimeline.previewPosition:mini.frame.position || 0);color: bridge.palette.muted}
             MiniSlider {
-                id:miniTimeline;objectName:"miniTimeline";property real previewPosition:0
+                id:miniTimeline;objectName:"miniTimeline";property real previewPosition:0;bufferedValue:bridge.sourceBufferedEnd
                 Layout.fillWidth:true;from:0;to:Math.max(1,mini.frame.duration || 0);enabled:mini.frame.duration>0
                 Binding {target:miniTimeline;property:"value";value:mini.frame.position || 0;when:!miniTimeline.pressed;restoreMode:Binding.RestoreNone}
                 onMoved:{previewPosition=value;if(!pressed)workspace.seekLyrics(value,true)}
@@ -153,7 +154,7 @@ ApplicationWindow {
             MiniSlider {objectName: "miniVolume"; Layout.fillWidth: true;value: mini.volumeValue;Accessible.name: bridge.translate("Volume");onMoved: mini.volumeMoved(value)}
         }
         }
-        ListView {
+        OndaListView {
             id: miniLyrics; objectName: "miniPlayerLyrics"; visible: mini.lyricsVisible; Layout.fillWidth: true; Layout.fillHeight: true; Layout.minimumHeight: 0; Layout.preferredHeight: 0; clip: true; spacing: 14
             reuseItems:true;cacheBuffer:300;pixelAligned:true;boundsBehavior:Flickable.StopAtBounds;maximumFlickVelocity:3500;flickDeceleration:1800
             onMovementStarted:manualLyricsPause.restart()
@@ -162,11 +163,11 @@ ApplicationWindow {
             model: mini.lyricLines
             property int activeLine: mini.frame.active === undefined ? -1 : mini.frame.active
             onActiveLineChanged: if(activeLine>=0&&!moving&&!manualLyricsPause.running)Qt.callLater(function(){if(!miniLyrics.moving&&!manualLyricsPause.running)miniLyrics.positionViewAtIndex(miniLyrics.activeLine,ListView.Center)})
-            ScrollBar.vertical: ScrollBar {}
+
             delegate: AnimatedLyric {
                 required property var modelData;required property int index
                 lineKey: String(index===miniLyrics.activeLine)
-                width: miniLyrics.width;wrapMode: Text.Wrap;horizontalAlignment: Text.AlignHCenter
+                width: miniLyrics.contentAreaWidth;wrapMode: Text.Wrap;horizontalAlignment: Text.AlignHCenter
                 text: index===miniLyrics.activeLine ? mini.frame.text : modelData.text
                 textFormat: index===miniLyrics.activeLine ? Text.RichText : Text.PlainText
                 color: index===miniLyrics.activeLine ? bridge.palette.accent : bridge.palette.muted
@@ -175,19 +176,19 @@ ApplicationWindow {
             }
             Label {anchors.centerIn: parent;visible: !mini.lyricLines.length;text: bridge.translate("Buscar letra online");color: bridge.palette.muted;TapHandler {onTapped: workspace.invoke("lyrics_online",{jukebox:true})}}
         }
-        ListView {
+        OndaListView {
             id:miniQueue;objectName:"miniPlayerQueue"
             visible: mini.queueVisible; Layout.fillWidth: true; Layout.fillHeight: true; Layout.minimumHeight: 0; Layout.preferredHeight: 0; clip: true
             spacing:4;reuseItems:true;cacheBuffer:300;pixelAligned:true;boundsBehavior:Flickable.StopAtBounds;maximumFlickVelocity:3500;flickDeceleration:1800
             onMovementEnded:scrollPause.restart()
             WheelHandler {target:null;onWheel:function(event){mini.scrollList(miniQueue,event)}}
             model: miniQueueRows
-            ScrollBar.vertical: ScrollBar {}
+
             delegate: ItemDelegate {
                 id:miniQueueTrack
                 objectName:"miniQueueTrack"+index
                 required property var modelData;required property int index
-                width: ListView.view.width;height:60
+                width: ListView.view.contentAreaWidth;height:60
                 readonly property var record:modelData.record || {}
                 readonly property bool current:!!modelData.current
                 contentItem: RowLayout {

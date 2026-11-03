@@ -23,6 +23,7 @@ def linked(path):
 
 def cache_files(root):
     import re
+    from progressive_audio_cache import in_use as stream_cache_in_use
 
     root = Path(root)
     if linked(root):
@@ -51,6 +52,7 @@ def cache_files(root):
                     not linked(path)
                     and path.resolve().is_relative_to(base.resolve())
                     and not cache_in_use(path)
+                    and not stream_cache_in_use(path)
                 ):
                     yield path
     for path in root.glob('preview-*.mp3'):
@@ -79,11 +81,14 @@ def cache_info(root=None):
     return {'bytes': size}
 
 
-def clear_cache(root=None):
+def clear_cache(root=None, *, protected=()):
     root = Path(root) if root is not None else root_path()
+    protected = {Path(path).resolve() for path in protected}
     before = cache_info(root)['bytes']
     failed = 0
     for path in cache_files(root):
+        if path.resolve() in protected:
+            continue
         try:
             path.unlink()
         except OSError:

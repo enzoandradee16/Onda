@@ -24,7 +24,7 @@ On PC, right-click lists or cards to open the actions available in that tab. Shi
 
 On PC, the **Playback** tab is in the sidebar’s **Library** category. On Android, it remains in the bottom bar.
 
-Catalog tracks can stream on PC and Android without saving the complete audio file to the playback cache when effects are off. Effects prepare in the background while the current audio keeps playing until the processed version is ready.
+Catalog tracks can stream on PC and Android. Playback starts with a small buffer and loads the remainder into a temporary cache capped at 256 MB, allowing seeks within cached sections without another network wait. This disposable cache is separate from downloads and can be cleared in settings. Effects prepare in the background while the current audio keeps playing until the processed version is ready.
 
 ## Application highlights
 

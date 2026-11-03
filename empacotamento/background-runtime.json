@@ -1,0 +1,14 @@
+[
+  {
+    "integrity": "sha512-OBTsG0W8ddBVOeVVVychpVBS87A9YV5sa2hJ6lc025T97Le+J4v++PwSC4XFs1C62SWyNdof0Mh4KvnZgtt4aw==",
+    "url": "https://registry.npmjs.org/onnxruntime-node/-/onnxruntime-node-1.23.2.tgz",
+    "version": "1.23.2",
+    "name": "onnxruntime-node"
+  },
+  {
+    "integrity": "sha512-5LFsC9Dukzp2WV6kNHYLNzp8sT6V02IubLCbzw2Xd6X5GOlr65gAX6xiJwyi2URJol/s71gaQLC5F2C25AAR2w==",
+    "url": "https://registry.npmjs.org/onnxruntime-common/-/onnxruntime-common-1.23.2.tgz",
+    "version": "1.23.2",
+    "name": "onnxruntime-common"
+  }
+]

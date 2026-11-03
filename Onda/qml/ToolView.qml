@@ -1,12 +1,27 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-ScrollView {
+OndaScrollView {
+    property bool showOriginalImage:false
+    readonly property string imageInputKey:String(workspace.optionValue(workspace.optionsRevision,"imageSource") || "")+"|"+String(workspace.optionValue(workspace.optionsRevision,"imageUrl") || "")+"|"+JSON.stringify([workspace.preferences.image_remove_background,workspace.preferences.image_crop,workspace.preferences.image_rotation,workspace.preferences.image_background,workspace.preferences.image_background_color,workspace.preferences.image_background_image])
+    onImageInputKeyChanged:showOriginalImage=false
+    CustomAccentPopup {
+        id:imageBackgroundColorPicker
+        objectName:"imageBackgroundColorPicker"
+        initialColor:workspace.preferences.image_background_color || "#FFFFFF"
+        titleText:"Cor do fundo";themePreview:false
+        onSelected:function(color){workspace.setSetting("image_background_color",color)}
+    }
+    Shortcut {sequence:"Ctrl+V";enabled:page.visible && page.mode==="images";onActivated:{
+        var field=page.Window.window.activeFocusItem
+        if(!workspace.clipboardHasImage() && field && typeof field.paste === "function")field.paste()
+        else workspace.invoke("image_paste",{})
+    }}
     property var effectsLyricFrame: ({})
     Timer { interval: 100; running: page.visible; repeat: true; onTriggered: page.effectsLyricFrame=workspace.lyricsClock(true) }
     signal lyricsRequested()
     id: page
-    ScrollBar.vertical: OndaScrollBar { parent: page; x: page.width-width; y: 0; height: page.height }
+
     property var scrollTopButton: ScrollToTop { target: page.contentItem; viewport: page }
     property string mode: workspace.currentPage
     readonly property bool effectsSearching: workspace.activityValue(workspace.statusRevision,"busy").indexOf("effects_collection")>=0 || workspace.activityValue(workspace.statusRevision,"busy").indexOf("effects_search")>=0 || workspace.activityValue(workspace.statusRevision,"busy").indexOf("effects_load")>=0 || workspace.activityValue(workspace.statusRevision,"busy").indexOf("effects_queue_info")>=0
@@ -32,9 +47,12 @@ ScrollView {
         Card { visible: page.mode !== "effects"; Layout.fillWidth: true; implicitHeight: sourceBody.implicitHeight+36
             ColumnLayout { id: sourceBody; anchors.fill: parent; anchors.margins: 18; spacing: Math.round(12*bridge.spacing)
                 RowLayout { Layout.fillWidth: true; spacing: Math.round(10*bridge.spacing)
-                    ActionButton { primary: true; text: bridge.translate("Escolher arquivo"); onClicked: workspace.invoke("pick",{kind: page.mode === "effects" ? "effects" : page.mode === "images" ? "image" : page.mode}) }
-                    Label { Layout.fillWidth: true; wrapMode: Text.Wrap; color: bridge.palette.muted; text: page.mode === "converter" ? workspace.optionValue(workspace.optionsRevision,"converterSources").join(" · ") : page.mode === "metadata" ? workspace.optionValue(workspace.optionsRevision,"metadataSources").join(" · ") : page.mode === "effects" ? workspace.optionValue(workspace.optionsRevision,"effectsSource") : workspace.optionValue(workspace.optionsRevision,"imageSource") }
+                    ActionButton { objectName: "toolChooseFile"; primary: true; text: bridge.translate("Escolher arquivo"); onClicked: workspace.invoke("pick",{kind: page.mode === "effects" ? "effects" : page.mode === "images" ? "image" : page.mode}) }
+                    OndaTextField { objectName:"imageLinkInput"; visible:page.mode==="images"; Layout.fillWidth:true; Layout.minimumWidth:100; placeholderText:bridge.translate("Link da imagem ou publicação");text:workspace.optionValue(workspace.optionsRevision,"imageUrl");onTextEdited:workspace.setOption("imageUrl",text) }
+                    ActionButton { visible:page.mode==="images";text:bridge.translate("Colar imagem ou link");onClicked:workspace.invoke("image_paste",{}) }
+                    Label { visible:page.mode!=="images"; Layout.fillWidth: true; wrapMode: Text.Wrap; color: bridge.palette.muted; text: page.mode === "converter" ? workspace.optionValue(workspace.optionsRevision,"converterSources").join(" · ") : page.mode === "metadata" ? workspace.optionValue(workspace.optionsRevision,"metadataSources").join(" · ") : page.mode === "effects" ? workspace.optionValue(workspace.optionsRevision,"effectsSource") : workspace.optionValue(workspace.optionsRevision,"imageSource") }
                 }
+                Label {visible:page.mode==="images" && !!workspace.optionValue(workspace.optionsRevision,"imageSource");Layout.fillWidth:true;elide:Text.ElideMiddle;text:workspace.optionValue(workspace.optionsRevision,"imageSource");color:bridge.palette.muted}
                 Label { text: bridge.translate(page.mode === "converter" ? "Selecione um ou vários arquivos para converter em lote." : page.mode === "metadata" ? "Edite os metadados e a capa do áudio." : page.mode === "images" ? "Converta imagens ou baixe fotos por link." : "Ajuste os efeitos e exporte a música inteira."); color: bridge.palette.muted; Layout.fillWidth: true; wrapMode: Text.Wrap }
             }
         }
@@ -63,9 +81,9 @@ ScrollView {
                     Label { Layout.fillWidth: true; text: bridge.translate("Resultados"); color: bridge.palette.text }
                     PlaybackButton { glyph: "close"; Accessible.name: bridge.translate("Fechar pesquisa"); onClicked: workspace.setOption("effectsResults",[]) }
                 }
-                ListView {
+                OndaListView {
                     id: effectsResultsList; anchors.fill: parent; anchors.margins: 6; anchors.topMargin: 56; clip: true
-                    model: workspace.optionValue(workspace.optionsRevision,"effectsResults") || []; ScrollBar.vertical: ScrollBar {}
+                    model: workspace.optionValue(workspace.optionsRevision,"effectsResults") || [];
                     delegate: ItemDelegate {
                         required property var modelData; required property int index
                         Component.onCompleted: workspace.invoke("request_card_details",{model:"effectsResults",source:modelData.source_url || ""})
@@ -78,7 +96,7 @@ ScrollView {
                         }
                         TapHandler {acceptedButtons:Qt.RightButton;onTapped:resultActions.popup()}
 
-                        width: effectsResultsList.width; height: modelData.release_date ? 108 : 84
+                        width: effectsResultsList.contentAreaWidth; height: modelData.release_date ? 108 : 84
                         contentItem: RowLayout {
                             Rectangle { Layout.preferredWidth: 64; Layout.preferredHeight: 64; radius: 6; color: bridge.palette.input
                                 RoundedArtwork { id: effectResultCover; anchors.fill: parent; source: modelData.cover_url || ""; fillMode: Image.PreserveAspectFit; sourceSize.width: 128; sourceSize.height: 128; asynchronous: true }
@@ -172,15 +190,50 @@ ScrollView {
             }
         }
         ColumnLayout { visible: page.mode === "images"; Layout.fillWidth: true; spacing: Math.round(14*bridge.spacing)
-            OndaTextField { Layout.fillWidth: true; placeholderText: bridge.translate("Link da imagem ou publicação"); text: workspace.optionValue(workspace.optionsRevision,"imageUrl"); onTextEdited: workspace.setOption("imageUrl",text) }
             RowLayout { Layout.fillWidth: true; spacing: Math.round(10*bridge.spacing)
                 OptionField { Layout.fillWidth: true; settings: true; field: ({key:"image_format",label:"Formato",kind:"select",choices:["Original","JPG","PNG","WebP","SVG"]}) }
                 OptionField { Layout.fillWidth: true; settings: true; field: ({key:"image_size",label:"Tamanho máximo",kind:"select",choices:["Original","Até 1920 × 1080","Até 1280 × 720","Até 1080 × 1080","Personalizado"]}) }
                 OptionField { visible: workspace.preferences.image_size === "Personalizado"; settings: true; field: ({key:"image_width",label:"Largura",kind:"text"}) }
                 OptionField { visible: workspace.preferences.image_size === "Personalizado"; settings: true; field: ({key:"image_height",label:"Altura",kind:"text"}) }
             }
-            OndaSwitch { text: bridge.translate("Manter proporção"); checked: workspace.preferences.image_keep_ratio; onToggled: workspace.setSetting("image_keep_ratio",checked) }
-            RowLayout { spacing: Math.round(10*bridge.spacing); TaskButton { idleText: bridge.translate("Visualizar"); operation: "image_preview"; taskNames: ["image_preview","image_gallery_manifest"] } TaskButton { primary: true; idleText: bridge.translate("Exportar / baixar"); operation: "image_export"; taskNames: ["image_export"] } }
+            Flow {
+                objectName:"imageGeometryControls"
+                Layout.fillWidth:true;spacing:Math.round(16*bridge.spacing)
+                OndaSwitch { text:bridge.translate("Manter proporção");checked:workspace.preferences.image_keep_ratio;onToggled:workspace.setSetting("image_keep_ratio",checked) }
+                RowLayout {spacing:10
+                    Label {text:bridge.translate("Recorte central");color:bridge.palette.muted}
+                    ChoiceBox {model:["Original","1:1","4:3","16:9","9:16"];currentIndex:model.indexOf(workspace.preferences.image_crop || "Original");onActivated:workspace.setSetting("image_crop",currentText)}
+                }
+                ActionButton {text:bridge.translate("Girar 90°");onClicked:workspace.setSetting("image_rotation",((workspace.preferences.image_rotation || 0)+90)%360)}
+            }
+            Flow {
+                objectName:"imageBackgroundControls"
+                Layout.fillWidth:true;spacing:Math.round(16*bridge.spacing)
+                OndaSwitch {objectName:"imageRemoveBackground";text:bridge.translate("Remover fundo");checked:!!workspace.preferences.image_remove_background;onToggled:workspace.setSetting("image_remove_background",checked)}
+                RowLayout {spacing:10
+                    Label {text:bridge.translate("Fundo");color:bridge.palette.muted}
+                    ChoiceBox {property var keys:["transparent","color","image"];model:[bridge.translate("Transparente"),bridge.translate("Cor sólida"),bridge.translate("Outra imagem")];currentIndex:keys.indexOf(workspace.preferences.image_background || "transparent");onActivated:workspace.setSetting("image_background",keys[index])}
+                }
+                ActionButton {
+                    objectName:"imageBackgroundColorButton"
+                    visible:workspace.preferences.image_background==="color"
+                    text:bridge.translate("Cor do fundo")
+                    implicitWidth:imageColorContent.implicitWidth+32
+                    leftPadding:16;rightPadding:16
+                    contentItem:RowLayout {
+                        id:imageColorContent
+                        spacing:8
+                        Rectangle {implicitWidth:22;implicitHeight:22;radius:4;color:workspace.preferences.image_background_color || "#FFFFFF";border.color:bridge.palette.line}
+                        Label {text:bridge.translate("Cor do fundo");color:bridge.palette.text;font.pixelSize:Math.round(14*bridge.fontScale);font.weight:Font.Medium}
+                    }
+                    onClicked:imageBackgroundColorPicker.open()
+                }
+                OndaTextField {visible:workspace.preferences.image_background==="color";width:130;text:workspace.preferences.image_background_color || "#ffffff";placeholderText:"#RRGGBB";onEditingFinished:workspace.setSetting("image_background_color",text)}
+                ActionButton {visible:workspace.preferences.image_background==="image";text:bridge.translate("Escolher fundo");onClicked:workspace.invoke("image_background_pick",{})}
+                ActionButton {text:bridge.translate(page.showOriginalImage ? "Mostrar resultado" : "Mostrar original");enabled:!!workspace.optionValue(workspace.optionsRevision,"imageOriginalPreview");onClicked:page.showOriginalImage=!page.showOriginalImage}
+            }
+            Label {text:bridge.translate("Processamento local. No primeiro uso, baixa um recurso de aproximadamente 5 MB. A transparência é salva em PNG, WebP ou SVG.");color:bridge.palette.muted;Layout.fillWidth:true;wrapMode:Text.WordWrap}
+            TaskButton { primary: true; idleText: bridge.translate("Exportar / baixar"); operation: "image_export"; taskNames: ["image_export"] }
             Label {
                 objectName: "imageInformation"
                 readonly property var original: (workspace.optionValue(workspace.optionsRevision,"imageInfo") || {}).source || ({})
@@ -190,8 +243,8 @@ ScrollView {
                 Layout.fillWidth: true; wrapMode: Text.Wrap; color: bridge.palette.muted
                 text: (original.width ? bridge.translate("Original")+": "+summary(original) : "")+(output.width ? "\n"+bridge.translate("Resultado")+": "+summary(output) : "")
             }
-            EmptyState { Layout.fillWidth: true; Layout.preferredHeight: 220; visible: !workspace.optionValue(workspace.optionsRevision,"imagePreview") && (!workspace.optionValue(workspace.optionsRevision,"imageGalleryEmbedded") || !page.inlineImages.length); heading: bridge.translate((workspace.activityValue(workspace.statusRevision,"busy").indexOf("image_preview")>=0 || workspace.activityValue(workspace.statusRevision,"busy").indexOf("image_gallery_manifest")>=0 || workspace.activityValue(workspace.statusRevision,"busy").indexOf("image_gallery_thumbnail")>=0) ? "Carregando imagem…" : "Sua imagem aparecerá aqui"); description: bridge.translate("Escolha um arquivo ou cole um link e clique em Visualizar. A resolução e o formato serão mostrados quando disponíveis.") }
-            Image { objectName:"inlineImagePreview"; visible: !!workspace.optionValue(workspace.optionsRevision,"imagePreview") || (workspace.optionValue(workspace.optionsRevision,"imageGalleryEmbedded") && page.inlineImages.length>0); source: workspace.optionValue(workspace.optionsRevision,"imagePreview"); Layout.fillWidth: true; Layout.preferredHeight: 360; fillMode: Image.PreserveAspectFit; horizontalAlignment:Image.AlignHCenter;verticalAlignment:Image.AlignVCenter;asynchronous: true; cache: false
+            EmptyState { Layout.fillWidth: true; Layout.preferredHeight: 220; visible: !workspace.optionValue(workspace.optionsRevision,"imagePreview") && (!workspace.optionValue(workspace.optionsRevision,"imageGalleryEmbedded") || !page.inlineImages.length); heading: bridge.translate((workspace.activityValue(workspace.statusRevision,"busy").indexOf("image_preview")>=0 || workspace.activityValue(workspace.statusRevision,"busy").indexOf("image_gallery_manifest")>=0 || workspace.activityValue(workspace.statusRevision,"busy").indexOf("image_gallery_thumbnail")>=0) ? "Carregando imagem…" : "Sua imagem aparecerá aqui"); description: bridge.translate("Escolha um arquivo ou cole um link. A prévia será atualizada automaticamente.") }
+            Image { objectName:"inlineImagePreview"; visible: !!workspace.optionValue(workspace.optionsRevision,"imagePreview") || (workspace.optionValue(workspace.optionsRevision,"imageGalleryEmbedded") && page.inlineImages.length>0); source: page.showOriginalImage ? workspace.optionValue(workspace.optionsRevision,"imageOriginalPreview") : workspace.optionValue(workspace.optionsRevision,"imagePreview"); Layout.fillWidth: true; Layout.preferredHeight: 360; fillMode: Image.PreserveAspectFit; horizontalAlignment:Image.AlignHCenter;verticalAlignment:Image.AlignVCenter;asynchronous: true; cache: false
                 focus: false
                 BusyIndicator {anchors.centerIn:parent;running:workspace.optionValue(workspace.optionsRevision,"imageGalleryEmbedded") && !workspace.optionValue(workspace.optionsRevision,"imagePreview") && !page.inlineImage.error;visible:running}
                 Keys.onLeftPressed:page.navigateImage(-1)

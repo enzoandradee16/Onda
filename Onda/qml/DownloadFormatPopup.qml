@@ -32,7 +32,7 @@ Popup {
             } else dialog.close()
         }
     }
-    contentItem: ScrollView {
+    contentItem: OndaScrollView {
         id: scroll
         clip: true
         contentWidth: availableWidth

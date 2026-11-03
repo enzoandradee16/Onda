@@ -26,7 +26,7 @@ ComboBox {
     }
     delegate: ItemDelegate {
         id: option
-        width: control.popup.availableWidth
+        width: Math.max(0,control.popup.availableWidth-8)
         highlighted: control.highlightedIndex === index
         readonly property bool selected: control.currentIndex === index
         text: bridge.translate(String(control.textRole ? modelData[control.textRole] : modelData))

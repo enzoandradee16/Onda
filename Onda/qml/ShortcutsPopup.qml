@@ -11,9 +11,9 @@ Popup {
     contentItem: ColumnLayout {
         RowLayout { Layout.fillWidth: true; Label { text: bridge.translate("Atalhos personalizáveis"); color: bridge.palette.text; font.pixelSize: Math.round(24*bridge.fontScale); Layout.fillWidth: true } ActionButton { text: bridge.translate("Pronto"); onClicked: popup.close() } }
         Label { Layout.fillWidth: true; wrapMode: Text.Wrap; color: bridge.palette.muted; text: bridge.translate("Clique ou pressione Enter para escolher o atalho. Esc cancela.") }
-        ScrollView {
+        OndaScrollView {
             id: shortcutScroll
-            ScrollBar.vertical: OndaScrollBar { parent: shortcutScroll; x: shortcutScroll.width-width; y: 0; height: shortcutScroll.height }
+
             property var scrollTopButton: ScrollToTop { target: shortcutScroll.contentItem; viewport: shortcutScroll } Layout.fillWidth: true; Layout.fillHeight: true; clip: true; contentWidth: availableWidth
             ColumnLayout { width: parent.availableWidth; spacing: Math.round(12*bridge.spacing)
                 Repeater { model: workspace.shortcutFields

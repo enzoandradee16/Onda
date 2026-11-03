@@ -11,6 +11,153 @@ class ImageGalleryTests(unittest.TestCase):
     tearDown = fixture.PlaybackQueueDrawerTests.tearDown
     settle = fixture.PlaybackQueueDrawerTests.settle
 
+    def test_image_preview_automatically_follows_link_and_background_option(self):
+        from unittest.mock import patch
+        from PySide6.QtTest import QTest
+
+        with patch.object(self.ws, 'dispatch') as dispatch:
+            self.ws.setOption('imageUrl', 'https://example.com/old.png')
+            self.ws.setOption('imageUrl', 'https://example.com/current.png')
+            QTest.qWait(500)
+            dispatch.assert_called_once_with('image_preview', {})
+            dispatch.reset_mock()
+            self.ws.setSetting('image_remove_background', True)
+            QTest.qWait(500)
+            dispatch.assert_called_once_with('image_preview', {})
+            dispatch.reset_mock()
+            self.ws.setSetting('image_remove_background', False)
+            self.ws.setOption('imageUrl', '')
+            QTest.qWait(500)
+            dispatch.assert_not_called()
+
+        self.ws.options['imageSource'] = str(self.images()[0])
+        self.ws.schedule_image_preview()
+        self.wait(lambda: bool(self.ws.options.get('imageInfo')))
+        self.assertTrue(self.ws.options['imagePreview'])
+
+    def test_background_removal_switch_reaches_export_configuration(self):
+        self.window.setWidth(1280)
+        self.window.setHeight(900)
+        self.ws.selectPage('images')
+        self.settle()
+        control = self.find('imageRemoveBackground')
+        self.assertIsNotNone(control)
+        self.click(control)
+        self.assertTrue(self.ws.image_options()['remove_background'])
+        self.click(control)
+        self.assertFalse(self.ws.image_options()['remove_background'])
+
+    def test_clipboard_image_and_queue_removal_undo(self):
+        from PySide6.QtGui import QImage, QColor, QGuiApplication
+        from unittest.mock import patch
+
+        image = QImage(60, 40, QImage.Format_RGBA8888)
+        image.fill(QColor('red'))
+        QGuiApplication.clipboard().setImage(image)
+        self.ws.dispatch('image_paste', {})
+        self.wait(lambda: bool(self.ws.options.get('imageInfo')))
+        self.assertTrue(Path(self.ws.options['imageSource']).is_file())
+        self.assertTrue(self.ws.options.get('imageOriginalPreview'))
+        self.bridge.playlist = [
+            dict(id='a', title='Playing'),
+            dict(id='b', title='Next'),
+        ]
+        self.bridge.queue_index = 0
+        with patch.object(self.bridge, 'prepare_next_queued'):
+            self.bridge.removeQueued(1)
+            self.assertTrue(self.bridge.canUndoQueueRemoval)
+            self.bridge.undoQueueRemoval()
+            self.assertEqual(
+                [row['title'] for row in self.bridge.playlist], ['Playing', 'Next']
+            )
+            self.assertEqual(self.bridge.queue_index, 0)
+            self.assertFalse(self.bridge.canUndoQueueRemoval)
+            self.assertNotEqual(self.bridge.playlist[1]['id'], 'b')
+
+    def test_image_background_picker_keeps_exact_color_without_changing_theme(self):
+        from PySide6.QtCore import QObject
+
+        self.ws.selectPage('images')
+        self.ws.setSetting('image_background', 'color')
+        self.ws.setSetting('image_background_color', '#123456')
+        before = self.bridge.accent
+        self.settle()
+        self.click(self.find('imageBackgroundColorButton'))
+        picker = self.find('imageBackgroundColorPicker')
+        self.assertTrue(picker.property('opened'))
+        picker.findChild(QObject, 'customAccentHex').setProperty('text', '#FA0088')
+        self.settle()
+        self.click(picker.findChild(QObject, 'applyCustomAccent'))
+        self.assertEqual(self.ws.settings['image_background_color'].upper(), '#FA0088')
+        self.assertEqual(self.bridge.accent, before)
+
+    def test_background_removal_survives_source_changes_without_opening_gallery(self):
+        from unittest.mock import patch
+        from PIL import Image
+        from PySide6.QtCore import QUrl
+
+        paths = self.images()
+        self.ws.selectPage('images')
+        self.ws.options.update(
+            imageGallery=[
+                dict(
+                    path=str(paths[0]), url=QUrl.fromLocalFile(str(paths[0])).toString()
+                )
+            ],
+            imageGalleryEmbedded=True,
+        )
+
+        def remove(image, emit):
+            image.putalpha(100)
+            return image
+
+        with patch('image_background.remove_background', side_effect=remove):
+            self.ws.setSetting('image_remove_background', True)
+            previous = ''
+            for path in paths:
+                self.ws.accept_files('image', [str(path)])
+                self.wait(
+                    lambda: 'image_preview' not in self.ws.tasks
+                    and self.ws.options['imagePreview']
+                    != QUrl.fromLocalFile(str(path)).toString()
+                )
+                current = self.ws.options['imagePreview']
+                self.assertNotEqual(current, previous)
+                with Image.open(QUrl(current.split('?')[0]).toLocalFile()) as output:
+                    self.assertEqual(output.getpixel((0, 0))[3], 100)
+                self.assertFalse(self.find('imageGalleryPopup').property('opened'))
+                previous = current
+            self.ws.setSetting('image_remove_background', False)
+            self.wait(lambda: self.ws.options['imagePreview'] != previous)
+            self.assertFalse(self.find('imageGalleryPopup').property('opened'))
+
+    def test_paste_accepts_explorer_file_urls_and_quoted_file_paths(self):
+        from PySide6.QtCore import QMimeData, QUrl
+        from PySide6.QtGui import QGuiApplication
+
+        paths = self.images()
+        self.ws.selectPage('images')
+        clipboard = QGuiApplication.clipboard()
+        data = QMimeData()
+        data.setUrls([QUrl.fromLocalFile(str(paths[0]))])
+        clipboard.setMimeData(data)
+        self.assertTrue(self.ws.clipboardHasImage())
+        self.ws.dispatch('image_paste', {})
+        self.wait(lambda: bool(self.ws.options.get('imageInfo')))
+        self.assertEqual(Path(self.ws.options['imageSource']), paths[0])
+        clipboard.setText('"' + str(paths[1]) + '"')
+        self.assertTrue(self.ws.clipboardHasImage())
+        self.ws.dispatch('image_paste', {})
+        self.wait(
+            lambda: 'image_preview' not in self.ws.tasks
+            and self.ws.options['imagePreview']
+            != QUrl.fromLocalFile(str(paths[1])).toString()
+        )
+        self.assertEqual(Path(self.ws.options['imageSource']), paths[1])
+        self.assertFalse(self.find('imageGalleryPopup').property('opened'))
+        clipboard.clear()
+        self.assertFalse(self.ws.clipboardHasImage())
+
     def images(self):
         from PIL import Image
 

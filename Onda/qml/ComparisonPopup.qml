@@ -15,7 +15,7 @@ Popup {
             ChoiceBox { Layout.fillWidth: true; model: workspace.catalogChoices; textRole: "label"; currentIndex: compare.left; onActivated: compare.left=index }
             ChoiceBox { Layout.fillWidth: true; model: workspace.catalogChoices; textRole: "label"; currentIndex: compare.right; onActivated: compare.right=index }
         }
-        ScrollView { Layout.fillWidth: true; Layout.fillHeight: true; contentWidth: availableWidth
+        OndaScrollView { Layout.fillWidth: true; Layout.fillHeight: true; contentWidth: availableWidth
             OndaTextArea { text: workspace.compareText(compare.left,compare.right); readOnly: true; selectByMouse: true; wrapMode: Text.Wrap; color: bridge.palette.text; font.pixelSize: Math.round(16*bridge.fontScale) }
         }
         ActionButton { primary: true; text: bridge.translate("Pronto"); Layout.alignment: Qt.AlignRight; onClicked: compare.close() }

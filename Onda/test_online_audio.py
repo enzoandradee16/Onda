@@ -15,6 +15,75 @@ from online_audio import resolve, NetworkAudio
 
 
 class OnlineResolveTests(unittest.TestCase):
+    def test_youtube_verification_does_not_discard_a_validated_reference(self):
+        selected = dict(id='abcdefghijk', source_url='https://youtu.be/abcdefghijk')
+        with (
+            patch('yt_dlp.YoutubeDL') as factory,
+            patch('validated_audio.ValidatedAudioStore') as store,
+            patch('matching.resolve_youtube') as search,
+        ):
+            factory.return_value.__enter__.return_value.extract_info.side_effect = (
+                OSError("Sign in to confirm you're not a bot")
+            )
+            store.return_value.get.return_value = selected
+            with self.assertRaises(OSError):
+                resolve(
+                    dict(folder='.'),
+                    dict(
+                        title='Track',
+                        source_url='https://open.spotify.com/track/example',
+                    ),
+                )
+        search.assert_not_called()
+        store.return_value.forget.assert_not_called()
+
+    def test_validated_reference_bypasses_catalog_search_but_rechecks_metadata(self):
+        selected = dict(id='abcdefghijk', source_url='https://youtu.be/abcdefghijk')
+        with (
+            patch('yt_dlp.YoutubeDL') as factory,
+            patch('validated_audio.ValidatedAudioStore') as store,
+            patch('matching.resolve_youtube') as search,
+            patch('matching.revalidate_match') as validate,
+        ):
+            factory.return_value.__enter__.return_value.extract_info.return_value = (
+                dict(url='https://cdn.example/audio', duration=20)
+            )
+            store.return_value.get.return_value = selected
+            resolve(
+                dict(folder='.'),
+                dict(
+                    title='Track', source_url='https://open.spotify.com/track/example'
+                ),
+            )
+        search.assert_not_called()
+        validate.assert_called_once()
+        store.return_value.set.assert_called_once()
+
+    def test_stale_reference_retries_search_once_even_when_database_is_read_only(self):
+        record = dict(
+            title='Track',
+            artists=['Artist'],
+            source_url='https://open.spotify.com/track/example',
+        )
+        selected = dict(id='abcdefghijk', source_url='https://youtu.be/abcdefghijk')
+        downloader = Mock()
+        downloader.extract_info.side_effect = [
+            OSError('Unavailable'),
+            dict(url='https://cdn.example/audio', duration=20),
+        ]
+        with (
+            patch('yt_dlp.YoutubeDL') as factory,
+            patch('validated_audio.ValidatedAudioStore') as store,
+            patch('matching.resolve_youtube', return_value=selected) as search,
+            patch('matching.revalidate_match'),
+        ):
+            factory.return_value.__enter__.return_value = downloader
+            store.return_value.get.return_value = selected
+            model = resolve(dict(folder='.'), record)
+        self.assertEqual(model['duration'], 20)
+        self.assertEqual(downloader.extract_info.call_count, 2)
+        search.assert_called_once()
+
     def test_direct_url_is_resolved_without_downloading_or_postprocessing(self):
         downloader = Mock()
         downloader.extract_info.return_value = dict(
@@ -231,6 +300,104 @@ class OnlineControlsTests(unittest.TestCase):
     setUpClass = classmethod(Fixture.setUpClass.__func__)
     setUp = Fixture.setUp
     tearDown = Fixture.tearDown
+
+    @unittest.skipUnless(os.environ.get('ONDA_FFMPEG'), 'Native FFmpeg/output')
+    def test_switching_from_http_stream_to_prepared_local_audio_starts_immediately(
+        self,
+    ):
+        import time
+        from jukebox import prepare
+        from test_jukebox import song
+        from test_qt_workspace import NativeDesktopTests
+        from PySide6.QtTest import QTest
+
+        source = self.root / 'mixed-transport.wav'
+        song(source, seconds=16)
+        local = prepare(source, os.environ['ONDA_FFMPEG'])
+        local.update(title='Local track', media_title='Local track')
+
+        class Handler(http.server.SimpleHTTPRequestHandler):
+            def log_message(self, *args):
+                pass
+
+        server = http.server.ThreadingHTTPServer(
+            ('127.0.0.1', 0), functools.partial(Handler, directory=str(self.root))
+        )
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        bridge = self.bridge
+        try:
+            stream = self.streamed_model()
+            stream.update(
+                duration=16,
+                beats=[0.0, 16.0],
+                _stream=dict(
+                    url=f'http://127.0.0.1:{server.server_port}/{source.name}'
+                ),
+            )
+            bridge.config_provider = lambda: dict(ffmpeg=os.environ['ONDA_FFMPEG'])
+            bridge._params = (45.0, 35.0, 0.0, True)
+            bridge._effects = {'enabled': False}
+            bridge.preferences['jukebox_gradual_transition'] = False
+            bridge.playlist = [
+                dict(
+                    id='stream',
+                    kind='catalog',
+                    record={},
+                    title='Online',
+                    analysis='ready',
+                ),
+                dict(
+                    id='local',
+                    kind='file',
+                    source=str(source),
+                    title='Local track',
+                    analysis='ready',
+                ),
+            ]
+            bridge._prepared = {'stream': stream, 'local': local}
+            soak = max(
+                0,
+                min(900, int(os.environ.get('ONDA_MIXED_TRANSPORT_SOAK_SECONDS', '0'))),
+            )
+            deadline = time.monotonic() + soak
+            cycles = 0
+            while True:
+                bridge.playQueued(0)
+                NativeDesktopTests.wait_for(
+                    self, lambda: bridge.sourcePosition > 0.2, 10000
+                )
+                previous = bridge.cancelled
+                bridge.seekSeconds(3.25)
+                bridge.playPause()
+                QTest.qWait(50)
+                self.assertTrue(bridge.paused.is_set())
+                bridge.playPause()
+                bridge.playQueued(1)
+                NativeDesktopTests.wait_for(
+                    self,
+                    lambda: bridge.queue_index == 1
+                    and bridge.state['playing']
+                    and not bridge.model.get('_stream')
+                    and bridge.sourcePosition > 0.2,
+                    10000,
+                )
+                self.assertTrue(previous.is_set())
+                self.assertIsNone(bridge._switch_pending)
+                self.assertLessEqual(
+                    sum(worker.is_alive() for worker in bridge.workers), 6
+                )
+                cycles += 1
+                if not soak or time.monotonic() >= deadline:
+                    break
+                if cycles % 20 == 0:
+                    print(f'PC mixed transport cycles: {cycles}', flush=True)
+                QTest.qWait(2000)
+        finally:
+            bridge.stop()
+            server.shutdown()
+            server.server_close()
+            thread.join(2)
 
     def streamed_model(self):
         return dict(
@@ -488,6 +655,82 @@ class OnlineControlsTests(unittest.TestCase):
             server.shutdown()
             server.server_close()
             thread.join(timeout=5)
+
+    @unittest.skipUnless(os.environ.get('ONDA_FFMPEG'), 'FFmpeg integration')
+    def test_prepared_stream_switches_offline_and_keeps_playing(self):
+        from online_audio import prefetch_stream
+        from test_qt_workspace import NativeDesktopTests
+        from PySide6.QtTest import QTest
+
+        root = Path(self.temp.name)
+        for name in ['first.wav', 'second.wav']:
+            with wave.open(str(root / name), 'wb') as sound:
+                sound.setparams((2, 2, 44100, 0, 'NONE', ''))
+                sound.writeframes(b'\x01\x00\x01\x00' * (20 * 44100))
+
+        class Handler(http.server.SimpleHTTPRequestHandler):
+            def log_message(self, *args):
+                pass
+
+        server = http.server.ThreadingHTTPServer(
+            ('127.0.0.1', 0), functools.partial(Handler, directory=str(root))
+        )
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        bridge = self.bridge
+        try:
+            models = []
+            for name in ['first.wav', 'second.wav']:
+                model = self.streamed_model()
+                model.update(
+                    duration=20,
+                    beats=[0.0, 20.0],
+                    title=name,
+                    media_title=name,
+                    _stream=dict(url=f'http://127.0.0.1:{server.server_port}/{name}'),
+                )
+                prefetch_stream(
+                    model, dict(folder=str(root), ffmpeg=os.environ['ONDA_FFMPEG'])
+                )
+                models.append(model)
+            bridge.playlist = [
+                dict(
+                    id=str(i),
+                    title=m['title'],
+                    kind='catalog',
+                    record=dict(title=m['title'], source_url=m['_stream']['url']),
+                    analysis='ready',
+                )
+                for i, m in enumerate(models)
+            ]
+            bridge._prepared.update({str(i): m for i, m in enumerate(models)})
+            bridge._params = (45.0, 35.0, 0.0, True)
+            bridge._effects = {'enabled': False}
+            bridge.preferences.update(
+                jukebox_gradual_transition=True, jukebox_transition_seconds=2
+            )
+            bridge.playQueued(0)
+            NativeDesktopTests.wait_for(
+                self, lambda: bridge.sourcePosition > 0.3, 10000
+            )
+            server.shutdown()
+            server.server_close()
+            thread.join(2)
+            bridge.seekSeconds(17.8)
+            NativeDesktopTests.wait_for(
+                self,
+                lambda: bridge.queue_index == 1 and bridge.sourcePosition > 1,
+                15000,
+            )
+            NativeDesktopTests.wait_for(self, lambda: bridge.sourcePosition > 4, 10000)
+            self.assertTrue(bridge._state['playing'])
+            self.assertFalse(bridge.paused.is_set())
+            self.assertGreater(bridge.sourcePosition, 3)
+        finally:
+            bridge.stop()
+            server.shutdown()
+            server.server_close()
+            thread.join(2)
 
     def test_snapshot_does_not_save_expiring_urls_or_headers(self):
         from playback_session import save

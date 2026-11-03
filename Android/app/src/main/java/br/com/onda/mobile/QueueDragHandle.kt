@@ -24,6 +24,7 @@ import kotlin.math.abs
 private class QueueDragPreview {
     var from by mutableIntStateOf(-1)
     var target by mutableIntStateOf(-1)
+    var identity by mutableStateOf("")
     var distance by mutableFloatStateOf(0f)
     fun displacement(index:Int):Float=when {
         from<0||target<0->0f
@@ -31,12 +32,13 @@ private class QueueDragPreview {
         from>target&&index>=target&&index<from->distance
         else->0f
     }
-    fun clear(){from=-1;target=-1;distance=0f}
+    fun clear(){from=-1;target=-1;distance=0f;identity=""}
 }
 private val queueDragPreviews=WeakHashMap<LazyListState,QueueDragPreview>()
 
-@Composable internal fun DraggableQueueCard(state:LazyListState,index:Int,count:Int,enabled:Boolean=true,move:(Int,Int)->Unit,content:@Composable BoxScope.()->Unit) {
+@Composable internal fun DraggableQueueCard(state:LazyListState,index:Int,count:Int,enabled:Boolean=true,move:(Int,Int)->Unit,moveToIdentity:((String)->Unit)?=null,content:@Composable BoxScope.()->Unit) {
     val moveAction by rememberUpdatedState(move)
+    val identityAction by rememberUpdatedState(moveToIdentity)
     val latestIndex by rememberUpdatedState(index)
     val latestCount by rememberUpdatedState(count)
     val scope=rememberCoroutineScope()
@@ -50,8 +52,8 @@ private val queueDragPreviews=WeakHashMap<LazyListState,QueueDragPreview>()
     Box(Modifier.fillMaxWidth().onSizeChanged {cardHeight=it.height}.zIndex(if(dragging)10f else 0f).graphicsLayer {translationY=if(dragging)offset else if(preview.from>=0)shifted else 0f;shadowElevation=if(dragging)6.dp.toPx() else 0f}.background(color).pointerInput(state,enabled) {
         var scrolling:Job?=null
         fun updateTarget(){
-            val target=state.layoutInfo.visibleItemsInfo.minByOrNull {abs(it.offset+it.size/2f-(start+offset))}?.index
-            if(target!=null && target in 0 until latestCount)preview.target=target
+            val target=state.layoutInfo.visibleItemsInfo.filter {it.index in 0 until latestCount}.minByOrNull {abs(it.offset+it.size/2f-(start+offset))}
+            if(target!=null){preview.target=target.index;preview.identity=target.key as? String ?: ""}
         }
         try {
             if(enabled)detectDragGesturesAfterLongPress(
@@ -70,9 +72,13 @@ private val queueDragPreviews=WeakHashMap<LazyListState,QueueDragPreview>()
                 onDragCancel={scrolling?.cancel();offset=0f;dragging=false;preview.clear()},
                 onDragEnd={
                     scrolling?.cancel()
-                    val target=state.layoutInfo.visibleItemsInfo.minByOrNull {abs(it.offset+it.size/2f-(start+offset))}?.index
+                    updateTarget()
+                    val target=preview.target;val targetId=preview.identity
                     offset=0f;dragging=false;preview.clear()
-                    if(target!=null && target in 0 until latestCount && target!=latestIndex)moveAction(latestIndex,target)
+                    if(target in 0 until latestCount && target!=latestIndex) {
+                        if(targetId.isNotBlank() && identityAction!=null)identityAction?.invoke(targetId)
+                        else moveAction(latestIndex,target)
+                    }
                 },
                 onDrag={change,amount->change.consume();offset+=amount.y;updateTarget()}
             )
@@ -89,4 +95,9 @@ private val queueDragPreviews=WeakHashMap<LazyListState,QueueDragPreview>()
         contentDescription=if(itemLabel.isBlank())label else "$label: $itemLabel"
         customActions=listOf(CustomAccessibilityAction(up){if(index>0){move(index,index-1);true}else false},CustomAccessibilityAction(down){if(index+1<count){move(index,index+1);true}else false})
     },contentAlignment=androidx.compose.ui.Alignment.Center) {OndaIcon(icon,modifier=Modifier.size(16.dp),tint=if(enabled)MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha=.38f))}
+}
+
+@Composable internal fun queueDragActive(state:LazyListState):Boolean {
+    val preview=remember(state){queueDragPreviews.getOrPut(state){QueueDragPreview()}}
+    return preview.from>=0
 }

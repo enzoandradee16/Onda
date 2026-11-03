@@ -111,7 +111,7 @@ import org.json.JSONObject
         Row(Modifier.horizontalScroll(rememberScrollState())) {
             Button(onClick={enqueue(true)},enabled=chosen().isNotEmpty() && !adding){UiText("Baixar agora")}
             TextButton(onClick={enqueue(false)},enabled=chosen().isNotEmpty() && !adding){UiText("Adicionar à fila")}
-            TextButton(onClick={vm.collectionToPlayback(chosen())},enabled=chosen().isNotEmpty()&&!busy){UiText("Usar em reprodução")}
+            TextButton(onClick={vm.collectionToPlayback(if(selected.isEmpty())visible else chosen())},enabled=visible.isNotEmpty()&&requestedFilters==settledFilters&&!busy){UiText("Usar em reprodução")}
         }
 
     }
@@ -140,7 +140,6 @@ import org.json.JSONObject
                     TextButton(enabled=!busy,onClick={if(spotifyConnected)vm.loadSpotifyPlaylists() else onConnectSpotify()}) {UiText(if(spotifyConnected)"Atualizar" else "Conectar")}
                 }
                 if(!spotifyConnected)UiText("Conecte sua conta Spotify para ver suas playlists.")
-                if(busy)LinearProgressIndicator(Modifier.fillMaxWidth())
             }
             if(spotifyPlaylists.isEmpty() && spotifyConnected && !busy)item {ToolEmpty("album","Nenhuma playlist encontrada","As playlists da conta conectada aparecerão aqui.")}
             if(spotifyPlaylists.isNotEmpty() && spotifyVisible.isEmpty())item {ToolEmpty("search","Nenhuma coleção encontrada","Tente outros filtros.")}

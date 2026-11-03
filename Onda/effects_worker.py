@@ -73,6 +73,16 @@ def preserve_tags(source, output, effect):
 def render(config):
     temporary = None
     try:
+        if str(config.get('source', '')).startswith(('http://', 'https://')):
+            from jukebox import fetch_audio
+
+            resolved = fetch_audio(
+                dict(config, url=config['source']),
+                None,
+                progress=lambda percent: emit('progress', percent=percent),
+                analyze=False,
+            )
+            config = dict(config, source=resolved['source'])
         source, output = (
             Path(config["source"]).resolve(),
             Path(config["output"]).resolve(),
@@ -110,9 +120,18 @@ def render(config):
         )
         if probe.returncode:
             raise ValueError("Não foi possível ler este áudio.")
-        duration = float(json.loads(probe.stdout)["format"]["duration"]) / (
-            float(config.get("speed", 100)) / 100
+        source_duration = float(json.loads(probe.stdout)["format"]["duration"])
+        from effects_export import segment_times
+
+        start, end = segment_times(
+            config.get('segment_start', ''), config.get('segment_end', '')
         )
+        end = min(end, source_duration) if end is not None else source_duration
+        if start >= end:
+            raise ValueError('O trecho está fora da duração da música.')
+        if start or end < source_duration:
+            filters = f'atrim=start={start}:end={end},asetpts=PTS-STARTPTS,' + filters
+        duration = (end - start) / (float(config.get("speed", 100)) / 100)
         duration += 2 if config.get("reverb") else 0
         output.parent.mkdir(parents=True, exist_ok=True)
         fd, name = tempfile.mkstemp(

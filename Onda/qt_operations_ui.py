@@ -420,16 +420,35 @@ def perform(action, config, cancel, emit):
             if cancel.is_set():
                 raise ValueError('Operação cancelada.')
             original = image_details(source)
-            output = transform_image(source, config['image_options'], emit)
+            original_preview = ''
+            if action == 'image_preview':
+                original_path = root / (
+                    'original-' + __import__('uuid').uuid4().hex + '.png'
+                )
+                with open_preview(source) as picture:
+                    from PIL import ImageOps
+
+                    picture = ImageOps.exif_transpose(picture)
+                    picture.thumbnail((1400, 1400))
+                    picture.convert('RGBA').save(original_path)
+                original_preview = str(original_path)
+
+            def image_event(kind, **values):
+                if cancel.is_set():
+                    raise ValueError('Operação cancelada.')
+                emit(kind, **values)
+
+            output = transform_image(source, config['image_options'], image_event)
             output_info = image_details(output)
             if action == 'image_preview':
-                target = root / 'preview.png'
+                target = root / ('preview-' + __import__('uuid').uuid4().hex + '.png')
                 with open_preview(output) as image:
                     image.thumbnail((1400, 1400))
                     image.convert('RGBA').save(target)
                 return {
                     'path': str(target),
                     'preview': True,
+                    'original_preview': original_preview,
                     'image_info': {'source': original, 'output': output_info},
                 }
             final, skipped = publish(output, config['folder'], 'keep', None)

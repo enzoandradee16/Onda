@@ -41,7 +41,7 @@ ColumnLayout {
         visible: !page.queuePage; Layout.fillWidth: true; implicitHeight: addControls.implicitHeight+32
         ColumnLayout { id: addControls; anchors.fill: parent; anchors.margins: 16; spacing: Math.round(14*bridge.spacing)
             Label { text: bridge.translate("Cole links para baixar vídeos, músicas e fotos."); font.pixelSize: Math.round(18*bridge.fontScale); color: bridge.palette.text }
-            ScrollView { Layout.fillWidth: true; implicitHeight: 108
+            OndaScrollView { Layout.fillWidth: true; implicitHeight: 108
                 OndaTextArea { text: workspace.optionValue(workspace.optionsRevision,"links"); placeholderText: bridge.translate("Um link por linha"); onTextChanged: if (activeFocus) workspace.setOption("links",text); wrapMode: Text.Wrap; selectByMouse: true; color: bridge.palette.text }
             }
             GridLayout { visible: !workspace.preferences.simple_download_ui; Layout.fillWidth: true; columns: width > 850 ? 3 : 2; columnSpacing: 12; rowSpacing: 12
@@ -119,10 +119,10 @@ ColumnLayout {
         Label {text:bridge.translate("Downloads");color:bridge.palette.text;Layout.fillWidth:true;font.bold:true}
         ActionButton {objectName:"linksInlineQueueButton";text:bridge.translate("Ver downloads");onClicked:workspace.selectPage("queue")}
     }
-    ListView { id:downloadList; property var activeDrag:null; objectName: "downloadQueueList"; visible: page.queuePage || workspace.linksModel.count>0; Layout.fillWidth: true; Layout.fillHeight: true; clip: true; spacing: Math.round(8*bridge.spacing); model: page.queuePage ? workspace.queueModel : workspace.linksModel; reuseItems: true
-        ScrollBar.vertical: OndaScrollBar {}
+    OndaListView { id:downloadList; property var activeDrag:null; objectName: "downloadQueueList"; visible: page.queuePage || workspace.linksModel.count>0; Layout.fillWidth: true; Layout.fillHeight: true; clip: true; spacing: Math.round(8*bridge.spacing); model: page.queuePage ? workspace.queueModel : workspace.linksModel; reuseItems: true
+
         ScrollToTop { target: downloadList; viewport: downloadList }
-        delegate: Card { id: card; z:downloadDrag.dragging ? 20 : 0; transform:Translate {y:downloadDrag.cardOffset;Behavior on y {enabled:downloadList.activeDrag!==null && !downloadDrag.dragging;NumberAnimation {duration:140;easing.type:Easing.OutCubic}}} objectName: "downloadQueueCard"; required property var entry; required property int index; width: ListView.view.width; height: Math.max(page.smallCards ? 88 : page.cardSize === "Médio" ? 128 : 176,queueDetails.implicitHeight+24)
+        delegate: Card { id: card; z:downloadDrag.dragging ? 20 : 0; transform:Translate {y:downloadDrag.cardOffset;Behavior on y {enabled:downloadList.activeDrag!==null && !downloadDrag.dragging;NumberAnimation {duration:140;easing.type:Easing.OutCubic}}} objectName: "downloadQueueCard"; required property var entry; required property int index; width: ListView.view.contentAreaWidth; height: Math.max(page.smallCards ? 88 : page.cardSize === "Médio" ? 128 : 176,queueDetails.implicitHeight+24)
             function openContext() {
                 queueContext.targetId = card.entry.id
                 queueContext.targetChecked = page.queuePage && !!card.entry.checked

@@ -12,6 +12,8 @@ internal fun preparedQueueReference(model:JSONObject)=JSONObject().apply {
 }
 internal fun restoreQueueModel(row:JSONObject):JSONObject?=runCatching {
     val reference=row.optJSONObject("_prepared_cache") ?: return null
+    val cover=row.cleanString("cover_url").ifBlank {reference.cleanString("cover_url")}
+    if(cover.contains("mosaic.scdn.co/") || (cover.isNotBlank() && cover==row.optString("_collection_cover_url")))return null
     val base=File(reference.getString("cache"))
     if(!File(base,"audio.wav").isFile)return null
     val model=JSONObject(File(base,"analysis.json").readText())

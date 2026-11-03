@@ -29,6 +29,61 @@ class EffectsExportTests(unittest.TestCase):
     def tearDown(self):
         self.temp.cleanup()
 
+    def test_excerpt_render_uses_original_timing_and_preserves_source(self):
+        from effects_worker import render
+
+        tools = Path(os.environ.get('ONDA_FFMPEG', ''))
+        if not (tools / 'ffmpeg.exe').is_file():
+            self.skipTest('FFmpeg required')
+        before = self.source.read_bytes()
+        target = self.root / 'excerpt.wav'
+        config = export_config(
+            self.source, self.record, speed=50, segment_start='0.5', segment_end='1.5'
+        )
+        config.update(output=str(target), ffmpeg=str(tools))
+        self.assertEqual(render(config), 0)
+        with wave.open(str(target)) as audio:
+            self.assertAlmostEqual(
+                audio.getnframes() / audio.getframerate(), 2.0, delta=0.08
+            )
+        self.assertEqual(self.source.read_bytes(), before)
+
+    def test_stream_excerpt_fetches_the_resolved_source_without_analysis(self):
+        from effects_worker import render
+
+        tools = Path(os.environ.get('ONDA_FFMPEG', ''))
+        if not (tools / 'ffmpeg.exe').is_file():
+            self.skipTest('FFmpeg required')
+        target = self.root / 'stream-excerpt.wav'
+        config = export_config(
+            self.source, self.record, segment_start='0.5', segment_end='1.5'
+        )
+        config.update(
+            source='https://example.com/resolved-track',
+            output=str(target),
+            ffmpeg=str(tools),
+        )
+        with patch(
+            'jukebox.fetch_audio', return_value={'source': str(self.source)}
+        ) as fetch:
+            self.assertEqual(render(config), 0)
+            self.assertFalse(fetch.call_args.kwargs['analyze'])
+            self.assertEqual(
+                fetch.call_args.args[0]['url'], 'https://example.com/resolved-track'
+            )
+        with wave.open(str(target)) as audio:
+            self.assertAlmostEqual(
+                audio.getnframes() / audio.getframerate(), 1.0, delta=0.08
+            )
+
+    def test_excerpt_clock_format_preserves_fractional_positions(self):
+        from effects_export import position_text
+
+        self.assertEqual(position_text('65'), '1:05')
+        self.assertEqual(position_text('0:10.5'), '0:10.5')
+        self.assertEqual(position_text('3600'), '1:00:00')
+        self.assertEqual(position_text(''), '')
+
     def test_displayed_artist_overrides_stale_queue_artist(self):
         config = export_config(
             self.source,

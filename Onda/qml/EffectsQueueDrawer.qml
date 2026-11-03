@@ -114,8 +114,8 @@ Drawer {
             QueueIconButton {objectName:"playbackQueueSearchButton";glyph:drawer.searching?"close":"catalog";text:bridge.translate(drawer.searching?"Cancelar":"Pesquisar");onClicked:drawer.search()}
             QueueIconButton {objectName:"closePlaybackQueueSearch";glyph:"close";text:bridge.translate("Fechar pesquisa");onClicked:drawer.closeSearch()}
         }
-        ListView {Layout.fillWidth:true;Layout.preferredHeight:Math.min(240,contentHeight);visible:drawer.results.length>0;clip:true;spacing:8;model:drawer.results
-            delegate:RowLayout {required property var modelData;required property int index;width:ListView.view.width;height:modelData.release_date ? 98 : 78
+        OndaListView {Layout.fillWidth:true;Layout.preferredHeight:Math.min(240,contentHeight);visible:drawer.results.length>0;clip:true;spacing:8;model:drawer.results
+            delegate:RowLayout {required property var modelData;required property int index;width:ListView.view.contentAreaWidth;height:modelData.release_date ? 98 : 78
                 Component.onCompleted:workspace.invoke("request_card_details",{model:drawer.effects ? "effectsQueueResults" : "jukeboxQueueResults",source:modelData.source_url || ""})
                 RoundedArtwork {Layout.preferredWidth:48;Layout.preferredHeight:48;source:modelData.cover_url || "";asynchronous:true;fillMode:Image.PreserveAspectFit}
                 ColumnLayout {Layout.fillWidth:true;Layout.minimumWidth:0;spacing:2
@@ -127,20 +127,20 @@ Drawer {
                 QueueIconButton {objectName:"addQueueSearchResult"+index;glyph:"add";text:bridge.translate("Adicionar à fila");enabled:!drawer.searching;onClicked:workspace.invoke("playback_queue_add",{effects:drawer.effects,index:index,source:modelData.source_url || ""})}
             }
         }
-        ListView {
+        OndaListView {
             id:queueList
             transform:Translate {id:tabSlide;objectName:"queueTabSlide"}
             property var activeDrag:null
             objectName:"playbackQueueList"
             Layout.fillWidth:true;Layout.fillHeight:true;clip:true;spacing:4;model:stableTracks
-            ScrollBar.vertical: OndaScrollBar {}
+
             ScrollToTop { target: queueList; viewport: queueList }
             section.property:"group"
             section.criteria:ViewSection.FullString
             section.delegate:Item {
                 required property string section
                 objectName:"playbackQueueSection"+section
-                width:queueList.width;height:section&&!drawer.recent?44:0
+                width:queueList.contentAreaWidth;height:section&&!drawer.recent?44:0
                 Label {anchors.left:parent.left;anchors.right:parent.right;y:16;text:bridge.translate(parent.section);font.bold:true;elide:Text.ElideRight;color:bridge.palette.text}
             }
 
@@ -153,14 +153,14 @@ Drawer {
                 readonly property bool current:drawer.effects?index===workspace.optionValue(workspace.optionsRevision,"effectsQueueIndex"):!!modelData.current
                 readonly property bool failed:!!modelData.error||modelData.analysis==="error"
                 readonly property bool section:!!modelData.section&&!drawer.recent
-                width:queueList.width;height:60
+                width:queueList.contentAreaWidth;height:60
                 z:playbackDrag.dragging?20:0
                 transform:Translate {y:playbackDrag.cardOffset;Behavior on y {enabled:queueList.activeDrag!==null&&!playbackDrag.dragging;NumberAnimation {duration:140;easing.type:Easing.OutCubic}}}
                 activeFocusOnTab:true;Accessible.role:Accessible.ListItem;Accessible.name:record.title||""
                 Keys.onReturnPressed:failed?drawer.retry(index):drawer.play(index)
                 HoverHandler {id:rowHover}
                 Rectangle {anchors.fill:parent;radius:5;color:bridge.palette.hover;visible:rowHover.hovered||playbackDrag.dragging||queueTrack.activeFocus}
-                QueueDragHandle {doubleClickEnabled:true;showIndicator:false;id:playbackDrag;objectName:"playbackQueueDrag";anchors.right:parent.right;anchors.bottom:parent.bottom;width:16;height:60;opacity:rowHover.hovered||dragging||activeFocus?1:0;enabled:!drawer.recent;dragItem:queueTrack;listView:queueList;rowIndex:queueTrack.index;itemCount:drawer.tracks.length;onMoved:function(target){drawer.move(queueTrack.index,target-queueTrack.index)};onDoubleTapped:queueTrack.failed?drawer.retry(queueTrack.index):drawer.play(queueTrack.index)}
+                QueueDragHandle {doubleClickEnabled:true;showIndicator:false;id:playbackDrag;objectName:"playbackQueueDrag";anchors.right:parent.right;anchors.bottom:parent.bottom;width:16;height:60;opacity:rowHover.hovered||dragging||activeFocus?1:0;enabled:!drawer.recent && !queueTrack.current;dragItem:queueTrack;listView:queueList;rowIndex:queueTrack.index;itemCount:drawer.tracks.length;onMoved:function(target){drawer.move(queueTrack.index,target-queueTrack.index)};onDoubleTapped:queueTrack.failed?drawer.retry(queueTrack.index):drawer.play(queueTrack.index)}
                 RowLayout {
                     anchors.fill:parent;anchors.rightMargin:16;spacing:10
                     Rectangle {Layout.preferredWidth:44;Layout.preferredHeight:44;radius:4;color:bridge.palette.input

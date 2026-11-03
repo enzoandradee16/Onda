@@ -38,17 +38,17 @@ Card {
         }
         QueueTabs {recent:queuePanel.recent;onSelected:function(value){queuePanel.recent=value}}
         Label {visible:!queuePanel.rows.length;text:bridge.translate("Adicione arquivos ou músicas dos resultados.");Layout.fillWidth:true;wrapMode:Text.Wrap;color:bridge.palette.muted}
-        ListView {
+        OndaListView {
             transform:Translate {id:tabSlide;objectName:"queueTabSlide"}
             id:queueList;property var activeDrag:null;objectName:"unifiedPlaybackQueueList"
             Layout.fillWidth:true;Layout.fillHeight:true;clip:true;model:stableTracks;spacing:6
-            ScrollBar.vertical: OndaScrollBar {}
+
             ScrollToTop { target: queueList; viewport: queueList }
             section.property:"group"
             section.criteria:ViewSection.FullString
             section.delegate:Item {
                 required property string section
-                width:queueList.width;height:section&&!queuePanel.recent?40:0
+                width:queueList.contentAreaWidth;height:section&&!queuePanel.recent?40:0
                 Label {anchors.left:parent.left;anchors.right:parent.right;y:12;text:bridge.translate(parent.section);font.bold:true;elide:Text.ElideRight;color:bridge.palette.text}
             }
 
@@ -56,7 +56,7 @@ Card {
                 id:queueTrack
                 objectName:"unifiedQueueTrack"+index
                 required property var modelData;required property int index
-                width:ListView.view.width;height:60
+                width:ListView.view.contentAreaWidth;height:60
                 z:drag.dragging?20:0
                 transform:Translate {y:drag.cardOffset;Behavior on y {enabled:queueList.activeDrag!==null&&!drag.dragging;NumberAnimation {duration:140;easing.type:Easing.OutCubic}}}
                 activeFocusOnTab:true;Accessible.role:Accessible.ListItem;Accessible.name:modelData.title || ""
@@ -65,7 +65,7 @@ Card {
                 Rectangle {anchors.fill:parent;radius:5;color:bridge.palette.hover;visible:rowHover.hovered||drag.dragging}
                 RowLayout {
                     anchors.fill:parent;anchors.margins:6;anchors.topMargin:6
-                    QueueDragHandle {doubleClickEnabled:true;opacity:rowHover.hovered||dragging||activeFocus?1:0;Layout.preferredWidth:16;id:drag;objectName:"unifiedQueueDrag"+index;dragItem:queueTrack;listView:queueList;rowIndex:queueTrack.index;enabled:!queuePanel.recent;itemCount:queuePanel.rows.length;onDoubleTapped:bridge.playQueued(modelData.queueIndex);onMoved:function(target){queuePanel.move(queueTrack.index,target)}}
+                    QueueDragHandle {doubleClickEnabled:true;opacity:rowHover.hovered||dragging||activeFocus?1:0;Layout.preferredWidth:16;id:drag;objectName:"unifiedQueueDrag"+index;dragItem:queueTrack;listView:queueList;rowIndex:queueTrack.index;enabled:!queuePanel.recent && !modelData.current;itemCount:queuePanel.rows.length;onDoubleTapped:bridge.playQueued(modelData.queueIndex);onMoved:function(target){queuePanel.move(queueTrack.index,target)}}
                     Rectangle {Layout.preferredWidth:44;Layout.preferredHeight:44;radius:4;color:bridge.palette.input
                         RoundedArtwork {anchors.fill:parent;source:(modelData.record || {}).cover_url || modelData.cover || "";fallbackSource:modelData.cover || "";sourceSize.width:192;sourceSize.height:192;fillMode:Image.PreserveAspectCrop;asynchronous:true}
                         PreparationProgress {anchors.left:parent.left;anchors.right:parent.right;anchors.bottom:parent.bottom;height:3;preparing:modelData.analysis==="preparing";progress:bridge.queuePreparation[modelData.id] || 0}

@@ -52,6 +52,7 @@ android {
     buildToolsVersion = "36.0.0"
     defaultConfig {
         applicationId = "br.com.onda.mobile"
+        resValue("string", "app_name", "ONDA")
         minSdk = 26
         targetSdk = 35
         buildConfigField("String", "ONDA_ABIS", "\"${targetAbis.joinToString(",")}\"")
@@ -60,6 +61,7 @@ android {
         ndk { abiFilters += targetAbis }
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
+    buildTypes.getByName("debug").resValue("string", "app_name", "ONDA Testes")
     // UI verification installs beside the normal app and preserves its data.
     if (providers.gradleProperty("onda.isolatedUiTest").orNull == "true") {
         val suffix=providers.gradleProperty("onda.isolatedUiTestSuffix").getOrElse(".uitest")
@@ -68,6 +70,7 @@ android {
     }
     buildFeatures { compose = true; buildConfig = true }
     sourceSets["main"].assets.srcDir("../../Onda/locales")
+    sourceSets["main"].assets.srcDir("../../Onda/assets/background-licenses")
     sourceSets["main"].assets.srcDir("../../Onda/settings_schema")
     sourceSets["main"].assets.srcDir("../../Onda/assets/tool-icons")
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
@@ -94,6 +97,7 @@ chaquopy {
 tasks.named("preBuild") { dependsOn(prepareNativeTools, syncSharedEngine) }
 tasks.matching { it.name.contains("Python") }.configureEach { dependsOn(syncSharedEngine) }
 dependencies {
+    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.23.2")
     implementation("com.journeyapps:zxing-android-embedded:4.3.0")
     implementation("androidx.work:work-runtime-ktx:2.10.1")
     implementation(platform("androidx.compose:compose-bom:2025.05.01"))
@@ -105,6 +109,7 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.9.0")
     implementation("androidx.documentfile:documentfile:1.0.1")
     implementation("androidx.media3:media3-exoplayer:1.7.1")
+    implementation("androidx.media3:media3-datasource-okhttp:1.7.1")
     implementation("androidx.media3:media3-exoplayer-hls:1.7.1")
     implementation("androidx.media3:media3-exoplayer-dash:1.7.1")
     implementation("androidx.media3:media3-session:1.7.1")

@@ -9,7 +9,7 @@ Pane {
     EffectsQueueDrawer {parent: Overlay.overlay; effects: false}
     MiniPlayer { id: floatingPlayer; mainWindow: app.Window.window; volumeValue: bridge.playbackParams.volume; onVolumeMoved: function(value){bridge.setParams(bridge.playbackParams.variation,bridge.playbackParams.smooth,value,bridge.playbackParams.normal)} }
 
-    Connections { target: workspace; function onLyricsRequested() {lyricsWindow.open()} }
+    Connections { target: workspace; function onLyricsRequested() {if(lyricsWindow.visible)lyricsWindow.close();else lyricsWindow.open()} }
     id: app
     width: 1360; height: 900
     readonly property var inlineTasks: ({downloads:["image_gallery_manifest"],queue:["image_gallery_manifest"],catalog:["search"],playlists:["collection","compare_collection","check_matches"],converter:["convert","detect_silence"],effects:["effects_export","effects_search","effects_load","effects_queue_info","effects_collection"],images:["image_preview","image_export","image_gallery_manifest"],metadata:["audio_edit","normalize_preview"]})[workspace.currentPage] || []
@@ -190,7 +190,7 @@ Pane {
                     anchors.left:parent.left;anchors.right:parent.right;anchors.bottom:parent.bottom;anchors.leftMargin:24;anchors.rightMargin:24;anchors.bottomMargin:10;height:28;spacing:12
                     Label {text:workspace.clock(playbackTimeline.pressed?playbackTimeline.previewPosition:bridge.sourcePosition);color:bridge.palette.muted}
                     OndaSlider {
-                        id:playbackTimeline;objectName:"playbackTimeline";property real previewPosition:0
+                        id:playbackTimeline;objectName:"playbackTimeline";property real previewPosition:0;bufferedValue:bridge.sourceBufferedEnd
                         Layout.fillWidth:true;from:0;to:Math.max(1,bridge.sourceDuration)
                         enabled:bridge.stateValue(bridge.stateRevision,"ready");Accessible.name:bridge.translate("Posição na música")
                         Binding {target:playbackTimeline;property:"value";value:bridge.sourcePosition;when:!playbackTimeline.pressed;restoreMode:Binding.RestoreNone}
@@ -252,7 +252,7 @@ Pane {
         background: Card {}
         contentItem: ColumnLayout { spacing: 12
             Label { id: messageHeading; wrapMode: Text.Wrap; text: messagePopup.heading; font.pixelSize: Math.round(22*bridge.fontScale); color: bridge.palette.text; Layout.fillWidth: true }
-            ScrollView { Layout.fillWidth: true; Layout.fillHeight: true; contentWidth: availableWidth; clip: true; TextArea { id: messageText; width: parent.availableWidth; padding: 0; textFormat: Text.PlainText; text: bridge.translate(messagePopup.body); readOnly: true; wrapMode: Text.Wrap; selectByMouse: true; color: bridge.palette.text } }
+            OndaScrollView { Layout.fillWidth: true; Layout.fillHeight: true; contentWidth: availableWidth; clip: true; TextArea { id: messageText; width: parent.availableWidth; padding: 0; textFormat: Text.PlainText; text: bridge.translate(messagePopup.body); readOnly: true; wrapMode: Text.Wrap; selectByMouse: true; color: bridge.palette.text } }
             ActionButton { id: messageDone; primary: true; text: bridge.translate("Pronto"); Layout.alignment: Qt.AlignRight; onClicked: messagePopup.close() }
         }
     }
@@ -262,4 +262,16 @@ Pane {
         function onShortcutsRequested() { shortcuts.open() }
         function onMessage(title,text) { messagePopup.heading=title;messagePopup.body=text;messagePopup.open() }
     }
+    Popup {
+        parent:Overlay.overlay
+        x:Math.max(12,(parent.width-width)/2);y:Math.max(12,parent.height-height-140)
+        width:Math.min(400,parent.width-24);padding:14;modal:false;closePolicy:Popup.NoAutoClose
+        visible:bridge.canUndoQueueRemoval
+        background:Card {}
+        contentItem:RowLayout {
+            Label {text:bridge.translate("Música removida da fila");color:bridge.palette.text;Layout.fillWidth:true;wrapMode:Text.Wrap}
+            ActionButton {text:bridge.translate("Desfazer");onClicked:bridge.undoQueueRemoval()}
+        }
+    }
+
 }

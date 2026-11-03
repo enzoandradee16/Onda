@@ -33,6 +33,9 @@ build/
 # Ferramentas locais de empacotamento
 /empacotamento/*
 !/empacotamento/generate_android_palette.py
+!/empacotamento/prepare_background_runtime.py
+!/empacotamento/background-runtime.json
+!/empacotamento/IMAGENS.md
 !/empacotamento/sync_version.py
 !/empacotamento/InstallerText.cs
 !/empacotamento/InstallerStrings.xml

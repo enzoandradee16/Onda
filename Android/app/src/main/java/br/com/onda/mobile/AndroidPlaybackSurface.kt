@@ -121,11 +121,15 @@ import coil.compose.AsyncImage
                 }
             }
             PlaybackClock(vm.jukebox) {position ->
+            val buffered by vm.jukebox.streamBuffer.collectAsStateWithLifecycle()
             Row(Modifier.fillMaxWidth().padding(horizontal=10.dp,vertical=3.dp).testTag("compact-player-times"),horizontalArrangement=Arrangement.SpaceBetween) {
                 Text(mediaClock(position.toLong()),style=MaterialTheme.typography.labelSmall,color=glass.secondary)
                 Text(mediaClock(duration.toLong()),style=MaterialTheme.typography.labelSmall,color=glass.secondary)
             }
-            LinearProgressIndicator(progress={if(duration>0)(position/duration).toFloat().coerceIn(0f,1f) else 0f},modifier=Modifier.fillMaxWidth().height(if(glass.highContrast)3.dp else 2.dp).testTag("compact-player-progress"),color=MaterialTheme.colorScheme.primary,trackColor=glass.ink.copy(alpha=if(glass.highContrast).4f else .18f))
+            Box(Modifier.fillMaxWidth().height(if(glass.highContrast)3.dp else 2.dp)) {
+                LinearProgressIndicator(progress={if(duration>0)((if(model?.has("_stream")==true)buffered.second else duration)/duration).toFloat().coerceIn(0f,1f) else 0f},modifier=Modifier.fillMaxSize(),color=MaterialTheme.colorScheme.primary.copy(alpha=.35f),trackColor=glass.ink.copy(alpha=if(glass.highContrast).4f else .18f))
+                LinearProgressIndicator(progress={if(duration>0)(position/duration).toFloat().coerceIn(0f,1f) else 0f},modifier=Modifier.fillMaxSize().testTag("compact-player-progress"),color=MaterialTheme.colorScheme.primary,trackColor=androidx.compose.ui.graphics.Color.Transparent)
+            }
             }
         }
     }
@@ -137,7 +141,7 @@ import coil.compose.AsyncImage
                     Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
                         IconButton(onClick={expanded=false}){OndaIcon("down","Recolher reprodução",Modifier.size(26.dp))}
                         Spacer(Modifier.weight(1f))
-                        ShufflePlaybackButton(if(useJukebox)jukeShuffle else fxShuffle,{if(useJukebox)vm.jukebox.queueShuffle.value=it else vm.effectsShuffle.value=it})
+                        ShufflePlaybackButton(if(useJukebox)jukeShuffle else fxShuffle,{if(useJukebox)vm.jukebox.setQueueShuffle(it) else vm.effectsShuffle.value=it})
                         RepeatPlaybackButton(jukeRepeat,{vm.jukebox.queueRepeat.value=it})
                         Box {
                             IconButton(onClick={menu=true}){OndaIcon("more-vertical","Mais",Modifier.size(24.dp))}
@@ -155,9 +159,10 @@ import coil.compose.AsyncImage
                     cover(Modifier.size(artworkSize).align(Alignment.CenterHorizontally).testTag("expanded-album-cover"))
                     Column {Text(title,style=MaterialTheme.typography.headlineSmall);Text(artist,style=MaterialTheme.typography.bodyLarge,color=MaterialTheme.colorScheme.onSurfaceVariant)}
                     PlaybackClock(vm.jukebox) {position ->
+                    val buffered by vm.jukebox.streamBuffer.collectAsStateWithLifecycle()
                     var dragged by remember(source) {mutableStateOf<Float?>(null)}
                     Column {
-                        RoundSlider(dragged ?: position.toFloat().coerceIn(0f,duration.toFloat().coerceAtLeast(1f)),{dragged=it},valueRange=0f..duration.toFloat().coerceAtLeast(1f),enabled=duration>0,onValueChangeFinished={dragged?.let {seek(it.toDouble())};dragged=null},modifier=Modifier.fillMaxWidth().testTag("expanded-player-timeline").a11yLabel("Posição na música"),slim=true)
+                        RoundSlider(dragged ?: position.toFloat().coerceIn(0f,duration.toFloat().coerceAtLeast(1f)),{dragged=it},valueRange=0f..duration.toFloat().coerceAtLeast(1f),enabled=duration>0,onValueChangeFinished={dragged?.let {seek(it.toDouble())};dragged=null},modifier=Modifier.fillMaxWidth().testTag("expanded-player-timeline").a11yLabel("Posição na música"),slim=true,bufferedRange=if(model?.has("_stream")==true)buffered.first.toFloat()..buffered.second.toFloat() else 0f..duration.toFloat())
                         Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){UiText(mediaClock((dragged?.toDouble() ?: position).toLong()),style=MaterialTheme.typography.labelSmall);UiText(mediaClock(duration.toLong()),style=MaterialTheme.typography.labelSmall)}
                     }
                     }

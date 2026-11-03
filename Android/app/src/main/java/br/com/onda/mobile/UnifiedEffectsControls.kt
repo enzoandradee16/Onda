@@ -5,6 +5,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -19,6 +20,9 @@ internal val playbackEffectPresets=linkedMapOf("Original" to (100 to 0),"Slowed 
     val presets=playbackEffectPresets
     val preset=presets.entries.firstOrNull {it.value.first==effects.optInt("speed",85)&&it.value.second==effects.optInt("reverb",25)}?.key ?: "Personalizado"
     var export by rememberSaveable {mutableStateOf(false)}
+    var segment by rememberSaveable {mutableStateOf(false)}
+    var segmentStart by rememberSaveable {mutableStateOf("")}
+    var segmentEnd by rememberSaveable {mutableStateOf("")}
     var format by rememberSaveable {mutableStateOf("MP3")}
     PlaybackCard(Modifier.testTag("unified-effects-card")) {
         PlaybackSectionToggle("Efeitos",effects.optBoolean("enabled")){controller.setEffects("enabled",it)}
@@ -38,9 +42,17 @@ internal val playbackEffectPresets=linkedMapOf("Original" to (100 to 0),"Slowed 
         if(state.effectsError.isNotBlank())Text(uiExceptionMessage(IllegalStateException(state.effectsError),"Não foi possível preparar os efeitos desta música."),color=MaterialTheme.colorScheme.error,style=MaterialTheme.typography.bodySmall)
     }
     if(export)AlertDialog(onDismissRequest={export=false},title={UiText("Exportar música")},text={
-        Select("Salvar como",format,listOf("MP3","M4A","FLAC","WAV")){format=it}
+        Column(verticalArrangement=Arrangement.spacedBy(10.dp)) {
+            Select("Salvar como",format,listOf("MP3","M4A","FLAC","WAV")){format=it}
+            Toggle("Exportar trecho",segment){segment=it}
+            if(segment) {
+                UiText("Tempos na música original (min:seg)")
+                OutlinedTextField(segmentStart,{segmentStart=it},label={UiText("Início · 0:00")},singleLine=true,modifier=Modifier.onFocusChanged {if(!it.isFocused)segmentStart=exportPositionText(segmentStart)})
+                OutlinedTextField(segmentEnd,{segmentEnd=it},label={UiText("Fim · até terminar")},singleLine=true,modifier=Modifier.onFocusChanged {if(!it.isFocused)segmentEnd=exportPositionText(segmentEnd)})
+            }
+        }
     },confirmButton={TextButton(onClick={
-        val source=state.model?.optString("source").orEmpty()
+        val source=state.model?.optString("source").orEmpty().ifBlank {state.model?.optJSONObject("_stream")?.optString("source_url").orEmpty()}
         if(source.isNotBlank()) {
             val model=state.model!!
             val queued=controller.playbackQueue.value.firstOrNull {it.optString("_queue_id")==controller.currentQueueId.value}
@@ -49,6 +61,7 @@ internal val playbackEffectPresets=linkedMapOf("Original" to (100 to 0),"Slowed 
             if(model.optString("cover_url").isNotBlank())record.put("cover_url",model.getString("cover_url"))
             val extension=format.lowercase()
             val payload=JSONObject(effects.toString()).put("source",source).put("record",record).put("cover_data",model.optString("media_cover").ifBlank {model.optString("_cover")})
+            if(segment)payload.put("segment_start",segmentStart).put("segment_end",segmentEnd)
             vm.operation("effects_export_config",payload) {result->
                 val output=java.io.File(OndaStore.config().getString("folder"),result.getString("export_name")+"."+extension)
                 val config=OndaStore.config().apply {result.keys().forEach {key->put(key,result.get(key))}}.put("output",output.absolutePath).put("_operation","effects")
@@ -59,4 +72,16 @@ internal val playbackEffectPresets=linkedMapOf("Original" to (100 to 0),"Slowed 
         }
         export=false
     }){UiText("Exportar música")}},dismissButton={TextButton(onClick={export=false}){UiText("Cancelar")}})
+}
+
+internal fun exportPositionText(value:String):String {
+    if(value.isBlank())return ""
+    return runCatching {
+        val parts=value.trim().replace(',','.').split(':').map {it.toDouble()}
+        require(parts.size in 1..3 && parts.all {it.isFinite() && it>=0} && parts.drop(1).all {it<60})
+        val milliseconds=kotlin.math.round(parts.fold(0.0){time,part->time*60+part}*1000).toLong()
+        val total=milliseconds/1000;val minutes=total/60;val seconds=total%60
+        val text=if(minutes>=60)"%d:%02d:%02d".format(java.util.Locale.ROOT,minutes/60,minutes%60,seconds) else "%d:%02d".format(java.util.Locale.ROOT,minutes,seconds)
+        text+if(milliseconds%1000>0)".%03d".format(java.util.Locale.ROOT,milliseconds%1000).trimEnd('0') else ""
+    }.getOrDefault(value)
 }

@@ -9,6 +9,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.*
@@ -78,4 +79,44 @@ class QueueImprovementsTest {
             assertTrue(restored.config.optBoolean("_interrupted"));assertFalse(DownloadRuntime.running.get())
         } finally {OndaStore.remove(setOf(id))}
     }
+    @Test fun identityDragStaysAtDropPositionAndNeverRemovesDuringUpdates() {
+        var rows by mutableStateOf(listOf("First","Second","Third"))
+        var revision by mutableIntStateOf(0)
+        var removed=0
+        var dragWasActive=false
+        var dropped=""
+        compose.setContent {MaterialTheme {
+            val state=rememberLazyListState()
+            val active=queueDragActive(state)
+            SideEffect {if(active)dragWasActive=true}
+            LaunchedEffect(Unit){repeat(100){kotlinx.coroutines.delay(25);revision++}}
+            LazyColumn(state=state,modifier=Modifier.height(360.dp)) {
+                itemsIndexed(rows,key={_,row->row}) {index,row->
+                    DraggableQueueCard(state,index,rows.size,move={from,to->rows=rows.toMutableList().apply {add(to,removeAt(from))}},moveToIdentity={target->
+                        dropped=target
+                        val from=rows.indexOf(row);val to=rows.indexOf(target)
+                        if(from>=0&&to>=0)rows=rows.toMutableList().apply {add(to,removeAt(from))}
+                    }) {
+                        SwipeRemoveQueueTrack(row,enabled=!queueDragActive(state),onRemove={removed++;rows=rows.filterNot {it==row}}) {
+                            Box(Modifier.fillMaxWidth().height(80.dp).testTag("stable-drag-$row")){Text("$row $revision")}
+                        }
+                    }
+                }
+            }
+        }}
+        compose.onNodeWithTag("stable-drag-First").performTouchInput {down(center)}
+        compose.mainClock.advanceTimeBy(750)
+        Thread.sleep(650)
+        compose.onNodeWithTag("stable-drag-First").performTouchInput {moveBy(Offset(-width*.15f,height*1.7f),600)}
+        compose.waitForIdle()
+        compose.onNodeWithTag("stable-drag-First").performTouchInput {up()}
+        compose.waitForIdle()
+        assertEquals("active=$dragWasActive dropped=$dropped removed=$removed",listOf("Second","Third","First"),rows)
+        assertEquals(0,removed)
+        compose.mainClock.advanceTimeBy(300);Thread.sleep(200)
+        compose.onNodeWithTag("stable-drag-Second").performTouchInput {swipeLeft()}
+        compose.waitUntil(5000){removed==1}
+        assertEquals(listOf("Third","First"),rows)
+    }
+
 }

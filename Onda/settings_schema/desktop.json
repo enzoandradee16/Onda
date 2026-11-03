@@ -21,6 +21,7 @@
     "image_width": "1920",
     "image_height": "1080",
     "image_keep_ratio": true,
+    "image_remove_background": false,
     "tab_order": [
       "effects",
       "catalog",
@@ -33,7 +34,10 @@
       "metadata"
     ],
     "hidden_tabs": [],
-    "tab_group_order": ["library", "tools"],
+    "tab_group_order": [
+      "library",
+      "tools"
+    ],
     "playlist_mode": "Áudio · MP3 (320 kbps)",
     "playlist_height": "1080p",
     "playlist_fps": "Original",
@@ -100,7 +104,12 @@
     "lyrics_animation": "Suave",
     "minimize_on_miniplayer": true,
     "automatic_cache_cleanup": true,
-    "pure_light_borders": true
+    "pure_light_borders": true,
+    "image_rotation": 0,
+    "image_crop": "Original",
+    "image_background": "transparent",
+    "image_background_color": "#ffffff",
+    "image_background_image": ""
   },
   "fields": [
     {
@@ -826,7 +835,12 @@
       "key": "playback_prepare_ahead",
       "label": "Preparar próximas músicas",
       "kind": "select",
-      "choices": [1, 2, 3, 5],
+      "choices": [
+        1,
+        2,
+        3,
+        5
+      ],
       "hint": "Quantidade de próximas músicas preparadas antecipadamente. O processamento continua uma música por vez; valores maiores usam mais memória e cache."
     },
     {

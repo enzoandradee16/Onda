@@ -226,6 +226,25 @@ class PreferenceStore:
                 result[name] = str(int(value))
         if type(data.get('image_keep_ratio')) is bool:
             result['image_keep_ratio'] = data['image_keep_ratio']
+        for name, choices in (
+            ('image_rotation', (0, 90, 180, 270)),
+            ('image_crop', ('Original', '1:1', '4:3', '16:9', '9:16')),
+            ('image_background', ('transparent', 'color', 'image')),
+        ):
+            if data.get(name) in choices:
+                result[name] = data[name]
+        if isinstance(data.get('image_background_color'), str):
+            from PIL import ImageColor
+
+            try:
+                ImageColor.getrgb(data['image_background_color'])
+                result['image_background_color'] = data['image_background_color']
+            except ValueError:
+                pass
+        if isinstance(data.get('image_background_image'), str):
+            result['image_background_image'] = data['image_background_image']
+        if type(data.get('image_remove_background')) is bool:
+            result['image_remove_background'] = data['image_remove_background']
         if isinstance(data.get('hidden_tabs'), (list, tuple)):
             from tab_order import normalize_hidden
 

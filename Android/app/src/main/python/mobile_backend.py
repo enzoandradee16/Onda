@@ -238,6 +238,12 @@ def configure(root, native, libs):
     _root, _native = Path(root), Path(native)
     _root.mkdir(parents=True, exist_ok=True)
     os.environ["ONDA_ALIAS_CACHE_ROOT"] = str(_root)
+    import image_background
+    from java import jclass
+
+    image_background._native_predict = lambda model, values: bytes(
+        jclass('br.com.onda.mobile.ImageBackground').predict(str(model), values)
+    )
     # Extracted shared libraries are data; executable entry points remain in nativeLibraryDir.
     os.environ['LD_LIBRARY_PATH'] = (
         str(libs) + ':' + str(_native) + ':' + os.environ.get('LD_LIBRARY_PATH', '')
@@ -513,6 +519,15 @@ def jukebox_action(action, config):
         from playback_effects import prepare
 
         return {'error_detail': prepare(config['cache'], config.get('effects'), cancel)}
+    if action in ('jukebox_prepare', 'jukebox_stream_resolve') and config.get('record'):
+        from catalog_details import track_artwork
+
+        config = dict(
+            config,
+            record=track_artwork(
+                config['record'], config, _local.state['cancel'].is_set
+            ),
+        )
     if action == 'jukebox_prepare':
         progress = lambda value: emit('progress', percent=value)
         if config.get('source'):
@@ -693,7 +708,16 @@ def perform(action, config):
             or config.get('url')
             or model['_stream']['source_url']
         )
+        from stream_file_cache import lookup
+
+        cached = lookup(model)
+        if cached:
+            model['_stream_file'] = cached['path']
         return model
+    if action == 'jukebox_stream_cache':
+        from stream_file_cache import prepare
+
+        return prepare(config['model'], config, _local.state['cancel'].is_set)
     if action == 'jukebox_transfer_prepare':
         from online_audio import prepare_stream
 
@@ -737,7 +761,11 @@ def perform(action, config):
     if action in ('cache_info', 'cache_clear'):
         from cache_cleanup import cache_info, clear_cache
 
-        return (clear_cache if action == 'cache_clear' else cache_info)(_root)
+        if action == 'cache_clear':
+            return clear_cache(
+                _root, protected=config.get('_stream_cache_protected', [])
+            )
+        return cache_info(_root)
 
     if action == 'lyrics_online':
         from lyrics_service import fetch_lyrics
@@ -1005,6 +1033,8 @@ def perform(action, config):
             keep_pitch=config.get('keep_pitch', False),
             enabled=config.get('enabled', True),
             cover_data=config.get('cover_data', ''),
+            segment_start=config.get('segment_start', ''),
+            segment_end=config.get('segment_end', ''),
         )
     if action == 'effects':
         from effects_worker import render
@@ -1062,7 +1092,16 @@ def perform(action, config):
                 shutil.copyfile(config['source'], source)
             else:
                 work = dict(
-                    config, folder=temporary, mode='photos', duplicate_policy='keep'
+                    config,
+                    folder=temporary,
+                    mode='photos',
+                    duplicate_policy='keep',
+                    image_options={
+                        'format': 'Original',
+                        'width': 0,
+                        'height': 0,
+                        'keep_ratio': True,
+                    },
                 )
                 done, _ = prepare_link(work, capture, None)
                 if not done or not files:
@@ -1070,7 +1109,25 @@ def perform(action, config):
                         'A prévia requer um link direto de imagem ou uma página com imagem principal.'
                     )
                 source = Path(files[0])
-            image = transform_image(source, config['image_options'])
+
+            def image_event(kind, **values):
+                if _local.state['cancel'].is_set():
+                    raise Cancelled('Operação cancelada.')
+                emit(kind, **values)
+
+            original_preview = ''
+            if action == 'image_preview':
+                import uuid
+
+                original_path = folder / f'original-{uuid.uuid4().hex}.png'
+                with open_preview(source) as original:
+                    from PIL import ImageOps
+
+                    original = ImageOps.exif_transpose(original)
+                    original.thumbnail((1600, 1600))
+                    original.convert('RGBA').save(original_path)
+                original_preview = str(original_path)
+            image = transform_image(source, config['image_options'], image_event)
             if action == 'image_preview':
                 with open_preview(image) as picture:
                     dimensions = picture.size
@@ -1081,6 +1138,7 @@ def perform(action, config):
                     picture.convert('RGBA').save(result, format='PNG')
                 return {
                     'path': str(result),
+                    'original_preview': original_preview,
                     'width': dimensions[0],
                     'height': dimensions[1],
                     'format': image.suffix.lstrip('.').upper(),

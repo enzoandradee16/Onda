@@ -119,7 +119,7 @@ class OnlineImageGalleryTest {
                 compose.setContent {MaterialTheme {Column {ImagesPage(model);OnlineImageGallery(model)}}}
                 compose.onNodeWithTag("images-source-link").performTextInput(source.url+"/post")
                 compose.onNodeWithTag("online-image-preview-button").assertDoesNotExist()
-                compose.onNodeWithTag("images-search").performScrollTo().performClick()
+                compose.onNodeWithTag("images-search").assertDoesNotExist()
                 compose.waitUntil(15000){model.onlineImageGallery.value!=null && model.onlineImageThumbnail.value?.has("path")==true}
                 compose.runOnIdle {assertTrue(model.onlineImageEmbedded.value)}
                 compose.onNodeWithTag("images-inline-gallery").performScrollTo().assertIsDisplayed()
@@ -136,6 +136,46 @@ class OnlineImageGalleryTest {
                 compose.onNodeWithTag("images-more-actions").performScrollTo().performClick()
                 compose.onNodeWithText("Escolher arquivo").assertExists()
             } finally {compose.runOnIdle {model.cancelOnlineImagePreview();model.closeOnlineImages();store.clear()}}
+        }
+    }
+
+    @Test fun imageBackgroundColorPickerAppliesExactColorWithoutChangingTheme() {
+        val store=ViewModelStore();lateinit var model:OndaViewModel
+        lateinit var original:JSONObject
+        compose.runOnIdle {
+            model=vm(store)
+            original=JSONObject(OndaStore.settings.value.toString())
+            OndaStore.saveSettings(JSONObject(original.toString()).put("image_background","color").put("image_background_color","#123456"))
+        }
+        try {
+            compose.setContent {MaterialTheme {ImagesPage(model)}}
+            compose.onNodeWithTag("image-background-color-picker").performScrollTo().performClick()
+            compose.onNodeWithTag("custom-accent-hex").performTextReplacement("#FA0088")
+            compose.onNodeWithTag("apply-custom-accent").performScrollTo().performClick()
+            compose.waitUntil(5000){OndaStore.settings.value.optString("image_background_color")=="#FA0088"}
+            assertEquals(original.optString("accent"),OndaStore.settings.value.optString("accent"))
+        } finally {compose.runOnIdle {OndaStore.saveSettings(original);store.clear()}}
+    }
+
+    @Test fun changingImageWithBackgroundRemovalStaysInline() {
+        Source().use {source->
+            val store=ViewModelStore();lateinit var model:OndaViewModel
+            lateinit var original:JSONObject
+            compose.runOnIdle {
+                model=vm(store);original=JSONObject(OndaStore.settings.value.toString())
+                OndaStore.saveSettings(JSONObject(original.toString()).put("image_remove_background",true).put("image_background","transparent").put("image_crop","Original").put("image_rotation",0))
+            }
+            try {
+                compose.setContent {MaterialTheme {ImagesPage(model);OnlineImageGallery(model)}}
+                for(name in listOf("red.png","blue.png")) {
+                    compose.onNodeWithTag("images-source-link").performScrollTo().performTextReplacement(source.url+"/"+name)
+                    compose.waitUntil(30000){source.requests.contains("/"+name) && !model.busy.value && compose.onAllNodesWithTag("images-local-preview").fetchSemanticsNodes().isNotEmpty()}
+                    compose.onNodeWithTag("online-gallery-image").assertDoesNotExist()
+                }
+                compose.runOnIdle {OndaStore.saveSettings(JSONObject(OndaStore.settings.value.toString()).put("image_remove_background",false))}
+                compose.waitUntil(15000){model.onlineImageEmbedded.value && model.onlineImageGallery.value!=null}
+                compose.onNodeWithTag("online-gallery-image").assertDoesNotExist()
+            } finally {compose.runOnIdle {OndaStore.saveSettings(original);model.cancelOnlineImagePreview();model.closeOnlineImages();store.clear()}}
         }
     }
 

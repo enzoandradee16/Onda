@@ -63,6 +63,38 @@ def collection_artwork(result):
     cover = result.get('cover_url')
     if cover:
         for row in result.get('tracks', []):
+            if result.get('kind') != 'album' and row.get('cover_url') == cover:
+                row.pop('cover_url', None)
             if not row.get('cover_url'):
-                row['cover_url'] = cover
+                if result.get('kind') == 'album':
+                    row['cover_url'] = cover
+                else:
+                    row['_collection_cover_url'] = cover
+    return result
+
+
+def track_artwork(record, config, cancelled=lambda: False):
+    from urllib.parse import urlsplit
+    from metadata import MetadataClient, is_streaming_link
+
+    result = dict(record)
+    cover = result.get('cover_url') or ''
+    inherited = (
+        bool(result.get('_collection_cover_url') == cover and cover)
+        or (urlsplit(cover).hostname or '').lower() == 'mosaic.scdn.co'
+    )
+    if inherited:
+        result.pop('cover_url', None)
+        result.pop('_details_checked', None)
+    if is_streaming_link(result.get('source_url', '')) and (
+        inherited or result.get('_collection_cover_url')
+    ):
+        client = MetadataClient(
+            config.get('spotify_client_id', ''), config.get('spotify_client_secret', '')
+        )
+        client.cancelled = cancelled
+        try:
+            result = complete_record(result, client, cancelled)
+        finally:
+            client.close()
     return result

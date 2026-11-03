@@ -12,8 +12,8 @@ Popup {
     property var images: workspace.optionValue(workspace.optionsRevision,"imageGallery") || []
     property int index: workspace.optionValue(workspace.optionsRevision,"imageGalleryIndex") || 0
     property var current: images[index] || ({})
-    visible: images.length>0 && !workspace.optionValue(workspace.optionsRevision,"imageGalleryEmbedded")
-    onClosed: if(!workspace.optionValue(workspace.optionsRevision,"imageGalleryEmbedded"))workspace.invoke("image_gallery_close",{})
+    visible: workspace.currentPage!=="images" && images.length>0 && !workspace.optionValue(workspace.optionsRevision,"imageGalleryEmbedded")
+    onClosed: if(workspace.currentPage!=="images" && !workspace.optionValue(workspace.optionsRevision,"imageGalleryEmbedded"))workspace.invoke("image_gallery_close",{})
     readonly property bool online: !!workspace.optionValue(workspace.optionsRevision,"imageGalleryToken")
     function navigate(delta) {
         var target=index+delta
