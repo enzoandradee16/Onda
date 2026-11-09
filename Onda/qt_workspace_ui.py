@@ -92,6 +92,12 @@ class DesktopWorkspace(QObject):
             Path.home() / 'Downloads/Onda'
         )
         self.store = bridge.store
+        from session_cookies import migrate_windows_session
+        try:
+            instagram_cookie_file = migrate_windows_session(self.store.path.parent / 'instagram-browser')
+        except (OSError, ValueError):
+            instagram_cookie_file = None
+        self.settings['instagram_cookies'] = str(instagram_cookie_file) if instagram_cookie_file else ''
         self.library = LibraryStore(self.store.path.parent / 'library.sqlite3')
         from spotify_account import SpotifyAccount
 
@@ -743,6 +749,7 @@ class DesktopWorkspace(QObject):
         )
         config['youtube_cookies_file'] = config.get('youtube_cookies', '')
         config['cookies_file'] = config.get('social_cookies', '')
+        config['instagram_cookies_file'] = config.get('instagram_cookies', '')
         config['image_options'] = self.image_options()
         return config
 
@@ -863,6 +870,7 @@ class DesktopWorkspace(QObject):
             'spotify_client_id',
             'spotify_client_secret',
             'social_cookies',
+            'instagram_cookies',
             'youtube_cookies',
         ):
             self.settings[key] = str(value)
@@ -1197,6 +1205,12 @@ class DesktopWorkspace(QObject):
             self.message.emit(tr('ONDA'), error_text(error))
 
     def dispatch(self, action, p):
+        if action in ('instagram_connect', 'instagram_disconnect'):
+            if not getattr(self, 'instagram_session', None):
+                from instagram_session import InstagramSession
+                self.instagram_session = InstagramSession(self)
+            self.instagram_session.launch(disconnect=action == 'instagram_disconnect')
+            return
         if action == 'playback_queue_close_search':
             self.cancel_task('playback_input')
             self.setOption('jukeboxQueueResults', [])
@@ -3315,6 +3329,7 @@ class DesktopWorkspace(QObject):
                         'ffmpeg',
                         'cookies_file',
                         'youtube_cookies_file',
+                        'instagram_cookies_file',
                         'spotify_client_id',
                         'spotify_client_secret',
                         'worker_priority',
@@ -3329,6 +3344,7 @@ class DesktopWorkspace(QObject):
                 config['url'],
                 config.get('cookies_file', ''),
                 config.get('youtube_cookies_file', ''),
+                config.get('instagram_cookies_file', ''),
             )
             self.launch_thread(
                 lambda identity=identity, config=config, cancel=cancel: self.process_worker(
@@ -4785,6 +4801,8 @@ class DesktopWorkspace(QObject):
     def shutdown(self):
         if self.closed:
             return
+        if getattr(self, 'instagram_session', None):
+            self.instagram_session.close()
         self.discord_presence.close()
         self.remote_control.stop()
         self.save_playback_session()

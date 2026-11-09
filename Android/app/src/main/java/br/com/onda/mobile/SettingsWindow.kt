@@ -29,7 +29,7 @@ val categories=linkedMapOf(
     "Downloads" to listOf("wifi_only","wifi_loss","finish_action","notification_controls","auto_select_media","social_best_quality","detect_duplicates","filename_template","concurrent_downloads","resume_downloads","resume_queue","normalize_volume","schedule_enabled","schedule_start","schedule_stop","mode","audio_quality","height","fps","playlist_limit","link_playlist","organization","duplicate_policy","output_uri","auto_metadata","auto_match","review_metadata"),
     "Imagens" to listOf("image_format","image_size","image_width","image_height","keep_ratio"),
     "Áudio" to listOf("search_preview","synced_lyrics","jukebox_equalizer","jukebox_gradual_transition","jukebox_transition_seconds","playback_prepare_ahead"),
-    "Contas" to listOf("spotify_client_id","cookies_file","youtube_cookies_file"),
+    "Contas" to listOf("spotify_client_id","cookies_file","youtube_cookies_file","instagram_cookies_file"),
     "Desempenho" to listOf("automatic_cache_cleanup"),
     "Ferramentas" to listOf("check_updates"))
 
@@ -48,6 +48,7 @@ val categories=linkedMapOf(
     var overview by rememberSaveable {mutableStateOf(initialCategory=="Geral")}
     val scope=rememberCoroutineScope()
     var reset by remember {mutableStateOf(false)}
+    var instagramSession by remember {mutableStateOf(false)}
     var searchQuery by rememberSaveable {mutableStateOf("")}
     var searchTarget by remember {mutableStateOf("")}
     androidx.activity.compose.BackHandler {if(!overview){overview=true;searchTarget=""} else close()}
@@ -284,7 +285,7 @@ val categories=linkedMapOf(
                         SettingsDivider()
                         OutlinedButton(onClick={
                             if(settings.optString("youtube_cookies_file").isBlank())youtubeCookies.launch(arrayOf("text/plain","application/octet-stream"))
-                            else {java.io.File(settings.getString("youtube_cookies_file")).delete();put("youtube_cookies_file","");put("youtube_user_agent","");android.webkit.CookieManager.getInstance().removeAllCookies(null)}
+                            else {java.io.File(settings.getString("youtube_cookies_file")).delete();put("youtube_cookies_file","");put("youtube_user_agent","");clearWebSessionCookies(listOf("https://www.youtube.com","https://m.youtube.com"))}
                         }){UiText(if(settings.optString("youtube_cookies_file").isBlank())"Importar cookies do YouTube" else "Remover sessão do YouTube")}
                         OutlinedButton(onClick={
                             val path=settings.optString("cookies_file")
@@ -292,6 +293,8 @@ val categories=linkedMapOf(
                             else {java.io.File(path).delete();put("cookies_file","")}
                         }){UiText(if(settings.optString("cookies_file").isBlank())"Importar cookies.txt" else "Remover cookies")}
                         UiText(if(settings.optString("cookies_file").isBlank()) "Nenhum cookie importado" else "Cookies salvos no armazenamento privado do ONDA",style=MaterialTheme.typography.bodySmall)
+                        OutlinedButton(onClick={instagramSession=true}){UiText(if(settings.optString("instagram_cookies_file").isBlank())"Conectar ao Instagram" else "Atualizar sessão do Instagram")}
+                        if(settings.optString("instagram_cookies_file").isNotBlank())TextButton(onClick={disconnectInstagram()}){UiText("Desconectar Instagram")}
                     }
                     "Desempenho"->{
                         CacheControls(vm)
@@ -313,6 +316,7 @@ val categories=linkedMapOf(
         }
     }
     if(reset) ResetWindow {reset=false}
+    if(instagramSession) InstagramSessionWindow {instagramSession=false}
 }
 
 @Composable fun ResetWindow(close: ()->Unit) {

@@ -1,5 +1,11 @@
 # Histórico de versões
 
+## 1.2.8 — 2026-11-09
+
+- Login próprio do Instagram nas versões Windows e Android.
+- Sessões separadas por plataforma, com atualização e desconexão.
+- Windows 1.2.8.0; Android 1.2.8, código 36.
+
 ## 1.2.7 — 2026-11-09
 
 - Identificação de músicas com MusicBrainz e AcoustID.

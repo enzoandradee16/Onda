@@ -80,6 +80,8 @@ Popup {
                         }
                         ActionButton { text: bridge.translate(workspace.preferences.youtube_cookies ? "Remover cookies do YouTube" : "Importar cookies do YouTube"); onClicked: { if (workspace.preferences.youtube_cookies) workspace.setSetting("youtube_cookies",""); else workspace.invoke("pick",{kind:"youtube_cookies"}) } }
                         ActionButton { text: bridge.translate(workspace.preferences.social_cookies ? "Remover cookies.txt" : "Importar cookies.txt"); onClicked: { if (workspace.preferences.social_cookies) workspace.setSetting("social_cookies",""); else workspace.invoke("pick",{kind:"social_cookies"}) } }
+                        ActionButton { text: bridge.translate(workspace.preferences.instagram_cookies ? "Atualizar sessão do Instagram" : "Conectar ao Instagram"); onClicked: workspace.invoke("instagram_connect",{}) }
+                        ActionButton { visible: !!workspace.preferences.instagram_cookies; text: bridge.translate("Desconectar Instagram"); onClicked: workspace.invoke("instagram_disconnect",{}) }
                     }
                     ColumnLayout { visible: popup.category === "Ferramentas" && !popup.searching; Layout.fillWidth: true; spacing: Math.round(12*bridge.spacing)
                         ColumnLayout {visible:!!workspace.optionValue(workspace.optionsRevision,"appUpdate") && !!workspace.optionValue(workspace.optionsRevision,"appUpdate").available;Layout.fillWidth:true

@@ -12,7 +12,7 @@ O ONDA nasceu como um projeto pessoal, feito inicialmente para meu uso e de amig
 
 O projeto continua em desenvolvimento. Sugestões, contribuições e relatos de problemas são bem-vindos.
 
-**Versão 1.2.7 para Windows 10 ou superior (x64) e Android 8 ou superior (ARM64 e x86_64).**
+**Versão 1.2.8 para Windows 10 ou superior (x64) e Android 8 ou superior (ARM64 e x86_64).**
 
 Consulte as [notas da versão](RELEASE_NOTES.md).
 

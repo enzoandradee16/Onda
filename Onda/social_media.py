@@ -62,15 +62,21 @@ def session_for(cookies=""):
     )
     if cookies:
         import http.cookiejar
-
-        jar = http.cookiejar.MozillaCookieJar(cookies)
+        from yt_dlp.cookies import YoutubeDLCookieJar
+        from session_cookies import cookie_source
+        source = cookie_source(cookies)
+        jar = YoutubeDLCookieJar(source)
         try:
-            jar.load(ignore_discard=True, ignore_expires=False)
+            jar.load(ignore_discard=True, ignore_expires=True)
+            jar.clear_expired_cookies()
         except (OSError, http.cookiejar.LoadError) as exc:
             session.close()
             raise ValueError(
                 "Não foi possível ler cookies.txt no formato Netscape."
             ) from exc
+        finally:
+            if hasattr(source, 'close'):
+                source.close()
         session.cookies.update(jar)
     return session
 
@@ -839,6 +845,14 @@ def video_fallback(config, emit):
 
 def access_error(exc):
     detail = str(exc)
+    if 'instagram' in detail.lower() and any(
+        marker in detail.lower() for marker in ('login', 'empty media response', 'restricted', '403', '401')
+    ):
+        return (
+            'O Instagram não liberou esta publicação. Abra Configurações → Contas → Conectar ao Instagram '
+            'ou atualize a sessão existente, conclua a verificação da conta e tente novamente. '
+            'A disponibilidade depende do acesso permitido à conta.'
+        )
     if "O Kwai não encontrou" in detail or "O Kwai não forneceu" in detail:
         return detail
     if "ip address is blocked" in detail.lower():

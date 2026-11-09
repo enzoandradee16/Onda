@@ -1,6 +1,6 @@
 # Funcionalidades do ONDA para Android
 
-Guia revisado para **1.2.3 (código 30)** em 27/10/2026. Consulte o [inventário completo](../docs/INVENTARIO-FUNCIONALIDADES.md) para referências ao código e o [relatório da release](../docs/VALIDACAO-RELEASE-1.2.3.md) para testes e limites.
+Guia revisado para **1.2.3 (código 30)** em 27/10/2026. Consulte o [inventário completo](../docs/INVENTARIO-FUNCIONALIDADES.md) para referências ao código e o [relatório da release](../docs/VALIDACAO-RELEASE-1.2.7.md) para testes e limites.
 
 ## Navegação e aparência
 

@@ -94,7 +94,8 @@ def instagram_items(url, session, cookies="", logger=None):
         "logger": logger,
     }
     if cookies:
-        options["cookiefile"] = cookies
+        from session_cookies import cookie_source
+        options["cookiefile"] = cookie_source(cookies)
     with YoutubeDL(options) as downloader:
         source = InstagramMediaIE(downloader)
         source.extract(url)

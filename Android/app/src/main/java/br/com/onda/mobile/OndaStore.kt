@@ -107,7 +107,7 @@ object OndaStore {
         .put("tab_group_order",JSONArray(moreGroups.keys.toList()))
         .put("hidden_tabs",JSONArray())
         .put("tab_order",JSONArray(listOf("Pesquisar","Links e fila","Fila","Imagens","Conversor de vídeos","Playlists / Álbuns","Histórico","Efeitos","Metadados")))
-        .put("output_uri", "").put("cookies_file", "").put("youtube_cookies_file", "").put("spotify_client_id", "")
+        .put("output_uri", "").put("cookies_file", "").put("youtube_cookies_file", "").put("instagram_cookies_file", "").put("spotify_client_id", "")
     fun normalizeAppearance(value:JSONObject) {
         value.put("playback_prepare_ahead",preparationAhead(value))
         value.put("jukebox_transition_seconds",value.optInt("jukebox_transition_seconds",2).coerceIn(1,10))
@@ -163,7 +163,7 @@ object OndaStore {
     }
     fun executionConfig(stored:JSONObject):JSONObject=JSONObject(stored.toString()).apply {
         val live=settings.value
-        listOf("cookies_file","youtube_cookies_file","youtube_user_agent").forEach {key->put(key,live.optString(key))}
+        listOf("cookies_file","youtube_cookies_file","youtube_user_agent","instagram_cookies_file").forEach {key->put(key,live.optString(key))}
     }
     @Synchronized fun refresh() {refreshQueue();refreshHistory()}
     @Synchronized private fun refreshQueue() {

@@ -25,10 +25,11 @@ class Cancelled(ValueError):
 
 def session_options(params, config):
     params = dict(params or {})
-    cookies = config.get('cookies_file')
+    from download_defaults import download_cookies
+    cookies = download_cookies(config.get('url') or config.get('source', ''), config.get('cookies_file', ''), config.get('youtube_cookies_file', ''), config.get('instagram_cookies_file', ''))
     from social_media import is_social
 
-    if not is_social(config.get('url', '')):
+    if not is_social(config.get('url') or config.get('source', '')):
         cookies = config.get('youtube_cookies_file') or cookies
         if config.get('youtube_cookies_file') and config.get('youtube_user_agent'):
             params['http_headers'] = dict(
@@ -36,7 +37,8 @@ def session_options(params, config):
                 **{'User-Agent': config['youtube_user_agent']},
             )
     if cookies:
-        params['cookiefile'] = cookies
+        from session_cookies import cookie_source
+        params['cookiefile'] = cookie_source(cookies)
     else:
         params.pop('cookiefile', None)
     return params
@@ -1324,6 +1326,9 @@ def run(identity, action, payload, callback, raw_pcm=False):
     _local.state = state
     try:
         state['config'] = json.loads(payload)
+        from download_defaults import download_cookies
+        config = state['config']
+        config['cookies_file'] = download_cookies(config.get('url') or config.get('source', ''), config.get('cookies_file', ''), config.get('youtube_cookies_file', ''), config.get('instagram_cookies_file', ''))
         _local.raw_pcm = raw_pcm
         result = perform(action, state['config'])
         if raw_pcm:

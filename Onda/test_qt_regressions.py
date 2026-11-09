@@ -418,6 +418,16 @@ class ReviewRegressionTests(unittest.TestCase):
             self.launch.call_args.args[0]()
         self.assertEqual(worker.call_args.args[1]['cookies_file'], '/social.txt')
 
+    def test_instagram_worker_uses_its_own_session(self):
+        self.ws.settings.update(
+            social_cookies='/social.txt', youtube_cookies='/youtube.txt',
+            instagram_cookies='/instagram.txt',
+        )
+        with patch.object(self.ws, 'process_worker') as worker:
+            self.ws.enqueue(['https://www.instagram.com/p/example/'], start=True)
+            self.launch.call_args.args[0]()
+        self.assertEqual(worker.call_args.args[1]['cookies_file'], '/instagram.txt')
+
     def test_stable_selection_order_at_boundaries_and_gaps(self):
         for action, selection, expected in [
             ('down', 'AB', 'CABD'),

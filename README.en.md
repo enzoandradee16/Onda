@@ -12,7 +12,7 @@ ONDA started as a personal project, initially made for me and my friends. I deci
 
 The project is still in development. Suggestions, contributions and bug reports are welcome.
 
-**Version 1.2.7 for Windows 10 or later (x64) and Android 8 or later (ARM64 and x86_64).**
+**Version 1.2.8 for Windows 10 or later (x64) and Android 8 or later (ARM64 and x86_64).**
 
 See the [release notes](RELEASE_NOTES.md).
 

@@ -8,7 +8,7 @@ Na pesquisa, **Baixar agora** abre a escolha de MP3, M4A, FLAC ou áudio origina
 
 Efeitos e Jukebox compartilham música, fila e miniplayer flutuante, com dados, letras e volume. No PC, a aba **Reprodução** fica na categoria **Biblioteca** da barra lateral. Os ajustes podem funcionar juntos na tela Reprodução; veja [Reprodução unificada](../docs/REPRODUCAO-UNIFICADA.md). Minimizar a janela principal não minimiza o player. Em Aparência, **Minimizar ONDA ao abrir o miniplayer** controla apenas a janela principal. Arraste pelo cabeçalho, capa ou informações; os botões continuam disponíveis. Fixar mantém o player acima de outras janelas.
 
-O instalador próprio oferece português, espanhol e inglês desde a abertura, além de pasta, atalho e progresso. O idioma escolhido vale também para as confirmações do desinstalador, sem alterar o idioma do app. Veja [o instalador](../docs/INSTALADOR-WINDOWS.md) e [a validação 1.2.3](../docs/VALIDACAO-RELEASE-1.2.3.md). As capturas atualizadas ficam no [README principal](../README.md).
+O instalador próprio oferece português, espanhol e inglês desde a abertura, além de pasta, atalho e progresso. O idioma escolhido vale também para as confirmações do desinstalador, sem alterar o idioma do app. Veja [o instalador](../docs/INSTALADOR-WINDOWS.md) e [a validação 1.2.7](../docs/VALIDACAO-RELEASE-1.2.7.md). As capturas atualizadas ficam no [README principal](../README.md).
 
 O [README principal](../README.md) apresenta o aplicativo e os pacotes da versão atual para Windows e Android.
 

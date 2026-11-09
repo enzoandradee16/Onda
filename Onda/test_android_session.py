@@ -53,6 +53,17 @@ class NativeCancellationTests(unittest.TestCase):
 
 
 class AndroidSessionTests(unittest.TestCase):
+    def test_instagram_uses_own_session_for_source_and_url(self):
+        for key in ('url', 'source'):
+            options = backend.session_options({}, {
+                key: 'https://www.instagram.com/reel/example/',
+                'cookies_file': 'social.txt',
+                'youtube_cookies_file': 'youtube.txt',
+                'instagram_cookies_file': 'instagram.txt',
+            })
+            self.assertEqual(options['cookiefile'], 'instagram.txt')
+            self.assertNotIn('http_headers', options)
+
     def test_spotify_audio_lookup_uses_youtube_session_and_browser_agent(self):
         config = {
             'url': 'https://open.spotify.com/playlist/fixture',

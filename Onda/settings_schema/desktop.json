@@ -96,6 +96,7 @@
     "spotify_client_id": "",
     "spotify_client_secret": "",
     "social_cookies": "",
+    "instagram_cookies": "",
     "youtube_cookies": "",
     "notifications_enabled": true,
     "jukebox_background": true,

@@ -1,3 +1,14 @@
+# ONDA 1.2.8
+
+- Sessões do Instagram protegidas com DPAPI no Windows e Android Keystore no celular, com leitura em memória e migração da sessão anterior.
+- Corrigidos o ícone da janela no Windows e a tela vazia de login no Android.
+- Conexão ao Instagram nas configurações de Contas no PC e Android, com janela própria de login e sessão salva no dispositivo.
+- Atualização e desconexão da sessão sem alterar cookies de outras plataformas.
+- Windows 1.2.8 / 1.2.8.0; Android 1.2.8, código 36.
+- A disponibilidade de vídeos restritos depende da conta e das verificações exigidas pelo Instagram.
+
+---
+
 # ONDA 1.2.7
 
 Versão para Windows x64 e Android ARM64 e x86_64.

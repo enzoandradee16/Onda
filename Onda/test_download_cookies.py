@@ -3,6 +3,11 @@ from download_defaults import download_cookies
 
 
 class DownloadCookieTests(unittest.TestCase):
+    def test_instagram_session_never_leaks_to_other_platforms(self):
+        self.assertEqual(download_cookies('https://www.instagram.com/reel/1', 'social', 'youtube', 'instagram'), 'instagram')
+        for url in ('https://www.tiktok.com/@a/video/1', 'https://kw.ai/1', 'https://instagram.com.example.org/'):
+            self.assertEqual(download_cookies(url, 'social', 'youtube', 'instagram'), 'social')
+        self.assertEqual(download_cookies('https://youtu.be/1', 'social', 'youtube', 'instagram'), 'youtube')
     def test_platform_sessions_are_independent(self):
         for url in (
             'https://instagram.com/p/1',

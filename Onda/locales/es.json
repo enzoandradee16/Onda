@@ -2475,5 +2475,20 @@
   "Detectar duplicatas nos downloads e no histórico": "Detectar duplicados en descargas e historial",
   "Retomar downloads ao abrir o ONDA": "Reanudar descargas al abrir ONDA",
   "Ação ao terminar os downloads": "Acción al finalizar las descargas",
-  "Baixe vídeos, músicas e fotos. Cole um link por linha e escolha Baixar agora ou Adicionar aos downloads.": "Descarga vídeos, música y fotos. Pega un enlace por línea y elige Descargar ahora o Añadir a descargas."
+  "Baixe vídeos, músicas e fotos. Cole um link por linha e escolha Baixar agora ou Adicionar aos downloads.": "Descarga vídeos, música y fotos. Pega un enlace por línea y elige Descargar ahora o Añadir a descargas.",
+  "Conectar ao Instagram": "Conectar a Instagram",
+  "Atualizar sessão do Instagram": "Actualizar sesión de Instagram",
+  "Desconectar Instagram": "Desconectar Instagram",
+  "Entre no Instagram, conclua a verificação e toque em Usar esta sessão.": "Inicia sesión en Instagram, completa la verificación y pulsa Usar esta sesión.",
+  "O login ainda não foi concluído. Entre na conta e aguarde o Instagram carregar.": "El inicio de sesión no se ha completado. Accede y espera a que cargue Instagram.",
+  "A janela do Instagram já está aberta.": "La ventana de Instagram ya está abierta.",
+  "O componente de conexão do Instagram não está instalado neste pacote.": "El componente de conexión a Instagram no está instalado en este paquete.",
+  "Instagram desconectado.": "Instagram desconectado.",
+  "Sessão do Instagram salva. Tente baixar o vídeo novamente.": "Sesión de Instagram guardada. Intenta descargar el vídeo de nuevo.",
+  "Não foi possível abrir a janela do Instagram.": "No se pudo abrir la ventana de Instagram.",
+  "O Instagram não liberou esta publicação. Abra Configurações → Contas → Conectar ao Instagram ou atualize a sessão existente, conclua a verificação da conta e tente novamente. A disponibilidade depende do acesso permitido à conta.": "Instagram no permitió acceder a esta publicación. Abre Configuración → Cuentas → Conectar a Instagram o actualiza la sesión existente, completa la verificación de la cuenta e inténtalo de nuevo. La disponibilidad depende del acceso permitido a la cuenta.",
+  "Não foi possível carregar o Instagram. Toque em Recarregar para tentar novamente.": "No se pudo cargar Instagram. Pulsa Recargar para intentarlo de nuevo.",
+  "O Instagram está demorando para carregar. Toque em Recarregar para tentar novamente.": "Instagram está tardando en cargar. Pulsa Recargar para intentarlo de nuevo.",
+  "Atualize a sessão do Instagram em Configurações → Contas.": "Actualiza la sesión de Instagram en Configuración → Cuentas.",
+  "Recarregar": "Recargar"
 }

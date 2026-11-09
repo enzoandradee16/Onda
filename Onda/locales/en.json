@@ -2475,5 +2475,20 @@
   "Detectar duplicatas nos downloads e no histórico": "Detect duplicates in downloads and history",
   "Retomar downloads ao abrir o ONDA": "Resume downloads when opening ONDA",
   "Ação ao terminar os downloads": "Action when downloads finish",
-  "Baixe vídeos, músicas e fotos. Cole um link por linha e escolha Baixar agora ou Adicionar aos downloads.": "Download videos, music and photos. Paste one link per line and choose Download now or Add to downloads."
+  "Baixe vídeos, músicas e fotos. Cole um link por linha e escolha Baixar agora ou Adicionar aos downloads.": "Download videos, music and photos. Paste one link per line and choose Download now or Add to downloads.",
+  "Conectar ao Instagram": "Connect to Instagram",
+  "Atualizar sessão do Instagram": "Update Instagram session",
+  "Desconectar Instagram": "Disconnect Instagram",
+  "Entre no Instagram, conclua a verificação e toque em Usar esta sessão.": "Sign in to Instagram, complete verification, then tap Use this session.",
+  "O login ainda não foi concluído. Entre na conta e aguarde o Instagram carregar.": "Sign-in is not complete. Sign in and wait for Instagram to load.",
+  "A janela do Instagram já está aberta.": "The Instagram window is already open.",
+  "O componente de conexão do Instagram não está instalado neste pacote.": "The Instagram connection component is not installed in this package.",
+  "Instagram desconectado.": "Instagram disconnected.",
+  "Sessão do Instagram salva. Tente baixar o vídeo novamente.": "Instagram session saved. Try downloading the video again.",
+  "Não foi possível abrir a janela do Instagram.": "Could not open the Instagram window.",
+  "O Instagram não liberou esta publicação. Abra Configurações → Contas → Conectar ao Instagram ou atualize a sessão existente, conclua a verificação da conta e tente novamente. A disponibilidade depende do acesso permitido à conta.": "Instagram did not grant access to this post. Open Settings → Accounts → Connect to Instagram or update your existing session, complete account verification, and try again. Availability depends on the access granted to the account.",
+  "Não foi possível carregar o Instagram. Toque em Recarregar para tentar novamente.": "Could not load Instagram. Tap Reload to try again.",
+  "O Instagram está demorando para carregar. Toque em Recarregar para tentar novamente.": "Instagram is taking longer to load. Tap Reload to try again.",
+  "Atualize a sessão do Instagram em Configurações → Contas.": "Update your Instagram session in Settings → Accounts.",
+  "Recarregar": "Reload"
 }

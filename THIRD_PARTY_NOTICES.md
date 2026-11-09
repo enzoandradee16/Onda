@@ -11,6 +11,7 @@ Copyright (c) 2026 Enzo Andrade para o código próprio do ONDA, licenciado sob 
 | Mutagen | GPL-2.0-or-later; licença na pasta `.dist-info/licenses` correspondente |
 | yt-dlp e dependências | Licenças individuais nas pastas `.dist-info`; consulte os arquivos originais |
 | Qt, PySide6 e Shiboken (portátil Qt) | Licenças e avisos originais preservados em `_runtime/qt/pyside6_essentials-*.dist-info/licenses` e `_runtime/qt/shiboken6-*.dist-info/licenses` |
+| Microsoft.Web.WebView2 SDK 1.0.4314.35 | Termos Microsoft em `_runtime/browser-session/WebView2-LICENSE.txt`; o WebView2 Runtime é fornecido e atualizado pela Microsoft no sistema |
 | CPython, Tcl/Tk e componentes | `_runtime/python/LICENSE.txt` e avisos dentro do runtime |
 | FFmpeg / ffprobe / ffplay | Não incluídos nos pacotes do ONDA. Obtidos diretamente de gyan.dev pelo usuário na primeira preparação. Licença GPLv3, README e origem preservados no cache local |
 | Node.js | MIT e avisos dos componentes incorporados, em `_runtime/node/LICENSE.txt` |

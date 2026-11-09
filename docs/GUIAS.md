@@ -1,6 +1,6 @@
 # Guias do ONDA
 
-Referências de uso revisadas para **1.2.4**, em 27/10/2026.
+Guias de uso e referências técnicas do ONDA.
 
 ## Uso atual
 
@@ -8,8 +8,9 @@ Referências de uso revisadas para **1.2.4**, em 27/10/2026.
 | --- | --- |
 | [Inventário completo](INVENTARIO-FUNCIONALIDADES.md) | Funcionalidades, diferenças PC/Android, limitações, configurações e índice técnico |
 | [Reprodução unificada](REPRODUCAO-UNIFICADA.md) | Efeitos e Jukebox na mesma tela, fila, processamento e migração de sessões |
-| [Reprodução remota — teste](CONTROLE-REMOTO.md) | Player, fila e notificação Android para controlar o ONDA PC na rede local |
+| [Reprodução remota](CONTROLE-REMOTO.md) | Player, fila e notificação Android para controlar o ONDA PC na rede local |
 | [Recursos avançados](../RECURSOS-AVANCADOS.md) | Downloads, retomada, edição, letras, agendamento, cache e atualização |
+| [Conectar ao Instagram](INSTAGRAM.md) | Login próprio e uso da sessão nos downloads |
 | [Configurações](CONFIGURACOES.md) | Categorias, busca, aparência, persistência e opções específicas |
 | [Ferramentas e clareza dos estados](CLAREZA-DE-ESTADOS.md) | Verificação de ferramentas, cobertura de coleções e falhas de preparação por faixa |
 | [Jukebox](JUKEBOX.md) | Reprodução, filas, equalizador, letras e restauração de sessão |
@@ -24,15 +25,9 @@ Referências de uso revisadas para **1.2.4**, em 27/10/2026.
 
 - [Ideias futuras](IDEIAS-FUTURAS.md): controle entre PC e Android, Spotify e MusicBrainz + AcoustID. Propostas ainda não implementadas.
 
-## Relatórios históricos e validações
+## Validação
 
-Documentos de revisão, paridade e resultados de testes registram uma versão e uma execução específicas. Descrições antigas de botões, caminhos e recursos ausentes não substituem os guias acima. Atualizar documentação não significa reexecutar os testes descritos.
-
-- [Validação 1.2.3](VALIDACAO-RELEASE-1.2.3.md).
-- [Comparação histórica PC × Android](../Android/PARIDADE-PC-ANDROID.md).
-- [Paridade de reprodução em 23/10/2026](PARIDADE-ANDROID-2026-10-23.md).
-- [Navegação e configurações: implementação anterior](NAVEGACAO.md).
-- [Filas grandes e sessão YouTube: implementação anterior](ANDROID-FILAS-GRANDES.md).
+- [Validação da versão 1.2.7](VALIDACAO-RELEASE-1.2.7.md).
 
 ## Referências técnicas
 

@@ -12,11 +12,13 @@ SOCIAL_BEST_HOSTS = (
 )
 
 
-def download_cookies(url, social='', youtube=''):
+def download_cookies(url, social='', youtube='', instagram=''):
     """Select the session for the source, not whichever cookie file was set last."""
     from metadata import is_streaming_link
 
     host = (urlsplit(url).hostname or '').lower().rstrip('.')
+    if instagram and (host == 'instagram.com' or host.endswith('.instagram.com')):
+        return instagram
     uses_youtube = (
         host == 'youtu.be'
         or host == 'youtube.com'

@@ -408,12 +408,13 @@ def perform(action, config, cancel, emit):
                         files.append(data['path'])
                     emit(event, **data)
 
+                from download_defaults import download_cookies
                 done, _ = prepare_link(
                     {
                         'url': config['source'],
                         'mode': 'photos',
                         'folder': temp,
-                        'cookies_file': config.get('social_cookies', ''),
+                        'cookies_file': download_cookies(config['source'], config.get('social_cookies', ''), '', config.get('instagram_cookies_file', '')),
                         'duplicate_policy': 'keep',
                     },
                     capture,

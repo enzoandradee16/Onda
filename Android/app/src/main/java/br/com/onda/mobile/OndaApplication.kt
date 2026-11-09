@@ -26,6 +26,10 @@ class OndaApplication : Application(), coil.ImageLoaderFactory {
         LauncherIcons.initialize(this)
         SecureVault.initialize(this)
         OndaStore.initialize(this)
+        runCatching {migrateInstagramSession()}.onFailure {
+            OndaStore.saveSettings(org.json.JSONObject(OndaStore.settings.value.toString()).put("instagram_cookies_file",""))
+            OndaStore.log("Não foi possível proteger a sessão do Instagram. Conecte novamente em Contas.")
+        }
         LauncherIcons.sync(this,OndaStore.settings.value)
     }
 }
