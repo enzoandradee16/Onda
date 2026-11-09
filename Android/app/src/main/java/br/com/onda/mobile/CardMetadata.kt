@@ -15,14 +15,17 @@ internal const val PLAYBACK_INPUT_HINT="Música, artista ou link de música, ál
 
 @Composable internal fun rememberCardMetadata(record:JSONObject,vm:OndaViewModel?):JSONObject {
     val value by produceState(record,record,vm) {
+        value=record
         if(vm!=null && (!record.cleanString("cover_url").isNotBlank() || !record.cleanString("release_date").isNotBlank()))value=vm.completeCard(record)
     }
     return value
 }
 internal fun albumReleaseText(record:JSONObject,showAlbum:Boolean=true):String=listOf(if(showAlbum)record.cleanString("album") else "",record.cleanString("release_date").let {if(it.isBlank())"" else displayReleaseDate(it)}).filter {it.isNotBlank()}.joinToString(" · ")
 @Composable internal fun AlbumDateLabel(record:JSONObject) {
-    val text=albumReleaseText(record)
-    if(text.isNotBlank())UiText(text,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant,maxLines=1,overflow=TextOverflow.Ellipsis)
+    val album=record.cleanString("album")
+    val date=record.cleanString("release_date")
+    if(album.isNotBlank())UiText(album,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant,maxLines=1,overflow=TextOverflow.Ellipsis)
+    if(date.isNotBlank())UiText(translateUi("Data de lançamento")+": "+displayReleaseDate(date),style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
 internal fun openRecordLink(record:JSONObject) {

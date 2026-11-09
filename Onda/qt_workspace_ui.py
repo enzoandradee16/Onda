@@ -2019,6 +2019,44 @@ class DesktopWorkspace(QObject):
                 self.run_task(
                     action, {'source': self.options['imageSource']}, self.image_result
                 )
+        elif action == 'app_update_download':
+            def downloaded(result):
+                if result.get('installer'):
+                    self.confirm(
+                        'Atualização do ONDA', tr('Instalar atualização agora?'),
+                        lambda: QDesktopServices.openUrl(QUrl.fromLocalFile(result['installer'])),
+                    )
+                else:
+                    self.show_result(result)
+            self.run_task(action, {}, downloaded)
+        elif action == 'audio_identify':
+            sources = list(self.options['metadataSources'])
+            if len(sources) != 1:
+                return
+
+            def identified(fields):
+                if sources != self.options['metadataSources']:
+                    return
+                if not fields:
+                    self.message.emit(tr('Identificar pelo áudio'), tr('Nenhuma gravação correspondente foi encontrada.'))
+                    return
+                lines = [fields['title'], ', '.join(fields['artists'])]
+                for key, label in (('album', 'Álbum'), ('release_date', 'Data de lançamento'),
+                                   ('track_number', 'Número da faixa'), ('isrc', 'ISRC')):
+                    if fields.get(key):
+                        lines.append(f'{tr(label)} · {fields[key]}')
+                cover = fields.pop('cover', '')
+
+                def apply():
+                    if sources == self.options['metadataSources']:
+                        self.options['metadata'].update(fields)
+                        if cover:
+                            self.options.update(metadataCover=cover, cover_path=cover)
+                        self.optionsChanged.emit()
+
+                self.confirm('Identificar pelo áudio', '\n'.join(lines), apply)
+
+            self.run_task(action, {'source': sources[0]}, identified)
         elif action == 'audio_edit':
             self.edit_audio()
         elif action == 'metadata_preview':
@@ -2480,6 +2518,7 @@ class DesktopWorkspace(QObject):
             'prepare_tools': 'Preparação das ferramentas',
             'verify_tools': 'Verificação das ferramentas',
             'app_update': 'Verificação de atualização',
+            'app_update_download': 'Baixando atualização do ONDA',
             'update_tools': 'Atualização das ferramentas',
             'cache_info': 'Consulta ao cache',
             'cache_clear': 'Limpeza do cache',
@@ -2526,8 +2565,8 @@ class DesktopWorkspace(QObject):
             'search': 'Pesquisar',
             'download': 'Baixar agora',
             'add': 'Adicionar à fila',
-            'start': 'Baixar fila',
-            'stop': 'Parar fila',
+            'start': 'Baixar pendentes',
+            'stop': 'Parar downloads',
             'settings': 'Configurações',
             'metadata': 'Metadados',
             'help': 'Atalhos',
@@ -3751,7 +3790,7 @@ class DesktopWorkspace(QObject):
             self.confirm(
                 'Atualização do ONDA',
                 result.get('message', '') + '\n' + tr('Baixar nova versão?'),
-                lambda: QDesktopServices.openUrl(QUrl(result.get('url', ''))),
+                lambda: self.dispatch('app_update_download', {}),
             )
             return
         if isinstance(result, dict) and result.get('path'):
@@ -4513,8 +4552,8 @@ class DesktopWorkspace(QObject):
                 Qt.WidgetAttribute.WA_TranslucentBackground, True
             )
             self.tray_menu.addAction(tr('Abrir ONDA'), self.restore)
-            self.tray_menu.addAction(tr('Baixar fila'), self.start_queue)
-            self.tray_menu.addAction(tr('Parar fila'), self.stop_queue)
+            self.tray_menu.addAction(tr('Baixar pendentes'), self.start_queue)
+            self.tray_menu.addAction(tr('Parar downloads'), self.stop_queue)
             self.tray_menu.addAction(tr('Sair'), lambda: self.requestClose(True))
             self.refresh_tray_style()
             # Windows' native tray menu ignores QWidget styles and rounded corners.
@@ -4965,7 +5004,7 @@ class DesktopWorkspace(QObject):
         if not source and model.get('_stream'):
             import hashlib
 
-            identity = str(model['_stream'].get('url') or '')
+            identity = str(model['_stream'].get('source_url') or model['_stream'].get('url') or '')
             source = 'onda-stream-' + hashlib.sha256(identity.encode()).hexdigest()
         return source
 
@@ -5031,7 +5070,10 @@ class DesktopWorkspace(QObject):
         )
         import bisect
 
-        active = bisect.bisect_right(rows, position, key=lambda row: row[0]) - 1
+        lyric_position = position
+        if jukebox and duration > 0 and position >= duration and not self.bridge.state['playing']:
+            lyric_position = next((at for at, text in reversed(rows) if text.strip()), position)
+        active = bisect.bisect_right(rows, lyric_position, key=lambda row: row[0]) - 1
         import re
 
         # The 100 ms playback clock changes the active verse, not the whole
@@ -5045,7 +5087,7 @@ class DesktopWorkspace(QObject):
             ]
         lines = self._lyrics_display_lines
         return dict(
-            text=karaoke_at(rows, position),
+            text=karaoke_at(rows, lyric_position),
             **({'lines': lines} if include_lines else {}),
             revision=getattr(self, '_lyrics_revision', 0),
             active=active,

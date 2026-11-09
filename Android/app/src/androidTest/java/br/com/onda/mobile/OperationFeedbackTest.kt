@@ -15,6 +15,36 @@ import org.junit.Test
 class OperationFeedbackTest {
     @get:Rule val compose=createComposeRule()
 
+    @Test fun catalogSearchButtonAndImeRenderResultsWithoutCrash() {
+        val context=InstrumentationRegistry.getInstrumentation().targetContext
+        OndaStore.initialize(context)
+        MobileEngine.initialize(context)
+        val store=ViewModelStore()
+        lateinit var vm:OndaViewModel
+        compose.runOnUiThread {
+            vm=ViewModelProvider(store,ViewModelProvider.AndroidViewModelFactory.getInstance(ApplicationProvider.getApplicationContext()))[OndaViewModel::class.java]
+        }
+        val fixture=com.chaquo.python.Python.getInstance().getModule("mobile_smoke")
+        fixture.callAttr("start_enter_search_fixture")
+        try {
+            compose.setContent {MaterialTheme {SearchPage(vm,{})}}
+            compose.onNodeWithTag("music-query").performTextInput("Primeira música")
+            compose.onNodeWithContentDescription("Pesquisar").performClick()
+            compose.waitUntil(15000) {!vm.busy.value && vm.searchResults.value.any {it.optString("title")=="Resultado: Primeira música"}}
+            compose.onNodeWithText("Resultado: Primeira música").assertExists()
+            compose.onNodeWithTag("music-query").performTextClearance()
+            compose.onNodeWithTag("music-query").performTextInput("Segunda música")
+            compose.onNodeWithTag("music-query").performImeAction()
+            compose.waitUntil(15000) {!vm.busy.value && vm.searchResults.value.any {it.optString("title")=="Resultado: Segunda música"}}
+            compose.waitForIdle()
+            compose.onNode(hasScrollAction() and hasAnyDescendant(hasTestTag("music-query"))).performScrollToNode(hasText("Resultado: Segunda música"))
+            compose.onNodeWithText("Resultado: Segunda música").assertExists()
+        } finally {
+            fixture.callAttr("stop_enter_search_fixture")
+            compose.runOnUiThread {store.clear()}
+        }
+    }
+
     @Test fun structuredResultsAreReadableIncludingCacheFailures() {
         val message=operationResultMessage(JSONObject().put("bytes",16384).put("removed",1048576).put("failed",1))
         assertTrue(message.contains("MB"))

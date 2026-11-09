@@ -55,6 +55,24 @@ class PlaybackQueueDrawerTests(unittest.TestCase):
         )
         self.assertEqual(self.bridge.queue_index, 0)
 
+    def test_end_of_last_track_keeps_lyrics_and_allows_seek(self):
+        self.seed()
+        bridge = self.bridge
+        bridge.queue_index = len(bridge.playlist) - 1
+        bridge.model = {'beats': [0.0, 10.0, 20.0], 'duration': 20.0, 'links': 0,
+                        'source': 'retained-song.wav', 'neighbors': [[], []], 'cache': 'test-cache'}
+        bridge.update_state(ready=True, playing=True)
+        self.ws._lyric_source = 'retained-song.wav'
+        self.ws._jukebox_lyrics = [(1.0, 'first'), (12.0, 'last'), (20.0, '')]
+        bridge.handle_event(bridge.revision, 'finished', None)
+        frame = self.ws.lyricsFrame(True)
+        self.assertEqual(frame['position'], 20.0)
+        self.assertEqual(frame['text'], 'last')
+        self.assertEqual(len(frame['lines']), 3)
+        self.ws.seekLyrics(10.0, True)
+        self.assertEqual(bridge._position, 1)
+        self.assertTrue(bridge._state['ready'])
+
     def test_search_selection_prepares_without_stopping_current_track(self):
         self.seed()
         bridge = self.bridge

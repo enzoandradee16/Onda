@@ -1,5 +1,21 @@
 # Histórico de versões
 
+## 1.2.7 — 2026-11-09
+
+- Identificação de músicas com MusicBrainz e AcoustID.
+- Atualização direta no Windows e melhorias nas letras, links e textos de downloads.
+- Correção da pesquisa Android e continuidade da música durante a preparação de outra faixa.
+- Melhorias visuais nos artistas, controles de efeitos e descrições do controle remoto.
+- Windows 1.2.7.0 / 1.2.7 e Android 1.2.7, código 35.
+
+## 1.2.6 — 2026-11-03
+
+- Discord Rich Presence opcional no PC.
+- Seleção múltipla, atalhos e ações em lote na fila do PC.
+- Continuidade da reprodução ao escolher outra faixa pela pesquisa no PC.
+- Equalizador de 5, 10 ou 15 bandas e melhorias na preparação de efeitos no PC e no Android.
+- Windows 1.2.6.0 / 1.2.6 e Android 1.2.6, código 34.
+
 ## 1.2.5 — 2026-11-03
 
 - Finalização da 1.2.5 com as melhorias da RC, streaming progressivo, retomada de sessão e controle remoto PC ↔ Android.

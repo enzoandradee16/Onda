@@ -19,7 +19,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
     val settings by OndaStore.settings.collectAsStateWithLifecycle()
     val lines=providedLines ?: cache[source].orEmpty()
     val timeline=remember(lines){LyricTimeline(lines)}
-    val active=timeline.activeIndex(position)
+    val active=if(!playing && duration>0 && position>=duration)
+        timeline.verses.indexOfLast {it.plain.isNotBlank()}.coerceAtLeast(0)
+        else timeline.activeIndex(position)
     var openRequest by remember(source) {mutableIntStateOf(0)}
     LaunchedEffect(source,providedLines!=null){if(providedLines==null)vm.lookupLyrics(source)}
     Surface(Modifier.fillMaxWidth().testTag("lyrics-preview-card").clickable {openRequest++},shape=RoundedCornerShape(20.dp),color=lyricsBackground,contentColor=lyricsInk) {

@@ -34,4 +34,4 @@ O pacote `Fontes-nativos-Android` da mesma release contém os fontes originais c
 
 `nativebuild/RUNTIME_DEPENDENCIES.json` preserva o inventário-base das bibliotecas de execução, com versões, hashes e informações de licença do POM. As dependências acrescentadas depois desse inventário, incluindo ONNX Runtime e Media3 OkHttp, estão declaradas em `app/build.gradle.kts`. Os avisos embutidos nos artefatos e nas dependências Python foram preservados em `nativebuild/licenses/` e no APK, acessíveis por Menu → Licenças e fontes. Python 3.11.14, Chaquopy 17.0.0, Pillow e bibliotecas auxiliares mantêm suas licenças originais; não são parte da reconstrução FFmpeg.
 
-A assinatura de produção dos APKs 1.2.5 foi verificada. Os testes instrumentados e a atualização da RC para a versão final usam BlueStacks 5, x86_64. O APK ARM64 foi compilado e verificado; a validação física ARM64 permanece pendente. Consulte `VALIDACAO.md` no pacote da release.
+A assinatura de produção dos APKs 1.2.6 foi verificada para ARM64 e x86_64. Consulte `VALIDACAO.md` no pacote da release para o escopo dos testes.

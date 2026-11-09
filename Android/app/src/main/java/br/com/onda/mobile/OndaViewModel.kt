@@ -712,7 +712,7 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
         val revision=++searchRevision
         operation("search",config.put("query",query).put("provider",provider).put("refresh_search",refresh)) {
             if(revision==searchRevision) {
-                searchResults.value=it.optJSONArray("tracks")?.objects() ?: emptyList()
+                searchResults.value = it.optJSONArray("tracks")?.objects() ?: emptyList()
                 status.value=listOf("${searchResults.value.size} resultado(s).",it.stringList("warnings"),it.stringList("suggestions")).filter {text->text.isNotBlank()}.joinToString(" ")
             }
         }
@@ -802,7 +802,7 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
         if(url.isBlank())return
         RemotePlaybackRuntime.disconnect()
         stopPreview(false)
-        jukebox.prepare(record=record,url=url)
+        jukebox.playRecord(record)
         playbackMode.value=1;effectsNavigation.value=true
     }
     fun useDownloadInPlayback(item:DownloadItem) {

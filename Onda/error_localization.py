@@ -60,6 +60,10 @@ def error_text(text, language=None):
 
     selected = normalize_language(language or _language)
     raw = str(text)
+    if any(token in raw.lower() for token in (
+        'confirm your age', 'age-restricted', 'age restricted', 'sign in to confirm your age',
+    )):
+        return tr('Este vídeo exige uma conta com idade confirmada. Importe cookies.txt da sua sessão do YouTube em Configurações → Contas e tente novamente.', selected)
     translated = technical_text(tr(raw, selected), selected)
     # Known diagnostics may already be in the requested language.
     _, _, expression = rules()

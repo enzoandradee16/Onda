@@ -325,7 +325,13 @@ def perform(action, config, cancel, emit):
         target = Path(config['_root']) / 'image-preview'
         target.mkdir(parents=True, exist_ok=True)
         target = target / (uuid.uuid4().hex + '.png')
-        with Image.open(config['source']) as opened:
+        source = config['source']
+        if source.startswith('data:image/jpeg;base64,'):
+            from base64 import b64decode
+            from io import BytesIO
+
+            source = BytesIO(b64decode(source.split(',', 1)[1], validate=True))
+        with Image.open(source) as opened:
             if opened.width * opened.height > 40_000_000:
                 raise ValueError('Escolha uma imagem de até 40 megapixels.')
             image = ImageOps.exif_transpose(opened).convert('RGBA')
@@ -361,6 +367,10 @@ def perform(action, config, cancel, emit):
             'cover': cover_preview(config['source']) or '',
             'duration': duration,
         }
+    if action == 'audio_identify':
+        from audio_identification import identify_audio
+
+        return identify_audio(config['source'], cancel)
     if action == 'audio_read':
         from audio_library import read_audio, cover_preview
 
@@ -496,6 +506,46 @@ def perform(action, config, cancel, emit):
         ]
         report = check(config['_root'], commands)
         return dict(report=report, display=display(report), message=present(report))
+    if action == 'app_update_download':
+        import hashlib
+        import requests
+        from advanced_options import release_update
+        from app_version import VERSION
+
+        release = release_update('windows', VERSION)
+        if not release.get('available'):
+            return release
+        folder = Path(config['_root']) / 'updates'
+        folder.mkdir(parents=True, exist_ok=True)
+        target = folder / Path(release['asset']).name
+        with tempfile.NamedTemporaryFile(dir=folder, suffix='.part', delete=False) as file:
+            partial = Path(file.name)
+        try:
+            digest = hashlib.sha256()
+            with requests.get(release['url'], stream=True, timeout=(5, 30)) as response:
+                response.raise_for_status()
+                total = int(release.get('size') or response.headers.get('Content-Length') or 0)
+                written = 0
+                with partial.open('wb') as output:
+                    for block in response.iter_content(256 * 1024):
+                        if cancel.is_set():
+                            raise InterruptedError('Atualização cancelada.')
+                        output.write(block)
+                        digest.update(block)
+                        written += len(block)
+                        emit('progress', percent=min(100, written * 100 // total) if total else 0)
+            if total and written != total:
+                raise ValueError('Download da atualização incompleto.')
+            expected = release.get('digest') or ''
+            if expected.startswith('sha256:') and digest.hexdigest() != expected[7:]:
+                raise ValueError('A atualização não passou na verificação de integridade.')
+            with partial.open('rb') as file:
+                if file.read(2) != b'MZ':
+                    raise ValueError('O instalador recebido é inválido.')
+            partial.replace(target)
+            return {'installer': str(target)}
+        finally:
+            partial.unlink(missing_ok=True)
     if action == 'app_update':
         from advanced_options import release_update
         from app_version import VERSION

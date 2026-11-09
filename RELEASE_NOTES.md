@@ -1,56 +1,49 @@
-# ONDA 1.2.5
+# ONDA 1.2.7
 
-Versão 1.2.5 para Windows x64 e Android ARM64 e x86_64.
+Versão para Windows x64 e Android ARM64 e x86_64.
 
-## Controle remoto e transferência PC ↔ Android
+## Windows e Android
 
-- Controle da reprodução do PC pelo Android, com capa, posição, fila, tocado recentemente e notificação de mídia.
-- Ajustes de Efeitos e Jukebox e pesquisa para adicionar músicas à fila do PC pelo celular.
-- Pareamento manual ou por QR Code, usando o código temporário exibido no PC. Os aparelhos precisam estar na mesma rede.
-- Transferência da música atual de catálogo nos dois sentidos, preservando posição e estado de pausa. A fila, arquivos locais e configurações de efeitos não são transferidos.
-- A origem continua durante a preparação e a troca só conclui após a confirmação do destino. Quando disponível, o Android aproveita o áudio já resolvido pelo PC.
-- Proteções contra conexões atrasadas, comandos duplicados, transferências simultâneas, cache removido, mudanças de faixa/efeitos e preparação cancelada.
-- Corrigido crash Android em reconexões rápidas e o encerramento da conexão quando o PC desativa o remoto.
+- Identificação de músicas com AcoustID e MusicBrainz e preenchimento de metadados.
+- Melhorias nos textos de downloads e na preservação das letras ao terminar a fila.
+- Ajustes de efeitos desativados com indicação visual de indisponibilidade.
+- Melhorias no tratamento de links do YouTube e de erros de acesso.
 
-## Reprodução, busca e playlists
+## Windows
 
-- A preparação da fila aguarda o áudio e os efeitos ativos; troca entre streams preserva o foco de áudio no Android.
-- Carregamento progressivo em cache temporário limitado a 256 MB no PC e Android, com indicação na barra e saltos pelos trechos carregados sem nova espera de rede.
-- Reprodução normal por streaming no PC e Android; preparação de efeitos mantém o áudio atual até a nova versão ficar pronta.
-- Melhorias na aplicação/remoção dos efeitos, no processamento de áudio e na continuidade da reprodução.
-- Playlists da conta Spotify disponíveis para reprodução ou download pelo motor do ONDA; o catálogo não fornece o áudio do Spotify.
-- Busca de músicas e letras com melhorias para japonês, variações de escrita, acentos e correspondência entre nomes.
-- Correções dos sliders: valores acompanham o movimento; os efeitos são aplicados ao soltar. O volume é aplicado durante o ajuste.
-- Retroceder reinicia a música depois de três segundos; antes disso, volta à faixa anterior.
-- Reordenar a fila prepara a nova próxima faixa, preservando a identidade das músicas; correções no arrastar e remover no Android.
-- Preparações aproveitam o áudio já carregado e falhas demoradas permitem nova tentativa, sem interromper a faixa atual.
-- Abrir um arquivo local mantém o streaming atual até o arquivo ficar pronto; capas das faixas não são substituídas pelo mosaico da playlist.
+- Atualização direta pelo aplicativo.
 
-## Desempenho e estabilidade
+## Android
 
-- Menos reconstruções de telas e filas, atualizações de capas e notificações e gravações repetidas de sessão.
-- Índices de fila e caches reaproveitados; cópias de dados, leituras do histórico e processamento de áudio reduzidos.
-- Salvamento da fila em segundo plano no PC, evitando bloquear a interface durante gravações no disco.
-- Preparações canceladas interrompem o trabalho nativo e não iniciam a reprodução mais tarde.
+- Corrigido o travamento durante o carregamento dos resultados da pesquisa.
+- Restaurada a apresentação do álbum e da data de lançamento em linhas separadas nos cartões de música.
 
-## Aparência e ferramentas
+- A música atual continua durante a preparação da faixa selecionada na pesquisa.
+- Maior destaque para o artista nos resultados.
+- Limpeza de opções e descrições do controle remoto.
 
-- Equalizador com seleção de 5, 10 ou 15 bandas no PC e Android, mantendo 10 como padrão e adaptando presets e ajustes às novas frequências.
+## Distribuição
 
-- Discord Rich Presence no PC, opcional e desativado por padrão: música, artista, álbum/capa e tempo; acompanha pausa e limpa a atividade ao parar ou fechar.
+- Aplicativo atualizado para a versão 1.2.7.
+- APKs ARM64 e x86_64 com versionCode 35.
+- Instalador e portátil Windows x64 preparados para a versão 1.2.7.
 
-- Claro Puro, opções de bordas e cor de destaque personalizada nas duas versões.
-- Barra compacta Android acompanha as cores da capa.
-- Menu da bandeja do PC com o tema do programa, reinício após mudar o idioma e melhorias de rolagem.
-- Reprodução passa para Biblioteca no PC; no Android, permanece na barra inferior.
-- Mensagens de operação/cache mais claras e aviso de pesquisa vazia.
-- Foto com música em MP4 nos formatos de download de publicações compatíveis.
-- Imagens: remoção de fundo opcional, prévia automática, colar arquivos/imagens no PC, comparação com o original, fundo transparente, cor sólida ou imagem, recorte central e rotação.
-- Exportação de trecho da música com posições formatadas em minutos e segundos; desfazer remoções da fila.
+---
 
-## Verificações
+## Histórico da versão 1.2.6
 
-- Testes automatizados de fila, streaming, efeitos, sessão, metadados e controle remoto no PC.
-- Testes unitários Android e testes instrumentados no BlueStacks 5, incluindo reordenação durante preparação, remoção por gesto e transições com sobreposição real de áudio.
-- Testes com HTTP local, áudio sintético, saída PCM nativa e falhas de rede simuladas. Não representam uma validação completa em aparelho ARM64 físico nem de todos os provedores externos.
-- O relatório de validação que acompanha os pacotes registra os resultados da compilação final, assinaturas e limitações dos testes.
+# ONDA 1.2.6
+
+Versão para Windows x64 e Android ARM64 e x86_64.
+
+## Windows
+
+- Discord Rich Presence opcional com faixa, artista, álbum, capa e posição da reprodução.
+- Fila com seleção por Ctrl ou Shift, reordenação e remoção em lote e opção de mover a seleção para tocar em seguida.
+- A faixa atual continua tocando enquanto a escolhida na pesquisa é preparada. Os resultados mostram o progresso e fecham quando a nova faixa começa.
+
+## Windows e Android
+
+- Equalizador com 5, 10 ou 15 bandas e adaptação dos ajustes ao mudar a quantidade.
+- Preparação da próxima faixa acompanha os efeitos ativos e invalida trabalho antigo quando os efeitos mudam.
+- A fila do Android preserva a posição de rolagem ao adicionar faixas.

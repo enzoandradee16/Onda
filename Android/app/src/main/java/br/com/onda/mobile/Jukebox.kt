@@ -333,15 +333,18 @@ internal class JukeboxController(private val context:Context,private val scope:C
     fun enqueue(record:JSONObject) {
         enqueueAll(listOf(record),manual=true)
     }
-    internal fun enqueueAll(records:List<JSONObject>,manual:Boolean=false):Int {
+    fun playRecord(record:JSONObject) {
+        enqueueAll(listOf(record),manual=true,playNow=true)
+    }
+    internal fun enqueueAll(records:List<JSONObject>,manual:Boolean=false,playNow:Boolean=false):Int {
         val accepted=records.take((5000-playbackQueue.value.size).coerceAtLeast(0)).map {record->copyJsonObject(record).put("_queue_id",UUID.randomUUID().toString()).put("_analysis","Pendente").put("_queue_manual",manual)}
         if(accepted.isNotEmpty()){
             playbackQueue.update {rows->
-                var insertion=if(manual)nextQueueIndex.coerceIn(0,rows.size) else rows.size
-                if(manual)while(insertion<rows.size && rows[insertion].optBoolean("_queue_manual"))insertion++
+                var insertion=if(manual||playNow)nextQueueIndex.coerceIn(0,rows.size) else rows.size
+                if(manual&&!playNow)while(insertion<rows.size && rows[insertion].optBoolean("_queue_manual"))insertion++
                 rows.toMutableList().apply {addAll(insertion,accepted)}
             }
-            reprioritizeQueue()
+            if(playNow)playQueued(nextQueueIndex) else reprioritizeQueue()
         }
         if(accepted.size<records.size)state.update {it.copy(message="Limite de 5.000 músicas na fila de reprodução. Remova músicas antes de adicionar outras.")}
         return accepted.size
@@ -813,6 +816,7 @@ internal class JukeboxController(private val context:Context,private val scope:C
             return
         }
         val model=state.value.model ?: run {if(playbackQueue.value.isNotEmpty())playQueued((nextQueueIndex-1).coerceAtLeast(0));return}
+        if(model.optDouble("duration")>0 && sessionSeconds(model,state.value.index,state.value.phase.toDouble())>=model.optDouble("duration"))seekSeconds(0.0)
         if(model.has("_stream")){startStreaming(model);return}
         if(!java.io.File(model.optString("cache"),"analysis.json").isFile){
             val seconds=sessionSeconds(model,state.value.index,state.value.phase.toDouble())
@@ -929,7 +933,7 @@ internal class JukeboxController(private val context:Context,private val scope:C
                                 stop(clearTimer=false)
                                 if(queueRepeat.value=="Uma")playPause()
                                 else if(nextQueueIndex<playbackQueue.value.size || queueRepeat.value=="Todas"&&playbackQueue.value.isNotEmpty())nextTrack()
-                                else state.update {it.copy(message="Fim da fila de reprodução.")}
+                                else state.update {it.copy(index=(it.model?.optJSONArray("beats")?.length()?.minus(2) ?: 0).coerceAtLeast(0),phase=1f,message="Fim da fila de reprodução.")}
                             }
                         }
                         break
@@ -1017,7 +1021,7 @@ internal class JukeboxController(private val context:Context,private val scope:C
                     UiText("Resultados",Modifier.weight(1f),style=MaterialTheme.typography.titleSmall)
                     IconButton(onClick={controller.cancelSearch();controller.state.update {it.copy(records=emptyList())}}){OndaIcon("close","Fechar pesquisa",Modifier.size(22.dp))}
                 }
-                state.records.forEach {record->PlaybackSearchResult(record,vm,!state.busy&&!searching,{controller.prepare(record=record,autoPlay=true)},{controller.enqueue(record)})}
+                state.records.forEach {record->PlaybackSearchResult(record,vm,!state.busy&&!searching,{controller.playRecord(record)},{controller.enqueue(record)})}
             }
         }
         val model=state.model

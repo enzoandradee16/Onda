@@ -110,7 +110,7 @@ import org.json.JSONObject
     val collectionActions:@Composable ()->Unit = {
         Row(Modifier.horizontalScroll(rememberScrollState())) {
             Button(onClick={enqueue(true)},enabled=chosen().isNotEmpty() && !adding){UiText("Baixar agora")}
-            TextButton(onClick={enqueue(false)},enabled=chosen().isNotEmpty() && !adding){UiText("Adicionar à fila")}
+            TextButton(onClick={enqueue(false)},enabled=chosen().isNotEmpty() && !adding){UiText("Adicionar aos downloads")}
             TextButton(onClick={vm.collectionToPlayback(if(selected.isEmpty())visible else chosen())},enabled=visible.isNotEmpty()&&requestedFilters==settledFilters&&!busy){UiText("Usar em reprodução")}
         }
 
@@ -160,7 +160,7 @@ import org.json.JSONObject
                             IconButton(onClick={menu=true},enabled=!busy){OndaIcon("more-vertical","Mais ações")}
                             DropdownMenu(menu,{menu=false}) {
                                 DropdownMenuItem(text={UiText("Baixar agora")},onClick={menu=false;vm.openSpotifyPlaylist(row.optString("id"),options,"download");libraryTab=1;url=row.optString("source_url")})
-                                DropdownMenuItem(text={UiText("Adicionar à fila")},onClick={menu=false;vm.openSpotifyPlaylist(row.optString("id"),options,"add");libraryTab=1;url=row.optString("source_url")})
+                                DropdownMenuItem(text={UiText("Adicionar aos downloads")},onClick={menu=false;vm.openSpotifyPlaylist(row.optString("id"),options,"add");libraryTab=1;url=row.optString("source_url")})
                             }
                         }
                     }
@@ -265,7 +265,7 @@ import org.json.JSONObject
                 IconButton(onClick={actions=true}){OndaIcon("more-vertical","Mais ações",Modifier.size(22.dp))}
                 DropdownMenu(actions,{actions=false}) {
                     DropdownMenuItem(text={UiText("Baixar agora")},onClick={actions=false;vm.queueCollection(listOf(record),options,collection.optString("title","Playlist"),true)})
-                    DropdownMenuItem(text={UiText("Adicionar à fila")},onClick={actions=false;vm.queueCollection(listOf(record),options,collection.optString("title","Playlist"),false)})
+                    DropdownMenuItem(text={UiText("Adicionar aos downloads")},onClick={actions=false;vm.queueCollection(listOf(record),options,collection.optString("title","Playlist"),false)})
                     DropdownMenuItem(text={UiText("Usar em reprodução")},onClick={actions=false;vm.collectionToPlayback(listOf(record))})
                     DropdownMenuItem(text={UiText("Ver no catálogo")},onClick={actions=false;openRecordLink(record)})
                     DropdownMenuItem(text={UiText("Copiar link")},onClick={actions=false;copyRecordLink(record)})

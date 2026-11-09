@@ -152,6 +152,6 @@ import java.util.UUID
 @Composable private fun ConverterChoice(label:String,value:String,choices:List<String>,changed:(String)->Unit) {
     Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)) {
         UiText(label,Modifier.weight(.6f),style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-        Select("",value,choices,Modifier.weight(1.2f),changed)
+        Select("",value,choices,Modifier.weight(1.2f),changed=changed)
     }
 }

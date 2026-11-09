@@ -17,6 +17,7 @@ FIELDS = {
     'release_date': 'date',
     'track_number': 'tracknumber',
     'disc_number': 'discnumber',
+    'isrc': 'isrc',
 }
 
 
@@ -41,6 +42,7 @@ def read_audio(source):
             'date': 'TDRC',
             'tracknumber': 'TRCK',
             'discnumber': 'TPOS',
+            'isrc': 'TSRC',
         }
         values = {
             tag: list(audio.tags[frame].text) if frame in audio.tags else []
@@ -65,6 +67,11 @@ def read_audio(source):
         )
         for key, value in record.items()
     }
+    if path.suffix.lower() == '.m4a':
+        native = File(path)
+        codes = (native.tags or {}).get('----:com.apple.iTunes:ISRC', [])
+        if codes:
+            record['isrc'] = bytes(codes[0]).decode('utf-8', errors='replace')
     record['title'] = record['title'] or path.stem
     record['duration'] = getattr(audio.info, 'length', 0)
     return record
@@ -133,7 +140,7 @@ def write_audio(source, changes, cover_path='', lyrics=''):
     """Change only selected fields; preserve other tags and embedded artwork."""
     from mutagen import File
     from mutagen.id3 import ID3, USLT, APIC
-    from mutagen.mp4 import MP4, MP4Cover
+    from mutagen.mp4 import MP4, MP4Cover, MP4FreeForm
     from mutagen.flac import FLAC, Picture
 
     path = Path(source)
@@ -142,7 +149,7 @@ def write_audio(source, changes, cover_path='', lyrics=''):
         raise ValueError('Áudio não reconhecido.')
     if audio.tags is None:
         audio.add_tags()
-    from mutagen.id3 import TIT2, TPE1, TALB, TCON, TDRC, TRCK, TPOS
+    from mutagen.id3 import TIT2, TPE1, TALB, TCON, TDRC, TRCK, TPOS, TSRC
 
     frames = {
         'title': TIT2,
@@ -152,6 +159,7 @@ def write_audio(source, changes, cover_path='', lyrics=''):
         'release_date': TDRC,
         'track_number': TRCK,
         'disc_number': TPOS,
+        'isrc': TSRC,
     }
     for field, value in changes.items():
         if field not in FIELDS:
@@ -162,6 +170,8 @@ def write_audio(source, changes, cover_path='', lyrics=''):
             audio.tags.delall(frames[field].__name__)
             if values:
                 audio.tags.add(frames[field](encoding=3, text=values))
+        elif field == 'isrc' and path.suffix.lower() == '.m4a':
+            continue
         elif values:
             audio[FIELDS[field]] = values
         elif FIELDS[field] in audio:
@@ -170,12 +180,24 @@ def write_audio(source, changes, cover_path='', lyrics=''):
     native = File(path)
     if native.tags is None:
         native.add_tags()
+    if isinstance(native, MP4) and 'isrc' in changes:
+        key = '----:com.apple.iTunes:ISRC'
+        value = str(changes['isrc']).strip()
+        if value:
+            native.tags[key] = [MP4FreeForm(value.encode('utf-8'))]
+        else:
+            native.tags.pop(key, None)
     text = lyrics_text(lyrics) if lyrics else None
     cover = None
     if cover_path:
         from review import local_cover
 
-        cover = local_cover(cover_path)
+        if cover_path.startswith('data:image/jpeg;base64,'):
+            from base64 import b64decode
+
+            cover = b64decode(cover_path.split(',', 1)[1], validate=True), 'image/jpeg'
+        else:
+            cover = local_cover(cover_path)
     if isinstance(native.tags, ID3):
         if text is not None:
             native.tags.delall('USLT')

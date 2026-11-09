@@ -24,7 +24,7 @@ class DailyUseTest {
     }
     @Test fun optionalNotificationButtons() {
         assertTrue(notificationActions(false,false).isEmpty())
-        assertEquals(listOf("Pausar fila","Parar fila","Abrir fila"),notificationActions(true,false))
-        assertEquals(listOf("Retomar fila","Parar fila","Abrir fila"),notificationActions(true,true))
+        assertEquals(listOf("Pausar downloads","Parar downloads","Abrir downloads"),notificationActions(true,false))
+        assertEquals(listOf("Retomar downloads","Parar downloads","Abrir downloads"),notificationActions(true,true))
     }
 }

@@ -269,7 +269,7 @@ private val LocalPageSwipeExclusions=staticCompositionLocalOf<MutableMap<Any,Lay
         }
         item {UiText("Aplicativo",style=MaterialTheme.typography.labelLarge,color=MaterialTheme.colorScheme.onSurfaceVariant,modifier=Modifier.padding(top=12.dp))}
         item {MoreRow("Sessão do YouTube","","play",onYouTube)}
-        item {MoreRow("Controlar ONDA no PC","Mesma rede Wi-Fi · teste","play",onRemote)}
+        item {MoreRow("Controlar ONDA no PC","Mesma rede Wi-Fi","play",onRemote)}
         item {MoreRow("Falhas da fila","","download",onFailures)}
         item {MoreRow("Licenças e fontes","","more",onLicenses)}
         item {UiText("ONDA Android ${BuildConfig.VERSION_NAME}",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)}

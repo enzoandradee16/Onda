@@ -149,7 +149,6 @@ import coil.compose.AsyncImage
                                 DropdownMenuItem(text={UiText("Parar")},onClick={menu=false;if(useJukebox)vm.jukebox.stop() else vm.stopEffectsPlayback()})
                                 DropdownMenuItem(text={UiText("Ajustes de reprodução")},onClick={menu=false;expanded=false;vm.playbackMode.value=if(useJukebox)1 else 0;vm.effectsNavigation.value=true})
                                 if(useJukebox){
-                                    DropdownMenuItem(text={UiText("Reprodução normal")},leadingIcon={Checkbox(vm.jukebox.normal,null)},onClick={vm.jukebox.normal=!vm.jukebox.normal;menu=false})
                                     DropdownMenuItem(text={UiText("Timer")},onClick={menu=false;timer=true})
                                     DropdownMenuItem(text={UiText("Equalizador")},onClick={menu=false;equalizer=true})
                                 }

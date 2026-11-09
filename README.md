@@ -12,9 +12,9 @@ O ONDA nasceu como um projeto pessoal, feito inicialmente para meu uso e de amig
 
 O projeto continua em desenvolvimento. Sugestões, contribuições e relatos de problemas são bem-vindos.
 
-**Versão 1.2.5 para Windows 10 ou superior (x64) e Android 8 ou superior (ARM64 e x86_64).**
+**Versão 1.2.7 para Windows 10 ou superior (x64) e Android 8 ou superior (ARM64 e x86_64).**
 
-Versão **1.2.5** preparada localmente. Consulte as [notas da versão](RELEASE_NOTES.md). Os links de download apontam para a última versão publicada até a publicação da 1.2.5.
+Consulte as [notas da versão](RELEASE_NOTES.md).
 
 ![ONDA Windows 1.2.5](docs/images/pc%20novo/pesquisa-musicas-preto-puro.png)
 

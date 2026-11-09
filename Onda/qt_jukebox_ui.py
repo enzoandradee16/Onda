@@ -2196,6 +2196,9 @@ class JukeboxBridge(QObject):
             ):
                 self.nextTrack()
             else:
+                self._position = max(0, len((self.model or {}).get('beats', [])) - 2)
+                self._phase = 1.0
+                self.positionChanged.emit()
                 self.update_state(status=tr('Fim da fila de reprodução.'))
         elif kind == 'lookup_error':
             self.update_state(status=str(value), status_error=True)
@@ -2252,6 +2255,8 @@ class JukeboxBridge(QObject):
             if self.playlist:
                 self.playQueued(max(0, self.queue_index))
             return
+        if self.sourceDuration > 0 and self.sourcePosition >= self.sourceDuration:
+            self.seekSeconds(0)
         if self.model.get('_stream'):
             self.playbackRequested.emit()
             self.online.start()

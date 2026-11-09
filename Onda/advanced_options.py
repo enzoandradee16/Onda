@@ -322,4 +322,5 @@ def release_update(platform, current, releases=None, abi=None):
         'size': asset.get('size', 0),
         'published': release.get('published_at', ''),
         'asset': asset['name'],
+        'digest': asset.get('digest', ''),
     }

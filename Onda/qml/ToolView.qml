@@ -264,8 +264,14 @@ OndaScrollView {
             }
         }
         ColumnLayout { visible: page.mode === "metadata"; Layout.fillWidth: true; spacing: Math.round(14*bridge.spacing)
+            TaskButton {
+                idleText: bridge.translate("Identificar pelo áudio")
+                enabled: taskRunning || workspace.optionValue(workspace.optionsRevision, "metadataSources").length === 1
+                operation: "audio_identify"
+                taskNames: ["audio_identify"]
+            }
             GridLayout { columns: 2; Layout.fillWidth: true; columnSpacing: 16; rowSpacing: 14
-                Repeater { model: [{key:"title",label:"Título"},{key:"artists",label:"Artista"},{key:"album",label:"Álbum"},{key:"genre",label:"Gênero"},{key:"release_date",label:"Data de lançamento"},{key:"track_number",label:"Número da faixa"},{key:"disc_number",label:"Disco"}]
+                Repeater { model: [{key:"title",label:"Título"},{key:"artists",label:"Artista"},{key:"album",label:"Álbum"},{key:"genre",label:"Gênero"},{key:"release_date",label:"Data de lançamento"},{key:"track_number",label:"Número da faixa"},{key:"disc_number",label:"Disco"},{key:"isrc",label:"ISRC"}]
                     ColumnLayout { required property var modelData; Layout.fillWidth: true
                         RowLayout {
                             CheckBox { visible: workspace.optionValue(workspace.optionsRevision,"metadataSources").length > 1; checked: workspace.optionValue(workspace.optionsRevision,"metadataFields")[modelData.key] || false; onToggled: { var values=workspace.optionValue(workspace.optionsRevision,"metadataFields");values[modelData.key]=checked;workspace.setOption("metadataFields",values) } }
@@ -281,7 +287,7 @@ OndaScrollView {
                 ActionButton { text: bridge.translate("Escolher capa"); onClicked: workspace.invoke("pick",{kind:"cover_path"}) }
                 ActionButton { text: bridge.translate("Ajustar capa"); enabled: !!workspace.optionValue(workspace.optionsRevision,"cover_path"); onClicked: workspace.invoke("crop_cover",{}) }
                 ActionButton { text: bridge.translate("Desfazer capa"); enabled: !!workspace.optionValue(workspace.optionsRevision,"cover_path"); onClicked: workspace.invoke("undo_cover",{}) }
-                Label { visible: !!workspace.optionValue(workspace.optionsRevision,"cover_path") || !!workspace.optionValue(workspace.optionsRevision,"lyrics_path"); width: Math.min(implicitWidth,metadataControls.width); wrapMode: Text.WrapAnywhere; text: [workspace.optionValue(workspace.optionsRevision,"cover_path"),workspace.optionValue(workspace.optionsRevision,"lyrics_path")].filter(function(value) { return !!value }).join(" · "); color: bridge.palette.muted }
+                Label { visible: !!workspace.optionValue(workspace.optionsRevision,"cover_path") || !!workspace.optionValue(workspace.optionsRevision,"lyrics_path"); width: Math.min(implicitWidth,metadataControls.width); wrapMode: Text.WrapAnywhere; text: [workspace.optionValue(workspace.optionsRevision,"cover_path"),workspace.optionValue(workspace.optionsRevision,"lyrics_path")].filter(function(value) { return !!value }).map(function(value) { return value.startsWith("data:") ? "MusicBrainz" : value }).join(" · "); color: bridge.palette.muted }
             }
             Flow { Layout.fillWidth: true; spacing: Math.round(10*bridge.spacing)
                 ActionButton { text: bridge.translate(workspace.optionValue(workspace.optionsRevision,"previewActive") && workspace.optionValue(workspace.optionsRevision,"previewKind") === "metadata" && !workspace.optionValue(workspace.optionsRevision,"previewProcessed") ? "Parar prévia" : "Ouvir original"); enabled: workspace.optionValue(workspace.optionsRevision,"metadataSources").length > 0; onClicked: workspace.invoke("metadata_preview",{normalized:false}) }

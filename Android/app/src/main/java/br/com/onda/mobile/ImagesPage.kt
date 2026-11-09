@@ -114,7 +114,7 @@ import kotlinx.coroutines.flow.first
                 IconButton(onClick={more=true},modifier=Modifier.testTag("images-more-actions")){OndaIcon("more-vertical","Mais ações",Modifier.size(22.dp))}
                 DropdownMenu(more,{more=false}) {
                     DropdownMenuItem(text={UiText("Escolher arquivo")},onClick={more=false;local()})
-                    DropdownMenuItem(text={UiText("Adicionar à fila")},enabled=link.isNotBlank(),onClick={more=false;OndaStore.enqueue(link,options=JSONObject(settings.toString()).put("mode","photos").put("social_best_quality",false).put("simple_download_ui",false))})
+                    DropdownMenuItem(text={UiText("Adicionar aos downloads")},enabled=link.isNotBlank(),onClick={more=false;OndaStore.enqueue(link,options=JSONObject(settings.toString()).put("mode","photos").put("social_best_quality",false).put("simple_download_ui",false))})
                 }
             }
         }

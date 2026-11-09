@@ -12,7 +12,7 @@ Pane {
     Connections { target: workspace; function onLyricsRequested() {if(lyricsWindow.visible)lyricsWindow.close();else lyricsWindow.open()} }
     id: app
     width: 1360; height: 900
-    readonly property var inlineTasks: ({downloads:["image_gallery_manifest"],queue:["image_gallery_manifest"],catalog:["search"],playlists:["collection","compare_collection","check_matches"],converter:["convert","detect_silence"],effects:["effects_export","effects_search","effects_load","effects_queue_info","effects_collection"],images:["image_preview","image_export","image_gallery_manifest"],metadata:["audio_edit","normalize_preview"]})[workspace.currentPage] || []
+    readonly property var inlineTasks: ({downloads:["image_gallery_manifest"],queue:["image_gallery_manifest"],catalog:["search"],playlists:["collection","compare_collection","check_matches"],converter:["convert","detect_silence"],effects:["effects_export","effects_search","effects_load","effects_queue_info","effects_collection"],images:["image_preview","image_export","image_gallery_manifest"],metadata:["audio_edit","audio_identify","normalize_preview"]})[workspace.currentPage] || []
     readonly property var remainingTasks: workspace.activityValue(workspace.statusRevision,"busy").filter(function(name) { return app.inlineTasks.indexOf(name)<0 && workspace.activityValue(workspace.statusRevision,"background").indexOf(name)<0 })
     padding: 0
     background: Rectangle { color: bridge.palette.bg }

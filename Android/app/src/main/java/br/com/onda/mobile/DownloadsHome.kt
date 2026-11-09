@@ -80,12 +80,12 @@ import org.json.JSONObject
             Box {
                 IconButton(onClick={menu=true},modifier=Modifier.testTag("downloads-menu")){OndaIcon("more","Mais ações",Modifier.size(24.dp))}
                 DropdownMenu(menu,{menu=false}) {
-                    DropdownMenuItem(text={UiText("Buscar na fila")},onClick={searching=true;menu=false})
+                    DropdownMenuItem(text={UiText("Buscar downloads")},onClick={searching=true;menu=false})
                     DropdownMenuItem(text={UiText("Filtrar e ordenar")},onClick={organize=true;menu=false})
                     DropdownMenuItem(text={UiText(if(selectionMode)"Concluir seleção" else "Selecionar")},enabled=shown.isNotEmpty(),onClick={selectionMode=!selectionMode;selected=emptySet();menu=false})
                     DropdownMenuItem(text={UiText("Tentar novamente")},enabled=queue.any {it.state in listOf("Erro","Cancelado")},onClick={OndaStore.retry(queue.filter {it.state in listOf("Erro","Cancelado")}.map {it.id}.toSet());menu=false})
                     DropdownMenuItem(text={UiText("Cancelar fila")},enabled=running,onClick={DownloadService.stop(OndaStore.context);menu=false})
-                    DropdownMenuItem(text={UiText("Limpar fila")},enabled=queue.isNotEmpty(),onClick={clear=true;menu=false})
+                    DropdownMenuItem(text={UiText("Limpar downloads")},enabled=queue.isNotEmpty(),onClick={clear=true;menu=false})
                     DropdownMenuItem(text={UiText("Ver detalhes")},onClick={showLogs=true;menu=false})
                 }
             }
@@ -98,9 +98,9 @@ import org.json.JSONObject
         Box(Modifier.fillMaxWidth().padding(vertical=16.dp)) {
             ToolTabs(listOf("Em andamento","Concluídos"),if(completed)1 else 0,compact=true){completed=it==1;stateFilter="Todos";selected=emptySet()}
         }
-        if(searching)OutlinedTextField(query,{query=it},label={UiText("Buscar na fila")},singleLine=true,shape=RoundedCornerShape(16.dp),modifier=Modifier.fillMaxWidth().padding(bottom=12.dp).testTag("queue-search"),trailingIcon={IconButton(onClick={query="";searching=false}){OndaIcon("close","Limpar filtros",Modifier.size(20.dp))}})
+        if(searching)OutlinedTextField(query,{query=it},label={UiText("Buscar downloads")},singleLine=true,shape=RoundedCornerShape(16.dp),modifier=Modifier.fillMaxWidth().padding(bottom=12.dp).testTag("queue-search"),trailingIcon={IconButton(onClick={query="";searching=false}){OndaIcon("close","Limpar filtros",Modifier.size(20.dp))}})
         if(stateFilter!="Todos")TextButton(onClick={stateFilter="Todos"},modifier=Modifier.testTag("downloads-clear-filter")){UiText("${translateUi("Estado")}: ${translateUi(stateFilter)} · ${translateUi("Limpar filtros")}")}
-        if(!completed && queue.any {it.state=="Pendente"} && !running)Button(onClick={DownloadService.start(OndaStore.context)},modifier=Modifier.fillMaxWidth().padding(bottom=8.dp)){UiText("Baixar fila")}
+        if(!completed && queue.any {it.state=="Pendente"} && !running)Button(onClick={DownloadService.start(OndaStore.context)},modifier=Modifier.fillMaxWidth().padding(bottom=8.dp)){UiText("Baixar pendentes")}
         if(running)Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){UiText("Concluídos: $finished/${queue.size} · Restantes: ${queue.size-finished}",Modifier.weight(1f),style=MaterialTheme.typography.labelSmall);TextButton(onClick={DownloadService.control(OndaStore.context,if(DownloadRuntime.paused)"resume" else "pause")}){UiText(if(DownloadRuntime.paused)"Retomar fila" else "Pausar fila")}}
         if(running)UiText("Tempo decorrido: ${queueDuration(timing.elapsed)} · Tempo restante: $remaining",style=MaterialTheme.typography.labelSmall,modifier=Modifier.padding(bottom=8.dp).testTag("queue-time"))
         if(selectionMode) {

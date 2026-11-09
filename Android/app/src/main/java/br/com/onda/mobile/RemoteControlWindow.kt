@@ -57,7 +57,7 @@ import kotlinx.coroutines.launch
                     Button(onClick = { RemotePlaybackRuntime.expandedRequested.value = true; onDismiss() }) { UiText("Abrir reprodução") }
                     OutlinedButton(onClick = { RemotePlaybackRuntime.disconnect(); onDismiss() }) { UiText("Desconectar") }
                 } else {
-                    UiText(if(transferPlayback) "Na mesma rede Wi-Fi, ative o controle remoto no PC e informe o código. A música continua no telefone enquanto o computador prepara o áudio." else "Teste na mesma rede Wi-Fi confiável. No PC, abra Reprodução → Controle remoto. O áudio continua no computador.")
+                    UiText(if(transferPlayback) "Na mesma rede Wi-Fi, ative o controle remoto no PC e informe o código. A música continua no telefone enquanto o computador prepara o áudio." else "Conecte na mesma rede Wi-Fi confiável. No PC, abra Reprodução → Controle remoto. O áudio continua no computador.")
                     OutlinedTextField(value = address, onValueChange = { address = it }, label = { UiText("Endereço exibido no PC") }, singleLine = true, modifier = Modifier.fillMaxWidth(), enabled = !busy)
                     OutlinedTextField(value = code, onValueChange = { code = it.filter(Char::isDigit).take(6) }, label = { UiText("Código de conexão") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth(), enabled = !busy)
                     OutlinedButton(enabled=!busy,onClick={

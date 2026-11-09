@@ -10,6 +10,39 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class JukeboxQueuePreparationTest {
+    @Test fun searchSelectionKeepsCurrentPlayingDuringPreparationAndFailure()=runBlocking {
+        val context=ApplicationProvider.getApplicationContext<android.content.Context>()
+        withContext(Dispatchers.Main){OndaStore.initialize(context)}
+        val scope=CoroutineScope(SupervisorJob()+Dispatchers.Main.immediate)
+        val started=CompletableDeferred<Unit>()
+        val release=CompletableDeferred<Unit>()
+        val current=JSONObject().put("title","Current")
+        val controller=JukeboxController(context,scope,{}, {_,config,_->
+            assertEquals("Selected",config.getJSONObject("record").getString("title"))
+            started.complete(Unit)
+            release.await()
+            error("Preparation failed")
+        })
+        try {
+            withContext(Dispatchers.Main){
+                controller.stop();controller.clearPlaybackQueue()
+                controller.playbackQueue.value=listOf(JSONObject().put("_queue_id","current").put("_analysis","Erro").put("title","Current"))
+                controller.currentQueueId.value="current"
+                controller.state.value=JukeboxState(title="Current",model=current,playing=true)
+                controller.playRecord(JSONObject().put("title","Selected").put("source_url","https://example.com/selected"))
+            }
+            withTimeout(5000){started.await()}
+            assertSame(current,controller.state.value.model)
+            assertTrue(controller.state.value.playing)
+            assertEquals("current",controller.currentQueueId.value)
+            assertEquals("Selected",controller.playbackQueue.value[1].getString("title"))
+            release.complete(Unit)
+            withTimeout(5000){while(controller.playbackQueue.value[1].optString("_analysis")!="Erro")delay(20)}
+            assertSame(current,controller.state.value.model)
+            assertTrue(controller.state.value.playing)
+        } finally {withContext(Dispatchers.Main){controller.close()};scope.cancel()}
+    }
+
     @Test fun preparesQueueSeriallyWithoutReplacingTheCurrentSongAndKeepsTimersIndependent()=runBlocking {
         val scope=CoroutineScope(SupervisorJob()+Dispatchers.Main.immediate)
         var calls=0;var active=0;var peak=0

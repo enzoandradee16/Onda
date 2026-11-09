@@ -118,17 +118,31 @@ def resolve_input(query, client, config=None, account=None, cancelled=lambda: Fa
 
         return dict(collection_artwork(result), is_collection=True)
     if text.startswith(('http://', 'https://')) and not is_streaming_link(text):
-        return {
-            'tracks': [
-                {
-                    'title': text,
-                    'artists': [],
-                    'source_url': text,
-                    '_jukebox_direct': True,
-                }
-            ],
-            'is_collection': False,
-        }
+        record = {'title': text, 'artists': [], 'source_url': text, '_jukebox_direct': True}
+        host = (urlsplit(text).hostname or '').lower()
+        if host in ('youtube.com', 'www.youtube.com', 'music.youtube.com', 'youtu.be'):
+            from yt_dlp import YoutubeDL
+            from jukebox import SearchLog, check
+
+            options = {'quiet': True, 'no_warnings': True,
+                       'js_runtimes': {'node': {}, 'deno': {}}}
+            if config.get('youtube_user_agent'):
+                options['http_headers'] = {'User-Agent': config['youtube_user_agent']}
+            cookies = config.get('youtube_cookies_file') or config.get('youtube_cookies')
+            if cookies:
+                options['cookiefile'] = cookies
+            options.update(skip_download=True, noplaylist=True, extract_flat=True,
+                           socket_timeout=10, retries=1, logger=SearchLog(options, cancelled))
+            with YoutubeDL(options) as downloader:
+                info = downloader.extract_info(text, download=False)
+            check(cancelled)
+            record.update(
+                title=info.get('track') or info.get('title') or text,
+                artists=[info.get('artist') or info.get('uploader') or info.get('channel') or ''],
+                cover_url=info.get('thumbnail') or '',
+                duration_ms=round((info.get('duration') or 0) * 1000),
+            )
+        return {'tracks': [record], 'is_collection': False}
     from music_search import search_music
 
     result = search_music(

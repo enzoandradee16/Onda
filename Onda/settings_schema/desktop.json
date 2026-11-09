@@ -471,7 +471,7 @@
     {
       "category": "Aparência",
       "key": "queue_view",
-      "label": "Mostrar itens na fila",
+      "label": "Mostrar itens nos downloads",
       "kind": "select",
       "choices": [
         "Compacto",
@@ -698,7 +698,7 @@
     {
       "category": "Downloads",
       "key": "detect_duplicates",
-      "label": "Detectar duplicatas na fila e no histórico",
+      "label": "Detectar duplicatas nos downloads e no histórico",
       "kind": "bool",
       "choices": []
     },
@@ -712,7 +712,7 @@
     {
       "category": "Downloads",
       "key": "resume_queue",
-      "label": "Retomar fila ao abrir o ONDA",
+      "label": "Retomar downloads ao abrir o ONDA",
       "kind": "bool",
       "choices": []
     },
@@ -726,7 +726,7 @@
     {
       "category": "Downloads",
       "key": "finish_action",
-      "label": "Ação ao terminar a fila",
+      "label": "Ação ao terminar os downloads",
       "kind": "select",
       "choices": [
         "Nenhuma",

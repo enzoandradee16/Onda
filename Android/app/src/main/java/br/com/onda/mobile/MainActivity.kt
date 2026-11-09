@@ -291,13 +291,13 @@ fun tabLabel(tab: String)=when(tab) {"Conversor de vídeos"->"Conversor";"Links 
         if(description.isNotBlank())UiText(description,style=MaterialTheme.typography.bodySmall,textAlign=TextAlign.Start,modifier=Modifier.padding(top=LayoutSpacing.details))
     }
 }
-@Composable fun Select(label: String, value: String, choices: List<String>, modifier: Modifier=Modifier, changed: (String)->Unit) {
+@Composable fun Select(label: String, value: String, choices: List<String>, modifier: Modifier=Modifier, enabled: Boolean=true, changed: (String)->Unit) {
     var open by remember { mutableStateOf(false) }
     val displayValue=if(value=="pt-BR") "Português (Brasil)" else if(value=="es") "Español" else if(value=="en") "English" else translateUi(value,LocalUiLanguage.current)
     Column(modifier,verticalArrangement=Arrangement.spacedBy(LayoutSpacing.text)) {
         if(label.isNotBlank()) UiText(label,style=MaterialTheme.typography.labelMedium)
-        Box { OutlinedButton(onClick={open=true},modifier=Modifier.fillMaxWidth().heightIn(min=48.dp).a11yLabel(if(label.isBlank()) displayValue else translateUi(label,LocalUiLanguage.current)+": "+displayValue,if(open) "Expandido" else "Recolhido"),colors=ButtonDefaults.outlinedButtonColors(contentColor=MaterialTheme.colorScheme.onSurface),shape=RoundedCornerShape(16.dp),contentPadding=PaddingValues(horizontal=12.dp,vertical=6.dp)) {UiText(if(value=="pt-BR")"Português (Brasil)" else if(value=="es")"Español" else if(value=="en")"English" else value,Modifier.weight(1f),maxLines=1,style=MaterialTheme.typography.bodyMedium);UiText("▾",Modifier.padding(start=6.dp).clearAndSetSemantics {})}
-            DropdownMenu(expanded=open,onDismissRequest={open=false}) { choices.forEach { choice-> DropdownMenuItem(text={UiText(if(choice=="pt-BR")"Português (Brasil)" else if(choice=="es")"Español" else if(choice=="en")"English" else choice)},onClick={changed(choice);open=false}) } }
+        Box { OutlinedButton(onClick={open=true},enabled=enabled,modifier=Modifier.fillMaxWidth().heightIn(min=48.dp).a11yLabel(if(label.isBlank()) displayValue else translateUi(label,LocalUiLanguage.current)+": "+displayValue,if(open) "Expandido" else "Recolhido"),colors=ButtonDefaults.outlinedButtonColors(contentColor=MaterialTheme.colorScheme.onSurface),shape=RoundedCornerShape(16.dp),contentPadding=PaddingValues(horizontal=12.dp,vertical=6.dp)) {UiText(if(value=="pt-BR")"Português (Brasil)" else if(value=="es")"Español" else if(value=="en")"English" else value,Modifier.weight(1f),maxLines=1,style=MaterialTheme.typography.bodyMedium);UiText("▾",Modifier.padding(start=6.dp).clearAndSetSemantics {})}
+            DropdownMenu(expanded=open && enabled,onDismissRequest={open=false}) { choices.forEach { choice-> DropdownMenuItem(text={UiText(if(choice=="pt-BR")"Português (Brasil)" else if(choice=="es")"Español" else if(choice=="en")"English" else choice)},onClick={changed(choice);open=false}) } }
         }
     }
 }
@@ -336,7 +336,7 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
     val searchQueue=remember(queue) {queue.filter {it.config.optString("_origin")=="search"}}
     val active by OndaStore.active.collectAsStateWithLifecycle()
     val running by OndaStore.running.collectAsStateWithLifecycle()
-    val results by vm.searchResults.collectAsStateWithLifecycle()
+    val results=vm.searchResults.collectAsStateWithLifecycle().value
     val trackKeys=remember(results){stableTrackKeys(results)}
     var query by rememberSaveable { mutableStateOf("") }
     var provider by rememberSaveable { mutableStateOf("Deezer") }
@@ -393,7 +393,7 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
                 val id=vm.queueTrack(track,options=options,origin="search",immediate=now)
                 if(now)DownloadService.start(OndaStore.context,id)
                 downloadTrack=null
-            } catch(error:Exception) {vm.showNotice(if(now) "Baixar agora" else "Adicionar à fila",uiExceptionMessage(error,"Não foi possível adicionar a música."))}
+            } catch(error:Exception) {vm.showNotice(if(now) "Baixar agora" else "Adicionar aos downloads",uiExceptionMessage(error,"Não foi possível adicionar a música."))}
         })
     }}
     LazyColumn(Modifier.fillMaxSize().padding(horizontal=LayoutSpacing.inset),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
@@ -429,10 +429,10 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
                 UiText("Configure a API em Configurações → Contas para pesquisar músicas no Spotify.",Modifier.weight(1f),style=MaterialTheme.typography.bodySmall)
             }
         }
-        if(searchQueue.isNotEmpty())item {TextButton(onClick={vm.queueNavigation.value=true}){UiText("Ver fila")}}
+        if(searchQueue.isNotEmpty())item {TextButton(onClick={vm.queueNavigation.value=true}){UiText("Ver downloads")}}
         if(results.isEmpty()) item {UiText("Sua biblioteca começa com uma busca",fontWeight=FontWeight.Bold);UiText("Encontre a música e escolha a versão que você quer.",style=MaterialTheme.typography.bodySmall)}
         if(comparison.size==1)item {UiText("Selecione outro resultado para comparar.")}
-        items(results.size,key={trackKeys[it]},contentType={"search_track"}) {trackIndex->
+        items(results.size, key = { "search-result:" + trackKeys[it] }, contentType = { "search_track" }) { trackIndex ->
             val record=results[trackIndex]
             TrackCard(record,vm,onDownload={downloadTrack=record.toString()},onCompare={
             val source=record.cleanString("source_url")
@@ -480,7 +480,7 @@ internal fun displayReleaseDate(value:String):String {
                         IconButton(onClick={actions=true}){OndaIcon("more-vertical","Mais ações",Modifier.size(20.dp))}
                 DropdownMenu(expanded=actions,onDismissRequest={actions=false}) {
                     DropdownMenuItem(text={UiText("Baixar agora")},onClick={actions=false;onDownload()})
-                    DropdownMenuItem(text={UiText("Adicionar à fila")},onClick={actions=false;vm.queueTrack(record,origin="search")})
+                    DropdownMenuItem(text={UiText("Adicionar aos downloads")},onClick={actions=false;vm.queueTrack(record,origin="search")})
                     DropdownMenuItem(text={UiText("Usar em reprodução")},onClick={actions=false;vm.useInPlayback(record)})
                     DropdownMenuItem(text={UiText(if(thisPlaying)"Parar prévia" else "Ouvir prévia")},enabled=thisPlaying || url.isNotBlank(),onClick={actions=false;if(thisPlaying)vm.stopPreview() else vm.preview(url,OndaStore.settings.value.optInt("search_preview",25))})
                     DropdownMenuItem(text={UiText("Ver no catálogo")},onClick={actions=false;val source=record.cleanString("source_url");if(source.startsWith("https://"))OndaStore.context.startActivity(Intent(Intent.ACTION_VIEW,android.net.Uri.parse(source)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))})
@@ -490,7 +490,7 @@ internal fun displayReleaseDate(value:String):String {
                 }
                     }
                 }
-                Text(record.stringList("artists"),style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant,maxLines=1,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                Text(record.stringList("artists"),style=MaterialTheme.typography.bodyMedium,fontWeight=FontWeight.SemiBold,color=MaterialTheme.colorScheme.onSurface,maxLines=1,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                 AlbumDateLabel(record)
                 MetadataPlatformBadge(record)
                 val duration=record.optLong("duration_ms")
@@ -520,11 +520,11 @@ internal fun displayReleaseDate(value:String):String {
         item {FormatOptions(settings,OndaStore::saveSettings)}
         item {Toggle("Baixar playlist de vídeo",settings.optBoolean("link_playlist")){OndaStore.saveSettings(JSONObject(settings.toString()).put("link_playlist",it))}}
         item {Row(horizontalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
-            OutlinedButton(onClick={add(false)},enabled=link.isNotBlank() && !adding,modifier=Modifier.testTag("links-add")){UiText("Adicionar à fila")}
+            OutlinedButton(onClick={add(false)},enabled=link.isNotBlank() && !adding,modifier=Modifier.testTag("links-add")){UiText("Adicionar aos downloads")}
             Button(onClick={add(true)},enabled=link.isNotBlank() && !adding,modifier=Modifier.testTag("links-download")){UiText("Baixar agora")}
         }}
         if(adding)item {LinearProgressIndicator(Modifier.fillMaxWidth())}
-        item {TextButton(onClick={vm.queueNavigation.value=true;onAdded()},modifier=Modifier.testTag("view-queue")){UiText("Ver fila")}}
+        item {TextButton(onClick={vm.queueNavigation.value=true;onAdded()},modifier=Modifier.testTag("view-queue")){UiText("Ver downloads")}}
     }
 }
 

@@ -14,7 +14,7 @@ Popup {
         Label { text: bridge.translate("Ajustar capa"); font.pixelSize: Math.round(24*bridge.fontScale); color: bridge.palette.text }
         Label { text: bridge.translate("Arraste a imagem para mover e ajuste o zoom."); Layout.fillWidth: true; wrapMode: Text.Wrap; color: bridge.palette.muted }
         Rectangle { id: viewport; Layout.fillWidth: true; Layout.preferredHeight: width; clip: true; color: "#101419"
-            Image { id: cover; source: workspace.optionValue(workspace.optionsRevision,"cover_path") ? "file:///"+workspace.optionValue(workspace.optionsRevision,"cover_path").replace(/\\/g,"/") : ""; sourceSize.width: 1024; sourceSize.height: 1024
+            Image { id: cover; source: workspace.optionValue(workspace.optionsRevision,"metadataCover") || ""; sourceSize.width: 1024; sourceSize.height: 1024
                 width: viewport.width*Math.max(1,implicitWidth/Math.max(1,implicitHeight));height: viewport.height*Math.max(1,implicitHeight/Math.max(1,implicitWidth));fillMode: Image.PreserveAspectFit;scale: crop.zoom;x: (viewport.width-width)/2+crop.offsetX;y: (viewport.height-height)/2+crop.offsetY
             }
             Repeater { model: [1/3,2/3]; Rectangle { required property real modelData; x: modelData*viewport.width; width: 1; height: viewport.height; color: "#80ffffff" } }

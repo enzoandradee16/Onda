@@ -17,6 +17,7 @@ internal val playbackEffectPresets=linkedMapOf("Original" to (100 to 0),"Slowed 
 @Composable internal fun UnifiedEffectsControls(controller:JukeboxController,vm:OndaViewModel) {
     val effects by controller.effects.collectAsStateWithLifecycle()
     val state by controller.presentationState.collectAsStateWithLifecycle()
+    val enabled=effects.optBoolean("enabled")
     val presets=playbackEffectPresets
     val preset=presets.entries.firstOrNull {it.value.first==effects.optInt("speed",85)&&it.value.second==effects.optInt("reverb",25)}?.key ?: "Personalizado"
     var export by rememberSaveable {mutableStateOf(false)}
@@ -29,12 +30,12 @@ internal val playbackEffectPresets=linkedMapOf("Original" to (100 to 0),"Slowed 
         Row(Modifier.fillMaxWidth(),verticalAlignment=androidx.compose.ui.Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
             UiText("Preset",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
             Box(Modifier.weight(1f).testTag("unified-effects-preset")) {
-                Select("",preset,presets.keys.toList()){name->val pair=presets.getValue(name);controller.setEffects("speed",pair.first);controller.setEffects("reverb",pair.second)}
+                Select("",preset,presets.keys.toList(),enabled=enabled){name->val pair=presets.getValue(name);controller.setEffects("speed",pair.first);controller.setEffects("reverb",pair.second)}
             }
         }
-        PlaybackAdjustment("Velocidade · ${effects.optInt("speed",85)}%",effects.optInt("speed",85).toFloat(),50f..150f,"unified-effects-speed"){controller.setEffects("speed",it.toInt())}
-        PlaybackAdjustment("Reverb · ${effects.optInt("reverb",25)}%",effects.optInt("reverb",25).toFloat(),0f..100f,"unified-effects-reverb"){controller.setEffects("reverb",it.toInt())}
-        Toggle("Manter tom",effects.optBoolean("keep_pitch")){controller.setEffects("keep_pitch",it)}
+        PlaybackAdjustment("Velocidade · ${effects.optInt("speed",85)}%",effects.optInt("speed",85).toFloat(),50f..150f,"unified-effects-speed",enabled){controller.setEffects("speed",it.toInt())}
+        PlaybackAdjustment("Reverb · ${effects.optInt("reverb",25)}%",effects.optInt("reverb",25).toFloat(),0f..100f,"unified-effects-reverb",enabled){controller.setEffects("reverb",it.toInt())}
+        ToolSwitch("Manter tom",effects.optBoolean("keep_pitch"),enabled=enabled){controller.setEffects("keep_pitch",it)}
         OutlinedButton(onClick={export=true},enabled=state.model!=null,modifier=Modifier.fillMaxWidth().testTag("unified-effects-export"),shape=androidx.compose.foundation.shape.RoundedCornerShape(12.dp)) {
             OndaIcon("download",modifier=Modifier.size(18.dp));Spacer(Modifier.width(8.dp));UiText("Exportar música")
         }

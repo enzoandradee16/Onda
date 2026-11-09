@@ -52,6 +52,6 @@ import org.json.JSONObject
         AlertDialog(containerColor=ondaDialogContainerColor(),onDismissRequest={pending=null},title={UiText("Link copiado")},
             text={androidx.compose.foundation.layout.Column {UiText("Foi encontrado um link compatível. Deseja iniciar o download?");Text(candidate.optString("url"),maxLines=5)}},
             confirmButton={TextButton(onClick={pending=null;latestConfirm(candidate)}){UiText("Baixar agora")}},
-            dismissButton={androidx.compose.foundation.layout.Row {if(latestAdd!=null)TextButton(onClick={pending=null;latestAdd?.invoke(candidate)}){UiText("Adicionar à fila")};TextButton(onClick={pending=null}){UiText("Agora não")}}})
+            dismissButton={androidx.compose.foundation.layout.Row {if(latestAdd!=null)TextButton(onClick={pending=null;latestAdd?.invoke(candidate)}){UiText("Adicionar aos downloads")};TextButton(onClick={pending=null}){UiText("Agora não")}}})
     }
 }

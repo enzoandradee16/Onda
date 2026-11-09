@@ -25,7 +25,7 @@ internal fun queueGate(wifiOnly:Boolean,paused:Boolean,connected:Boolean,wifi:Bo
 }
 internal fun interruptForGate(gate:QueueGate,loss:String)=gate==QueueGate.PAUSE || gate==QueueGate.WIFI && loss!="Concluir downloads ativos"
 internal fun interruptedDownload(stopped:Boolean,cancelled:Boolean,pausedCancellation:Boolean,hasError:Boolean,code:Int)=stopped || cancelled || pausedCancellation && (hasError || code!=0)
-internal fun notificationActions(enabled:Boolean,paused:Boolean)=if(!enabled)emptyList() else listOf(if(paused)"Retomar fila" else "Pausar fila","Parar fila","Abrir fila")
+internal fun notificationActions(enabled:Boolean,paused:Boolean)=if(!enabled)emptyList() else listOf(if(paused)"Retomar downloads" else "Pausar downloads","Parar downloads","Abrir downloads")
 
 internal class QueueNetwork(context:Context):AutoCloseable {
     private val manager=context.getSystemService(ConnectivityManager::class.java)

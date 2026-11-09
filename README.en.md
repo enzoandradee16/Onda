@@ -12,9 +12,9 @@ ONDA started as a personal project, initially made for me and my friends. I deci
 
 The project is still in development. Suggestions, contributions and bug reports are welcome.
 
-**Version 1.2.5 for Windows 10 or later (x64) and Android 8 or later (ARM64 and x86_64).**
+**Version 1.2.7 for Windows 10 or later (x64) and Android 8 or later (ARM64 and x86_64).**
 
-Version **1.2.5** prepared locally. See the [release notes](RELEASE_NOTES.md). Download links point to the last published version until 1.2.5 is published.
+See the [release notes](RELEASE_NOTES.md).
 
 ![ONDA Windows 1.2.5](docs/images/pc%20novo/pesquisa-musicas-preto-puro.png)
 

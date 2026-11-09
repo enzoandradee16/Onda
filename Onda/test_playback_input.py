@@ -54,15 +54,20 @@ class PlaybackInputTests(unittest.TestCase):
             result = resolve_input(url, Mock(), {'playlist_limit': 400})
         self.assertTrue(result['is_collection'])
         self.assertEqual(
-            result['tracks'][0]['cover_url'], 'https://example.com/cover.jpg'
+            result.get('cover_url'), 'https://example.com/cover.jpg'
         )
         self.assertEqual(load.call_args.kwargs['limit'], 400)
         search.assert_not_called()
 
     def test_direct_url_keeps_source_and_does_not_search_catalog(self):
         url = 'https://www.youtube.com/watch?v=abcdefghijk'
-        with patch('music_search.search_music') as search:
+        with patch('music_search.search_music') as search, patch('yt_dlp.YoutubeDL') as extractor:
+            extractor.return_value.__enter__.return_value.extract_info.return_value = {
+                'title': 'Video title', 'uploader': 'Video author', 'duration': 123,
+            }
             result = resolve_input(url, Mock())
+        self.assertEqual(result['tracks'][0]['title'], 'Video title')
+        self.assertEqual(result['tracks'][0]['artists'], ['Video author'])
         self.assertEqual(result['tracks'][0]['source_url'], url)
         self.assertTrue(result['tracks'][0]['_jukebox_direct'])
         search.assert_not_called()

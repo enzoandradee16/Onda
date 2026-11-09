@@ -86,7 +86,7 @@ Popup {
                             Label {text:workspace.optionValue(workspace.optionsRevision,"appUpdate") ? workspace.optionValue(workspace.optionsRevision,"appUpdate").message : "";color:bridge.palette.text;wrapMode:Text.Wrap;Layout.fillWidth:true}
                             Label {text:workspace.optionValue(workspace.optionsRevision,"appUpdate") ? workspace.optionValue(workspace.optionsRevision,"appUpdate").notes || "" : "";color:bridge.palette.muted;wrapMode:Text.Wrap;Layout.fillWidth:true;maximumLineCount:8;elide:Text.ElideRight}
                             Label {visible:!!workspace.optionValue(workspace.optionsRevision,"appUpdate") && workspace.optionValue(workspace.optionsRevision,"appUpdate").size>0;text:workspace.optionValue(workspace.optionsRevision,"appUpdate") ? (workspace.optionValue(workspace.optionsRevision,"appUpdate").size/1048576).toFixed(1)+" MB" : "";color:bridge.palette.muted}
-                            ActionButton {text:bridge.translate("Baixar nova versão");onClicked:workspace.invoke("open_url",{url:workspace.optionValue(workspace.optionsRevision,"appUpdate").url})}
+                            TaskButton {idleText:bridge.translate("Baixar nova versão");operation:"app_update_download";taskNames:["app_update_download"]}
                         }
                         ToolStatusPanel {Layout.fillWidth:true}
                         Flow {Layout.fillWidth:true;spacing:Math.round(8*bridge.spacing)

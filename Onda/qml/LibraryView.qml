@@ -82,7 +82,7 @@ ColumnLayout {
                     OndaMenu {id:spotifyActions
                         OndaMenuItem {visible:spotifyLists.contentAreaWidth<760;text:bridge.translate("Usar em reprodução");enabled:workspace.activityValue(workspace.statusRevision,"busy").indexOf("collection")<0;onTriggered:workspace.invoke("spotify_playlist_playback",{id:modelData.id})}
                         OndaMenuItem {text:bridge.translate("Baixar agora");enabled:workspace.activityValue(workspace.statusRevision,"busy").indexOf("collection")<0;onTriggered:workspace.invoke("spotify_playlist_download",{id:modelData.id})}
-                        OndaMenuItem {text:bridge.translate("Adicionar à fila");enabled:workspace.activityValue(workspace.statusRevision,"busy").indexOf("collection")<0;onTriggered:workspace.invoke("spotify_playlist_add",{id:modelData.id})}
+                        OndaMenuItem {text:bridge.translate("Adicionar aos downloads");enabled:workspace.activityValue(workspace.statusRevision,"busy").indexOf("collection")<0;onTriggered:workspace.invoke("spotify_playlist_add",{id:modelData.id})}
                     }
                 }
             }
@@ -108,7 +108,7 @@ ColumnLayout {
     }
     Flow { visible: !page.catalog && !page.spotifyBrowsing; Layout.fillWidth:true; spacing:10
         ActionButton {visible:!page.history;text:bridge.translate("Importar lista");onClicked:workspace.invoke("import_playlist",{})}
-        ActionButton {visible:!page.history;primary:true;text:bridge.translate("Adicionar à fila");enabled:workspace.collectionFilterModel.count>0;onClicked:workspace.invoke("playlist_add",{})}
+        ActionButton {visible:!page.history;primary:true;text:bridge.translate("Adicionar aos downloads");enabled:workspace.collectionFilterModel.count>0;onClicked:workspace.invoke("playlist_add",{})}
         ActionButton {visible:!page.history;text:bridge.translate("Usar em reprodução");enabled:workspace.collectionFilterModel.count>0;onClicked:workspace.invoke("playlist_playback",{})}
         ActionButton {visible:page.history && !!workspace.optionValue(workspace.optionsRevision,"historyUndo");text:bridge.translate("Desfazer remoção");onClicked:workspace.invoke("history_undo",{})}
         ActionButton {visible:page.history;text:bridge.translate("Limpar histórico");onClicked:workspace.invoke("history_clear",{})}
@@ -166,7 +166,7 @@ ColumnLayout {
             Connections {target:page;function onVisibleChanged(){if(page.visible)rowCard.requestDetails()}}
             OndaMenu {id:historyContext;objectName:"libraryCardActions"
                 OndaMenuItem {visible:!page.history;text:bridge.translate("Baixar agora");onTriggered:workspace.invoke("catalog_download",{model:page.catalog ? "catalog" : "playlists",index:rowCard.actionIndex})}
-                OndaMenuItem {visible:!page.history;text:bridge.translate("Adicionar à fila");onTriggered:workspace.invoke("catalog_add",{model:page.catalog ? "catalog" : "playlists",index:rowCard.actionIndex})}
+                OndaMenuItem {visible:!page.history;text:bridge.translate("Adicionar aos downloads");onTriggered:workspace.invoke("catalog_add",{model:page.catalog ? "catalog" : "playlists",index:rowCard.actionIndex})}
                 OndaMenuItem {visible:!page.history;text:bridge.translate("Usar em reprodução");onTriggered:workspace.invoke("catalog_playback",{model:page.catalog ? "catalog" : "playlists",index:rowCard.actionIndex})}
                 OndaMenuItem {visible:page.catalog;text:bridge.translate("Ouvir prévia");onTriggered:workspace.invoke("preview_catalog",{index:rowCard.actionIndex})}
                 OndaMenuItem {visible:!page.history;text:bridge.translate("Ver no catálogo");onTriggered:workspace.invoke("open_url",{url:rowCard.entry.source_url})}
@@ -197,7 +197,7 @@ ColumnLayout {
                     Label { Layout.fillWidth:true;elide:Text.ElideRight;visible: !page.history && (!!rowCard.entry.comparison || (!!rowCard.entry.service && rowCard.entry.service !== rowCard.entry.platform)); text: (rowCard.entry.comparison || rowCard.entry.service || rowCard.entry.platform || ""); color: bridge.palette.muted }
                     Flow { Layout.fillWidth: true; spacing: Math.round(10*bridge.spacing)
                         ActionButton { primary: true; text: bridge.translate(page.history ? "Abrir arquivo" : "Baixar agora"); onClicked: workspace.invoke(page.history ? (rowCard.entry.is_image ? "history_preview" : "open_file") : "catalog_download",page.history ? {path:rowCard.entry.path,id:rowCard.entry.id} : {model:page.catalog ? "catalog" : "playlists",index:rowCard.actionIndex}) }
-                        ActionButton { visible: page.catalog; text: bridge.translate("Adicionar à fila"); onClicked: destinations.popup(); QueueDestinationMenu { id: destinations; recordIndex: rowCard.actionIndex } }
+                        ActionButton { visible: page.catalog; text: bridge.translate("Adicionar"); onClicked: destinations.popup(); QueueDestinationMenu { id: destinations; recordIndex: rowCard.actionIndex } }
                         ActionButton { visible: false; text: bridge.translate(workspace.optionValue(workspace.optionsRevision,"previewActive") && workspace.optionValue(workspace.optionsRevision,"previewKind") === "catalog" && workspace.optionValue(workspace.optionsRevision,"previewSource") === rowCard.entry.source_url ? "Parar prévia" : "Ouvir prévia"); onClicked: workspace.invoke("preview_catalog",{index:rowCard.actionIndex}) }
                         ActionButton { visible: false; text: bridge.translate("Ver no catálogo"); onClicked: workspace.invoke("open_url",{url:rowCard.entry.source_url}) }
                         ActionButton { visible: false; text: bridge.translate("Comparar resultados"); onClicked: workspace.invoke("compare_results",{index:rowCard.actionIndex}) }

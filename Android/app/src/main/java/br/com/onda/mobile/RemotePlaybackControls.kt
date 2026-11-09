@@ -49,7 +49,7 @@ import org.json.JSONObject
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 UiText("Preset", style = MaterialTheme.typography.bodySmall)
                 Box(Modifier.weight(1f)) {
-                    Select("", preset, presets.keys.toList()) { name ->
+                    Select("", preset, presets.keys.toList(), enabled = state.online && effects.enabled) { name ->
                         if (state.online) {
                             val pair = presets.getValue(name)
                             RemotePlaybackRuntime.command("effects", JSONObject().put("speed", pair.first).put("reverb", pair.second))
@@ -57,9 +57,9 @@ import org.json.JSONObject
                     }
                 }
             }
-            RemoteAdjustment("Velocidade", effects.speed.toFloat(), 50f..150f, state.online) { RemotePlaybackRuntime.effects("speed", it.toInt()) }
-            RemoteAdjustment("Reverb", effects.reverb.toFloat(), 0f..100f, state.online) { RemotePlaybackRuntime.effects("reverb", it.toInt()) }
-            PlaybackSectionToggle("Manter tom", effects.keepPitch, enabled = state.online) { RemotePlaybackRuntime.effects("keep_pitch", it) }
+            RemoteAdjustment("Velocidade", effects.speed.toFloat(), 50f..150f, state.online && effects.enabled) { RemotePlaybackRuntime.effects("speed", it.toInt()) }
+            RemoteAdjustment("Reverb", effects.reverb.toFloat(), 0f..100f, state.online && effects.enabled) { RemotePlaybackRuntime.effects("reverb", it.toInt()) }
+            PlaybackSectionToggle("Manter tom", effects.keepPitch, enabled = state.online && effects.enabled) { RemotePlaybackRuntime.effects("keep_pitch", it) }
             if (state.effectsPending) LinearProgressIndicator(Modifier.fillMaxWidth())
         }
         PlaybackCard(Modifier.testTag("remote-jukebox-card")) {

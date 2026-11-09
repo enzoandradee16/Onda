@@ -64,7 +64,7 @@ import java.util.Locale
         }
     },confirmButton={Column(Modifier.fillMaxWidth(),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(LayoutSpacing.details)) {
         Button(onClick={submit(true)},enabled=record.optString("source_url").isNotBlank(),modifier=Modifier.fillMaxWidth()){UiText("Baixar agora")}
-        TextButton(onClick={submit(false)},enabled=record.optString("source_url").isNotBlank(),modifier=Modifier.fillMaxWidth()){UiText("Adicionar à fila")}
+        TextButton(onClick={submit(false)},enabled=record.optString("source_url").isNotBlank(),modifier=Modifier.fillMaxWidth()){UiText("Adicionar aos downloads")}
         TextButton(onClick=onDismiss,modifier=Modifier.fillMaxWidth()){UiText("Voltar")}
     }})
 }

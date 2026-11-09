@@ -23,7 +23,7 @@ fun downloadNotification(context:Context,text:String,percent:Int?):Notification 
         .setContentText(translateUi(text).take(180)).setContentIntent(open).setOnlyAlertOnce(true).setOngoing(true)
         .setProgress(100,percent ?: 0,percent==null)
     for(action in notificationActions(OndaStore.settings.value.optBoolean("notification_controls",true),DownloadRuntime.paused))
-        builder.addAction(0,translateUi(action),when(action){"Parar fila"->stop;"Abrir fila"->open;else->pause})
+        builder.addAction(0,translateUi(action),when(action){"Parar downloads"->stop;"Abrir downloads"->open;else->pause})
     return builder.build()
 }
 
