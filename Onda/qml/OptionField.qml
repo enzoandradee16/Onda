@@ -10,6 +10,7 @@ ColumnLayout {
     signal categoryRequested(string category)
     readonly property bool timeField: field.key === "schedule_start" || field.key === "schedule_stop"
     readonly property bool transitionDuration: field.key === "jukebox_transition_seconds"
+    readonly property var choiceValues: field.values || field.choices || []
     readonly property var current: settings ? workspace.preferences[field.key] : workspace.optionValue(workspace.optionsRevision,field.key)
     function save(value) { if (settings) workspace.setSetting(field.key,value); else workspace.setOption(field.key,value) }
     implicitWidth: 220
@@ -33,11 +34,11 @@ ColumnLayout {
         OndaSlider { id: transitionSlider; Layout.fillWidth: true; from: 1; to: 10; stepSize: 1; snapMode: Slider.SnapAlways; value: Number(root.current || 2); onMoved: root.save(Math.round(value)); Accessible.name: bridge.translate(root.field.label) }
         Label { text: Math.round(transitionSlider.value) + " s"; color: bridge.palette.text }
     }
-    ChoiceBox { visible: root.field.kind === "select" && !root.transitionDuration && root.field.key !== "theme_accent"; Layout.fillWidth: true; Layout.minimumWidth: 0; model: root.field.choices || []; currentIndex: Math.max(0,model.indexOf(root.current)); displayText: bridge.translate(currentText).replace(" (320 kbps)",""); onActivated: root.save(model[index]) }
+    ChoiceBox { objectName: root.field.key === "language" ? "settingsLanguageChoice" : ""; visible: root.field.kind === "select" && !root.transitionDuration && root.field.key !== "theme_accent"; Layout.fillWidth: true; Layout.minimumWidth: 0; model: root.field.choices || []; currentIndex: Math.max(0,root.choiceValues.indexOf(root.current)); displayText: bridge.translate(currentText).replace(" (320 kbps)",""); onActivated: root.save(root.choiceValues[index]) }
     ActionButton {
         objectName: "restartAfterLanguageChange"
         visible: root.settings && root.field.key === "language" && workspace.languageRestartRequired
-        text: bridge.translate("Reiniciar")
+        text: bridge.translate("Reiniciar ONDA")
         primary: true
         enabled: workspace.activityValue(workspace.statusRevision,"active") === 0 && workspace.activityValue(workspace.statusRevision,"busy").length === 0 && !bridge.stateValue(bridge.stateRevision,"busy")
         onClicked: workspace.invoke("restart_language", {})

@@ -12,11 +12,11 @@ O ONDA nasceu como um projeto pessoal, feito inicialmente para meu uso e de amig
 
 O projeto continua em desenvolvimento. Sugestões, contribuições e relatos de problemas são bem-vindos.
 
-**Versão 1.2.8 para Windows 10 ou superior (x64) e Android 8 ou superior (ARM64 e x86_64).**
+**Versão 1.2.9 para Windows 10 ou superior (x64) e Android 8 ou superior (ARM64 e x86_64).**
 
 Consulte as [notas da versão](RELEASE_NOTES.md).
 
-![ONDA Windows 1.2.5](docs/images/pc%20novo/pesquisa-musicas-preto-puro.png)
+![ONDA Windows](docs/images/pc%20novo/pesquisa-musicas-preto-puro.png)
 
 No Android, novas versões podem ser baixadas dentro do ONDA, com progresso e continuidade em segundo plano. Ao terminar, toque em Instalar atualização; na primeira vez, permita a instalação pelo ONDA nas configurações do Android. O sistema pede confirmação e os dados são preservados.
 
@@ -89,7 +89,7 @@ Os [guias de uso e desenvolvimento](docs/GUIAS.md) separam as instruções atuai
 
 ## ONDA no Windows
 
-Capturas reais do ONDA em português, incluindo telas atualizadas da versão 1.2.5. Clique para ampliar.
+Capturas reais do ONDA em português. Clique para ampliar.
 
 <table>
   <tr>
@@ -110,7 +110,7 @@ Outras capturas: [Letras sincronizadas](docs/images/pc%20novo/letras-sincronizad
 
 ## ONDA no Android
 
-Capturas reais do ONDA em português, incluindo telas atualizadas da versão 1.2.5. Clique para ampliar.
+Capturas reais do ONDA em português. Clique para ampliar.
 
 <table>
   <tr>
@@ -169,11 +169,3 @@ Na desinstalação do aplicativo Windows, você pode manter os dados ou apagar c
 ## Fila e edição de áudio
 
 Downloads simultâneos, retomada, ordem da fila, edição local de tags/capa/letra, normalização com prévia, agendamento e transferência de preferências: consulte [o guia de recursos avançados](RECURSOS-AVANCADOS.md).
-
-## Desempenho medido
-
-Consulte o [relatório de abertura, memória, CPU e downloads](docs/DESEMPENHO.md), com método, limites e dados brutos. Os [diagnósticos reproduzíveis](diagnosticos/README.md) ficam separados do aplicativo.
-
-A otimização posterior de abertura e listas está documentada em [Otimização de interface](docs/OTIMIZACAO.md), com comparação antes/depois.
-
-Melhorias e medições da troca de menus: [Navegação e configurações](docs/NAVEGACAO.md).

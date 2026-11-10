@@ -1,60 +1,26 @@
-# ONDA 1.2.8
+# ONDA 1.2.9
 
-- Sessões do Instagram protegidas com DPAPI no Windows e Android Keystore no celular, com leitura em memória e migração da sessão anterior.
-- Corrigidos o ícone da janela no Windows e a tela vazia de login no Android.
-- Conexão ao Instagram nas configurações de Contas no PC e Android, com janela própria de login e sessão salva no dispositivo.
-- Atualização e desconexão da sessão sem alterar cookies de outras plataformas.
-- Windows 1.2.8 / 1.2.8.0; Android 1.2.8, código 36.
-- A disponibilidade de vídeos restritos depende da conta e das verificações exigidas pelo Instagram.
-
----
-
-# ONDA 1.2.7
-
-Versão para Windows x64 e Android ARM64 e x86_64.
+Disponível para Windows x64 e Android ARM64 e x86_64.
 
 ## Windows e Android
 
-- Identificação de músicas com AcoustID e MusicBrainz e preenchimento de metadados.
-- Melhorias nos textos de downloads e na preservação das letras ao terminar a fila.
-- Ajustes de efeitos desativados com indicação visual de indisponibilidade.
-- Melhorias no tratamento de links do YouTube e de erros de acesso.
+- Ajustes de reprodução recolhíveis, com a fila e os controles sempre acessíveis.
+- Indicações mais claras de carregamento e preparação das músicas na fila.
+- Destaque visual ao arrastar músicas e resultados de pesquisa mais compactos.
+- Configurações com informações sobre o ONDA e opções de cache reunidas em Desempenho.
+- Descrições mais claras para a seleção de metadados e da versão do áudio.
 
 ## Windows
 
-- Atualização direta pelo aplicativo.
+- Layout adaptado ao redimensionamento, com controles distribuídos em mais linhas quando necessário.
+- Melhor espaçamento entre capa, informações da música e botões da barra de reprodução.
+- Modo Claro puro disponível nas configurações de Aparência.
+- Botões de configuração com larguras uniformes e opções de restauração reunidas em uma janela.
+- Seleção de idioma corrigida. O botão Reiniciar ONDA aparece abaixo do idioma somente enquanto houver uma mudança pendente.
 
 ## Android
 
-- Corrigido o travamento durante o carregamento dos resultados da pesquisa.
-- Restaurada a apresentação do álbum e da data de lançamento em linhas separadas nos cartões de música.
-
-- A música atual continua durante a preparação da faixa selecionada na pesquisa.
-- Maior destaque para o artista nos resultados.
-- Limpeza de opções e descrições do controle remoto.
-
-## Distribuição
-
-- Aplicativo atualizado para a versão 1.2.7.
-- APKs ARM64 e x86_64 com versionCode 35.
-- Instalador e portátil Windows x64 preparados para a versão 1.2.7.
-
----
-
-## Histórico da versão 1.2.6
-
-# ONDA 1.2.6
-
-Versão para Windows x64 e Android ARM64 e x86_64.
-
-## Windows
-
-- Discord Rich Presence opcional com faixa, artista, álbum, capa e posição da reprodução.
-- Fila com seleção por Ctrl ou Shift, reordenação e remoção em lote e opção de mover a seleção para tocar em seguida.
-- A faixa atual continua tocando enquanto a escolhida na pesquisa é preparada. Os resultados mostram o progresso e fecham quando a nova faixa começa.
-
-## Windows e Android
-
-- Equalizador com 5, 10 ou 15 bandas e adaptação dos ajustes ao mudar a quantidade.
-- Preparação da próxima faixa acompanha os efeitos ativos e invalida trabalho antigo quando os efeitos mudam.
-- A fila do Android preserva a posição de rolagem ao adicionar faixas.
+- Melhor adaptação das telas ao teclado, mantendo o player compacto acessível.
+- Fechamento do teclado ao abrir a fila, preservando o texto da pesquisa.
+- Busca das configurações direcionada à categoria correspondente.
+- Ajustes de reprodução em segundo plano e de seleção de faixas na fila.

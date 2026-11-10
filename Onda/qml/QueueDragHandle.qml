@@ -89,6 +89,7 @@ Item {
     function cancel(){if(listView && listView.activeDrag===handle)listView.activeDrag=null;dragging=false;offsetY=0;targetIndex=-1}
     Rectangle {visible:handle.showIndicator;anchors.fill:parent;radius:6;color:handle.activeFocus || handle.dragging ? bridge.palette.hover : "transparent";border.color:handle.activeFocus ? bridge.palette.accent : "transparent"}
     Label {visible:handle.showIndicator;anchors.centerIn:parent;text:"≡";font.pixelSize:24;color:handle.enabled ? bridge.palette.muted : bridge.palette.line}
+    Rectangle { parent: handle.dragItem; anchors.fill: parent; visible: handle.dragging; color: "transparent"; border.color: bridge.palette.accent; border.width: 2; radius: 8; z: 90 }
     MouseArea {
         id:area;anchors.fill:parent;preventStealing:true;hoverEnabled:true
         cursorShape:pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor

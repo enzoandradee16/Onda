@@ -16,7 +16,7 @@ Rectangle {
     Behavior on panelWidth { enabled: !side.resizing; NumberAnimation { duration: bridge.animations ? 240 : 0; easing.type: Easing.InOutCubic } }
     Rectangle { width: 1; color: bridge.palette.line; anchors.right: parent.right; anchors.top: parent.top; anchors.bottom: parent.bottom }
     ColumnLayout {
-        anchors.fill: parent; anchors.margins: 14; spacing: Math.round(12*bridge.spacing)
+        anchors.fill: parent; anchors.margins: 8; spacing: Math.round(12*bridge.spacing)
         RowLayout {
             Layout.fillWidth: true; Layout.preferredHeight: 62; spacing: 8
             BrandMark { Layout.preferredWidth: side.collapsed ? 48 : Math.min(76,side.width*0.28); Layout.preferredHeight: side.collapsed ? 38 : 50 }
@@ -31,8 +31,11 @@ Rectangle {
             Accessible.name: bridge.translate(side.collapsed ? "Expandir menu" : "Recolher menu")
             ToolTip.visible: hovered; ToolTip.text: Accessible.name
         }
+        OndaScrollView {
+            id: navScroll; rightPadding: 12; contentHeight: navColumn.implicitHeight
+            Layout.fillWidth: true; Layout.fillHeight: true; contentWidth: availableWidth; clip: true
         Column {
-            Layout.fillWidth: true; spacing: Math.round(3*bridge.spacing)
+            id: navColumn; height: implicitHeight; width: navScroll.availableWidth; spacing: Math.round(3*bridge.spacing)
             Repeater {
                 model: workspace.navigation
                 Rectangle {
@@ -40,7 +43,7 @@ Rectangle {
                     required property var modelData
                     readonly property bool active: modelData.key === workspace.currentPage || (modelData.key === "effects" && workspace.currentPage === "jukebox")
                     visible: !modelData.key || workspace.hiddenTabs.indexOf(modelData.key) < 0
-                    width: parent.width; height: !visible ? 0 : modelData.group ? (modelData.canMoveUp ? 48 : 30) : 43; radius: 8
+                    width: parent.width; height: !visible ? 0 : modelData.group ? (modelData.canMoveUp ? 48 : 30) : Math.max(43,navLabel.implicitHeight+16); radius: 8
                     clip: true; color: nav.active ? bridge.palette.selected : "transparent"
                     Rectangle { visible: nav.active; width: 3; height: 24; radius: 2; color: bridge.palette.accent; anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter }
                     Rectangle { visible: !!nav.modelData.group && !!nav.modelData.canMoveUp; width: parent.width-20; height: 1; anchors.top: parent.top; anchors.topMargin: 8; anchors.horizontalCenter: parent.horizontalCenter; color: bridge.palette.line }
@@ -50,9 +53,9 @@ Rectangle {
                         color: bridge.palette.muted; font.pixelSize: Math.round(10*bridge.fontScale); font.weight: Font.Medium; font.letterSpacing: 1
                     }
                     Row {
-                        visible: !nav.modelData.group; anchors.left: parent.left; anchors.leftMargin: side.collapsed ? 15 : 12; width: parent.width-(side.collapsed ? 30 : 24); height: parent.height; spacing: Math.round(12*bridge.spacing)
+                        visible: !nav.modelData.group; anchors.left: parent.left; anchors.leftMargin: side.collapsed ? 15 : 8; width: parent.width-(side.collapsed ? 30 : 16); height: parent.height; spacing: Math.round(8*bridge.spacing)
                         LineIcon { glyph: nav.modelData.key || ""; width: Math.round(20*bridge.fontScale); height: width; anchors.verticalCenter: parent.verticalCenter; ink: nav.active ? bridge.palette.accent : bridge.palette.muted }
-                        Text { text: bridge.translate(nav.modelData.name || ""); width: Math.max(0,parent.width-30); elide: Text.ElideRight; visible: !side.collapsed; font.pixelSize: Math.round(13*bridge.fontScale); font.weight: nav.active ? Font.Bold : Font.DemiBold; anchors.verticalCenter: parent.verticalCenter; color: nav.active ? bridge.palette.accent : bridge.palette.muted }
+                        Text { id: navLabel; text: bridge.translate(nav.modelData.name || ""); width: Math.max(0,parent.width-28*bridge.fontScale); wrapMode: Text.Wrap; visible: !side.collapsed; font.pixelSize: Math.round(13*bridge.fontScale); font.weight: nav.active ? Font.Bold : Font.DemiBold; anchors.verticalCenter: parent.verticalCenter; color: nav.active ? bridge.palette.accent : bridge.palette.muted }
                     }
                     MouseArea { id: navMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: nav.modelData.key ? Qt.PointingHandCursor : Qt.ArrowCursor; onClicked: if (nav.modelData.key) workspace.selectNavigationPage(nav.modelData.key) }
                     ToolTip.visible: navMouse.containsMouse && side.collapsed && !nav.modelData.group
@@ -60,7 +63,7 @@ Rectangle {
                 }
             }
         }
-        Item { Layout.fillHeight: true }
+        }
         PlaybackButton { Layout.fillWidth: true; glyph: "settings"; Accessible.name: bridge.translate("Configurações"); text: side.collapsed ? "" : bridge.translate("Configurações"); onClicked: side.settingsRequested() }
     }
 }

@@ -15,6 +15,7 @@ import shutil
 import subprocess
 import zipfile
 from build_installer import build as build_installer
+from package_docs import copy_docs
 
 ROOT = Path(__file__).resolve().parents[1]
 VERSION = re.search(
@@ -157,7 +158,7 @@ def windows():
         'RECURSOS-AVANCADOS.md',
     ):
         shutil.copy2(ROOT / name, BUNDLE / name)
-    shutil.copytree(ROOT / 'docs', BUNDLE / 'docs')
+    copy_docs(ROOT, BUNDLE / 'docs')
     shutil.copy2(ROOT / 'Portatil/onda.ico', BUNDLE / 'onda.ico')
     compiler = (
         Path(os.environ['WINDIR']) / 'Microsoft.NET/Framework64/v4.0.30319/csc.exe'

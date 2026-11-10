@@ -425,6 +425,56 @@ themeButton.addEventListener("click", () => {
   updateTheme();
 });
 
+const revealMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+const revealedSections = new Set();
+let revealObserver;
+const revealAnimations = new Set();
+function revealElement(element, animate = true) {
+  if (!element.classList.contains("scroll-reveal-pending")) return;
+  element.classList.remove("scroll-reveal-pending");
+  revealedSections.add(element.dataset.revealKey);
+  revealObserver?.unobserve(element);
+  if (!animate || revealMotion.matches) return;
+  const animation = element.animate([
+    { opacity: 0, translate: `${element.dataset.revealX}px 22px` },
+    { opacity: 1, translate: "0 0" },
+  ], { duration: 580, delay: Number(element.dataset.revealDelay), easing: "cubic-bezier(0.22, 1, 0.36, 1)", fill: "backwards" });
+  revealAnimations.add(animation);
+  animation.finished.catch(() => {}).finally(() => revealAnimations.delete(animation));
+}
+function setupScrollReveals(route) {
+  revealObserver?.disconnect();
+  revealAnimations.forEach((animation) => animation.cancel());
+  revealAnimations.clear();
+  if (revealMotion.matches || !window.IntersectionObserver || !main.animate || !["home", "features", "guide"].includes(route)) return;
+  revealObserver = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (entry.isIntersecting) revealElement(entry.target);
+    });
+  }, { threshold: 0, rootMargin: "0px 0px -24px 0px" });
+  const elements = main.querySelectorAll(".hero > div, .section-heading, .gallery > figure, .gallery > .gallery-detail, .feature-story, .feature-editor > .feature-copy, .feature-tools > figure, .feature-personal, .guide-platform, .guide-source, .guide-documentation");
+  elements.forEach((element, index) => {
+    const key = `${language}:${route}:${index}`;
+    if (revealedSections.has(key)) return;
+    element.dataset.revealKey = key;
+    element.dataset.revealX = element.matches(".hero > div:first-child, .feature-story:not(.feature-reverse)") ? -28 : element.matches(".hero-screens, .feature-reverse") ? 28 : 0;
+    const siblings = [...element.parentElement.children];
+    element.dataset.revealDelay = element.parentElement.matches(".gallery, .feature-tools, .guide-platforms") ? Math.min(siblings.indexOf(element), 2) * 70 : 0;
+    element.classList.add("scroll-reveal-pending");
+    revealObserver.observe(element);
+  });
+}
+main.addEventListener("focusin", (event) => {
+  const element = event.target.closest(".scroll-reveal-pending");
+  if (element) revealElement(element, false);
+});
+revealMotion.addEventListener("change", () => {
+  if (!revealMotion.matches) return;
+  revealObserver?.disconnect();
+  revealAnimations.forEach((animation) => animation.cancel());
+  main.querySelectorAll(".scroll-reveal-pending").forEach((element) => revealElement(element, false));
+});
+
 function render() {
   const t = copy[language];
   const route = routes.includes(location.hash.slice(1)) ? location.hash.slice(1) : "home";
@@ -672,6 +722,7 @@ function render() {
     anchor.removeAttribute('target');
     anchor.setAttribute('aria-haspopup', 'dialog');
   });
+  setupScrollReveals(route);
 }
 const imageViewer = document.querySelector('#image-viewer');
 const viewerImage = imageViewer.querySelector('img');

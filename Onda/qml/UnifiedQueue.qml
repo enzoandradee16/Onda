@@ -88,7 +88,7 @@ Card {
                         Label {Layout.fillWidth:true;text:modelData.title || "";font.weight:Font.DemiBold;elide:Text.ElideRight;color:modelData.current?bridge.palette.accent:bridge.palette.text}
                         Label {Layout.fillWidth:true;text:modelData.artist || "";elide:Text.ElideRight;color:bridge.palette.muted}
 
-                        Label {visible:modelData.analysis==="error";text:bridge.translate("Falha na preparação");color:bridge.palette.muted;font.pixelSize:11}
+                        Label {Layout.fillWidth:true;elide:Text.ElideRight;text:modelData.current || queuePanel.recent ? "" : bridge.translate(modelData.analysis==="error" ? "Falha na preparação" : modelData.analysis==="ready" ? "Pronta" : modelData.analysis==="preparing" ? "Preparando" : "Aguardando");color:modelData.analysis==="ready" ? bridge.palette.accent : bridge.palette.muted;font.pixelSize:11}
                     }
                 }
                 QueueIconButton {

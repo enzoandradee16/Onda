@@ -119,6 +119,17 @@ class PlaybackDesignTest {
         } finally {server.close()}
     }
 
+    @Test fun adjustmentsCanCollapseWithoutChangingEffectsOrQueue()=screen {vm->
+        val before=vm.jukebox.effects.value.toString()
+        val queue=vm.jukebox.playbackQueue.value
+        compose.onNodeWithTag("playback-adjustments-toggle").performScrollTo().performClick()
+        compose.onNodeWithTag("unified-effects-card").assertDoesNotExist()
+        compose.runOnIdle {assertEquals(before,vm.jukebox.effects.value.toString());assertEquals(queue,vm.jukebox.playbackQueue.value)}
+        compose.onNodeWithTag("playback-adjustments-toggle").performClick()
+        compose.onNodeWithTag("unified-effects-card").assertExists()
+        compose.onNodeWithTag("playback-search-input").assertExists()
+    }
+
     @Test fun presetPitchExportAndJukeboxAreAvailableOnThePlaybackPage()=screen {vm->
         compose.onNodeWithTag("playback-search-input").assertExists().performTextInput("Artista ou playlist")
         compose.onNodeWithTag("playback-search-submit").assertIsEnabled()
@@ -187,7 +198,7 @@ class PlaybackDesignTest {
         compose.onNodeWithTag("queue-track-next1").assertIsDisplayed()
         compose.onNodeWithTag("queue-track-previous").assertDoesNotExist()
         assertEquals(1,compose.onAllNodesWithTag("android-compact-player").fetchSemanticsNodes().size)
-        compose.onNodeWithTag("queue-current-cover-progress").assertIsDisplayed()
+        compose.onNodeWithTag("queue-current-cover-progress",useUnmergedTree=true).assertIsDisplayed()
         compose.onNodeWithTag("queue-upcoming-list").performTouchInput {swipe(start=androidx.compose.ui.geometry.Offset(width*.9f,height*.95f),end=androidx.compose.ui.geometry.Offset(width*.1f,height*.95f))}
         compose.onNodeWithTag("queue-tab-recent").assertIsSelected()
         compose.onNodeWithTag("queue-track-previous").assertIsDisplayed()

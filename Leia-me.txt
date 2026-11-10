@@ -1,8 +1,8 @@
-ONDA 1.2.8
+ONDA 1.2.9
 
 Portátil: extraia o ZIP inteiro e abra Onda.exe.
-Instalador: execute Onda-1.2.8-Setup-Windows-x64.exe.
-Android: instale ONDA-Android-1.2.8-arm64-v8a.apk em aparelhos ARM64 ou ONDA-Android-1.2.8-x86_64.apk em emuladores compatíveis.
+Instalador: execute Onda-1.2.9-Setup-Windows-x64.exe.
+Android: instale ONDA-Android-1.2.9-arm64-v8a.apk em aparelhos ARM64 ou ONDA-Android-1.2.9-x86_64.apk em emuladores compatíveis.
 
 Consulte README.md, RELEASE_NOTES.md.
 Licença GPL-2.0-only; veja LICENSE e os avisos de terceiros.

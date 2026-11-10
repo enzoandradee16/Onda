@@ -27,6 +27,8 @@ internal class AndroidStreamPlayback(
     private val prefetchAllowed:()->Boolean={true},
 ) {
     private val player=ExoPlayer.Builder(context)
+        .setWakeMode(C.WAKE_MODE_NETWORK)
+        .setAudioAttributes(androidx.media3.common.AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MUSIC).build(),false)
         .setLoadControl(DefaultLoadControl.Builder().setBufferDurationsMs(12000,30000,1500,3000).setBackBuffer(10000,true).setPrioritizeTimeOverSizeThresholds(true).build())
         .build().apply {setSeekParameters(SeekParameters.EXACT);trackSelectionParameters=trackSelectionParameters.buildUpon().setTrackTypeDisabled(C.TRACK_TYPE_VIDEO,true).build()}
     private var closed=false

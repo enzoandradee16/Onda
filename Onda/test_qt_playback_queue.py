@@ -433,6 +433,46 @@ class PlaybackQueueDrawerTests(unittest.TestCase):
             jukebox.assert_called_once_with(2)
             effects.assert_not_called()
 
+    def test_collapsing_adjustments_keeps_queue_and_playback_parameters(self):
+        from PySide6.QtCore import QObject, QMetaObject
+        self.ws.selectPage('jukebox')
+        self.settle()
+        params = dict(self.bridge.playbackParams)
+        queue = list(self.bridge.playlist)
+        toggle = self.window.findChild(QObject, 'playbackAdjustmentsToggle')
+        effects = self.window.findChild(QObject, 'playbackEffectsCard')
+        self.assertIsNotNone(toggle)
+        QMetaObject.invokeMethod(toggle, 'clicked')
+        self.settle()
+        self.assertFalse(effects.property('visible'))
+        self.assertEqual(params, self.bridge.playbackParams)
+        self.assertEqual(queue, self.bridge.playlist)
+        QMetaObject.invokeMethod(toggle, 'clicked')
+        self.settle()
+        self.assertTrue(effects.property('visible'))
+
+    def test_ready_selection_starts_when_previous_audio_worker_has_exited(self):
+        cache = Path(self.temp.name) / 'ready-track'
+        cache.mkdir()
+        (cache / 'analysis.json').write_text('{}', encoding='utf8')
+        model = dict(cache=str(cache), title='Selected')
+        self.bridge.playlist = [dict(id='selected', title='Selected')]
+        self.bridge._prepared['selected'] = model
+        self.bridge.model = dict(cache='previous', beats=[0, 20], neighbors=[[]])
+        self.bridge._state.update(playing=True, paused=False)
+        self.bridge._pcm_worker = None
+        with patch.object(self.bridge, 'activate_queued') as activate:
+            self.bridge.playQueued(0)
+            activate.assert_called_once_with(0, model, auto_play=True)
+        self.assertIsNone(self.bridge._switch_pending)
+        self.bridge._state['playing'] = False
+
+    def test_retry_from_playback_drawer_keeps_play_intent(self):
+        self.seed()
+        with patch.object(self.bridge, 'playQueued') as play:
+            self.call(self.drawer(False), 'retry', 1)
+            play.assert_called_once_with(2)
+
     def test_clear_only_affects_selected_drawer(self):
         self.seed()
         from PySide6.QtCore import QObject, QMetaObject

@@ -9,6 +9,7 @@ from preferences import PreferenceStore
 from library import LibraryStore
 from error_localization import error_text
 from i18n import tr
+from app_version import VERSION
 
 ROOT = Path(__file__).resolve().parent
 PAGES = {
@@ -41,6 +42,14 @@ CHOICES = {
 
 
 class DesktopWorkspace(QObject):
+    @Property(str, constant=True)
+    def appVersion(self):
+        return VERSION
+
+    @Property(str, constant=True)
+    def licensePath(self):
+        return str(ROOT.parent / 'THIRD_PARTY_NOTICES.md')
+
     changed = Signal()
     optionsChanged = Signal()
     settingsChanged = Signal()
@@ -927,7 +936,10 @@ class DesktopWorkspace(QObject):
             self.pause_background_jukebox()
         if key == 'language':
             self.store.save_language(value)
-            self.notify('Reinicie o ONDA para aplicar o idioma.')
+            if self.languageRestartRequired:
+                self.notify('Reinicie o ONDA para aplicar o idioma.')
+            elif self._status == 'Reinicie o ONDA para aplicar o idioma.':
+                self.notify('')
         if key == 'shortcut_keys':
             self.bind_shortcuts()
         self.syncing = True

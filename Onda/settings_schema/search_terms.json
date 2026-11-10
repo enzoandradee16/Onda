@@ -23,5 +23,19 @@
     "pt-BR": "notificação notificações aviso avisos alerta alertas botões pausar retomar parar",
     "en": "notification notifications notice notices alert alerts controls buttons pause resume stop",
     "es": "notificación notificaciones aviso avisos alerta alertas controles botones pausar reanudar detener"
+  },
+  "Ação ao terminar os downloads": {
+    "pt-BR": "notificação notificações aviso avisos alerta alertas som conclusão dos downloads finalizar",
+    "en": "notification notifications notice notices alert alerts sound downloads completion finish",
+    "es": "notificación notificaciones aviso avisos alerta alertas sonido finalización de descargas"
+  },
+  "Escolher automaticamente os metadados do catálogo": {
+    "pt-BR": "Escolher automaticamente os metadados mais semelhantes"
+  },
+  "Escolher automaticamente o áudio no YouTube": {
+    "pt-BR": "Escolher automaticamente a versão mais semelhante no YouTube"
+  },
+  "Conferir e editar metadados antes de baixar": {
+    "pt-BR": "Revisar metadados antes de baixar"
   }
 }

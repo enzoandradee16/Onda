@@ -64,6 +64,33 @@ class AndroidStreamingParityTest {
         } finally {withContext(Dispatchers.Main){player?.close();scope.cancel()};broken.delete();server.close()}
     }
 
+    @Test fun streamingClockAdvancesWhileHomeIsVisible()=runBlocking<Unit> {
+        val server=AudioServer()
+        val scope=CoroutineScope(SupervisorJob()+Dispatchers.Main.immediate)
+        val ready=CompletableDeferred<Unit>()
+        var position=0.0
+        var player:AndroidStreamPlayback?=null
+        try {
+            withContext(Dispatchers.Main) {
+                player=AndroidStreamPlayback(context,scope,JSONObject().put("duration",20).put("_stream",JSONObject().put("url",server.url)),0.0,
+                    onClock={seconds,playing,_,_->position=seconds;if(playing)ready.complete(Unit)},onEnded={},
+                    refresh={throw AssertionError("Unexpected stream refresh")},onFailure={ready.completeExceptionally(it)},prefetchAllowed={false})
+                player!!.volume(0f)
+            }
+            withTimeout(15000){ready.await()}
+            InstrumentationRegistry.getInstrumentation().uiAutomation.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME)
+            val before=withContext(Dispatchers.Main){position}
+            val ui=InstrumentationRegistry.getInstrumentation().uiAutomation
+            ui.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_NOTIFICATIONS)
+            delay(1000)
+            ui.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK)
+            ui.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME)
+            delay(4000)
+            val after=withContext(Dispatchers.Main){position}
+            assertTrue("Background stream stalled: $before -> $after",after-before>=4.0)
+        } finally {withContext(Dispatchers.Main){player?.close()};scope.cancel();server.close()}
+    }
+
     @Test fun extendedEffectsCancellationReview()=runBlocking<Unit> {
         val minutes=InstrumentationRegistry.getArguments().getString("soak_minutes")?.toIntOrNull() ?: 0
         org.junit.Assume.assumeTrue(minutes in 1..20)

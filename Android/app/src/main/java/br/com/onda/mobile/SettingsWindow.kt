@@ -43,10 +43,11 @@ val categories=linkedMapOf(
     val spotifyConnected by vm.spotifyConnected.collectAsStateWithLifecycle()
     val tools by MobileEngine.toolsState.collectAsStateWithLifecycle()
     val status by vm.status.collectAsStateWithLifecycle()
-    val names=remember {settingsCategoryOrder()+"Desempenho"}
+    val names=remember {(settingsCategoryOrder()+"Desempenho").distinct()}
     val pager=rememberPagerState(initialPage=names.indexOf(initialCategory).takeIf {it>=0} ?: 0,pageCount={names.size})
     var overview by rememberSaveable {mutableStateOf(initialCategory=="Geral")}
     val scope=rememberCoroutineScope()
+    var licenses by remember {mutableStateOf(false)}
     var reset by remember {mutableStateOf(false)}
     var instagramSession by remember {mutableStateOf(false)}
     var searchQuery by rememberSaveable {mutableStateOf("")}
@@ -111,6 +112,14 @@ val categories=linkedMapOf(
                                     OndaIcon("chevron",modifier=Modifier.size(20.dp))
                                 }
                             }
+                        }
+                    }
+                    ToolCard {
+                        UiText("Sobre o ONDA",style=MaterialTheme.typography.titleMedium)
+                        Text("ONDA Android ${BuildConfig.VERSION_NAME}",style=MaterialTheme.typography.bodyMedium)
+                        Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                            TextButton(onClick={overview=false;scope.launch {pager.scrollToPage(names.indexOf("Ferramentas"))}},modifier=Modifier.weight(1f)){UiText("Ferramentas")}
+                            TextButton(onClick={licenses=true},modifier=Modifier.weight(1f)){UiText("Licenças e fontes")}
                         }
                     }
                     Spacer(Modifier.height(12.dp))
@@ -207,7 +216,7 @@ val categories=linkedMapOf(
                     }
                     "Downloads"->{
                         UiText("Downloads e arquivos",style=MaterialTheme.typography.titleMedium)
-                        UiText("As opções são aplicadas aos próximos links adicionados.",style=MaterialTheme.typography.bodySmall)
+                        UiText("Alterações valem para os próximos downloads iniciados, inclusive itens pendentes.",style=MaterialTheme.typography.bodySmall)
                         UiText("Pasta de destino",style=MaterialTheme.typography.labelMedium)
                         Button(onClick={folder.launch(null)}){UiText("Alterar")}
                         UiText(settings.optString("output_uri").ifBlank {"Downloads/ONDA no Android 10+. No Android 8/9, escolha uma pasta para preservar os arquivos ao desinstalar."},style=MaterialTheme.typography.bodySmall)
@@ -217,15 +226,15 @@ val categories=linkedMapOf(
                         DownloadConcurrencyOptions(settings,::put)
                         WifiDownloadControls(settings,::put)
                         SettingsDivider()
-                        Toggle("Escolher automaticamente os metadados mais semelhantes",settings.optBoolean("auto_metadata")){put("auto_metadata",it)}
-                        UiText("Seleciona o primeiro resultado de maior similaridade entre os metadados compatíveis, sem abrir a escolha. Sem correspondência compatível, informa o erro. Não altera a escolha da versão de áudio.",style=MaterialTheme.typography.bodySmall)
+                        UiText("Catálogo e áudio",style=MaterialTheme.typography.titleMedium)
+                        Toggle("Escolher automaticamente os metadados do catálogo",settings.optBoolean("auto_metadata")){put("auto_metadata",it)}
+                        UiText("Seleciona o resultado mais semelhante no catálogo (título, artista, álbum e capa). A revisão final é uma opção separada.",style=MaterialTheme.typography.bodySmall)
                         SettingsDivider()
-                        Toggle("Escolher automaticamente a versão mais semelhante no YouTube",settings.optBoolean("auto_match")){put("auto_match",it)}
+                        Toggle("Escolher automaticamente o áudio no YouTube",settings.optBoolean("auto_match")){put("auto_match",it)}
+                        UiText("Seleciona a gravação correspondente no YouTube. Não muda os dados do catálogo nem a revisão final.",style=MaterialTheme.typography.bodySmall)
                         SettingsDivider()
-                        UiText("Vale para os próximos downloads iniciados, inclusive itens já na fila e álbuns. Escolhe a maior similaridade entre as versões compatíveis.",style=MaterialTheme.typography.bodySmall)
-                        SettingsDivider()
-                        Toggle("Revisar metadados antes de baixar",settings.optBoolean("review_metadata")){put("review_metadata",it)}
-                        UiText("Spotify, Deezer e Apple Music fornecem metadados; o áudio correspondente é obtido do YouTube.",style=MaterialTheme.typography.bodySmall)
+                        Toggle("Conferir e editar metadados antes de baixar",settings.optBoolean("review_metadata")){put("review_metadata",it)}
+                        UiText("Abre uma janela para conferir e editar os dados antes do download, mesmo com as escolhas automáticas ativadas.",style=MaterialTheme.typography.bodySmall)
                         OrganizationOptions(settings,::put)
                         val duplicates=linkedMapOf("Perguntar" to "ask","Manter ambos" to "keep","Substituir" to "replace","Pular" to "skip")
                         SettingsDivider()
@@ -303,7 +312,6 @@ val categories=linkedMapOf(
                         AppUpdateControls(vm)
                         SettingsDivider()
                         ToolStatusControls(vm)
-                        CacheControls(vm)
                         SettingsDivider()
                         UiText("ONDA Android ${BuildConfig.VERSION_NAME}" + if(BuildConfig.DEBUG) " · versão de desenvolvimento" else "",style=MaterialTheme.typography.bodySmall)
                     }
@@ -315,6 +323,7 @@ val categories=linkedMapOf(
             }
         }
     }
+    if(licenses)LicensesWindow {licenses=false}
     if(reset) ResetWindow {reset=false}
     if(instagramSession) InstagramSessionWindow {instagramSession=false}
 }

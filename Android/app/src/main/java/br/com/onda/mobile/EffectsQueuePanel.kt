@@ -66,7 +66,7 @@ import androidx.compose.ui.text.input.ImeAction
             EffectsArtwork(JSONObject().put("record",record).put("cover",cover),Modifier.size(48.dp))
             Column(Modifier.weight(1f)) {
                 Text(record.optString("title"),maxLines=1,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis,color=if(current)MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
-                Text(record.stringList("artists"),style=MaterialTheme.typography.bodySmall,maxLines=1,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                Text(record.stringList("artists"),style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant,maxLines=1,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                 AlbumDateLabel(record)
                 if(preparation.isNotBlank())UiText(workflowLabel(preparation,true),modifier=Modifier.semantics {liveRegion=LiveRegionMode.Polite},style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
             }
@@ -141,7 +141,7 @@ import androidx.compose.ui.text.input.ImeAction
     Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
         EffectsArtwork(JSONObject().put("record",record),Modifier.size(56.dp))
         Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(4.dp)) {
-            Text(record.optString("title"),maxLines=2,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+            Text(record.optString("title"),style=MaterialTheme.typography.titleSmall,fontWeight=androidx.compose.ui.text.font.FontWeight.SemiBold,maxLines=2,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)
             Text(record.stringList("artists"),style=MaterialTheme.typography.bodySmall,maxLines=1,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)
 
             AlbumDateLabel(record)

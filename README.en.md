@@ -12,11 +12,11 @@ ONDA started as a personal project, initially made for me and my friends. I deci
 
 The project is still in development. Suggestions, contributions and bug reports are welcome.
 
-**Version 1.2.8 for Windows 10 or later (x64) and Android 8 or later (ARM64 and x86_64).**
+**Version 1.2.9 for Windows 10 or later (x64) and Android 8 or later (ARM64 and x86_64).**
 
 See the [release notes](RELEASE_NOTES.md).
 
-![ONDA Windows 1.2.5](docs/images/pc%20novo/pesquisa-musicas-preto-puro.png)
+![ONDA Windows](docs/images/pc%20novo/pesquisa-musicas-preto-puro.png)
 
 On Android, updates can download within ONDA, with progress and background continuation. When finished, tap Install update; the first time, allow installation from ONDA in Android settings. The system asks for confirmation and your data is preserved.
 
@@ -46,7 +46,7 @@ On Android, source identification in history is recorded for new downloads; olde
 
 ## Download and launch
 
-Download the official packages from [Releases](https://github.com/enzoandradee16/Onda/releases). Choose the Windows or Android version; source code and build instructions are also available in this repository.
+Download the official packages from [Releases](https://github.com/enzoandradee16/Onda/releases). Choose the Windows or Android version.
 
 - **Portable:** extract the entire ZIP and open `Onda.exe`. Keep the `Onda` and `_runtime` folders alongside it. You do not need to install Python. On first use, ONDA downloads FFmpeg directly from gyan.dev, with a progress bar and SHA-256 verification; this initial setup requires an internet connection.
 - **Installer:** run `Onda-…-Setup-Windows-x64.exe`. ONDA's own interface lets you choose the folder, create a shortcut and follow installation progress. Installation is per user, with an uninstaller and compatibility with earlier versions. FFmpeg is also prepared automatically on first use.
@@ -87,7 +87,7 @@ For the current feature catalog, platform differences and code references, see t
 
 ## ONDA on Windows
 
-Real ONDA screenshots in Portuguese, including updated screens from version 1.2.5. Click to enlarge.
+Real ONDA screenshots in Portuguese. Click to enlarge.
 
 <table>
   <tr>
@@ -108,7 +108,7 @@ More screenshots: [Infinite Jukebox](docs/images/pc%20novo/reproducao-jukebox-cl
 
 ## ONDA on Android
 
-Real ONDA screenshots in Portuguese, including updated screens from version 1.2.5. Click to enlarge.
+Real ONDA screenshots in Portuguese. Click to enlarge.
 
 <table>
   <tr>
@@ -167,11 +167,3 @@ When uninstalling the Windows app, you can keep your data or delete settings, th
 ## Queue and audio editing
 
 Concurrent downloads, resuming, queue ordering, local tag/artwork/lyrics editing, normalization with preview, scheduling and preference transfer: see the [advanced features guide](RECURSOS-AVANCADOS.md) (in Portuguese).
-
-## Measured performance
-
-See the [startup, memory, CPU and download report](docs/DESEMPENHO.md), including the method, limitations and raw data. [Reproducible diagnostics](diagnosticos/README.md) are kept separate from the app. These documents are in Portuguese.
-
-Later startup and list optimizations are documented in [Interface optimization](docs/OTIMIZACAO.md), with before-and-after comparisons.
-
-Menu switching improvements and measurements: [Navigation and settings](docs/NAVEGACAO.md).

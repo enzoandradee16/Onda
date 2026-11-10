@@ -146,18 +146,18 @@
   },
   {
     "category": "Downloads",
-    "label": "Escolher automaticamente os metadados mais semelhantes",
-    "keywords": " Seleciona o primeiro resultado de maior similaridade entre os metadados compatíveis, sem abrir a escolha. Sem correspondência compatível, informa o erro. Não altera a escolha da versão de áudio."
+    "label": "Escolher automaticamente os metadados do catálogo",
+    "keywords": " Seleciona o primeiro resultado de maior similaridade entre os metadados compatíveis, sem abrir a escolha. Sem correspondência compatível, informa o erro. Não altera a escolha da versão de áudio. Escolher automaticamente os metadados mais semelhantes"
   },
   {
     "category": "Downloads",
-    "label": "Escolher automaticamente a versão mais semelhante no YouTube",
-    "keywords": " Vale para os próximos downloads iniciados, inclusive itens já na fila e álbuns. Escolhe a maior similaridade entre as versões compatíveis."
+    "label": "Escolher automaticamente o áudio no YouTube",
+    "keywords": " Vale para os próximos downloads iniciados, inclusive itens já na fila e álbuns. Escolhe a maior similaridade entre as versões compatíveis. Escolher automaticamente a versão mais semelhante no YouTube"
   },
   {
     "category": "Downloads",
-    "label": "Revisar metadados antes de baixar",
-    "keywords": " Spotify, Deezer e Apple Music fornecem metadados; o áudio correspondente é obtido do YouTube."
+    "label": "Conferir e editar metadados antes de baixar",
+    "keywords": " Spotify, Deezer e Apple Music fornecem metadados; o áudio correspondente é obtido do YouTube. Revisar metadados antes de baixar"
   },
   {
     "category": "Áudio",
@@ -350,17 +350,17 @@
     "keywords": " A atualização é baixada dentro do ONDA e continua em segundo plano. Ao terminar, toque em Instalar atualização e confirme no Android. Seus dados são preservados."
   },
   {
-    "category": "Ferramentas",
+    "category": "Desempenho",
     "label": "Cache",
     "keywords": " Limpa capas, buscas e caches temporários. Downloads, fila, histórico, contas e escolhas salvas são preservados."
   },
   {
-    "category": "Ferramentas",
+    "category": "Desempenho",
     "label": "Limpar cache",
     "keywords": ""
   },
   {
-    "category": "Ferramentas",
+    "category": "Desempenho",
     "label": "Atualizar tamanho",
     "keywords": ""
   },

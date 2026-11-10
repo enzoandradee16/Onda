@@ -81,6 +81,7 @@ class JukeboxBridge(QObject):
         self.clock_timer.setInterval(500)
         self.clock_timer.timeout.connect(self.tick_sleep)
         self.workers = []
+        self._pcm_worker = None
         self.seeks = queue.SimpleQueue()
         self.model = None
         self.records = []
@@ -1040,6 +1041,8 @@ class JukeboxBridge(QObject):
             and self._state['playing']
             and not self.paused.is_set()
             and not (self.model or {}).get('_stream')
+            and self._pcm_worker is not None
+            and self._pcm_worker.is_alive()
         ):
             if self._switch_pending is not None:
                 self._switch_after = entry['id']
@@ -1714,6 +1717,7 @@ class JukeboxBridge(QObject):
         thread = threading.Thread(target=function, daemon=True)
         self.workers.append(thread)
         thread.start()
+        return thread
 
     @Slot(QUrl)
     def openFile(self, url):
@@ -2487,7 +2491,7 @@ class JukeboxBridge(QObject):
                     session.close()
                 self.emit(revision, 'stopped', None)
 
-        self.start_worker(worker)
+        self._pcm_worker = self.start_worker(worker)
 
     @Slot()
     def closeSearch(self):

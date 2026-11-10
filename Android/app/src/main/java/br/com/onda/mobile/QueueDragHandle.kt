@@ -4,6 +4,8 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.ui.layout.onSizeChanged
 import java.util.WeakHashMap
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.scrollBy
@@ -48,8 +50,8 @@ private val queueDragPreviews=WeakHashMap<LazyListState,QueueDragPreview>()
     val preview=remember(state){queueDragPreviews.getOrPut(state){QueueDragPreview()}}
     var cardHeight by remember {mutableIntStateOf(0)}
     val shifted by animateFloatAsState(if(dragging)0f else preview.displacement(index),tween(140),label="queue-gap")
-    val color=if(dragging)MaterialTheme.colorScheme.surface else Color.Transparent
-    Box(Modifier.fillMaxWidth().onSizeChanged {cardHeight=it.height}.zIndex(if(dragging)10f else 0f).graphicsLayer {translationY=if(dragging)offset else if(preview.from>=0)shifted else 0f;shadowElevation=if(dragging)6.dp.toPx() else 0f}.background(color).pointerInput(state,enabled) {
+    val color=if(dragging)MaterialTheme.colorScheme.surfaceContainerHigh else Color.Transparent
+    Box(Modifier.fillMaxWidth().onSizeChanged {cardHeight=it.height}.zIndex(if(dragging)10f else 0f).graphicsLayer {translationY=if(dragging)offset else if(preview.from>=0)shifted else 0f;shadowElevation=if(dragging)6.dp.toPx() else 0f}.background(color,RoundedCornerShape(12.dp)).then(if(dragging)Modifier.border(1.dp,MaterialTheme.colorScheme.primary,RoundedCornerShape(12.dp)) else Modifier).pointerInput(state,enabled) {
         var scrolling:Job?=null
         fun updateTarget(){
             val target=state.layoutInfo.visibleItemsInfo.filter {it.index in 0 until latestCount}.minByOrNull {abs(it.offset+it.size/2f-(start+offset))}

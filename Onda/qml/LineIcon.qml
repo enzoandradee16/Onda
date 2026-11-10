@@ -15,6 +15,7 @@ Canvas {
         function circle(x,y,r){c.beginPath();c.arc(x,y,r,0,Math.PI*2);c.stroke()}
         var g=glyph
         if(g==="mini"){c.strokeRect(3,4,18,16);c.strokeRect(11,11,8,7)}
+        else if(g==="music"){line(9,17,9,5);line(9,5,19,3);line(19,3,19,15);circle(6,17,3);circle(16,15,3)}
         else if(g==="pause"){line(8,5,8,19);line(16,5,16,19)}
         else if(g==="previous"){line(5,5,5,19);path([18,5,8,12,18,19],true)}
         else if(g==="next"){line(19,5,19,19);path([6,5,16,12,6,19],true)}

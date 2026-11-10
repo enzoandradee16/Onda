@@ -35,13 +35,13 @@ ColumnLayout {
         return page.collectionQuery.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim().split(/\s+/).every(function(term){return text.indexOf(term)>=0})
     }
     spacing: Math.round(14*bridge.spacing)
-    RowLayout { Layout.fillWidth: true; spacing: Math.round(10*bridge.spacing)
-        OndaTextField { Layout.fillWidth: true; placeholderText: bridge.translate(page.history ? "Buscar no histórico" : page.catalog ? "Pesquise uma música ou cole um link" : "Link do álbum ou playlist"); text: page.history ? workspace.optionValue(workspace.optionsRevision,"historyQuery") : page.catalog ? workspace.optionValue(workspace.optionsRevision,"query") : workspace.optionValue(workspace.optionsRevision,"playlistUrl")
+    GridLayout { Layout.fillWidth: true; columns: page.width<900*bridge.fontScale ? 3 : 4; columnSpacing: Math.round(10*bridge.spacing); rowSpacing: 8
+        OndaTextField { Layout.fillWidth: true; Layout.minimumWidth: 0; Layout.columnSpan: page.width<900*bridge.fontScale ? 3 : 1; placeholderText: bridge.translate(page.history ? "Buscar no histórico" : page.catalog ? "Pesquise uma música ou cole um link" : "Link do álbum ou playlist"); text: page.history ? workspace.optionValue(workspace.optionsRevision,"historyQuery") : page.catalog ? workspace.optionValue(workspace.optionsRevision,"query") : workspace.optionValue(workspace.optionsRevision,"playlistUrl")
             onTextEdited: workspace.setOption(page.history ? "historyQuery" : page.catalog ? "query" : "playlistUrl",text)
             onAccepted: if (!page.history && workspace.activityValue(workspace.statusRevision,"busy").indexOf(page.catalog ? "search" : "collection") < 0) workspace.invoke(page.catalog ? "search" : "load_playlist",{})
         }
-        ChoiceBox { visible: page.catalog; model: ["Deezer","Apple / iTunes","Spotify","Todos"]; currentIndex: Math.max(0,model.indexOf(workspace.optionValue(workspace.optionsRevision,"provider"))); onActivated: workspace.setOption("provider",currentText) }
-        TaskButton { objectName: "libraryLoadButton"; visible: !page.history; primary: true; idleText: bridge.translate(page.catalog ? "Pesquisar" : workspace.optionValue(workspace.optionsRevision,"playlistTitle") && workspace.optionValue(workspace.optionsRevision,"loadedPlaylistUrl")===workspace.optionValue(workspace.optionsRevision,"playlistUrl") ? "Atualizar" : "Carregar"); operation: page.catalog ? "search" : "load_playlist"; taskNames: page.catalog ? ["search"] : ["collection","compare_collection","check_matches"] }
+        ChoiceBox { Layout.fillWidth: page.width<900*bridge.fontScale; visible: page.catalog; model: ["Deezer","Apple / iTunes","Spotify","Todos"]; currentIndex: Math.max(0,model.indexOf(workspace.optionValue(workspace.optionsRevision,"provider"))); onActivated: workspace.setOption("provider",currentText) }
+        TaskButton { Layout.fillWidth: page.width<900*bridge.fontScale; objectName: "libraryLoadButton"; visible: !page.history; primary: true; idleText: bridge.translate(page.catalog ? "Pesquisar" : workspace.optionValue(workspace.optionsRevision,"playlistTitle") && workspace.optionValue(workspace.optionsRevision,"loadedPlaylistUrl")===workspace.optionValue(workspace.optionsRevision,"playlistUrl") ? "Atualizar" : "Carregar"); operation: page.catalog ? "search" : "load_playlist"; taskNames: page.catalog ? ["search"] : ["collection","compare_collection","check_matches"] }
         TaskButton { visible: page.catalog; idleText: bridge.translate("Atualizar busca"); operation: "search"; parameters: ({refresh:true}) }
     }
     RowLayout {
@@ -154,7 +154,7 @@ ColumnLayout {
         }
 
         ScrollToTop { target: libraryList; viewport: libraryList }
-        delegate: Card { id: rowCard; objectName: "libraryTrackCard"; required property var entry; required property int index; readonly property int actionIndex: page.catalog || page.history ? index : entry._source_row; width: ListView.view.contentAreaWidth; height: Math.max(page.history ? (page.smallCards ? 76 : page.cardSize === "Médio" ? 104 : 132) : (page.smallCards ? 132 : page.cardSize === "Médio" ? 160 : 192),trackDetails.implicitHeight+24)
+        delegate: Card { id: rowCard; objectName: "libraryTrackCard"; required property var entry; required property int index; readonly property int actionIndex: page.catalog || page.history ? index : entry._source_row; width: ListView.view.contentAreaWidth; height: Math.max(page.history ? (page.smallCards ? 76 : page.cardSize === "Médio" ? 104 : 132) : page.catalog ? (page.smallCards ? 120 : page.cardSize === "Médio" ? 148 : 168) : (page.smallCards ? 132 : page.cardSize === "Médio" ? 160 : 192),trackDetails.implicitHeight+24)
             function requestDetails() {
                 if(!page.visible || typeof entry==="undefined" || !entry)return
                 if(page.history)workspace.invoke("request_history_details",{id:entry.id})
@@ -183,7 +183,7 @@ ColumnLayout {
             MouseArea {objectName:"openHistoryImages";anchors.fill:parent;acceptedButtons:Qt.LeftButton;enabled:page.history && !!rowCard.entry.is_image;cursorShape:enabled ? Qt.PointingHandCursor : Qt.ArrowCursor;onClicked:workspace.invoke("history_preview",{id:rowCard.entry.id})}
             RowLayout { id: trackBody; anchors.fill: parent; anchors.margins: 12; spacing: Math.round(18*bridge.spacing)
                 CheckBox { visible: !page.catalog; checked: rowCard.entry.checked || false; onToggled: workspace.invoke("check",{model:page.history ? "history" : "playlists",index:rowCard.actionIndex,checked:checked}) }
-                RoundedArtwork { objectName: "libraryArtwork"; readonly property bool artworkReady: status === Image.Ready; source: rowCard.entry.cover_url || ""; sourceSize.width: 440; sourceSize.height: 440; Layout.preferredWidth: Math.min(rowCard.height-24,page.smallCards ? 76 : page.cardSize === "Médio" ? 112 : 168,rowCard.width*0.25); Layout.preferredHeight: Layout.preferredWidth; fillMode: Image.PreserveAspectFit; asynchronous: true
+                RoundedArtwork { objectName: "libraryArtwork"; readonly property bool artworkReady: status === Image.Ready; source: rowCard.entry.cover_url || ""; sourceSize.width: 440; sourceSize.height: 440; Layout.preferredWidth: Math.min(rowCard.height-24,page.smallCards ? 76 : page.cardSize === "Médio" ? 112 : page.catalog ? 128 : 168,rowCard.width*0.25); Layout.preferredHeight: Layout.preferredWidth; fillMode: Image.PreserveAspectFit; asynchronous: true
                     TapHandler { enabled: page.history && !!rowCard.entry.is_image; onTapped: workspace.invoke("history_preview",{id:rowCard.entry.id}) }
                     LineIcon {anchors.centerIn:parent;visible:parent.status!==Image.Ready && !!rowCard.entry.is_image;glyph:"images";width:30;height:30;ink:bridge.palette.muted}
                     Label { anchors.centerIn: parent; visible: parent.status !== Image.Ready && !rowCard.entry.is_image; text: "♪"; font.pixelSize: Math.round(36*bridge.fontScale); color: bridge.palette.muted }

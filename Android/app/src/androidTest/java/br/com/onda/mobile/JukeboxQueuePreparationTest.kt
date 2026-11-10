@@ -96,4 +96,36 @@ class JukeboxQueuePreparationTest {
         } finally {withContext(Dispatchers.Main){controller.close()};scope.cancel()}
     }
 
+    @Test fun failedTrackSelectionStartsAfterPreparationWithoutSecondTap()=runBlocking {
+        val context=ApplicationProvider.getApplicationContext<android.content.Context>()
+        withContext(Dispatchers.Main){OndaStore.initialize(context)}
+        val scope=CoroutineScope(SupervisorJob()+Dispatchers.Main.immediate)
+        val release=CompletableDeferred<Unit>()
+        val opened=CompletableDeferred<Unit>()
+        val cache=java.io.File(context.cacheDir,"queue-retry-${System.nanoTime()}").apply {mkdirs()}
+        java.io.File(cache,"analysis.json").writeText("{}")
+        val model=JSONObject().put("cache",cache.absolutePath).put("media_title","Selected").put("duration",20)
+        val controller=JukeboxController(context,scope,{}, {action,_,_->
+            when(action) {
+                "jukebox_prepare"->{release.await();model}
+                "jukebox_open"->{opened.complete(Unit);awaitCancellation()}
+                else->JSONObject()
+            }
+        })
+        try {
+            withContext(Dispatchers.Main){
+                controller.playbackQueue.value=listOf(JSONObject().put("_queue_id","selected").put("title","Selected").put("_analysis","Erro"))
+                controller.playQueued(0)
+                assertEquals("selected",controller.pendingPlaybackId.value)
+            }
+            release.complete(Unit)
+            withTimeout(5000){opened.await()}
+            assertEquals("selected",controller.currentQueueId.value)
+            assertTrue(controller.state.value.playing)
+            assertEquals("",controller.pendingPlaybackId.value)
+        } finally {
+            withContext(Dispatchers.Main){controller.close()}
+            scope.cancel();cache.deleteRecursively()
+        }
+    }
 }

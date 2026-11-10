@@ -12,11 +12,11 @@ ONDA nació como un proyecto personal, creado inicialmente para mí y mis amigos
 
 El proyecto sigue en desarrollo. Las sugerencias, contribuciones e informes de errores son bienvenidos.
 
-**Versión 1.2.8 para Windows 10 o superior (x64) y Android 8 o superior (ARM64 y x86_64).**
+**Versión 1.2.9 para Windows 10 o superior (x64) y Android 8 o superior (ARM64 y x86_64).**
 
 Consulta las [notas de la versión](RELEASE_NOTES.md).
 
-![ONDA Windows 1.2.5](docs/images/pc%20novo/pesquisa-musicas-preto-puro.png)
+![ONDA Windows](docs/images/pc%20novo/pesquisa-musicas-preto-puro.png)
 
 En Android, las actualizaciones pueden descargarse dentro de ONDA, con progreso y continuidad en segundo plano. Al terminar, toca Instalar actualización; la primera vez, permite la instalación desde ONDA en los ajustes de Android. El sistema pide confirmación y tus datos se conservan.
 
@@ -46,7 +46,7 @@ En Android, la identificación por origen en el historial se registra en las nue
 
 ## Descargar y abrir
 
-Descarga los paquetes oficiales desde [Releases](https://github.com/enzoandradee16/Onda/releases). Elige la versión para Windows o Android; el código fuente y las instrucciones de compilación también están disponibles en este repositorio.
+Descarga los paquetes oficiales desde [Releases](https://github.com/enzoandradee16/Onda/releases). Elige la versión para Windows o Android.
 
 - **Portátil:** extrae el ZIP completo y abre `Onda.exe`. Mantén las carpetas `Onda` y `_runtime` junto al ejecutable. No necesitas instalar Python. En el primer uso, ONDA descarga FFmpeg directamente de gyan.dev, con barra de progreso y verificación SHA-256; esta preparación inicial requiere conexión a Internet.
 - **Instalador:** ejecuta `Onda-…-Setup-Windows-x64.exe`. La interfaz propia de ONDA permite elegir la carpeta, crear un acceso directo y seguir el progreso de la instalación. La instalación es por usuario, con desinstalador y compatibilidad con versiones anteriores. FFmpeg también se prepara automáticamente en el primer uso.
@@ -87,7 +87,7 @@ Para consultar las funciones actuales, diferencias entre plataformas y referenci
 
 ## ONDA en Windows
 
-Capturas reales de ONDA en portugués, incluidas pantallas actualizadas de la versión 1.2.5. Haz clic para ampliar.
+Capturas reales de ONDA en portugués. Haz clic para ampliar.
 
 <table>
   <tr>
@@ -108,7 +108,7 @@ Más capturas: [Jukebox infinito](docs/images/pc%20novo/reproducao-jukebox-claro
 
 ## ONDA en Android
 
-Capturas reales de ONDA en portugués, incluidas pantallas actualizadas de la versión 1.2.5. Haz clic para ampliar.
+Capturas reales de ONDA en portugués. Haz clic para ampliar.
 
 <table>
   <tr>
@@ -167,11 +167,3 @@ Al desinstalar la aplicación de Windows, puedes conservar los datos o eliminar 
 ## Cola y edición de audio
 
 Descargas simultáneas, reanudación, orden de la cola, edición local de etiquetas/portada/letra, normalización con vista previa, programación y transferencia de preferencias: consulta la [guía de funciones avanzadas](RECURSOS-AVANCADOS.md) (en portugués).
-
-## Rendimiento medido
-
-Consulta el [informe de inicio, memoria, CPU y descargas](docs/DESEMPENHO.md), con el método, las limitaciones y los datos originales. Los [diagnósticos reproducibles](diagnosticos/README.md) están separados de la aplicación. Estos documentos están en portugués.
-
-Las optimizaciones posteriores de inicio y listas se documentan en [Optimización de la interfaz](docs/OTIMIZACAO.md), con comparaciones antes y después.
-
-Mejoras y mediciones del cambio de menús: [Navegación y configuración](docs/NAVEGACAO.md).

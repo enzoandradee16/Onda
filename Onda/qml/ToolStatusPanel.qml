@@ -45,7 +45,9 @@ ColumnLayout {
             }
         }
     }
-    ActionButton {objectName:"toolTechnicalDetails";visible:panel.tools.length>0;text:bridge.translate(panel.expanded ? "Ocultar detalhes técnicos" : "Detalhes técnicos");onClicked:panel.expanded=!panel.expanded}
+    GridLayout { Layout.fillWidth: true; columns: panel.width >= 480*bridge.fontScale ? 2 : 1; uniformCellWidths: true; columnSpacing: 8; rowSpacing: 8
+    ActionButton {Layout.fillWidth:true;Layout.minimumWidth:0;objectName:"toolTechnicalDetails";visible:panel.tools.length>0;text:bridge.translate(panel.expanded ? "Ocultar detalhes técnicos" : "Detalhes técnicos");onClicked:panel.expanded=!panel.expanded}
+    ActionButton {Layout.fillWidth:true;Layout.minimumWidth:0;objectName:"restartAfterToolsCheck";visible:!!panel.report.can_restart;text:bridge.translate("Reiniciar ONDA");enabled:workspace.activityValue(workspace.statusRevision,"active")===0 && workspace.activityValue(workspace.statusRevision,"busy").length===0 && !bridge.stateValue(bridge.stateRevision,"busy");onClicked:workspace.invoke("restart_app",{})}
+    }
     Label {objectName:"toolRawDetails";visible:panel.expanded;Layout.fillWidth:true;wrapMode:Text.WrapAnywhere;text:bridge.translate(panel.report.details || "");textFormat:Text.PlainText;color:bridge.palette.muted;font.pixelSize:Math.round(12*bridge.fontScale)}
-    ActionButton {objectName:"restartAfterToolsCheck";visible:!!panel.report.can_restart;text:bridge.translate("Reiniciar ONDA");enabled:workspace.activityValue(workspace.statusRevision,"active")===0 && workspace.activityValue(workspace.statusRevision,"busy").length===0 && !bridge.stateValue(bridge.stateRevision,"busy");onClicked:workspace.invoke("restart_app",{})}
 }

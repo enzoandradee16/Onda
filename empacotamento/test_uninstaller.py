@@ -5,6 +5,7 @@ import base64
 import json
 import subprocess
 import time
+import tempfile
 from pathlib import Path
 import winreg
 
@@ -33,6 +34,9 @@ def registry(path):
 
 def verify(audit, output):
     audit, output = Path(audit).resolve(), Path(output).resolve()
+    setups = list(audit.glob('Onda-*-Setup-Windows-x64.exe'))
+    assert len(setups) == 1, f'Expected one audit installer, found: {setups}'
+    setup = setups[0]
     recipe = (audit / 'backend/InstallerAudit.iss').read_text(encoding='utf8')
     assert (
         '190D43B2-9B31-47EE-A14D-94DB3A2EC850' in recipe
@@ -42,6 +46,9 @@ def verify(audit, output):
     original_registry = registry(PRODUCTION)
     output.mkdir(parents=True, exist_ok=False)
     checks = []
+    # Keep installed Qt paths below the Windows path limit, even with long report paths.
+    test_root = tempfile.TemporaryDirectory(prefix='ONDA auditoria ')
+    install_root = Path(test_root.name)
 
     def front(target, name, switches=(), mode='--audit-remove'):
         report = output / (name + '.json')
@@ -75,10 +82,10 @@ def verify(audit, output):
     for index, (delete_data, delete_tools) in enumerate(
         ((False, False), (True, False), (False, True), (True, True))
     ):
-        target = output / f'installation-{index}'
+        target = install_root / f'installation-{index}'
         subprocess.run(
             [
-                str(audit / 'Onda-1.2.0-Setup-Windows-x64.exe'),
+                str(setup),
                 '/VERYSILENT',
                 '/SUPPRESSMSGBOXES',
                 '/NORESTART',
@@ -144,7 +151,7 @@ def verify(audit, output):
             # Inno rewrites its data file on upgrade, so its integrity stamp must refresh.
             subprocess.run(
                 [
-                    str(audit / 'Onda-1.2.0-Setup-Windows-x64.exe'),
+                    str(setup),
                     '/VERYSILENT',
                     '/SUPPRESSMSGBOXES',
                     '/NORESTART',

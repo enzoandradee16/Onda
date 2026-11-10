@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import subprocess
 import time
+import tempfile
 
 
 def digest(path):
@@ -20,9 +21,14 @@ def verify(audit, bundle, output):
     assert 'C522DFD9-6BF4-4FE0-9CE4-5D3C5C88E470' not in recipe
     assert '{userdesktop}' not in recipe and '{group}' not in recipe
     output.mkdir(parents=True, exist_ok=False)
-    setup = audit / 'Onda-1.2.0-Setup-Windows-x64.exe'
-    backend = audit / 'backend/Onda-1.2.0-Setup-Windows-x64.exe'
+    setups = list(audit.glob('Onda-*-Setup-Windows-x64.exe'))
+    assert len(setups) == 1, f'Expected one audit installer, found: {setups}'
+    setup = setups[0]
+    backend = audit / 'backend' / setup.name
     checks = []
+    # Keep installed Qt paths below the Windows path limit, even with long report paths.
+    test_root = tempfile.TemporaryDirectory(prefix='ONDA auditoria ')
+    install_root = Path(test_root.name)
 
     def run(args, expected=0, timeout=180, env=None):
         result = subprocess.run(list(map(str, args)), timeout=timeout, env=env)
@@ -107,7 +113,7 @@ def verify(audit, bundle, output):
             'translation_keys': frontend['translation_keys'],
         }
     )
-    fresh = output / 'instalação nova com espaços'
+    fresh = install_root / 'instalação nova com espaços'
     install(setup, fresh, 'fresh-custom-install', language='english')
     assert not (audit / 'shortcuts/desktop/Onda Installer Audit.lnk').exists()
     assert (audit / 'shortcuts/menu/Uninstall Onda.lnk').is_file()
@@ -128,7 +134,7 @@ def verify(audit, bundle, output):
     checks.append({'check': 'installed-qt-launcher', 'ok': True})
     uninstall(fresh, 'fresh-custom-uninstall', values)
 
-    existing = output / 'instalação anterior'
+    existing = install_root / 'instalação anterior'
     install(backend, existing, 'classic-install')
     values = markers(existing)
     install(setup, existing, 'custom-upgrade', desktop=True, language='spanish')

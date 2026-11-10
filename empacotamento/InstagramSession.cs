@@ -8,6 +8,7 @@ using System.Text;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.Diagnostics;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.WinForms;
 
@@ -15,6 +16,8 @@ class InstagramSession : Form {
     readonly WebView2 browser = new WebView2();
     readonly Label status = new Label();
     readonly Button use = new Button();
+    readonly Button install = new Button();
+    readonly Button retry = new Button();
     readonly string root, language, action;
     bool saved;
     string T(string pt, string en, string es) { return language == "en" ? en : language == "es" ? es : pt; }
@@ -25,10 +28,19 @@ class InstagramSession : Form {
         Width = 1040; Height = 820; MinimumSize = new Size(600, 500); StartPosition = FormStartPosition.CenterScreen;
         BackColor = ColorTranslator.FromHtml(args[2]); ForeColor = ColorTranslator.FromHtml(args[3]);
         Font = new Font("Segoe UI", 10);
-        var footer = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = 52, Padding = new Padding(8), FlowDirection = FlowDirection.RightToLeft };
+        var footer = new FlowLayoutPanel { Dock = DockStyle.Bottom, AutoSize = true, MinimumSize = new Size(0, 52), Padding = new Padding(8), FlowDirection = FlowDirection.RightToLeft };
         use.Text = T("Usar esta sessão", "Use this session", "Usar esta sesión"); use.AutoSize = true;
         use.BackColor = ColorTranslator.FromHtml(args[4]); use.ForeColor = use.BackColor.GetBrightness() < .5f ? Color.White : Color.Black; use.FlatStyle = FlatStyle.Flat; use.Enabled = false;
         use.Click += async (s,e) => await Save(); footer.Controls.Add(use);
+        retry.Text = T("Já instalei · Tentar novamente", "Installed · Try again", "Ya instalado · Reintentar"); retry.AutoSize = true; retry.Visible = false;
+        retry.Click += async (s,e) => { retry.Enabled = false; await Initialize(); if (!IsDisposed) retry.Enabled = true; }; footer.Controls.Add(retry);
+        install.Text = T("Instalar WebView2", "Install WebView2", "Instalar WebView2"); install.AutoSize = true; install.Visible = false;
+        install.Click += (s,e) => {
+            try {
+                Process.Start(new ProcessStartInfo("https://go.microsoft.com/fwlink/p/?LinkId=2124703") { UseShellExecute = true });
+                status.Text = T("Execute o instalador oficial da Microsoft baixado no navegador. Depois clique em Já instalei · Tentar novamente.", "Run the official Microsoft installer downloaded in your browser. Then click Installed · Try again.", "Ejecuta el instalador oficial de Microsoft descargado en el navegador. Después pulsa Ya instalado · Reintentar.");
+            } catch { status.Text = T("Não foi possível abrir o navegador. Instale o WebView2 Runtime pelo site da Microsoft e tente novamente.", "Could not open your browser. Install WebView2 Runtime from Microsoft's website and try again.", "No se pudo abrir el navegador. Instala WebView2 Runtime desde Microsoft y reintenta."); }
+        }; footer.Controls.Add(install);
         var close = new Button {Text = T("Fechar", "Close", "Cerrar"), AutoSize = true}; close.Click += (s,e) => Close(); footer.Controls.Add(close);
         status.Text = T("Entre no Instagram, conclua a verificação e clique em Usar esta sessão.", "Sign in to Instagram, complete verification, then click Use this session.", "Inicia sesión en Instagram, completa la verificación y pulsa Usar esta sesión.");
         status.Dock = DockStyle.Top; status.Height = 62; status.Padding = new Padding(12);
@@ -43,9 +55,14 @@ class InstagramSession : Form {
     }
     async Task Initialize() {
         try {
+            CoreWebView2Environment.GetAvailableBrowserVersionString();
+            install.Visible = retry.Visible = false;
             Directory.CreateDirectory(root);
             var env = await CoreWebView2Environment.CreateAsync(null, Path.Combine(root, "profile"));
             await browser.EnsureCoreWebView2Async(env);
+            browser.Visible = use.Visible = true;
+            status.Height = 62;
+            status.Text = T("Entre no Instagram, conclua a verificação e clique em Usar esta sessão.", "Sign in to Instagram, complete verification, then click Use this session.", "Inicia sesión en Instagram, completa la verificación y pulsa Usar esta sesión.");
             browser.CoreWebView2.Settings.AreDevToolsEnabled = false;
             browser.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
             browser.CoreWebView2.Settings.IsPasswordAutosaveEnabled = false;
@@ -72,8 +89,15 @@ class InstagramSession : Form {
             browser.CoreWebView2.DownloadStarting += (s,e) => e.Cancel = true;
             browser.CoreWebView2.PermissionRequested += (s,e) => e.State = CoreWebView2PermissionState.Deny;
             browser.CoreWebView2.Navigate("https://www.instagram.com/accounts/login/"); use.Enabled = true;
+        } catch (WebView2RuntimeNotFoundException) {
+            if (action != "connect") { Close(); return; }
+            browser.Visible = false;
+            status.Height = 110;
+            use.Visible = false;
+            install.Visible = retry.Visible = true;
+            status.Text = T("O login do Instagram precisa do Microsoft Edge WebView2 Runtime. Clique em Instalar WebView2 para baixar o instalador oficial da Microsoft.", "Instagram sign-in needs Microsoft Edge WebView2 Runtime. Click Install WebView2 to download Microsoft's official installer.", "El acceso a Instagram requiere Microsoft Edge WebView2 Runtime. Pulsa Instalar WebView2 para descargar el instalador oficial de Microsoft.");
         } catch {
-            MessageBox.Show(T("Não foi possível iniciar o navegador integrado. Verifique se o Microsoft Edge WebView2 Runtime está instalado.", "Could not start the embedded browser. Check that Microsoft Edge WebView2 Runtime is installed.", "No se pudo iniciar el navegador integrado. Comprueba que Microsoft Edge WebView2 Runtime esté instalado."), "ONDA"); Close();
+            MessageBox.Show(T("Não foi possível iniciar o navegador integrado. Tente abrir a conexão novamente.", "Could not start the embedded browser. Try opening the connection again.", "No se pudo iniciar el navegador integrado. Intenta abrir la conexión de nuevo."), "ONDA"); Close();
         }
     }
     void WriteSession(string text) {

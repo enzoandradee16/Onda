@@ -188,7 +188,7 @@ import org.json.JSONObject
                             PlaybackQueueTrack(record,vm,false,visibleRecent,{
                                 if(remote.connected)RemotePlaybackRuntime.command("queue_play",trackId=record.optString("_queue_id")) else {
                                 val actual=controller.playbackQueue.value.indexOfFirst {it.optString("_queue_id")==record.optString("_queue_id")}
-                                if(actual>=0){if(record.optString("_analysis")=="Erro")controller.retryQueued(actual) else controller.playQueued(actual)}
+                                if(actual>=0)controller.playQueued(actual)
                                 }
                             },Modifier.testTag("queue-track-"+record.optString("_queue_id")),onRemoved={if(remote.connected)remoteUndo=true}) {
                                 QueueDragHandle(tabListState,index,shown.size,enabled=!visibleRecent,itemLabel=record.optString("title"),icon="drag-lines",move=::move)
@@ -276,6 +276,9 @@ import org.json.JSONObject
         Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(4.dp)) {
             Text(record.optString("title"),style=MaterialTheme.typography.titleSmall,fontWeight=FontWeight.SemiBold,color=if(current)colors.primary else colors.onSurface,maxLines=1,overflow=TextOverflow.Ellipsis)
             Text(artist,style=MaterialTheme.typography.bodySmall,color=colors.onSurfaceVariant,maxLines=1,overflow=TextOverflow.Ellipsis)
+            val preparation=record.optString("_analysis")
+            val preparationText=if(current || recent || remote.connected)"" else when(preparation){"Erro"->"Falha na preparação";"Pronta"->"Pronta";"Analisando","Preparando"->"Preparando";else->"Aguardando"}
+            UiText(preparationText,style=MaterialTheme.typography.labelSmall,color=if(preparation=="Erro")colors.error else if(preparation=="Pronta")colors.primary else colors.onSurfaceVariant,maxLines=1)
         }
         if(duration>0)Text(mediaClock(duration),style=MaterialTheme.typography.labelSmall,color=colors.onSurfaceVariant)
         Box {

@@ -8,6 +8,7 @@ Popup {
     padding: 24; modal: true; focus: true
     onOpened: workspace.invoke("tools_status",{})
     property string category: "Geral"
+    readonly property int actionColumns: settingsScroll.availableWidth >= 560*bridge.fontScale ? 2 : 1
     readonly property bool searching: search.text.trim().length>0
     readonly property int resultCount: workspace.settingsFields.filter(function(field) {
         return (field.key!=="pure_black_separators" || workspace.preferences.theme_mode==="Preto puro") && (field.key!=="pure_light_borders" || workspace.preferences.theme_mode==="Claro puro") && workspace.settingsSearchMatches(search.text,field)
@@ -17,7 +18,10 @@ Popup {
     ResetPopup { id: reset }
     contentItem: ColumnLayout { spacing: Math.round(16*bridge.spacing)
         RowLayout { Layout.fillWidth: true
-            Label { text: bridge.translate("Configurações"); font.pixelSize: Math.round(26*bridge.fontScale); color: bridge.palette.text; Layout.fillWidth: true }
+            ColumnLayout { Layout.fillWidth: true; spacing: 4
+                Label { text: bridge.translate("Configurações"); font.pixelSize: Math.round(26*bridge.fontScale); color: bridge.palette.text; Layout.fillWidth: true }
+                Label { objectName: "settingsAppVersion"; text: "ONDA " + workspace.appVersion; color: bridge.palette.muted; font.pixelSize: Math.round(13*bridge.fontScale) }
+            }
             ActionButton { text: bridge.translate("Pronto"); primary: true; onClicked: popup.close() }
         }
         OndaTextField { id: search; objectName: "settingsSearch"; Layout.fillWidth: true; placeholderText: bridge.translate("Pesquisar configurações") }
@@ -40,11 +44,25 @@ Popup {
                     Repeater { model: workspace.settingsFields
                         OptionField { required property var modelData; Layout.fillWidth: true; Layout.minimumWidth: 0; Layout.maximumWidth: parent.width; field: modelData; settings: true; showCategory: popup.searching; onCategoryRequested: function(category) {popup.category=category;search.clear()}; visible: (modelData.key !== "pure_black_separators" || workspace.preferences.theme_mode === "Preto puro") && (modelData.key !== "pure_light_borders" || workspace.preferences.theme_mode === "Claro puro") && (popup.searching ? workspace.settingsSearchMatches(search.text,modelData) : modelData.category === popup.category) }
                     }
-                    ActionButton { visible: popup.category === "Geral" && !popup.searching; text: bridge.translate("Escolher quais configurações restaurar…"); onClicked: reset.open() }
-                    Flow { visible: popup.category === "Geral" && !popup.searching; Layout.fillWidth: true; spacing: Math.round(8*bridge.spacing)
-                        Repeater { model: [{name:"Exportar configurações…",key:"export_settings"},{name:"Importar configurações…",key:"import_settings"},{name:"Restaurar configurações",key:"restore_settings"}]
-                            TaskButton { required property var modelData; objectName: modelData.key; idleText: bridge.translate(modelData.name); operation: modelData.key }
+                    ColumnLayout { visible: popup.category === "Geral" && !popup.searching; Layout.fillWidth: true; spacing: 8
+                        Label { text: bridge.translate("Sobre o ONDA"); color: bridge.palette.text; font.weight: Font.DemiBold }
+                        Label { text: bridge.translate("Versão, atualizações e licenças"); color: bridge.palette.muted; wrapMode: Text.Wrap; Layout.fillWidth: true }
+                        ColumnLayout {visible:!!workspace.optionValue(workspace.optionsRevision,"appUpdate") && !!workspace.optionValue(workspace.optionsRevision,"appUpdate").available;Layout.fillWidth:true
+                            Label {text:workspace.optionValue(workspace.optionsRevision,"appUpdate") ? workspace.optionValue(workspace.optionsRevision,"appUpdate").message : "";color:bridge.palette.text;wrapMode:Text.Wrap;Layout.fillWidth:true}
+                            Label {text:workspace.optionValue(workspace.optionsRevision,"appUpdate") ? workspace.optionValue(workspace.optionsRevision,"appUpdate").notes || "" : "";color:bridge.palette.muted;wrapMode:Text.Wrap;Layout.fillWidth:true;maximumLineCount:8;elide:Text.ElideRight}
+                            Label {visible:!!workspace.optionValue(workspace.optionsRevision,"appUpdate") && workspace.optionValue(workspace.optionsRevision,"appUpdate").size>0;text:workspace.optionValue(workspace.optionsRevision,"appUpdate") ? (workspace.optionValue(workspace.optionsRevision,"appUpdate").size/1048576).toFixed(1)+" MB" : "";color:bridge.palette.muted}
+                            TaskButton {idleText:bridge.translate("Baixar nova versão");operation:"app_update_download";taskNames:["app_update_download"]}
                         }
+                        GridLayout { Layout.fillWidth: true; columns: popup.actionColumns; uniformCellWidths: true; columnSpacing: 8; rowSpacing: 8
+                            TaskButton { Layout.fillWidth: true; Layout.minimumWidth: 0; idleText: bridge.translate("Verificar atualização do ONDA"); operation: "app_update"; taskNames: ["app_update"] }
+                            ActionButton { Layout.fillWidth: true; Layout.minimumWidth: 0; text: bridge.translate("Licenças e fontes"); onClicked: workspace.invoke("open_file", {path: workspace.licensePath}) }
+                        }
+                    }
+                    GridLayout { visible: popup.category === "Geral" && !popup.searching; Layout.fillWidth: true; columns: popup.actionColumns; uniformCellWidths: true; columnSpacing: 8; rowSpacing: 8
+                        Repeater { model: [{name:"Exportar configurações…",key:"export_settings"},{name:"Importar configurações…",key:"import_settings"}]
+                            TaskButton { required property var modelData; Layout.fillWidth: true; Layout.minimumWidth: 0; objectName: modelData.key; idleText: bridge.translate(modelData.name); operation: modelData.key }
+                        }
+                        ActionButton { objectName: "settingsRestoreButton"; Layout.fillWidth: true; Layout.columnSpan: popup.actionColumns; text: bridge.translate("Restaurar configurações…"); onClicked: reset.open() }
                     }
                     ColumnLayout { visible: popup.category === "Aparência" && !popup.searching; Layout.fillWidth: true
                         Label { text: bridge.translate("Ordem das categorias"); color: bridge.palette.text; font.pixelSize: Math.round(19*bridge.fontScale) }
@@ -74,27 +92,30 @@ Popup {
                         }
                         ActionButton { text: bridge.translate("Restaurar ordem das abas"); onClicked: workspace.invoke("reset_tab_order",{}) }
                     }
-                    Flow { visible: popup.category === "Contas" && !popup.searching; Layout.fillWidth: true; spacing: Math.round(8*bridge.spacing)
+                    GridLayout { objectName: "settingsAccountActions"; columns: popup.actionColumns; uniformCellWidths: true; columnSpacing: 8; rowSpacing: 8; visible: popup.category === "Contas" && !popup.searching; Layout.fillWidth: true;
                         Repeater { model: [{name:"Remover credenciais",key:"forget_credentials"},{name:workspace.activityValue(workspace.statusRevision,"spotify") ? "Desconectar Spotify" : "Conectar Spotify",key:workspace.activityValue(workspace.statusRevision,"spotify") ? "spotify_disconnect" : "spotify_connect"},{name:"Abrir Spotify Developers",key:"spotify_developers"}].filter(function(action) { return action.key !== "forget_credentials" || workspace.activityValue(workspace.statusRevision,"spotify") })
-                            TaskButton { required property var modelData; objectName: modelData.key; idleText: bridge.translate(modelData.name); operation: modelData.key }
+                            TaskButton { required property var modelData; Layout.fillWidth: true; Layout.minimumWidth: 0; objectName: modelData.key; idleText: bridge.translate(modelData.name); operation: modelData.key }
                         }
-                        ActionButton { text: bridge.translate(workspace.preferences.youtube_cookies ? "Remover cookies do YouTube" : "Importar cookies do YouTube"); onClicked: { if (workspace.preferences.youtube_cookies) workspace.setSetting("youtube_cookies",""); else workspace.invoke("pick",{kind:"youtube_cookies"}) } }
-                        ActionButton { text: bridge.translate(workspace.preferences.social_cookies ? "Remover cookies.txt" : "Importar cookies.txt"); onClicked: { if (workspace.preferences.social_cookies) workspace.setSetting("social_cookies",""); else workspace.invoke("pick",{kind:"social_cookies"}) } }
-                        ActionButton { text: bridge.translate(workspace.preferences.instagram_cookies ? "Atualizar sessão do Instagram" : "Conectar ao Instagram"); onClicked: workspace.invoke("instagram_connect",{}) }
-                        ActionButton { visible: !!workspace.preferences.instagram_cookies; text: bridge.translate("Desconectar Instagram"); onClicked: workspace.invoke("instagram_disconnect",{}) }
+                        ActionButton { Layout.fillWidth: true; Layout.minimumWidth: 0; text: bridge.translate(workspace.preferences.youtube_cookies ? "Remover cookies do YouTube" : "Importar cookies do YouTube"); onClicked: { if (workspace.preferences.youtube_cookies) workspace.setSetting("youtube_cookies",""); else workspace.invoke("pick",{kind:"youtube_cookies"}) } }
+                        ActionButton { Layout.fillWidth: true; Layout.minimumWidth: 0; text: bridge.translate(workspace.preferences.social_cookies ? "Remover cookies.txt" : "Importar cookies.txt"); onClicked: { if (workspace.preferences.social_cookies) workspace.setSetting("social_cookies",""); else workspace.invoke("pick",{kind:"social_cookies"}) } }
+                        ActionButton { Layout.fillWidth: true; Layout.minimumWidth: 0; text: bridge.translate(workspace.preferences.instagram_cookies ? "Atualizar sessão do Instagram" : "Conectar ao Instagram"); onClicked: workspace.invoke("instagram_connect",{}) }
+                        ActionButton { Layout.fillWidth: true; Layout.minimumWidth: 0; visible: !!workspace.preferences.instagram_cookies; text: bridge.translate("Desconectar Instagram"); onClicked: workspace.invoke("instagram_disconnect",{}) }
                     }
                     ColumnLayout { visible: popup.category === "Ferramentas" && !popup.searching; Layout.fillWidth: true; spacing: Math.round(12*bridge.spacing)
-                        ColumnLayout {visible:!!workspace.optionValue(workspace.optionsRevision,"appUpdate") && !!workspace.optionValue(workspace.optionsRevision,"appUpdate").available;Layout.fillWidth:true
-                            Label {text:workspace.optionValue(workspace.optionsRevision,"appUpdate") ? workspace.optionValue(workspace.optionsRevision,"appUpdate").message : "";color:bridge.palette.text;wrapMode:Text.Wrap;Layout.fillWidth:true}
-                            Label {text:workspace.optionValue(workspace.optionsRevision,"appUpdate") ? workspace.optionValue(workspace.optionsRevision,"appUpdate").notes || "" : "";color:bridge.palette.muted;wrapMode:Text.Wrap;Layout.fillWidth:true;maximumLineCount:8;elide:Text.ElideRight}
-                            Label {visible:!!workspace.optionValue(workspace.optionsRevision,"appUpdate") && workspace.optionValue(workspace.optionsRevision,"appUpdate").size>0;text:workspace.optionValue(workspace.optionsRevision,"appUpdate") ? (workspace.optionValue(workspace.optionsRevision,"appUpdate").size/1048576).toFixed(1)+" MB" : "";color:bridge.palette.muted}
-                            TaskButton {idleText:bridge.translate("Baixar nova versão");operation:"app_update_download";taskNames:["app_update_download"]}
-                        }
                         ToolStatusPanel {Layout.fillWidth:true}
-                        Flow {Layout.fillWidth:true;spacing:Math.round(8*bridge.spacing)
-                        Repeater { model: [{name:"Preparar FFmpeg",key:"prepare_tools"},{name:"Verificar ferramentas",key:"verify_tools"},{name:"Atualizar ferramentas",key:"update_tools"},{name:"Verificar atualização do ONDA",key:"app_update"},{name:"Atualizar tamanho do cache",key:"cache_info"},{name:"Limpar cache",key:"cache_clear"}]
-                            TaskButton { required property var modelData; objectName: modelData.key; idleText: bridge.translate(modelData.name); operation: modelData.key }
+                        Label { Layout.fillWidth: true; wrapMode: Text.Wrap; text: bridge.translate("Verificar consulta as versões instaladas; Atualizar instala novas versões dos componentes."); color: bridge.palette.muted }
+                        GridLayout { objectName: "settingsToolActions"; Layout.fillWidth: true; columns: popup.actionColumns; uniformCellWidths: true; columnSpacing: 8; rowSpacing: 8
+                            Repeater { model: [{name:"Preparar FFmpeg",key:"prepare_tools"},{name:"Verificar ferramentas",key:"verify_tools"},{name:"Atualizar ferramentas",key:"update_tools"}]
+                                TaskButton { required property var modelData; Layout.fillWidth: true; Layout.minimumWidth: 0; objectName: modelData.key; idleText: bridge.translate(modelData.name); operation: modelData.key }
+                            }
                         }
+                    }
+                    ColumnLayout { visible: popup.category === "Desempenho" && !popup.searching; Layout.fillWidth: true; spacing: 8
+                        Label { text: bridge.translate("Arquivos temporários e cache"); color: bridge.palette.text; font.weight: Font.DemiBold }
+                        Label { Layout.fillWidth: true; wrapMode: Text.Wrap; text: bridge.translate("Os downloads salvos na pasta de destino não são removidos."); color: bridge.palette.muted }
+                        GridLayout { objectName: "settingsCacheActions"; Layout.fillWidth: true; columns: popup.actionColumns; uniformCellWidths: true; columnSpacing: 8; rowSpacing: 8
+                            TaskButton { objectName: "cache_info"; Layout.fillWidth: true; Layout.minimumWidth: 0; idleText: bridge.translate("Atualizar tamanho do cache"); operation: "cache_info" }
+                            TaskButton { objectName: "cache_clear"; Layout.fillWidth: true; Layout.minimumWidth: 0; idleText: bridge.translate("Limpar cache"); operation: "cache_clear" }
                         }
                     }
                     Item { Layout.preferredHeight: 20 }

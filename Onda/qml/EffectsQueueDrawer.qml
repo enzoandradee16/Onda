@@ -87,7 +87,7 @@ Drawer {
     }
     function retry(index) {
         if(effects)workspace.invoke("effects_queue_retry",{index:index})
-        else bridge.retryQueued(tracks[index].queueIndex)
+        else bridge.playQueued(tracks[index].queueIndex)
     }
     FileDialog {
         id: queueFiles
@@ -186,7 +186,7 @@ Drawer {
                     ColumnLayout {Layout.fillWidth:true;Layout.minimumWidth:0;spacing:4
                         Label {Layout.fillWidth:true;elide:Text.ElideRight;text:record.title||"";font.weight:Font.DemiBold;color:queueTrack.current?bridge.palette.accent:bridge.palette.text}
                         Label {Layout.fillWidth:true;elide:Text.ElideRight;text:drawer.effects?(record.artists||[]).join(", "):modelData.artist||"";color:bridge.palette.muted}
-                        Label {visible:queueTrack.failed;Layout.fillWidth:true;elide:Text.ElideRight;text:bridge.translate("Falha na preparação");color:bridge.palette.muted;font.pixelSize:11}
+                        Label {Layout.fillWidth:true;elide:Text.ElideRight;text:queueTrack.current || drawer.recent || drawer.effects ? (queueTrack.failed ? bridge.translate("Falha na preparação") : "") : bridge.translate(queueTrack.failed ? "Falha na preparação" : modelData.analysis==="ready" ? "Pronta" : modelData.analysis==="preparing" ? "Preparando" : "Aguardando");color:modelData.analysis==="ready" ? bridge.palette.accent : bridge.palette.muted;font.pixelSize:11}
                     }
                     QueueIconButton {glyph:"more";text:bridge.translate("Mais ações");opacity:rowHover.hovered||activeFocus?1:0;onClicked:trackActions.popup()}
                 }

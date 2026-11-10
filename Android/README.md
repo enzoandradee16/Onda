@@ -1,103 +1,56 @@
 # ONDA para Android
 
-## Interface do Android
+**Versão 1.2.9**, para Android 8 ou superior, ARM64 e x86_64.
 
-A navegação principal usa **Pesquisar**, **Downloads**, **Reprodução** e **Mais**. Em Downloads, Em andamento / Concluídos usa o mesmo seletor arredondado de Salvos / Importar em Álbuns e playlists. Reprodução aplica esse estilo a Efeitos / Jukebox infinito e respeita a ordem configurada.
+O ONDA reúne pesquisa, downloads, reprodução, efeitos de áudio, edição de metadados e ferramentas de imagens. A navegação principal usa **Pesquisar**, **Downloads**, **Reprodução** e **Mais**.
 
-O player compacto acompanha a navegação; toque nele para abrir capa, controles e letras, que também podem ocupar a tela inteira. Efeitos e Jukebox compartilham música, fila e player na tela Reprodução e podem funcionar juntos. Veja [Reprodução unificada](../docs/REPRODUCAO-UNIFICADA.md). As capturas em `docs/images/android novo` registram a interface anterior à unificação.
+## Instalar
 
-Na versão 1.2.8, faixas de catálogo usam o player nativo por streaming quando Slowed, Jukebox e equalização estão desligados. A reprodução começa com um pequeno buffer e carrega o restante em segundo plano em um cache temporário de até 256 MB, separado dos downloads. Os trechos carregados permitem avançar e retroceder sem nova espera de rede; a barra indica a região disponível. O cache pode ser limpo nas configurações e os arquivos antigos são removidos automaticamente quando essa opção está ativa. Na fila, a indicação de pronta aguarda o áudio carregado e os efeitos ativos preparados. Fontes HLS usam um cache de pacotes sem recodificação nem análise musical; a próxima faixa tem prioridade sobre o carregamento completo da atual. Ao ativar processamento, o áudio atual continua durante o download e a análise; a troca ocorre quando a nova versão está pronta. Ao desativar os efeitos, a reprodução normal pode voltar ao streaming. Posição, pausa, controles da notificação e sessão restaurada usam a mesma faixa.
+- Celulares ARM64: `APK/ONDA-Android-1.2.9-arm64-v8a.apk`.
+- Dispositivos e emuladores x86_64: `APK/ONDA-Android-1.2.9-x86_64.apk`.
 
-Os dois APKs oficiais usam versão **1.2.8**, código **36**, com a assinatura de produção original. Não houve execução automatizada do conjunto completo em aparelho ARM64 físico na preparação desta release. Consulte [o relatório atual](../docs/VALIDACAO-RELEASE-1.2.8.md).
+Transfira o APK para o aparelho e permita a instalação pela origem escolhida. Não é necessário instalar Python, FFmpeg ou Termux. As atualizações usam a assinatura original do ONDA e preservam os dados do aplicativo.
 
-Projeto Android separado da distribuição Windows. Kotlin/Compose fornece a interface e os serviços; Python/Chaquopy executa o motor compartilhado do ONDA. O build copia os módulos necessários de `../Onda`, sem editar o programa de PC.
+## Reprodução
 
-Versão **1.2.8**, código **36**, conforme `app/build.gradle.kts`, para Android 8 ou superior, ARM64 e x86_64. Kotlin/Compose e o motor compartilhado fornecem busca, downloads, histórico, edição de metadados, imagens e efeitos. Consulte [FUNCIONALIDADES.md](FUNCIONALIDADES.md).
+O player compacto acompanha a navegação. Toque nele para abrir capa, controles, fila e letras; as letras também podem ocupar a tela inteira. Slowed, Jukebox infinito e equalizador compartilham a mesma música e podem funcionar juntos. O equalizador oferece 5, 10 ou 15 bandas.
 
+Sem efeitos, músicas de catálogo podem ser ouvidas por streaming. A reprodução começa com um pequeno buffer e carrega o restante em um cache temporário de até 256 MB, separado dos downloads. Trechos já carregados permitem avançar e retroceder sem nova espera de rede. O cache pode ser limpo nas configurações.
 
-Os APKs ARM64 e x86_64 estão em `Android/APK`.
+Ao ativar efeitos, a música atual continua até o áudio processado ficar pronto. A fila indica o estado da preparação. O controle remoto permite controlar o ONDA no PC e transferir a reprodução entre os dispositivos na mesma rede.
 
-## Instalar no celular
+## Downloads e arquivos
 
-Use `APK/ONDA-Android-1.2.8-arm64-v8a.apk`, transfira para o celular e permita a instalação pela origem escolhida. Android 8 ou superior, processador ARM64; o APK padrão contém somente ARM64 para reduzir o tamanho. Para emulador x86_64, use `APK/ONDA-Android-1.2.8-x86_64.apk` ou compile com `-Arquitetura x86_64`; para ambas, use `-Arquitetura universal`. O APK distribuído é assinado com a chave de produção ONDA; o script de desenvolvimento gera um APK debug separado. Não precisa instalar Python, FFmpeg ou Termux.
+Em **Downloads**, toque em **+**, cole os links e escolha **Baixar agora** ou adicione à lista de downloads. Conceda a permissão de notificações quando solicitada. Se houver uma confirmação de metadados, versão ou mídias, abra o aplicativo e responda à janela.
 
-Abra o ONDA, conclua ou feche a configuração inicial. Em **Downloads**, toque em **+**, cole os links e escolha Baixar agora ou Adicionar à fila. Downloads usam notificações; conceda a permissão quando solicitada. Se precisar confirmar metadados/versão/mídias, abra o app e responda à janela.
+No Android 10 ou superior, a pasta padrão é Downloads/ONDA. Em Configurações → Downloads, escolha outra pasta pelo seletor do sistema. No Android 8 e 9, escolha uma pasta para preservar os downloads ao desinstalar.
 
-No Android 10+, a pasta padrão é Downloads/ONDA. Em Configurações → Downloads é possível escolher outra pasta pelo seletor do sistema. Android 8/9 usa a pasta do aplicativo se nenhuma pasta for escolhida; escolha uma pasta para preservar os downloads ao desinstalar. Histórico permite abrir o arquivo, abrir sua pasta de origem, compartilhar e usar áudio/vídeo nos efeitos. Abrir pasta usa o gerenciador compatível ou o seletor de arquivos do Android; a localização vem do arquivo do histórico, mesmo após mudar a pasta padrão.
+O Histórico permite abrir, compartilhar e usar os arquivos em reprodução ou nos efeitos. A localização permanece associada ao arquivo mesmo após mudar a pasta padrão.
 
-Músicas de streaming usam metadados do catálogo: MP3/M4A usam uma versão correspondente no YouTube; FLAC usa Monochrome quando há uma correspondência compatível, sem converter silenciosamente YouTube em FLAC. A API Spotify é opcional para links individuais. Para conectar uma conta, cadastre `http://127.0.0.1:8765/callback` no Spotify Developers e informe seu Client ID. O retorno fica no próprio celular e usa PKCE. As restrições da API e o limite do embed público continuam aplicáveis; CSV do Exportify é uma alternativa.
+O ONDA oferece MP3, M4A, FLAC e áudio original conforme a fonte e a disponibilidade. FLAC usa uma fonte compatível, sem transformar áudio com perdas em áudio sem perdas.
 
-## Interface e acesso ao YouTube
+## Contas e acesso aos serviços
 
-Use Pesquisar, Downloads, Reprodução e Mais na navegação inferior. Configurações e Aparência ficam nos ícones do cabeçalho; as outras ferramentas ficam em Mais. Os títulos e controles seguem a nomenclatura do programa de PC; seletores foram compactados para o celular. Em Efeitos, o preset selecionado acompanha os sliders e permanece ao trocar de área. Na busca, Ouvir muda para Parar enquanto a prévia está ativa.
+Para conectar sua conta Spotify, configure o Client ID e o retorno `http://127.0.0.1:8765/callback`. A autenticação usa PKCE e o retorno ocorre no próprio celular. O acesso a playlists depende das permissões e dos limites do serviço.
 
-Em Configurações → Geral → Idioma, a ordem é Português (Brasil), Español, English, com português como padrão e mudança imediata. Em Downloads e no Histórico, os controles de exibição e tamanho dos cards são próprios de cada área. No Histórico, os controles ficam centralizados junto de Limpar histórico, abaixo da pesquisa.
+Se o YouTube exigir verificação, abra Mais → Sessão do YouTube, conclua a verificação e toque em **Usar esta sessão**. Se o serviço recusar o navegador incorporado, importe cookies da sua própria sessão em Configurações → Contas. Bloqueios por IP e verificações adicionais continuam sujeitos ao serviço.
 
-Se o YouTube exigir verificação, abra Mais → Sessão do YouTube e tente concluir a verificação na janela do próprio app. Toque em Usar esta sessão e tente novamente o download. A sessão é salva apenas no armazenamento privado do ONDA. O login ou a liberação podem ser recusados pelo YouTube em navegador incorporado; nesse caso, importe cookies.txt da sua própria sessão em Configurações → Contas. Nenhum desses caminhos garante remover bloqueios por IP ou exigências adicionais do serviço. Para apagar a sessão, use Remover sessão do YouTube nas configurações.
+O login do Instagram fica em Configurações → Contas. A sessão é protegida no armazenamento privado do aplicativo e pode ser removida nas configurações. A disponibilidade de conteúdo restrito depende das permissões da conta.
 
-O ícone da tela inicial e dos aplicativos recentes acompanha o destaque e a aparência escolhidos, incluindo Seguir o sistema. A atualização visual do launcher depende do cache do aparelho; um atalho de versões antigas pode precisar ser recriado. Consulte [ícones e tema](../docs/ANDROID-ICONE.md).
+## Aparência e idioma
 
-## Compilar no Windows
+Configurações e Aparência ficam nos ícones do cabeçalho. O tema, a cor de destaque e a fonte podem ser personalizados. O idioma pode ser alterado imediatamente entre Português (Brasil), Español e English.
 
-Requer JDK 17/21, SDK com plataforma Android 36 e Build Tools 36.0.0, e Python 3.11 para preparar as dependências. Se a pasta Portatil estiver ao lado, o script aproveita o Python dela.
+Ao abrir o teclado, a navegação inferior dá espaço ao conteúdo e o player compacto continua acessível. Abrir a fila fecha o teclado sem apagar a pesquisa.
 
-```powershell
-cd 'E:\Projetos\Onda\Android' # ajuste para a pasta do seu checkout
-powershell -ExecutionPolicy Bypass -File '.\Compilar Android.ps1'
-```
+## Atualizações
 
-Antes da primeira compilação em um checkout novo, prepare as ferramentas conforme [nativebuild/README.md](nativebuild/README.md).
+Nas configurações, toque em **Verificar atualização do ONDA**. O download continua em segundo plano. Ao terminar, toque em **Instalar atualização** e, na primeira vez, permita a instalação pelo ONDA nas configurações do Android.
 
-Também é possível abrir esta pasta em Android Studio. Configure `local.properties` com `sdk.dir` e, se necessário, passe `-Ponda.buildPython=C:/caminho/python.exe` ao Gradle. `local.properties`, caches, módulos copiados, APKs e chaves não entram no Git.
+O aplicativo confere o pacote, a versão e a assinatura da atualização. O sistema pede confirmação antes de instalar. Se cancelar, a opção permanece disponível para tentar novamente.
 
-Para testar, conecte um emulador/aparelho de teste e use `-Testar`. Os testes instrumentados criam mídias sintéticas e credenciais fictícias; não usam arquivos pessoais. Não execute testes em uma instalação com dados importantes.
+## Mais informações
 
-## Arquitetura
-
-- `app/src/main/java`: telas, fila persistente em SQLite, serviço de download, player Media3, permissões/SAF/MediaStore e Keystore.
-- `app/src/main/python/mobile_backend.py`: adaptação das ferramentas, eventos, escolhas, cancelamento e chamadas ao motor.
-- `app/src/main/python/shared`: gerado de `../Onda` durante a compilação; não editar.
-- `app/src/debug/python` e `app/src/androidTest`: testes reais no Android.
-- `nativebuild/`: fontes fixados por hash, scripts de reconstrução, configurações e avisos das ferramentas nativas.
-- `native-tools/`: executáveis gerados localmente; não entram no Git.
-
-As preferências, a fila, o histórico, os cookies importados e as credenciais ficam no armazenamento privado do app. Segredos são cifrados com Android Keystore; backups automáticos estão desativados. Arquivos exportados para Downloads/ONDA ou para a pasta escolhida ficam fora dos dados privados. O Android controla a desinstalação e a remoção dos dados privados.
-
-## Distribuição
-
-A versão 1.2.3 usa assinatura de produção. As fontes das ferramentas nativas estão no pacote Fontes-nativos-Android e a reconstrução está descrita em [nativebuild/README.md](nativebuild/README.md). A validação atual inclui testes JVM e instrumentação x86_64; não equivale a testar todos os fluxos em aparelho ARM64 real. Veja [THIRD_PARTY_NOTICES_ANDROID.md](THIRD_PARTY_NOTICES_ANDROID.md).
-
-Na pesquisa, Adicionar à fila e Baixar agora usam a fila global de Downloads; destinos de reprodução usam filas próprias de Efeitos/Jukebox. Acompanhe os downloads em Em andamento, sem criar uma segunda execução. Tempos são exibidos em minutos:segundos. Em Configurações → Contas, Abrir Spotify Developers abre o painel oficial no navegador; conectar exige Client ID, com aviso acima da janela se faltar.
-
-
-### Fonte da interface
-
-Em Configurações → Aparência → Fonte da interface, escolha Padrão do sistema, Sem serifa, Serifada, Monoespaçada, Condensada, Cursiva ou Arredondada. A prévia e a interface mudam imediatamente. Ative Lembrar configurações para manter a escolha ao reabrir; restaurar Aparência também restaura a fonte. Esta versão usa fontes nativas do Android, sem baixar arquivos de fontes.
-
-
-### Enter nos campos
-
-Em Pesquisar músicas, Enter do teclado físico ou a ação Pesquisar do teclado virtual inicia a busca, sem inserir uma linha. Os demais campos são de uma linha. O campo de vários links aberto pelo + em Downloads aceita Enter para separar URLs; nas pesquisas de músicas e reprodução, Enter inicia a busca.
-
-O fluxo de fotos, vídeos, posts mistos e foto com música nas redes sociais está descrito em [Downloads sociais](../docs/FLUXO-DOWNLOAD-SOCIAL.md).
-
-## Fila e edição de áudio
-
-Downloads simultâneos, retomada, ordem da fila, edição local de tags/capa/letra, normalização com prévia, agendamento e transferência de preferências: consulte [o guia de recursos avançados](../RECURSOS-AVANCADOS.md).
-
-
-### FLAC direto no ONDA
-
-Ao escolher FLAC para uma faixa de Spotify, Deezer ou Apple Music, o ONDA consulta o servidor público Monochrome e baixa o arquivo diretamente, sem abrir navegador. A correspondência compara título, artista, versão, duração e ISRC quando disponível. Versões ambíguas pedem confirmação; a opção de maior similaridade automatiza essa escolha. O download mostra progresso, valida o codec e a decodificação completa, aplica metadados/capa e respeita destino, duplicados, playlists e histórico.
-
-O acervo é limitado e a disponibilidade depende do serviço externo. Se não houver FLAC compatível, o ONDA avisa e não converte silenciosamente YouTube em FLAC. MP3/M4A continuam pelo YouTube. A origem anterior dos arquivos no servidor e a masterização não são comprovadas; o registro de origem identifica Monochrome. Links diretos, vídeos e efeitos continuam permitindo conversão para FLAC, que não recupera qualidade perdida.
-
-
-### Novos downloads durante uma execução
-
-Você pode usar **Baixar agora** enquanto outras mídias estão sendo baixadas. Com vaga no limite de downloads simultâneos, o novo item começa; com todas as vagas ocupadas, aguarda a próxima. Solicitações individuais não iniciam outros itens pendentes que você não pediu para baixar. A fila em execução aceita novos itens sem reiniciar os downloads atuais.
-
-
-## Atualizações dentro do app
-
-No Android, novas versões podem ser baixadas dentro do ONDA, com progresso e continuidade em segundo plano. Ao terminar, toque em Instalar atualização; na primeira vez, permita a instalação pelo ONDA nas configurações do Android. O sistema pede confirmação e os dados são preservados. O gerenciador de downloads do Android mantém a transferência mesmo com a tela de configurações fechada. Volte às configurações para instalar, cancelar ou descartar o APK. A atualização aceita apenas links da release oficial e confere pacote, versão superior e assinatura igual à instalação atual. Se a instalação for cancelada, o botão permanece disponível.
+- [Funcionalidades](FUNCIONALIDADES.md)
+- [Reprodução unificada](../docs/REPRODUCAO-UNIFICADA.md)
+- [Licenças das dependências](THIRD_PARTY_NOTICES_ANDROID.md)

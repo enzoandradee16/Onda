@@ -111,6 +111,24 @@ class DesktopRestartTests(unittest.TestCase):
             start.assert_called_once()
             application.exit.assert_called_once_with(0)
 
+    def test_normal_reopen_applies_language_without_a_pending_restart(self):
+        from qt_jukebox_ui import JukeboxBridge
+        from qt_workspace_ui import DesktopWorkspace
+        selected = 'en' if self.ws.settings['language'] != 'en' else 'es'
+        self.ws.setSetting('language', selected)
+        self.assertTrue(self.ws.languageRestartRequired)
+        reopened_bridge = JukeboxBridge(self.store)
+        reopened = DesktopWorkspace(reopened_bridge)
+        try:
+            self.assertEqual(reopened.settings['language'], selected)
+            self.assertFalse(reopened.languageRestartRequired)
+            with patch('app_restart.schedule') as start:
+                reopened.dispatch('restart_language', {})
+            start.assert_not_called()
+        finally:
+            reopened.shutdown()
+            reopened_bridge.shutdown()
+
     def test_language_restart_waits_for_active_operations(self):
         self.ws.setSetting('language', 'en')
         self.ws.active['busy'] = Mock()

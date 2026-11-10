@@ -38,6 +38,7 @@ build/
 !/empacotamento/IMAGENS.md
 !/empacotamento/sync_version.py
 !/empacotamento/build_browser_session.py
+!/empacotamento/package_docs.py
 !/empacotamento/InstagramSession.cs
 !/empacotamento/InstallerText.cs
 !/empacotamento/InstallerStrings.xml

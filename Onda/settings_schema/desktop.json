@@ -144,6 +144,11 @@
         "Português (Brasil)",
         "Español",
         "English"
+      ],
+      "values": [
+        "pt-BR",
+        "es",
+        "en"
       ]
     },
     {
@@ -195,6 +200,7 @@
         "Escuro",
         "Preto puro",
         "Claro",
+        "Claro puro",
         "Alto contraste"
       ]
     },
@@ -609,23 +615,27 @@
     {
       "category": "Downloads",
       "key": "auto_metadata",
-      "label": "Escolher automaticamente os metadados mais semelhantes",
+      "label": "Escolher automaticamente os metadados do catálogo",
       "kind": "bool",
-      "choices": []
+      "choices": [],
+      "hint": "Seleciona o resultado mais semelhante no catálogo (título, artista, álbum e capa). A revisão final é uma opção separada.",
+      "section": "Catálogo e áudio"
     },
     {
       "category": "Downloads",
       "key": "auto_match",
-      "label": "Escolher automaticamente a versão mais semelhante no YouTube",
+      "label": "Escolher automaticamente o áudio no YouTube",
       "kind": "bool",
-      "choices": []
+      "choices": [],
+      "hint": "Seleciona a gravação correspondente no YouTube. Não muda os dados do catálogo nem a revisão final."
     },
     {
       "category": "Downloads",
       "key": "review_metadata",
-      "label": "Revisar metadados antes de baixar",
+      "label": "Conferir e editar metadados antes de baixar",
       "kind": "bool",
-      "choices": []
+      "choices": [],
+      "hint": "Abre uma janela para conferir e editar os dados antes do download, mesmo com as escolhas automáticas ativadas."
     },
     {
       "category": "Downloads",
@@ -641,7 +651,8 @@
         "Artista / Ano - Álbum",
         "Gênero / Artista / Álbum",
         "Formato / Artista / Álbum"
-      ]
+      ],
+      "hint": "Define as subpastas de destino. Não altera o nome do arquivo."
     },
     {
       "category": "Downloads",
@@ -654,7 +665,8 @@
         "Faixa - Música",
         "Faixa - Artista - Música",
         "Disco-Faixa - Música"
-      ]
+      ],
+      "hint": "Define o nome do arquivo dentro da pasta escolhida."
     },
     {
       "category": "Downloads",
@@ -666,7 +678,8 @@
         "Manter ambos",
         "Substituir",
         "Ignorar"
-      ]
+      ],
+      "hint": "Aplica-se quando já existe um arquivo com o mesmo nome e caminho no destino."
     },
     {
       "category": "Downloads",
@@ -701,21 +714,24 @@
       "key": "detect_duplicates",
       "label": "Detectar duplicatas nos downloads e no histórico",
       "kind": "bool",
-      "choices": []
+      "choices": [],
+      "hint": "Verifica os itens adicionados e o histórico. É diferente de decidir o que fazer com um arquivo já existente."
     },
     {
       "category": "Downloads",
       "key": "resume_downloads",
       "label": "Retomar arquivos interrompidos quando possível",
       "kind": "bool",
-      "choices": []
+      "choices": [],
+      "hint": "Reaproveita partes já baixadas do mesmo arquivo, quando o servidor permitir."
     },
     {
       "category": "Downloads",
       "key": "resume_queue",
       "label": "Retomar downloads ao abrir o ONDA",
       "kind": "bool",
-      "choices": []
+      "choices": [],
+      "hint": "Continua tarefas pendentes ao reabrir o ONDA. Não controla a posição da música."
     },
     {
       "category": "Downloads",
@@ -890,7 +906,8 @@
       "key": "check_updates",
       "label": "Verificar atualizações do ONDA ao abrir",
       "kind": "bool",
-      "choices": []
+      "choices": [],
+      "hint": "Consulta novas versões ao abrir o app. A instalação é confirmada separadamente."
     },
     {
       "category": "Ferramentas",

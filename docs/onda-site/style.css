@@ -814,3 +814,9 @@ body.viewing-image { overflow: hidden; }
 .latest-mobile a:hover { transform: translateY(-3px); }
 @media (max-width: 700px) { .latest-mobile { grid-template-columns: 1fr; max-width: 320px; } }
 @media (prefers-reduced-motion: reduce) { .latest-mobile a { transition: none; } .latest-mobile a:hover { transform: none; } }
+
+/* Only JavaScript-observed sections wait for their first viewport entry. */
+.scroll-reveal-pending { opacity: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .scroll-reveal-pending { opacity: 1; }
+}

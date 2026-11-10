@@ -184,7 +184,9 @@ val lightAccents=mapOf(
     val playbackQueueOpen by vm.playbackQueueOpen.collectAsStateWithLifecycle()
     var metadataUri by rememberSaveable {mutableStateOf<String?>(null)}
     var showSettings by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(playbackQueueOpen){if(playbackQueueOpen)showSettings=false}
+    val searchFocus=androidx.compose.ui.platform.LocalFocusManager.current
+    val searchKeyboard=LocalSoftwareKeyboardController.current
+    LaunchedEffect(playbackQueueOpen){if(playbackQueueOpen){showSettings=false;searchFocus.clearFocus();searchKeyboard?.hide()}}
     var showAppearance by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(effectsRequested) {if(effectsRequested){vm.playbackQueueOpen.value=false;tab="Efeitos";showSettings=false;vm.effectsNavigation.value=false}}
     var settingsCategory by rememberSaveable { mutableStateOf("Geral") }
@@ -207,12 +209,13 @@ val lightAccents=mapOf(
         }
     }
     val typography=remember(settings.optString("interface_font"),settings.optString("interface_font_size")) {interfaceTypography(settings.optString("interface_font",DEFAULT_INTERFACE_FONT),settings.optString("interface_font_size","100%"))}
+    val keyboardVisible=rememberKeyboardVisible()
     LocalizedTheme(language=settings.optString("language","pt-BR"),colorScheme=scheme,typography=typography,spacing=settings.optString("interface_spacing","Padrão")) {
         Scaffold(
             topBar={OndaAppBar(onAppearance={showAppearance=true},onSettings={vm.playbackQueueOpen.value=false;settingsCategory="Geral";showSettings=true})},
             bottomBar={Column {
                 AndroidPlaybackSurface(vm,queueIsVisible=!showSettings && playbackQueueOpen)
-                OndaBottomNavigation(if(showSettings)"Mais" else tab,tabs) {destination->showSettings=false;vm.playbackQueueOpen.value=false;tab=destination}
+                if(!keyboardVisible)OndaBottomNavigation(if(showSettings)"Mais" else tab,tabs) {destination->showSettings=false;vm.playbackQueueOpen.value=false;tab=destination}
             }},
             floatingActionButton={if(!showSettings && !playbackQueueOpen && (tab=="Fila" || tab=="Links e fila"))FloatingActionButton(onClick={showLinks=true},containerColor=MaterialTheme.colorScheme.primary,shape=RoundedCornerShape(50)) {OndaIcon("add","Adicionar links",Modifier.size(24.dp))}}
         ) { padding ->
@@ -399,7 +402,6 @@ val modes=linkedMapOf("Vídeo · melhor qualidade (MKV)" to "video","Vídeo · M
     LazyColumn(Modifier.fillMaxSize().padding(horizontal=LayoutSpacing.inset),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
         item {PageTitle("Pesquisar músicas","")}
         item {OutlinedTextField(query,{query=it},placeholder={UiText("Música, artista ou link")},singleLine=true,shape=RoundedCornerShape(14.dp),
-            leadingIcon={OndaIcon("search",modifier=Modifier.size(21.dp))},
             trailingIcon={IconButton(onClick={if(busy)vm.cancel() else submitSearch()},enabled=true){OndaIcon(if(busy)"stop" else "search",if(busy)"Cancelar" else "Pesquisar",Modifier.size(22.dp))}},
             keyboardOptions=KeyboardOptions(imeAction=ImeAction.Search),keyboardActions=KeyboardActions(onSearch={submitSearch()}),
             modifier=Modifier.fillMaxWidth().testTag("music-query").onPreviewKeyEvent {event->
@@ -459,16 +461,15 @@ internal fun displayReleaseDate(value:String):String {
     val record=rememberCardMetadata(original,vm)
     val cardSettings by OndaStore.settings.collectAsStateWithLifecycle()
     val cardSize=cardSettings.optString("catalog_card_size","Grande")
-    val coverSide=when(cardSize){"Pequeno"->56.dp;"Médio"->76.dp;else->94.dp}
+    val coverSide=when(cardSize){"Pequeno"->56.dp;"Médio"->72.dp;else->88.dp}
 
     val playing by vm.previewActive.collectAsStateWithLifecycle()
     val playingUrl by vm.previewUrl.collectAsStateWithLifecycle()
-    val releaseDate=record.cleanString("release_date")
     val url=record.cleanString("preview_url")
     val thisPlaying=playing && playingUrl==url
     var actions by remember {mutableStateOf(false)}
     Surface(Modifier.fillMaxWidth().onSecondaryClick(record.cleanString("source_url")){actions=true},shape=RoundedCornerShape(18.dp),color=MaterialTheme.colorScheme.surfaceContainerLow) {
-        Row(Modifier.padding(if(cardSize=="Pequeno")10.dp else 14.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+        Row(Modifier.padding(if(cardSize=="Pequeno")10.dp else 12.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
             AsyncImage(record.cleanString("cover_url"),translateUi("Capa do álbum"),Modifier.size(coverSide).clip(RoundedCornerShape(10.dp)),contentScale=androidx.compose.ui.layout.ContentScale.Crop)
             Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(5.dp)) {
                 Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.Top) {
@@ -492,10 +493,11 @@ internal fun displayReleaseDate(value:String):String {
                 }
                 Text(record.stringList("artists"),style=MaterialTheme.typography.bodyMedium,fontWeight=FontWeight.SemiBold,color=MaterialTheme.colorScheme.onSurface,maxLines=1,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                 AlbumDateLabel(record)
-                MetadataPlatformBadge(record)
-                val duration=record.optLong("duration_ms")
-                val detail=translateUi("Música")+if(duration>0)" · "+mediaClock(duration/1000) else ""
-                Text(detail,style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant,maxLines=1)
+                Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                    MetadataPlatformBadge(record)
+                    val duration=record.optLong("duration_ms")
+                    if(duration>0)Text(mediaClock(duration/1000),style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant,maxLines=1)
+                }
 
             }
         }

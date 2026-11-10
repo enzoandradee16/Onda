@@ -20,6 +20,7 @@ OndaScrollView {
     TapHandler {enabled:!workspace.optionValue(workspace.optionsRevision,"jukeboxQueueOpen") && !bridge.stateValue(bridge.stateRevision,"results").length;acceptedButtons:Qt.RightButton;onTapped:jukeboxActions.popup()}
 
     FileDialog { id: fileDialog; title: bridge.translate("Abrir arquivo"); nameFilters: [bridge.translate("Áudio")+" (*.mp3 *.m4a *.flac *.wav *.ogg *.opus *.aac *.webm)",bridge.translate("Todos os arquivos")+" (*)"]; onAccepted: bridge.openFile(selectedFile) }
+    property bool adjustmentsExpanded: true
     property string currentLyric: ""
     property string currentLine: ""
     Timer { interval: 100; running: page.visible; repeat: true; onTriggered: {var frame=workspace.lyricsClock(true);page.currentLyric=frame.text;page.currentLine=String(frame.active)} }
@@ -27,16 +28,16 @@ OndaScrollView {
     TimerPopup { id: timerPopup }
     ColumnLayout {
         width: page.availableWidth; spacing: Math.round(16*bridge.spacing)
-        RowLayout {
-            Layout.fillWidth: true; spacing: Math.round(10*bridge.spacing)
+        GridLayout {
+            Layout.fillWidth: true; columns: page.availableWidth < 680*bridge.fontScale ? 2 : 3; columnSpacing: Math.round(10*bridge.spacing); rowSpacing: 8
             OndaTextField {
-                id: query; objectName:"playbackSearchField"; Layout.fillWidth: true; implicitHeight: 44; placeholderText: bridge.translate("Música, artista ou link de música, álbum ou playlist"); selectByMouse: true
+                id: query; objectName:"playbackSearchField"; Layout.columnSpan: page.availableWidth < 680*bridge.fontScale ? 2 : 1; Layout.minimumWidth: 0; Layout.fillWidth: true; implicitHeight: 44; placeholderText: bridge.translate("Música, artista ou link de música, álbum ou playlist"); selectByMouse: true
                 color: bridge.palette.text; placeholderTextColor: bridge.palette.muted; font.pixelSize: Math.round(14*bridge.fontScale)
                 background: Rectangle { radius: 8; color: bridge.palette.surface; border.color: query.activeFocus ? bridge.palette.accent : bridge.palette.line; border.width: query.activeFocus ? 2 : 1 }
                 onAccepted: if (!bridge.stateValue(bridge.stateRevision,"busy")) bridge.search(text)
             }
-            ActionButton { objectName:"playbackSearchButton"; primary: true; text: bridge.translate(bridge.stateValue(bridge.stateRevision,"busy") ? "Cancelar" : "Pesquisar"); enabled: true; onClicked: if (bridge.stateValue(bridge.stateRevision,"busy")) bridge.cancelOperation(); else bridge.search(query.text) }
-            ActionButton { text: bridge.translate("Abrir arquivo"); enabled: !bridge.stateValue(bridge.stateRevision,"busy"); onClicked: fileDialog.open() }
+            ActionButton { Layout.fillWidth: page.availableWidth < 680*bridge.fontScale; objectName:"playbackSearchButton"; primary: true; text: bridge.translate(bridge.stateValue(bridge.stateRevision,"busy") ? "Cancelar" : "Pesquisar"); enabled: true; onClicked: if (bridge.stateValue(bridge.stateRevision,"busy")) bridge.cancelOperation(); else bridge.search(query.text) }
+            ActionButton { Layout.fillWidth: page.availableWidth < 680*bridge.fontScale; text: bridge.translate("Abrir arquivo"); enabled: !bridge.stateValue(bridge.stateRevision,"busy"); onClicked: fileDialog.open() }
         }
         Card {
             Layout.fillWidth: true
@@ -62,19 +63,19 @@ OndaScrollView {
                         }
                         TapHandler {acceptedButtons:Qt.RightButton;onTapped:resultActions.popup()}
 
-                    width: resultList.contentAreaWidth; height: modelData.release_date ? 108 : 84
+                    width: resultList.contentAreaWidth; height: 84
                     background: Rectangle {
                         radius: 6
                         color: parent.hovered || parent.down || parent.activeFocus
                                ? bridge.palette.hover : "transparent"
                     }
                     contentItem: RowLayout {
-                        Rectangle { Layout.preferredWidth: 64; Layout.preferredHeight: 64; radius: 6; color: bridge.palette.input
+                        Rectangle { Layout.preferredWidth: 56; Layout.preferredHeight: 56; radius: 6; color: bridge.palette.input
                             RoundedArtwork { id: searchCover; objectName: "jukeboxSearchArtwork"; anchors.fill: parent; source: modelData.cover || ""; fillMode: Image.PreserveAspectFit; sourceSize.width: 128; sourceSize.height: 128; asynchronous: true }
-                            Label { anchors.centerIn: parent; visible: searchCover.status !== Image.Ready; text: "♪"; color: bridge.palette.muted }
+                            LineIcon { anchors.centerIn: parent; visible: searchCover.status !== Image.Ready; glyph: "music"; ink: bridge.palette.muted; width: 24; height: 24 }
                         }
                         ColumnLayout { Layout.fillWidth: true; Layout.minimumWidth: 0; spacing: 4
-                            Label { Layout.fillWidth: true; text: modelData.title; color: bridge.palette.text; elide: Text.ElideRight }
+                            Label { Layout.fillWidth: true; text: modelData.title; font.weight: Font.DemiBold; color: bridge.palette.text; elide: Text.ElideRight }
                             Label { Layout.fillWidth: true; text: modelData.artist; color: bridge.palette.muted; elide: Text.ElideRight }
                             Label { Layout.fillWidth: true; text: workspace.albumReleaseText(modelData); color: bridge.palette.muted; elide: Text.ElideRight }
                         }
@@ -96,29 +97,35 @@ OndaScrollView {
         }
         Card {
             objectName:"playbackTrackCard"
-            Layout.fillWidth: true; implicitHeight: 166;clip:true
-            RowLayout {
-                anchors.fill: parent; anchors.margins: 10; spacing: Math.round(16*bridge.spacing)
+            Layout.fillWidth: true; implicitHeight: trackLayout.implicitHeight+20;clip:true
+            GridLayout {
+                id: trackLayout; columns: page.availableWidth < 850 ? 2 : 3
+                anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 10; columnSpacing: Math.round(16*bridge.spacing); rowSpacing: 12
                 Rectangle {
-                    Layout.preferredWidth: 146; Layout.preferredHeight: 146; radius: 8; color: bridge.palette.input; clip: true
-                    RoundedArtwork { anchors.fill: parent; source: bridge.currentMetadata.cover_url || bridge.stateValue(bridge.stateRevision,"cover"); fallbackSource: bridge.stateValue(bridge.stateRevision,"cover"); sourceSize.width: 768; sourceSize.height: 768; fillMode: Image.PreserveAspectCrop; visible: source.toString().length>0 }
-                    Text { anchors.centerIn: parent; visible: bridge.stateValue(bridge.stateRevision,"cover").length===0; text: "♪"; color: bridge.palette.muted; font.pixelSize: Math.round(38*bridge.fontScale) }
+                    Layout.preferredWidth: page.availableWidth<600 ? 96 : 146; Layout.preferredHeight: Layout.preferredWidth; radius: 8; color: bridge.palette.input; clip: true
+                    RoundedArtwork { id: playbackArtwork; anchors.fill: parent; source: bridge.currentMetadata.cover_url || bridge.stateValue(bridge.stateRevision,"cover"); fallbackSource: bridge.stateValue(bridge.stateRevision,"cover"); sourceSize.width: 768; sourceSize.height: 768; fillMode: Image.PreserveAspectCrop; visible: source.toString().length>0 }
+                    LineIcon { anchors.centerIn: parent; visible: playbackArtwork.status !== Image.Ready; glyph: "music"; ink: bridge.palette.muted; width: 38; height: 38 }
                 }
                 ColumnLayout {
                     Layout.fillWidth: true; spacing: Math.round(5*bridge.spacing)
-                    Text { Layout.fillWidth: true; text: bridge.stateValue(bridge.stateRevision,"title"); elide: Text.ElideRight; color: bridge.palette.text; font.pixelSize: Math.round(23*bridge.fontScale); font.weight: Font.DemiBold }
-                    Text { Layout.fillWidth: true; text: bridge.stateValue(bridge.stateRevision,"artist"); visible: text.length>0; elide: Text.ElideRight; color: bridge.palette.text; font.pixelSize: Math.round(17*bridge.fontScale) }
-                    Text { Layout.fillWidth: true; text: workspace.albumReleaseText(bridge.currentMetadata); visible: text.length>0; elide: Text.ElideRight; color: bridge.palette.muted; font.pixelSize: Math.round(16*bridge.fontScale) }
-                    Text { Layout.fillWidth: true; text: bridge.stateValue(bridge.stateRevision,"paused") ? bridge.translate("Pausado.") : bridge.stateValue(bridge.stateRevision,"status"); elide: Text.ElideRight; color: bridge.stateValue(bridge.stateRevision,"playing") ? bridge.palette.accent : bridge.palette.muted; font.pixelSize: Math.round(14*bridge.fontScale) }
+                    Text { Layout.fillWidth: true; text: bridge.stateValue(bridge.stateRevision,"title"); wrapMode: Text.Wrap; color: bridge.palette.text; font.pixelSize: Math.round(23*bridge.fontScale); font.weight: Font.DemiBold }
+                    Text { Layout.fillWidth: true; text: bridge.stateValue(bridge.stateRevision,"artist"); visible: text.length>0; wrapMode: Text.Wrap; color: bridge.palette.text; font.pixelSize: Math.round(17*bridge.fontScale) }
+                    Text { Layout.fillWidth: true; text: workspace.albumReleaseText(bridge.currentMetadata); visible: text.length>0; wrapMode: Text.Wrap; color: bridge.palette.muted; font.pixelSize: Math.round(16*bridge.fontScale) }
+                    Text { Layout.fillWidth: true; text: bridge.stateValue(bridge.stateRevision,"paused") ? bridge.translate("Pausado.") : bridge.stateValue(bridge.stateRevision,"status"); wrapMode: Text.Wrap; color: bridge.stateValue(bridge.stateRevision,"playing") ? bridge.palette.accent : bridge.palette.muted; font.pixelSize: Math.round(14*bridge.fontScale) }
                 }
-                AnimatedLyric { Layout.fillWidth: true; Layout.preferredWidth: 300;Layout.maximumHeight:100;Layout.alignment:Qt.AlignVCenter;maximumLineCount:3;elide:Text.ElideRight;clip:true; lineKey: page.currentLine; text: page.currentLyric; textFormat: Text.RichText; visible: text.length>0 }
+                AnimatedLyric { Layout.columnSpan: page.availableWidth < 850 ? 2 : 1; Layout.fillWidth: true; Layout.preferredWidth: 300;Layout.maximumHeight:100;Layout.alignment:Qt.AlignVCenter;maximumLineCount:3;elide:Text.ElideRight;clip:true; lineKey: page.currentLine; text: page.currentLyric; textFormat: Text.RichText; visible: text.length>0 }
             }
+        }
+        RowLayout {
+            Layout.fillWidth: true
+            Label { Layout.fillWidth: true; text: bridge.translate("Ajustes de reprodução"); color: bridge.palette.text; font.weight: Font.DemiBold }
+            ActionButton { objectName: "playbackAdjustmentsToggle"; text: bridge.translate(page.adjustmentsExpanded ? "Ocultar ajustes" : "Mostrar ajustes"); onClicked: page.adjustmentsExpanded = !page.adjustmentsExpanded }
         }
         GridLayout {
             Layout.fillWidth:true;columns:page.availableWidth>=1100?3:page.availableWidth>=700?2:1;columnSpacing:16;rowSpacing:16
-            UnifiedEffectsCard {Layout.fillWidth:true;Layout.fillHeight:true;Layout.preferredWidth:330}
+            UnifiedEffectsCard {visible:page.adjustmentsExpanded;Layout.fillWidth:true;Layout.fillHeight:true;Layout.preferredWidth:330}
             Card {
-                objectName:"playbackJukeboxCard"
+                objectName:"playbackJukeboxCard";visible:page.adjustmentsExpanded
                 Layout.fillWidth:true;Layout.fillHeight:true;Layout.preferredWidth:330;implicitHeight:405
                 ColumnLayout {
                     anchors.fill:parent;anchors.margins:20;spacing:12

@@ -1,5 +1,9 @@
 # Histórico de versões
 
+## 1.2.9 — 2026-11-09
+
+- Atualização dos pacotes Windows e Android para 1.2.9; código Android 37.
+
 ## 1.2.8 — 2026-11-09
 
 - Login próprio do Instagram nas versões Windows e Android.

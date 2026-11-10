@@ -55,6 +55,9 @@ import kotlin.math.*
 internal data class JukeboxState(val title:String="Escolha suas músicas.",val message:String="Abra arquivos, pesquise músicas ou adicione álbuns e playlists à fila.",val model:JSONObject?=null,val records:List<JSONObject> = emptyList(),val busy:Boolean=false,val playing:Boolean=false,val paused:Boolean=false,val index:Int=0,val phase:Float=0f,val flow:List<Pair<Int,Int>> = emptyList(),val used:Set<Pair<Int,Int>> = emptySet(),val elapsed:Double=0.0,val jumps:Int=0,val nextIndex:Int=-1,val jumpBlend:Float=0f,val effectsPending:Boolean=false,val effectsError:String="",val restoredSeconds:Double=0.0,val playbackError:String="")
 
 internal class JukeboxController(private val context:Context,private val scope:CoroutineScope,var stopOtherAudio:()->Unit,private val callOverride:(suspend (String,JSONObject,String)->JSONObject)?=null) {
+    private val audioDispatcher=java.util.concurrent.Executors.newSingleThreadExecutor {work->
+        Thread({android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_AUDIO);work.run()},"ONDA-audio")
+    }.asCoroutineDispatcher()
     val state=MutableStateFlow(JukeboxState())
     val presentationState=state.map {it.copy(index=0,phase=0f,flow=emptyList(),used=emptySet(),elapsed=0.0,jumps=0,nextIndex=-1,jumpBlend=0f)}
         .distinctUntilChanged().stateIn(scope,kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5000),state.value)
@@ -842,13 +845,13 @@ internal class JukeboxController(private val context:Context,private val scope:C
                 repeat(steps){while(state.value.paused)delay(50);startGain=(it+1)/steps.toFloat();applyGain();old?.volume(volume.value*(1f-startGain));pcm?.volume(volume.value*(1f-startGain));delay(50)}
             } finally {old?.close();pcm?.close();if(outgoingStream===old && outgoingPcm===pcm){outgoingStream=null;outgoingPcm=null}}
         }
-        task=scope.launch(Dispatchers.IO) {
+        task=scope.launch(audioDispatcher) {
             var output:AudioTrack?=null
             try {
                 call("jukebox_open",JSONObject().put("session",id).put("cache",model.getString("cache")),id)
                 val minimum=AudioTrack.getMinBufferSize(44100,AudioFormat.CHANNEL_OUT_STEREO,AudioFormat.ENCODING_PCM_16BIT)
                 require(minimum>0){"Não foi possível abrir a saída de áudio."}
-                output=AudioTrack.Builder().setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA).setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build()).setAudioFormat(AudioFormat.Builder().setSampleRate(44100).setChannelMask(AudioFormat.CHANNEL_OUT_STEREO).setEncoding(AudioFormat.ENCODING_PCM_16BIT).build()).setBufferSizeInBytes(max(minimum,44100*4/5)).setTransferMode(AudioTrack.MODE_STREAM).build()
+                output=AudioTrack.Builder().setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA).setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build()).setAudioFormat(AudioFormat.Builder().setSampleRate(44100).setChannelMask(AudioFormat.CHANNEL_OUT_STEREO).setEncoding(AudioFormat.ENCODING_PCM_16BIT).build()).setBufferSizeInBytes(max(minimum,44100*4/2)).setTransferMode(AudioTrack.MODE_STREAM).build()
                 require(output.state==AudioTrack.STATE_INITIALIZED){"Não foi possível abrir a saída de áudio."}
                 synchronized(this@JukeboxController) {
                     if(own!=revision || !isActive)throw CancellationException()
@@ -907,7 +910,7 @@ internal class JukeboxController(private val context:Context,private val scope:C
                         val metadata=call("jukebox_chunk",config,id)
                         val pcm=Base64.decode(metadata.getString("pcm"),Base64.NO_WRAP)
                         metadata.remove("pcm");metadata to pcm
-                    } else withContext(Dispatchers.IO){MobileEngine.pcmChunk(context,id,config)}
+                    } else MobileEngine.pcmChunk(context,id,config)
                     if(activeSeek!=seekEpoch.get())continue
                     val part=packet.first
                     if(own==revision)state.update {it.copy(effectsPending=part.optBoolean("effects_pending"),effectsError=part.optString("effects_error"))}
@@ -972,7 +975,7 @@ internal class JukeboxController(private val context:Context,private val scope:C
         state.value=state.value.copy(index=snapshot.index,phase=snapshot.phase)
         runCatching {savePlaybackSession()}.onFailure {android.util.Log.w("ONDA","Could not save stopped playback session",it)}
     }
-    fun close(){checkpoint?.cancel();stopPreservingPosition();queueIndex.clear();effectPreparation?.cancel();if(effectPreparationId.isNotBlank())MobileEngine.cancel(effectPreparationId);cancelQueuePreparation();preparedModels.clear()}
+    fun close(){checkpoint?.cancel();stopPreservingPosition();queueIndex.clear();effectPreparation?.cancel();if(effectPreparationId.isNotBlank())MobileEngine.cancel(effectPreparationId);cancelQueuePreparation();preparedModels.clear();audioDispatcher.close()}
 }
 
 @Composable internal fun PlaybackPage(vm:OndaViewModel) {
@@ -1051,6 +1054,12 @@ internal class JukeboxController(private val context:Context,private val scope:C
                 }
             }
         }
+        var adjustmentsExpanded by rememberSaveable {mutableStateOf(true)}
+        Row(Modifier.fillMaxWidth(),verticalAlignment=androidx.compose.ui.Alignment.CenterVertically) {
+            UiText("Ajustes de reprodução",Modifier.weight(1f),style=MaterialTheme.typography.titleSmall)
+            TextButton(onClick={adjustmentsExpanded=!adjustmentsExpanded},modifier=Modifier.testTag("playback-adjustments-toggle")){UiText(if(adjustmentsExpanded)"Ocultar ajustes" else "Mostrar ajustes")}
+        }
+        if(adjustmentsExpanded) {
         UnifiedEffectsControls(controller,vm)
         PlaybackCard(Modifier.testTag("unified-jukebox-card")) {
             PlaybackSectionToggle("Jukebox infinito",!normal){controller.normal=!it}
@@ -1065,6 +1074,7 @@ internal class JukeboxController(private val context:Context,private val scope:C
                     if(state.model==null)OndaIcon("music",modifier=Modifier.size(26.dp).align(androidx.compose.ui.Alignment.Center),tint=MaterialTheme.colorScheme.primary)
                 }
             }
+        }
         }
     }
 }
