@@ -12,7 +12,7 @@ ONDA started as a personal project, initially made for me and my friends. I deci
 
 The project is still in development. Suggestions, contributions and bug reports are welcome.
 
-**Version 1.2.9 for Windows 10 or later (x64) and Android 8 or later (ARM64 and x86_64).**
+**Version 1.3.0 for Windows 10 or later (x64) and Android 8 or later (ARM64 and x86_64).**
 
 See the [release notes](RELEASE_NOTES.md).
 
@@ -24,9 +24,14 @@ On PC, right-click lists or cards to open the actions available in that tab. Shi
 
 On PC, the **Playback** tab is in the sidebar’s **Library** category. On Android, it remains in the bottom bar.
 
-Catalog tracks can stream on PC and Android. Playback starts with a small buffer and loads the remainder into a temporary cache capped at 256 MB, allowing seeks within cached sections without another network wait. This disposable cache is separate from downloads and can be cleared in settings. Effects prepare in the background while the current audio keeps playing until the processed version is ready.
+Catalog music can be streamed on PC and Android. Playback starts with a small buffer and keeps audio in a temporary cache, separate from downloads. Automatic cleanup preserves the current song, three previous songs and the upcoming prepared tracks. Effects are prepared in the background while the current audio continues until the new version is ready.
 
 ## Application highlights
+
+- **Metadata:** recognize songs from filenames or existing tags, review before saving, copy and paste tags, and edit individual files or batches.
+- **Windows taskbar:** previous, play/pause and next controls in the ONDA thumbnail, only when a song is loaded in Playback.
+
+- **Desktop lists:** Very small size with compact rows; Ctrl and Shift select tracks and update their checkboxes. Collapse collection options to see more tracks and adjust card size on the same row.
 
 - **Equalizer:** choose 5, 10 or 15 bands on PC and Android, with 10 by default. Presets and adjustments adapt to the selected frequency layout.
 - **Discord on PC:** enable “Show activity on Discord” in Settings → General; off by default. Shares the song, artist, available album/artwork and playback time, follows pauses, and clears activity when stopped or closed. Requires the Discord desktop app. [How it works](docs/DISCORD.md).

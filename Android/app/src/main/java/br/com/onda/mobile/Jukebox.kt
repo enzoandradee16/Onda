@@ -240,9 +240,21 @@ internal class JukeboxController(private val context:Context,private val scope:C
             switchModels.values.forEach {add(it.row.optString("_queue_id"))}
         }
     }
+    private var cacheTrimJob:Job?=null
     private fun trimPreparedModels(wanted:Set<String>) {
         val removed=preparedModels.keys.filter {it !in wanted}
         removed.forEach {preparedModels.remove(it);updateQueue(it,"Pendente")}
+        if(OndaStore.settings.value.optBoolean("automatic_cache_cleanup",true) && cacheTrimJob?.isActive!=true) {
+            val previous=playbackQueue.value.take(maxOf(0,nextQueueIndex-1)).takeLast(3).mapNotNull {it.optJSONObject("_prepared_cache")}
+            val models=org.json.JSONArray(preparedModels.values.toList()+listOfNotNull(state.value.model)+switchModels.values.map {it.model}+previous)
+            val config=JSONObject().put("models",models)
+                .put("_stream_cache_protected",org.json.JSONArray(StreamAudioCache.protectedPaths()))
+            cacheTrimJob=scope.launch {
+                try {call("playback_cache_trim",config,"playback-cache-trim")}
+                catch(cancelled:CancellationException){throw cancelled}
+                catch(error:Exception){android.util.Log.w("ONDA-cache","Cache cleanup deferred: ${error.javaClass.simpleName}")}
+            }
+        }
     }
     private fun updateQueue(id:String,status:String,error:String="") {
         playbackQueue.update {rows->rows.map {if(it.optString("_queue_id")==id && (it.optString("_analysis")!=status || it.optString("_error")!=error))copyJsonObject(it).put("_analysis",status).put("_error",error) else it}}

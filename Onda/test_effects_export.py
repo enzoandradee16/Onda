@@ -300,3 +300,45 @@ class ExportControllerTests(unittest.TestCase):
         self.assertEqual(config['record']['title'], 'Midnight Pretenders')
         self.assertEqual(config['record']['artists'], ['Tomoko Aran'])
         self.assertEqual(self.ws.options['effectsSource'], 'legacy.wav')
+
+    def test_stream_export_uses_current_origin_without_interrupting_playback(self):
+        self.ws.selectPage('jukebox')
+        record = dict(title='Mrs Magic', artists=['Artist'], source_url='https://example.com/catalog')
+        self.bridge.playlist = [dict(id='current', record=record)]
+        self.bridge.queue_index = 0
+        self.bridge.update_state(title='Mrs Magic', artist='Artist', playing=True)
+        self.ws.options.update(exportSegment=True, exportStart='1:30', exportEnd='1:45')
+        cases = [
+            (dict(source='', _stream=dict(source_url='https://example.com/video', url='https://example.com/audio')), 'https://example.com/video'),
+            (dict(_stream=dict(url='https://example.com/audio')), record['source_url']),
+            (dict(source='', _stream=dict(source_url='', url='https://example.com/audio')), record['source_url']),
+        ]
+        for model, expected in cases:
+            with self.subTest(model=model):
+                self.bridge.model = model
+                with (
+                    patch('PySide6.QtWidgets.QFileDialog.getSaveFileName', return_value=(str(self.root / 'stream-export.mp3'), '')),
+                    patch.object(self.ws, 'launch_thread', side_effect=lambda callback: callback()),
+                    patch.object(self.ws, 'process_worker') as worker,
+                    patch.object(self.bridge, 'stop') as stop,
+                ):
+                    self.ws.dispatch('unified_effects_export', {})
+                config = worker.call_args.args[1]
+                self.assertEqual(config['source'], expected)
+                self.assertEqual(config['record']['title'], 'Mrs Magic')
+                self.assertEqual(config['segment_start'], 90)
+                self.assertEqual(config['segment_end'], 105)
+                stop.assert_not_called()
+                self.ws.active.clear()
+
+    def test_stream_export_can_use_direct_audio_when_no_catalog_origin_exists(self):
+        self.ws.selectPage('jukebox')
+        self.bridge.model = dict(source='', _stream=dict(url='https://example.com/audio'))
+        self.bridge.playlist = []
+        with (
+            patch('PySide6.QtWidgets.QFileDialog.getSaveFileName', return_value=(str(self.root / 'direct-export.mp3'), '')),
+            patch.object(self.ws, 'launch_thread', side_effect=lambda callback: callback()),
+            patch.object(self.ws, 'process_worker') as worker,
+        ):
+            self.ws.dispatch('unified_effects_export', {})
+        self.assertEqual(worker.call_args.args[1]['source'], 'https://example.com/audio')

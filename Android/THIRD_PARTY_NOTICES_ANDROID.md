@@ -19,6 +19,7 @@ O código próprio mantém a licença GPL-2.0-only do repositório. Bibliotecas 
 | U2NetP (modelo opcional, obtido no primeiro uso) | https://github.com/xuebinqin/U-2-Net | Apache-2.0; aviso em `assets/licenses/U2NET.txt` |
 | kotlinx.coroutines | https://github.com/Kotlin/kotlinx.coroutines | Apache-2.0 |
 | FFmpeg / FFprobe 7.1.3 | https://ffmpeg.org/ | GPL-3.0-or-later na configuração utilizada |
+| Chromaprint 1.6.1 / Kiss FFT | https://github.com/acoustid/chromaprint | LGPL-2.1-or-later / BSD-3-Clause |
 | QuickJS 2025-09-13 | https://bellard.org/quickjs/ | MIT |
 | LAME 3.100 | https://lame.sourceforge.io/ | LGPL-2.0-or-later |
 | x264 b35605ace3ddf7c1a5d67a2eb553f034aef41d55 | https://code.videolan.org/videolan/x264 | GPL-2.0-or-later |

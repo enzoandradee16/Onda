@@ -643,6 +643,14 @@ class JukeboxBridge(QObject):
         from stream_warmup import keep
 
         keep(self._prepared.values())
+        if self.preferences.get('automatic_cache_cleanup', True):
+            from playback_cache_budget import schedule
+
+            models = list(self._prepared.values()) + [self.model]
+            models += [value[1] for value in self._switch_models.values()]
+            models += [row.get('prepared_cache', {}) for row in
+                       self.playlist[max(0, current - 3):current + ahead + 1]]
+            schedule(models)
         # A persisted/transient status is not proof that a worker still exists.
         for row in self.playlist:
             if row['id'] not in wanted:

@@ -57,6 +57,7 @@ def is_social(url):
 
 def session_for(cookies=""):
     session = requests.Session()
+    session.max_redirects = 8
     session.headers.update(
         {"User-Agent": "Mozilla/5.0", "Accept-Encoding": "gzip, deflate"}
     )
@@ -752,8 +753,8 @@ def _download_post(config, emit, ask_duplicate, choose=None):
             host in ("vm.tiktok.com", "vt.tiktok.com", "s.kw.ai", "kwai-video.com")
             or "/share/" in url
         ):
-            with session.get(url, timeout=20) as response:
-                response.raise_for_status()
+            from social_recovery import public_response
+            with public_response(session, url, timeout=20, stream=True) as response:
                 url = response.url
         resolved_host = (urlsplit(url).hostname or "").lower()
         if resolved_host == "tiktok.com" or resolved_host.endswith(".tiktok.com"):
@@ -768,9 +769,9 @@ def _download_post(config, emit, ask_duplicate, choose=None):
             emit("done", files=saved)
             return True
         if resolved_host == "kwai.com" or resolved_host.endswith(".kwai.com"):
-            with session.get(url, timeout=20) as response:
-                response.raise_for_status()
-                items = list(kwai_images(response.text, response.url))
+            from social_recovery import public_html
+            html, resolved_url = public_html(session, url, with_url=True)
+            items = list(kwai_images(html, resolved_url))
             if not items:
                 video_fallback(config, emit)
                 return False

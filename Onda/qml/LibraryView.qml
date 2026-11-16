@@ -9,7 +9,9 @@ ColumnLayout {
     readonly property bool spotifyBrowsing: !catalog && !history && !!workspace.optionValue(workspace.optionsRevision,"spotifyPlaylistsVisible")
     readonly property string cardSizeKey: history ? "history_card_size" : catalog ? "catalog_card_size" : "playlist_card_size"
     readonly property string cardSize: workspace.preferences[cardSizeKey] || "Grande"
-    readonly property bool smallCards: cardSize === "Pequeno"
+    readonly property bool tinyCards: cardSize === "Muito pequeno"
+    readonly property bool smallCards: tinyCards || cardSize === "Pequeno"
+    property bool collectionOptionsCollapsed: false
     property string collectionQuery: ""
     property string creationQuery: ""
     property string collectionSort: ""
@@ -35,117 +37,154 @@ ColumnLayout {
         return page.collectionQuery.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim().split(/\s+/).every(function(term){return text.indexOf(term)>=0})
     }
     spacing: Math.round(14*bridge.spacing)
-    GridLayout { Layout.fillWidth: true; columns: page.width<900*bridge.fontScale ? 3 : 4; columnSpacing: Math.round(10*bridge.spacing); rowSpacing: 8
-        OndaTextField { Layout.fillWidth: true; Layout.minimumWidth: 0; Layout.columnSpan: page.width<900*bridge.fontScale ? 3 : 1; placeholderText: bridge.translate(page.history ? "Buscar no histórico" : page.catalog ? "Pesquise uma música ou cole um link" : "Link do álbum ou playlist"); text: page.history ? workspace.optionValue(workspace.optionsRevision,"historyQuery") : page.catalog ? workspace.optionValue(workspace.optionsRevision,"query") : workspace.optionValue(workspace.optionsRevision,"playlistUrl")
-            onTextEdited: workspace.setOption(page.history ? "historyQuery" : page.catalog ? "query" : "playlistUrl",text)
-            onAccepted: if (!page.history && workspace.activityValue(workspace.statusRevision,"busy").indexOf(page.catalog ? "search" : "collection") < 0) workspace.invoke(page.catalog ? "search" : "load_playlist",{})
-        }
-        ChoiceBox { Layout.fillWidth: page.width<900*bridge.fontScale; visible: page.catalog; model: ["Deezer","Apple / iTunes","Spotify","Todos"]; currentIndex: Math.max(0,model.indexOf(workspace.optionValue(workspace.optionsRevision,"provider"))); onActivated: workspace.setOption("provider",currentText) }
-        TaskButton { Layout.fillWidth: page.width<900*bridge.fontScale; objectName: "libraryLoadButton"; visible: !page.history; primary: true; idleText: bridge.translate(page.catalog ? "Pesquisar" : workspace.optionValue(workspace.optionsRevision,"playlistTitle") && workspace.optionValue(workspace.optionsRevision,"loadedPlaylistUrl")===workspace.optionValue(workspace.optionsRevision,"playlistUrl") ? "Atualizar" : "Carregar"); operation: page.catalog ? "search" : "load_playlist"; taskNames: page.catalog ? ["search"] : ["collection","compare_collection","check_matches"] }
-        TaskButton { visible: page.catalog; idleText: bridge.translate("Atualizar busca"); operation: "search"; parameters: ({refresh:true}) }
-    }
     RowLayout {
-        visible: !page.catalog && !page.history; Layout.fillWidth: true
-        ActionButton {objectName:"spotifyPlaylistsButton";text:bridge.translate("Playlists do Spotify");primary:page.spotifyBrowsing;onClicked:{if(!workspace.activityValue(workspace.statusRevision,"spotifyConnected"))workspace.invoke("configure_spotify",{});else if(workspace.optionValue(workspace.optionsRevision,"spotifyPlaylistsLoaded"))workspace.setOption("spotifyPlaylistsVisible",!page.spotifyBrowsing);else workspace.invoke("spotify_playlists",{})}}
-        TaskButton {visible:page.spotifyBrowsing;idleText:bridge.translate("Atualizar");operation:"spotify_playlists";taskNames:["spotify_playlists"]}
-        Label {visible:!workspace.activityValue(workspace.statusRevision,"spotifyConnected");Layout.fillWidth:true;text:bridge.translate("Conecte sua conta Spotify para ver suas playlists.");color:bridge.palette.muted;wrapMode:Text.Wrap}
+        visible: !page.catalog && !page.history && !page.spotifyBrowsing && workspace.playlistModel.count>0
+        Layout.fillWidth: true
+        Label {
+            Layout.fillWidth: true; Layout.minimumWidth: 0
+            text: page.collectionOptionsCollapsed ? (workspace.optionValue(workspace.optionsRevision,"playlistTitle") || bridge.translate("Coleção")) : ""
+            color: bridge.palette.text; elide: Text.ElideRight; font.weight: Font.DemiBold
+        }
+        CardSizeControl {
+            objectName: "collapsedCollectionCardSizeControl"
+            compact: page.width<650
+            visible: page.collectionOptionsCollapsed
+            settingKey: page.cardSizeKey
+        }
+        PlaybackButton {
+            id: collectionToggle
+            objectName: "collectionOptionsToggle"
+            implicitWidth: Math.ceil(collectionToggleMetrics.advanceWidth)+64
+            Layout.minimumWidth: implicitWidth
+            TextMetrics {
+                id: collectionToggleMetrics
+                text: collectionToggle.text
+                font.family: collectionToggle.font.family
+                font.pixelSize: Math.round(14*bridge.fontScale)
+            }
+            glyph: page.collectionOptionsCollapsed ? "down" : "up"
+            text: bridge.translate(page.collectionOptionsCollapsed ? "Expandir opções" : "Recolher opções")
+            Accessible.name: text
+            onClicked: page.collectionOptionsCollapsed = !page.collectionOptionsCollapsed
+        }
     }
     ColumnLayout {
-        visible:page.spotifyBrowsing;Layout.fillWidth:true;Layout.fillHeight:visible
-        OndaTextField {Layout.fillWidth:true;placeholderText:bridge.translate("Buscar por nome ou dono");text:page.collectionQuery;onTextEdited:page.collectionQuery=text}
-        OndaTextField {Layout.fillWidth:true;placeholderText:bridge.translate("Data de criação")+" · "+bridge.translate("AAAA ou AAAA-MM-DD");text:page.creationQuery;onTextEdited:page.creationQuery=text}
-        Label {visible:page.creationQuery!=="";Layout.fillWidth:true;wrapMode:Text.Wrap;text:bridge.translate("Somente coleções com data informada pelo serviço.");color:bridge.palette.muted}
-        RowLayout {
-            Layout.fillWidth:true
-            Label {text:bridge.translate("Ordenar por");color:bridge.palette.muted}
-            ChoiceBox {Layout.fillWidth:true;model:["Ordem original","Nome","Data de criação"];onActivated:page.collectionSort=["","title","date"][currentIndex]}
-            ChoiceBox {enabled:page.collectionSort!=="";model:["Crescente","Decrescente"];onActivated:page.collectionDescending=currentIndex===1}
+        objectName: "collectionOptionsPanel"
+        Layout.fillWidth: true; Layout.fillHeight: page.spotifyBrowsing
+        visible: page.catalog || page.history || page.spotifyBrowsing || !page.collectionOptionsCollapsed
+        spacing: page.spacing
+        GridLayout { Layout.fillWidth: true; columns: page.width<900*bridge.fontScale ? 3 : 4; columnSpacing: Math.round(10*bridge.spacing); rowSpacing: 8
+            OndaTextField { Layout.fillWidth: true; Layout.minimumWidth: 0; Layout.columnSpan: page.width<900*bridge.fontScale ? 3 : 1; placeholderText: bridge.translate(page.history ? "Buscar no histórico" : page.catalog ? "Pesquise uma música ou cole um link" : "Link do álbum ou playlist"); text: page.history ? workspace.optionValue(workspace.optionsRevision,"historyQuery") : page.catalog ? workspace.optionValue(workspace.optionsRevision,"query") : workspace.optionValue(workspace.optionsRevision,"playlistUrl")
+                onTextEdited: workspace.setOption(page.history ? "historyQuery" : page.catalog ? "query" : "playlistUrl",text)
+                onAccepted: if (!page.history && workspace.activityValue(workspace.statusRevision,"busy").indexOf(page.catalog ? "search" : "collection") < 0) workspace.invoke(page.catalog ? "search" : "load_playlist",{})
+            }
+            ChoiceBox { Layout.fillWidth: page.width<900*bridge.fontScale; visible: page.catalog; model: ["Deezer","Apple / iTunes","Spotify","Todos"]; currentIndex: Math.max(0,model.indexOf(workspace.optionValue(workspace.optionsRevision,"provider"))); onActivated: workspace.setOption("provider",currentText) }
+            TaskButton { Layout.fillWidth: page.width<900*bridge.fontScale; objectName: "libraryLoadButton"; visible: !page.history; primary: true; idleText: bridge.translate(page.catalog ? "Pesquisar" : workspace.optionValue(workspace.optionsRevision,"playlistTitle") && workspace.optionValue(workspace.optionsRevision,"loadedPlaylistUrl")===workspace.optionValue(workspace.optionsRevision,"playlistUrl") ? "Atualizar" : "Carregar"); operation: page.catalog ? "search" : "load_playlist"; taskNames: page.catalog ? ["search"] : ["collection","compare_collection","check_matches"] }
+            TaskButton { visible: page.catalog; idleText: bridge.translate("Atualizar busca"); operation: "search"; parameters: ({refresh:true}) }
         }
-        ActionButton {Layout.alignment:Qt.AlignRight;text:bridge.translate("Limpar filtros");onClicked:{page.collectionQuery="";page.creationQuery=""}}
-        OndaListView {
-            id:spotifyLists;objectName:"spotifyAccountPlaylists";Layout.fillWidth:true;Layout.fillHeight:true;clip:true;spacing:10;reuseItems:true
-            model:page.sortedCollections(workspace.optionValue(workspace.optionsRevision,"spotifyPlaylists") || [])
+        RowLayout {
+            visible: !page.catalog && !page.history; Layout.fillWidth: true
+            ActionButton {objectName:"spotifyPlaylistsButton";text:bridge.translate("Playlists do Spotify");primary:page.spotifyBrowsing;onClicked:{if(!workspace.activityValue(workspace.statusRevision,"spotifyConnected"))workspace.invoke("configure_spotify",{});else if(workspace.optionValue(workspace.optionsRevision,"spotifyPlaylistsLoaded"))workspace.setOption("spotifyPlaylistsVisible",!page.spotifyBrowsing);else workspace.invoke("spotify_playlists",{})}}
+            TaskButton {visible:page.spotifyBrowsing;idleText:bridge.translate("Atualizar");operation:"spotify_playlists";taskNames:["spotify_playlists"]}
+            Label {visible:!workspace.activityValue(workspace.statusRevision,"spotifyConnected");Layout.fillWidth:true;text:bridge.translate("Conecte sua conta Spotify para ver suas playlists.");color:bridge.palette.muted;wrapMode:Text.Wrap}
+        }
+        ColumnLayout {
+            visible:page.spotifyBrowsing;Layout.fillWidth:true;Layout.fillHeight:visible
+            OndaTextField {Layout.fillWidth:true;placeholderText:bridge.translate("Buscar por nome ou dono");text:page.collectionQuery;onTextEdited:page.collectionQuery=text}
+            OndaTextField {Layout.fillWidth:true;placeholderText:bridge.translate("Data de criação")+" · "+bridge.translate("AAAA ou AAAA-MM-DD");text:page.creationQuery;onTextEdited:page.creationQuery=text}
+            Label {visible:page.creationQuery!=="";Layout.fillWidth:true;wrapMode:Text.Wrap;text:bridge.translate("Somente coleções com data informada pelo serviço.");color:bridge.palette.muted}
+            RowLayout {
+                Layout.fillWidth:true
+                Label {text:bridge.translate("Ordenar por");color:bridge.palette.muted}
+                ChoiceBox {Layout.fillWidth:true;model:["Ordem original","Nome","Data de criação"];onActivated:page.collectionSort=["","title","date"][currentIndex]}
+                ChoiceBox {enabled:page.collectionSort!=="";model:["Crescente","Decrescente"];onActivated:page.collectionDescending=currentIndex===1}
+            }
+            ActionButton {Layout.alignment:Qt.AlignRight;text:bridge.translate("Limpar filtros");onClicked:{page.collectionQuery="";page.creationQuery=""}}
+            OndaListView {
+                id:spotifyLists;objectName:"spotifyAccountPlaylists";Layout.fillWidth:true;Layout.fillHeight:true;clip:true;spacing:10;reuseItems:true
+                model:page.sortedCollections(workspace.optionValue(workspace.optionsRevision,"spotifyPlaylists") || [])
 
-            EmptyState {anchors.fill:parent;visible:spotifyLists.count===0;heading:bridge.translate(workspace.activityValue(workspace.statusRevision,"busy").indexOf("spotify_playlists")>=0?"Carregando playlists…":"Nenhuma playlist encontrada");description:bridge.translate("As playlists da conta conectada aparecerão aqui.")}
-            delegate:Card {
-                required property var modelData;width:ListView.view.contentAreaWidth;height:108
-                RowLayout {anchors.fill:parent;anchors.margins:12;spacing:12
-                    RoundedArtwork {Layout.preferredWidth:80;Layout.preferredHeight:80;source:modelData.cover_url || "";fillMode:Image.PreserveAspectFit;asynchronous:true;sourceSize.width:160;sourceSize.height:160}
-                    ColumnLayout {Layout.fillWidth:true;Layout.minimumWidth:0
-                        Label {Layout.fillWidth:true;text:modelData.title;textFormat:Text.PlainText;color:bridge.palette.text;font.bold:true;elide:Text.ElideRight}
-                        Label {Layout.fillWidth:true;text:modelData.owner || "";textFormat:Text.PlainText;color:bridge.palette.muted;elide:Text.ElideRight}
-                        Label {text:modelData.count===null?"":modelData.count+" "+bridge.translate("faixas");color:bridge.palette.muted}
-                    }
-                    ActionButton {text:bridge.translate("Abrir coleção");enabled:workspace.activityValue(workspace.statusRevision,"busy").indexOf("collection")<0;onClicked:workspace.invoke("spotify_playlist_open",{id:modelData.id})}
-                    ActionButton {visible:spotifyLists.contentAreaWidth>=760;text:bridge.translate("Usar em reprodução");enabled:workspace.activityValue(workspace.statusRevision,"busy").indexOf("collection")<0;onClicked:workspace.invoke("spotify_playlist_playback",{id:modelData.id})}
-                    ActionButton {id:spotifyMore;text:bridge.translate("Mais ações");onClicked:spotifyActions.popup(spotifyMore,0,spotifyMore.height)}
-                    OndaMenu {id:spotifyActions
-                        OndaMenuItem {visible:spotifyLists.contentAreaWidth<760;text:bridge.translate("Usar em reprodução");enabled:workspace.activityValue(workspace.statusRevision,"busy").indexOf("collection")<0;onTriggered:workspace.invoke("spotify_playlist_playback",{id:modelData.id})}
-                        OndaMenuItem {text:bridge.translate("Baixar agora");enabled:workspace.activityValue(workspace.statusRevision,"busy").indexOf("collection")<0;onTriggered:workspace.invoke("spotify_playlist_download",{id:modelData.id})}
-                        OndaMenuItem {text:bridge.translate("Adicionar aos downloads");enabled:workspace.activityValue(workspace.statusRevision,"busy").indexOf("collection")<0;onTriggered:workspace.invoke("spotify_playlist_add",{id:modelData.id})}
+                EmptyState {anchors.fill:parent;visible:spotifyLists.count===0;heading:bridge.translate(workspace.activityValue(workspace.statusRevision,"busy").indexOf("spotify_playlists")>=0?"Carregando playlists…":"Nenhuma playlist encontrada");description:bridge.translate("As playlists da conta conectada aparecerão aqui.")}
+                delegate:Card {
+                    required property var modelData;width:ListView.view.contentAreaWidth;height:108
+                    RowLayout {anchors.fill:parent;anchors.margins:12;spacing:12
+                        RoundedArtwork {Layout.preferredWidth:80;Layout.preferredHeight:80;source:modelData.cover_url || "";fillMode:Image.PreserveAspectFit;asynchronous:true;sourceSize.width:160;sourceSize.height:160}
+                        ColumnLayout {Layout.fillWidth:true;Layout.minimumWidth:0
+                            Label {Layout.fillWidth:true;text:modelData.title;textFormat:Text.PlainText;color:bridge.palette.text;font.bold:true;elide:Text.ElideRight}
+                            Label {Layout.fillWidth:true;text:modelData.owner || "";textFormat:Text.PlainText;color:bridge.palette.muted;elide:Text.ElideRight}
+                            Label {text:modelData.count===null?"":modelData.count+" "+bridge.translate("faixas");color:bridge.palette.muted}
+                        }
+                        ActionButton {text:bridge.translate("Abrir coleção");enabled:workspace.activityValue(workspace.statusRevision,"busy").indexOf("collection")<0;onClicked:workspace.invoke("spotify_playlist_open",{id:modelData.id})}
+                        ActionButton {visible:spotifyLists.contentAreaWidth>=760;text:bridge.translate("Usar em reprodução");enabled:workspace.activityValue(workspace.statusRevision,"busy").indexOf("collection")<0;onClicked:workspace.invoke("spotify_playlist_playback",{id:modelData.id})}
+                        ActionButton {id:spotifyMore;text:bridge.translate("Mais ações");onClicked:spotifyActions.popup(spotifyMore,0,spotifyMore.height)}
+                        OndaMenu {id:spotifyActions
+                            OndaMenuItem {visible:spotifyLists.contentAreaWidth<760;text:bridge.translate("Usar em reprodução");enabled:workspace.activityValue(workspace.statusRevision,"busy").indexOf("collection")<0;onTriggered:workspace.invoke("spotify_playlist_playback",{id:modelData.id})}
+                            OndaMenuItem {text:bridge.translate("Baixar agora");enabled:workspace.activityValue(workspace.statusRevision,"busy").indexOf("collection")<0;onTriggered:workspace.invoke("spotify_playlist_download",{id:modelData.id})}
+                            OndaMenuItem {text:bridge.translate("Adicionar aos downloads");enabled:workspace.activityValue(workspace.statusRevision,"busy").indexOf("collection")<0;onTriggered:workspace.invoke("spotify_playlist_add",{id:modelData.id})}
+                        }
                     }
                 }
             }
+            TaskButton {visible:Number(workspace.optionValue(workspace.optionsRevision,"spotifyPlaylistsNext"))>=0;idleText:bridge.translate("Carregar mais");operation:"spotify_playlists";parameters:({more:true});taskNames:["spotify_playlists"]}
         }
-        TaskButton {visible:Number(workspace.optionValue(workspace.optionsRevision,"spotifyPlaylistsNext"))>=0;idleText:bridge.translate("Carregar mais");operation:"spotify_playlists";parameters:({more:true});taskNames:["spotify_playlists"]}
-    }
-    RowLayout { visible: page.history; Layout.fillWidth: true; spacing: 8
-        Repeater { model: ["Todos","Áudio","Vídeo","Imagens"]
-            SegmentButton {required property string modelData;objectName: "historyFilter_"+modelData;text:bridge.translate(modelData);primary:workspace.optionValue(workspace.optionsRevision,"historyKind")===modelData;onClicked:workspace.setOption("historyKind",modelData)}
+        RowLayout { visible: page.history; Layout.fillWidth: true; spacing: 8
+            Repeater { model: ["Todos","Áudio","Vídeo","Imagens"]
+                SegmentButton {required property string modelData;objectName: "historyFilter_"+modelData;text:bridge.translate(modelData);primary:workspace.optionValue(workspace.optionsRevision,"historyKind")===modelData;onClicked:workspace.setOption("historyKind",modelData)}
+            }
         }
-    }
-    RowLayout {
-        objectName: "spotifySetupNotice"
-        visible: page.catalog && workspace.optionValue(workspace.optionsRevision,"provider") === "Spotify" && !workspace.activityValue(workspace.statusRevision,"spotifySearchReady")
-        Layout.fillWidth: true
-        Label { Layout.fillWidth: true; wrapMode: Text.Wrap; color: bridge.palette.muted; text: bridge.translate("Configure a API em Configurações → Contas para pesquisar músicas no Spotify.") }
-        ActionButton { text: bridge.translate("Configurar Spotify"); onClicked: workspace.invoke("configure_spotify",{}) }
-    }
-    RowLayout { visible: page.catalog; Layout.fillWidth: true
-        OndaTextField { Layout.fillWidth: true; placeholderText: bridge.translate("Artista"); onTextEdited: workspace.setOption("filterArtist",text) }
-        OndaTextField { Layout.fillWidth: true; placeholderText: bridge.translate("Álbum"); onTextEdited: workspace.setOption("filterAlbum",text) }
-        OndaTextField { Layout.fillWidth: true; placeholderText: bridge.translate("Versão"); onTextEdited: workspace.setOption("filterVersion",text) }
-    }
-    Flow { visible: !page.catalog && !page.spotifyBrowsing; Layout.fillWidth:true; spacing:10
-        ActionButton {visible:!page.history;text:bridge.translate("Importar lista");onClicked:workspace.invoke("import_playlist",{})}
-        ActionButton {visible:!page.history;primary:true;text:bridge.translate("Adicionar aos downloads");enabled:workspace.collectionFilterModel.count>0;onClicked:workspace.invoke("playlist_add",{})}
-        ActionButton {visible:!page.history;text:bridge.translate("Usar em reprodução");enabled:workspace.collectionFilterModel.count>0;onClicked:workspace.invoke("playlist_playback",{})}
-        ActionButton {visible:page.history && !!workspace.optionValue(workspace.optionsRevision,"historyUndo");text:bridge.translate("Desfazer remoção");onClicked:workspace.invoke("history_undo",{})}
-        ActionButton {visible:page.history;text:bridge.translate("Limpar histórico");onClicked:workspace.invoke("history_clear",{})}
-        ActionButton {id:collectionActionsButton;objectName:"openCollectionActions";text:bridge.translate(page.history ? "Exportar histórico" : "Mais ações");onClicked:if(page.history)workspace.invoke("export_history",{});else collectionActions.popup(collectionActionsButton,0,collectionActionsButton.height+6)}
-        OndaMenu {id:collectionActions;objectName:"collectionActionsMenu"
-            OndaMenuItem {text:bridge.translate("Exportar");onTriggered:workspace.invoke(page.history ? "export_history" : "export_playlist",{})}
-            OndaMenuItem {visible:!page.history;text:bridge.translate("Selecionar todas");onTriggered:workspace.invoke("check_all",{model:"playlists",checked:true})}
-            OndaMenuItem {visible:!page.history;text:bridge.translate("Desmarcar todas");onTriggered:workspace.invoke("check_all",{model:"playlists",checked:false})}
-            OndaMenuItem {visible:!page.history;text:bridge.translate("Conferir versões");enabled:workspace.activityValue(workspace.statusRevision,"busy").length===0;onTriggered:workspace.invoke("check_matches",{})}
-            OndaMenuItem {visible:!page.history;text:bridge.translate("Conferir arquivos locais");enabled:workspace.activityValue(workspace.statusRevision,"busy").length===0;onTriggered:workspace.invoke("compare_playlist",{})}
-            OndaMenuItem {visible:!page.history;text:bridge.translate("Selecionar ausentes");onTriggered:workspace.invoke("playlist_missing",{})}
+        RowLayout {
+            objectName: "spotifySetupNotice"
+            visible: page.catalog && workspace.optionValue(workspace.optionsRevision,"provider") === "Spotify" && !workspace.activityValue(workspace.statusRevision,"spotifySearchReady")
+            Layout.fillWidth: true
+            Label { Layout.fillWidth: true; wrapMode: Text.Wrap; color: bridge.palette.muted; text: bridge.translate("Configure a API em Configurações → Contas para pesquisar músicas no Spotify.") }
+            ActionButton { text: bridge.translate("Configurar Spotify"); onClicked: workspace.invoke("configure_spotify",{}) }
         }
+        RowLayout { visible: page.catalog; Layout.fillWidth: true
+            OndaTextField { Layout.fillWidth: true; placeholderText: bridge.translate("Artista"); onTextEdited: workspace.setOption("filterArtist",text) }
+            OndaTextField { Layout.fillWidth: true; placeholderText: bridge.translate("Álbum"); onTextEdited: workspace.setOption("filterAlbum",text) }
+            OndaTextField { Layout.fillWidth: true; placeholderText: bridge.translate("Versão"); onTextEdited: workspace.setOption("filterVersion",text) }
+        }
+        Flow { visible: !page.catalog && !page.spotifyBrowsing; Layout.fillWidth:true; spacing:10
+            ActionButton {visible:!page.history;text:bridge.translate("Importar lista");onClicked:workspace.invoke("import_playlist",{})}
+            ActionButton {visible:!page.history;primary:true;text:bridge.translate("Adicionar aos downloads");enabled:workspace.collectionFilterModel.count>0;onClicked:workspace.invoke("playlist_add",{})}
+            ActionButton {visible:!page.history;text:bridge.translate("Usar em reprodução");enabled:workspace.collectionFilterModel.count>0;onClicked:workspace.invoke("playlist_playback",{})}
+            ActionButton {visible:page.history && !!workspace.optionValue(workspace.optionsRevision,"historyUndo");text:bridge.translate("Desfazer remoção");onClicked:workspace.invoke("history_undo",{})}
+            ActionButton {visible:page.history;text:bridge.translate("Limpar histórico");onClicked:workspace.invoke("history_clear",{})}
+            ActionButton {id:collectionActionsButton;objectName:"openCollectionActions";text:bridge.translate(page.history ? "Exportar histórico" : "Mais ações");onClicked:if(page.history)workspace.invoke("export_history",{});else collectionActions.popup(collectionActionsButton,0,collectionActionsButton.height+6)}
+            OndaMenu {id:collectionActions;objectName:"collectionActionsMenu"
+                OndaMenuItem {text:bridge.translate("Exportar");onTriggered:workspace.invoke(page.history ? "export_history" : "export_playlist",{})}
+                OndaMenuItem {visible:!page.history;text:bridge.translate("Selecionar todas");onTriggered:workspace.invoke("check_all",{model:"playlists",checked:true})}
+                OndaMenuItem {visible:!page.history;text:bridge.translate("Desmarcar todas");onTriggered:workspace.invoke("check_all",{model:"playlists",checked:false})}
+                OndaMenuItem {visible:!page.history;text:bridge.translate("Conferir versões");enabled:workspace.activityValue(workspace.statusRevision,"busy").length===0;onTriggered:workspace.invoke("check_matches",{})}
+                OndaMenuItem {visible:!page.history;text:bridge.translate("Conferir arquivos locais");enabled:workspace.activityValue(workspace.statusRevision,"busy").length===0;onTriggered:workspace.invoke("compare_playlist",{})}
+                OndaMenuItem {visible:!page.history;text:bridge.translate("Selecionar ausentes");onTriggered:workspace.invoke("playlist_missing",{})}
+            }
+        }
+        Label { visible: !page.catalog && !page.history && !page.spotifyBrowsing; text: workspace.optionValue(workspace.optionsRevision,"playlistTitle") || ""; color: bridge.palette.text; font.pixelSize: Math.round(20*bridge.fontScale) }
+        Label {objectName:"collectionCoverage";visible:!page.catalog && !page.history && !page.spotifyBrowsing && !!text;Layout.fillWidth:true;wrapMode:Text.Wrap;color:bridge.palette.text;text:bridge.translate(workspace.optionValue(workspace.optionsRevision,"collectionCoverage") || "")}
+        ActionButton {visible:!page.catalog && !page.history && !page.spotifyBrowsing && workspace.playlistModel.count>0;text:bridge.translate("Conferir lista importada");enabled:workspace.activityValue(workspace.statusRevision,"busy").length===0;onClicked:workspace.invoke("compare_imported_collection",{})}
+        Label {visible:!page.catalog && !page.history && !page.spotifyBrowsing && !!text;Layout.fillWidth:true;wrapMode:Text.Wrap;color:bridge.palette.muted;text:bridge.translate(workspace.optionValue(workspace.optionsRevision,"collectionReference") || "")}
+        RowLayout {visible:!page.catalog && !page.history && !page.spotifyBrowsing;Layout.fillWidth:true
+            OndaTextField {id:collectionTitle;objectName:"collectionTitleFilter";Layout.fillWidth:true;placeholderText:bridge.translate("Título");text:workspace.collectionFilterModel.filters.title;onTextEdited:collectionFilterTimer.restart()}
+            OndaTextField {id:collectionArtist;objectName:"collectionArtistFilter";Layout.fillWidth:true;placeholderText:bridge.translate("Artista");text:workspace.collectionFilterModel.filters.artist;onTextEdited:collectionFilterTimer.restart()}
+            OndaTextField {id:collectionAlbum;objectName:"collectionAlbumFilter";Layout.fillWidth:true;placeholderText:bridge.translate("Álbum");text:workspace.collectionFilterModel.filters.album;onTextEdited:collectionFilterTimer.restart()}
+            ActionButton {text:bridge.translate("Limpar filtros");onClicked:{collectionFilterTimer.stop();workspace.collectionFilterModel.setFilters("","","")}}
+        }
+        RowLayout {visible:!page.catalog && !page.history && !page.spotifyBrowsing;Layout.fillWidth:true
+            Label {text:bridge.translate(workspace.optionValue(workspace.optionsRevision,"collectionKind")==="album" ? "Data de lançamento" : "Data de criação");color:bridge.palette.muted}
+            OndaTextField {id:collectionDate;objectName:"collectionDateFilter";Layout.fillWidth:true;placeholderText:bridge.translate("AAAA ou AAAA-MM-DD");text:workspace.collectionFilterModel.filters.date;onTextEdited:collectionFilterTimer.restart()}
+        }
+        RowLayout {
+            visible:!page.catalog && !page.history && !page.spotifyBrowsing;Layout.fillWidth:true
+            Label {text:bridge.translate("Ordenar por");color:bridge.palette.muted}
+            ChoiceBox {id:trackSort;Layout.fillWidth:true;model:["Ordem original","Título","Artista","Álbum","Data de lançamento"];onActivated:workspace.collectionFilterModel.setOrdering(["","title","artist","album","release_date"][currentIndex],trackDirection.currentIndex===1)}
+            ChoiceBox {id:trackDirection;enabled:trackSort.currentIndex>0;model:["Crescente","Decrescente"];onActivated:workspace.collectionFilterModel.setOrdering(["","title","artist","album","release_date"][trackSort.currentIndex],currentIndex===1)}
+        }
+        Timer {id:collectionFilterTimer;interval:150;onTriggered:workspace.collectionFilterModel.setFilters(collectionTitle.text,collectionArtist.text,collectionAlbum.text,collectionDate.text)}
+        Label {visible:!page.catalog && !page.history && !page.spotifyBrowsing;text:workspace.collectionFilterModel.count+" / "+workspace.playlistModel.count;color:bridge.palette.muted}
     }
-    Label { visible: !page.catalog && !page.history && !page.spotifyBrowsing; text: workspace.optionValue(workspace.optionsRevision,"playlistTitle") || ""; color: bridge.palette.text; font.pixelSize: Math.round(20*bridge.fontScale) }
-    Label {objectName:"collectionCoverage";visible:!page.catalog && !page.history && !page.spotifyBrowsing && !!text;Layout.fillWidth:true;wrapMode:Text.Wrap;color:bridge.palette.text;text:bridge.translate(workspace.optionValue(workspace.optionsRevision,"collectionCoverage") || "")}
-    ActionButton {visible:!page.catalog && !page.history && !page.spotifyBrowsing && workspace.playlistModel.count>0;text:bridge.translate("Conferir lista importada");enabled:workspace.activityValue(workspace.statusRevision,"busy").length===0;onClicked:workspace.invoke("compare_imported_collection",{})}
-    Label {visible:!page.catalog && !page.history && !page.spotifyBrowsing && !!text;Layout.fillWidth:true;wrapMode:Text.Wrap;color:bridge.palette.muted;text:bridge.translate(workspace.optionValue(workspace.optionsRevision,"collectionReference") || "")}
-    RowLayout {visible:!page.catalog && !page.history && !page.spotifyBrowsing;Layout.fillWidth:true
-        OndaTextField {id:collectionTitle;objectName:"collectionTitleFilter";Layout.fillWidth:true;placeholderText:bridge.translate("Título");text:workspace.collectionFilterModel.filters.title;onTextEdited:collectionFilterTimer.restart()}
-        OndaTextField {id:collectionArtist;objectName:"collectionArtistFilter";Layout.fillWidth:true;placeholderText:bridge.translate("Artista");text:workspace.collectionFilterModel.filters.artist;onTextEdited:collectionFilterTimer.restart()}
-        OndaTextField {id:collectionAlbum;objectName:"collectionAlbumFilter";Layout.fillWidth:true;placeholderText:bridge.translate("Álbum");text:workspace.collectionFilterModel.filters.album;onTextEdited:collectionFilterTimer.restart()}
-        ActionButton {text:bridge.translate("Limpar filtros");onClicked:{collectionFilterTimer.stop();workspace.collectionFilterModel.setFilters("","","")}}
-    }
-    RowLayout {visible:!page.catalog && !page.history && !page.spotifyBrowsing;Layout.fillWidth:true
-        Label {text:bridge.translate(workspace.optionValue(workspace.optionsRevision,"collectionKind")==="album" ? "Data de lançamento" : "Data de criação");color:bridge.palette.muted}
-        OndaTextField {id:collectionDate;objectName:"collectionDateFilter";Layout.fillWidth:true;placeholderText:bridge.translate("AAAA ou AAAA-MM-DD");text:workspace.collectionFilterModel.filters.date;onTextEdited:collectionFilterTimer.restart()}
-    }
-    RowLayout {
-        visible:!page.catalog && !page.history && !page.spotifyBrowsing;Layout.fillWidth:true
-        Label {text:bridge.translate("Ordenar por");color:bridge.palette.muted}
-        ChoiceBox {id:trackSort;Layout.fillWidth:true;model:["Ordem original","Título","Artista","Álbum","Data de lançamento"];onActivated:workspace.collectionFilterModel.setOrdering(["","title","artist","album","release_date"][currentIndex],trackDirection.currentIndex===1)}
-        ChoiceBox {id:trackDirection;enabled:trackSort.currentIndex>0;model:["Crescente","Decrescente"];onActivated:workspace.collectionFilterModel.setOrdering(["","title","artist","album","release_date"][trackSort.currentIndex],currentIndex===1)}
-    }
-    Timer {id:collectionFilterTimer;interval:150;onTriggered:workspace.collectionFilterModel.setFilters(collectionTitle.text,collectionArtist.text,collectionAlbum.text,collectionDate.text)}
-    Label {visible:!page.catalog && !page.history && !page.spotifyBrowsing;text:workspace.collectionFilterModel.count+" / "+workspace.playlistModel.count;color:bridge.palette.muted}
-    CardSizeControl { visible:!page.spotifyBrowsing; Layout.alignment: Qt.AlignRight; settingKey: page.cardSizeKey }
-    OndaListView { id:libraryList;visible:!page.spotifyBrowsing; objectName:"libraryScrollList"; Layout.fillWidth: true; Layout.fillHeight: true; clip: true; spacing: Math.round(10*bridge.spacing); reuseItems: true; model: page.catalog ? workspace.catalogModel : page.history ? workspace.historyModel : workspace.collectionFilterModel
+    CardSizeControl { objectName:"collectionCardSizeControl"; visible:!page.spotifyBrowsing && (!page.collectionOptionsCollapsed || page.catalog || page.history); Layout.alignment: Qt.AlignRight; settingKey: page.cardSizeKey }
+    OndaListView { id:libraryList;visible:!page.spotifyBrowsing; objectName:"libraryScrollList"; Layout.fillWidth: true; Layout.fillHeight: true; clip: true; spacing: Math.round((page.tinyCards ? 2 : 10)*bridge.spacing); reuseItems: true; model: page.catalog ? workspace.catalogModel : page.history ? workspace.historyModel : workspace.collectionFilterModel
         EmptyState {
             objectName: "libraryEmptyState"
             anchors.fill: parent; visible: parent.count === 0
@@ -154,7 +193,11 @@ ColumnLayout {
         }
 
         ScrollToTop { target: libraryList; viewport: libraryList }
-        delegate: Card { id: rowCard; objectName: "libraryTrackCard"; required property var entry; required property int index; readonly property int actionIndex: page.catalog || page.history ? index : entry._source_row; width: ListView.view.contentAreaWidth; height: Math.max(page.history ? (page.smallCards ? 76 : page.cardSize === "Médio" ? 104 : 132) : page.catalog ? (page.smallCards ? 120 : page.cardSize === "Médio" ? 148 : 168) : (page.smallCards ? 132 : page.cardSize === "Médio" ? 160 : 192),trackDetails.implicitHeight+24)
+        delegate: Card { id: rowCard; objectName: "libraryTrackCard"; required property var entry; required property int index; readonly property int actionIndex: page.catalog || page.history ? index : entry._source_row; width: ListView.view.contentAreaWidth; height: page.tinyCards ? Math.round(64*bridge.fontScale) : Math.max(page.history ? (page.smallCards ? 76 : page.cardSize === "Médio" ? 104 : 132) : page.catalog ? (page.smallCards ? 120 : page.cardSize === "Médio" ? 148 : 168) : (page.smallCards ? 132 : page.cardSize === "Médio" ? 160 : 192),trackDetails.implicitHeight+24)
+            color: rowCard.modifierSelected ? bridge.palette.selected : page.tinyCards ? "transparent" : bridge.palette.surface
+            border.width: page.tinyCards ? 0 : (bridge.palette.flat_black ? 0 : 1)
+            readonly property string selectionModel: page.history ? "history" : page.catalog ? "catalog" : "playlists"
+            readonly property bool modifierSelected: !!rowCard.entry && workspace.musicRowSelected(workspace.musicSelectionRevision,selectionModel,rowCard.actionIndex)
             function requestDetails() {
                 if(!page.visible || typeof entry==="undefined" || !entry)return
                 if(page.history)workspace.invoke("request_history_details",{id:entry.id})
@@ -181,10 +224,31 @@ ColumnLayout {
             Keys.onPressed: function(event) {if(event.key===Qt.Key_Menu || (event.key===Qt.Key_F10 && (event.modifiers & Qt.ShiftModifier))){historyContext.popup();event.accepted=true}}
             TapHandler {acceptedButtons:Qt.RightButton;onTapped:historyContext.popup()}
             MouseArea {objectName:"openHistoryImages";anchors.fill:parent;acceptedButtons:Qt.LeftButton;enabled:page.history && !!rowCard.entry.is_image;cursorShape:enabled ? Qt.PointingHandCursor : Qt.ArrowCursor;onClicked:workspace.invoke("history_preview",{id:rowCard.entry.id})}
-            RowLayout { id: trackBody; anchors.fill: parent; anchors.margins: 12; spacing: Math.round(18*bridge.spacing)
-                CheckBox { visible: !page.catalog; checked: rowCard.entry.checked || false; onToggled: workspace.invoke("check",{model:page.history ? "history" : "playlists",index:rowCard.actionIndex,checked:checked}) }
-                RoundedArtwork { objectName: "libraryArtwork"; readonly property bool artworkReady: status === Image.Ready; source: rowCard.entry.cover_url || ""; sourceSize.width: 440; sourceSize.height: 440; Layout.preferredWidth: Math.min(rowCard.height-24,page.smallCards ? 76 : page.cardSize === "Médio" ? 112 : page.catalog ? 128 : 168,rowCard.width*0.25); Layout.preferredHeight: Layout.preferredWidth; fillMode: Image.PreserveAspectFit; asynchronous: true
-                    TapHandler { enabled: page.history && !!rowCard.entry.is_image; onTapped: workspace.invoke("history_preview",{id:rowCard.entry.id}) }
+            MouseArea {
+                anchors.fill: parent; acceptedButtons: Qt.LeftButton
+                onPressed: function(mouse) {mouse.accepted=!!(mouse.modifiers & (Qt.ControlModifier | Qt.ShiftModifier))}
+                onClicked: function(mouse) {workspace.selectMusicRows(rowCard.selectionModel,rowCard.index,mouse.modifiers)}
+            }
+            RowLayout {
+                visible: page.tinyCards
+                anchors.fill: parent; anchors.margins: 8; spacing: 12
+                CheckBox { checked: !!rowCard.entry.checked; onToggled: workspace.invoke("check",{model:rowCard.selectionModel,index:rowCard.actionIndex,checked:checked}) }
+                RoundedArtwork { Layout.preferredWidth: 40; Layout.preferredHeight: 40; source: page.tinyCards ? rowCard.entry.cover_url || "" : ""; sourceSize.width: 80; sourceSize.height: 80; fillMode: Image.PreserveAspectCrop }
+                ColumnLayout {
+                    Layout.fillWidth: true; Layout.minimumWidth: 0; spacing: 2
+                    Label { Layout.fillWidth: true; text: rowCard.entry.title || rowCard.entry.name || ""; color: bridge.palette.text; font.weight: Font.DemiBold; elide: Text.ElideRight }
+                    Label { Layout.fillWidth: true; text: rowCard.entry.artist || ""; color: bridge.palette.muted; elide: Text.ElideRight }
+                }
+                Label { visible: rowCard.width>850; Layout.preferredWidth: rowCard.width*.22; text: rowCard.entry.album || ""; color: bridge.palette.muted; elide: Text.ElideRight }
+                Label { visible: rowCard.width>1100; Layout.preferredWidth: 150; text: rowCard.entry.date_display || rowCard.entry.release_date || ""; color: bridge.palette.muted; elide: Text.ElideRight }
+                Label { text: rowCard.entry.duration>0 ? workspace.clock(rowCard.entry.duration) : ""; color: bridge.palette.muted }
+                PlaybackButton { glyph: page.history ? "play" : "down"; Accessible.name: bridge.translate(page.history ? "Abrir arquivo" : "Baixar agora"); ToolTip.visible: hovered; ToolTip.text: Accessible.name; onClicked: workspace.invoke(page.history ? (rowCard.entry.is_image ? "history_preview" : "open_file") : "catalog_download",page.history ? {path:rowCard.entry.path,id:rowCard.entry.id} : {model:page.catalog ? "catalog" : "playlists",index:rowCard.actionIndex}) }
+                PlaybackButton { glyph: "more"; Accessible.name: bridge.translate("Mais ações"); onClicked: historyContext.popup() }
+            }
+            RowLayout { id: trackBody; visible: !page.tinyCards; anchors.fill: parent; anchors.margins: 12; spacing: Math.round(18*bridge.spacing)
+                CheckBox { checked: rowCard.entry.checked || false; onToggled: workspace.invoke("check",{model:rowCard.selectionModel,index:rowCard.actionIndex,checked:checked}) }
+                RoundedArtwork { objectName: "libraryArtwork"; readonly property bool artworkReady: status === Image.Ready; source: page.tinyCards ? "" : rowCard.entry.cover_url || ""; sourceSize.width: 440; sourceSize.height: 440; Layout.preferredWidth: Math.min(rowCard.height-24,page.smallCards ? 76 : page.cardSize === "Médio" ? 112 : page.catalog ? 128 : 168,rowCard.width*0.25); Layout.preferredHeight: Layout.preferredWidth; fillMode: Image.PreserveAspectFit; asynchronous: true
+                    TapHandler { acceptedModifiers: Qt.NoModifier; enabled: page.history && !!rowCard.entry.is_image; onTapped: workspace.invoke("history_preview",{id:rowCard.entry.id}) }
                     LineIcon {anchors.centerIn:parent;visible:parent.status!==Image.Ready && !!rowCard.entry.is_image;glyph:"images";width:30;height:30;ink:bridge.palette.muted}
                     Label { anchors.centerIn: parent; visible: parent.status !== Image.Ready && !rowCard.entry.is_image; text: "♪"; font.pixelSize: Math.round(36*bridge.fontScale); color: bridge.palette.muted }
                 }

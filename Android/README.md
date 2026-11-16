@@ -1,13 +1,13 @@
 # ONDA para Android
 
-**Versão 1.2.9**, para Android 8 ou superior, ARM64 e x86_64.
+**Versão 1.3.0**, para Android 8 ou superior, ARM64 e x86_64.
 
 O ONDA reúne pesquisa, downloads, reprodução, efeitos de áudio, edição de metadados e ferramentas de imagens. A navegação principal usa **Pesquisar**, **Downloads**, **Reprodução** e **Mais**.
 
 ## Instalar
 
-- Celulares ARM64: `APK/ONDA-Android-1.2.9-arm64-v8a.apk`.
-- Dispositivos e emuladores x86_64: `APK/ONDA-Android-1.2.9-x86_64.apk`.
+- Celulares ARM64: `APK/ONDA-Android-1.3.0-arm64-v8a.apk`.
+- Dispositivos e emuladores x86_64: `APK/ONDA-Android-1.3.0-x86_64.apk`.
 
 Transfira o APK para o aparelho e permita a instalação pela origem escolhida. Não é necessário instalar Python, FFmpeg ou Termux. As atualizações usam a assinatura original do ONDA e preservam os dados do aplicativo.
 

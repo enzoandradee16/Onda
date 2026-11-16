@@ -41,7 +41,11 @@ internal object StreamAudioCache {
     }
     private val activeFiles=java.util.concurrent.ConcurrentHashMap<String,Int>()
     fun protectedPaths():List<String> = activeFiles.keys.toList()
-    fun protect(path:String){activeFiles.compute(path){_,count->(count ?: 0)+1}}
+    fun protect(path:String){
+        activeFiles.compute(path){_,count->(count ?: 0)+1}
+        try {if(File(path).isFile)File(path+".played").apply {if(!exists())createNewFile();setLastModified(System.currentTimeMillis())}}
+        catch(_:java.io.IOException) { /* Playback does not depend on cache bookkeeping. */ }
+    }
     fun release(path:String){activeFiles.computeIfPresent(path){_,count->if(count<=1)null else count-1}}
     private val prefetchSlots=Semaphore(1)
     suspend fun prefetch(context:Context,model:JSONObject)=prefetchSlots.withPermit {

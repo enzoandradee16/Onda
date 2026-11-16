@@ -50,6 +50,10 @@ def fingerprint_tool():
 
 
 def identify_audio(source, cancel):
+    if os.environ.get('ONDA_CHROMAPRINT'):
+        from android_fingerprint import fingerprint
+        value = fingerprint(source, cancel)
+        return lookup_fingerprint(value, cancel)
     tool = fingerprint_tool()
     if cancel.is_set():
         return {}
@@ -63,6 +67,15 @@ def identify_audio(source, cancel):
         return {}
     try:
         fingerprint = json.loads(result.stdout)
+    except (ValueError, TypeError) as error:
+        raise RuntimeError('Não foi possível gerar a impressão digital do áudio.') from error
+    return lookup_fingerprint(fingerprint, cancel)
+
+
+def lookup_fingerprint(fingerprint, cancel):
+    if cancel.is_set():
+        return {}
+    try:
         duration = round(float(fingerprint['duration']))
         fingerprint = fingerprint['fingerprint']
     except (ValueError, KeyError, TypeError) as error:
@@ -94,7 +107,8 @@ def identify_audio(source, cancel):
         if not recordings:
             continue
         recording = min(recordings, key=lambda row: abs((row.get('duration') or duration) - duration))
-        fields = dict(title=recording['title'], artists=[artist['name'] for artist in recording['artists']])
+        fields = dict(title=recording['title'], artists=[artist['name'] for artist in recording['artists']],
+                      _recording_id=recording.get('id'), duration_ms=duration * 1000)
         return enrich_recording(recording.get('id'), fields, cancel)
     return {}
 

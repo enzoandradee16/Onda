@@ -12,7 +12,7 @@ ONDA nació como un proyecto personal, creado inicialmente para mí y mis amigos
 
 El proyecto sigue en desarrollo. Las sugerencias, contribuciones e informes de errores son bienvenidos.
 
-**Versión 1.2.9 para Windows 10 o superior (x64) y Android 8 o superior (ARM64 y x86_64).**
+**Versión 1.3.0 para Windows 10 o superior (x64) y Android 8 o superior (ARM64 y x86_64).**
 
 Consulta las [notas de la versión](RELEASE_NOTES.md).
 
@@ -24,9 +24,14 @@ En PC, haz clic derecho en las listas o tarjetas para abrir las acciones disponi
 
 En PC, la pestaña **Reproducción** está en la categoría **Biblioteca** de la barra lateral. En Android, permanece en la barra inferior.
 
-Las canciones de catálogo pueden reproducirse por streaming en PC y Android. La reproducción comienza con un pequeño búfer y carga el resto en una caché temporal de hasta 256 MB, permitiendo saltar por las partes ya cargadas sin otra espera de red. Esta caché desechable está separada de las descargas y se puede borrar en los ajustes. Los efectos se preparan en segundo plano y el audio actual continúa hasta que la versión procesada está lista.
+Las canciones del catálogo se pueden escuchar por streaming en PC y Android. La reproducción empieza con un pequeño búfer y conserva el audio en una caché temporal, separada de las descargas. La limpieza automática conserva la canción actual, las tres anteriores y las próximas preparadas. Los efectos se preparan en segundo plano y el audio actual continúa hasta que la nueva versión esté lista.
 
 ## Características destacadas
+
+- **Metadatos:** reconocimiento por nombre de archivo o etiquetas existentes, revisión antes de guardar, copia y pegado de etiquetas y edición individual o por lotes.
+- **Barra de tareas de Windows:** anterior, reproducir/pausar y siguiente en la miniatura de ONDA, solo con una canción abierta en Reproducción.
+
+- **Listas en PC:** tamaño Muy pequeño con filas compactas; Ctrl y Shift seleccionan canciones y actualizan sus casillas. Contrae las opciones de la colección para ver más canciones y ajusta el tamaño en la misma fila.
 
 - **Ecualizador:** elige 5, 10 o 15 bandas en PC y Android, con 10 por defecto. Los presets y ajustes se adaptan a las frecuencias del modo elegido.
 - **Discord en PC:** opción “Mostrar actividad en Discord” en Configuración → General, desactivada por defecto. Muestra la canción, el artista, el álbum/portada disponibles y el tiempo de reproducción; refleja las pausas y borra la actividad al detener o cerrar. Requiere Discord abierto. [Cómo funciona](docs/DISCORD.md).

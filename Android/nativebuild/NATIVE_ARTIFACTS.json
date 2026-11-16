@@ -41,6 +41,27 @@
         "libdl.so",
         "libc.so"
       ]
+    },
+    {
+      "file": "arm64-v8a/libchromaprint.so",
+      "bytes": 439064,
+      "sha256": "6c11209454b58237b45d68e5980ba22a52f518efd5baaad92ef8c70b7f95ea9b",
+      "needed": [
+        "libm.so",
+        "libdl.so",
+        "libc.so"
+      ]
+    },
+    {
+      "file": "x86_64/libchromaprint.so",
+      "bytes": 446536,
+      "sha256": "c28c84bc04d382496171ebbed4560f15213436f68fc26b50c84dd5c3700f2117",
+      "needed": [
+        "libm.so",
+        "libdl.so",
+        "libc.so"
+      ]
     }
-  ]
+  ],
+  "chromaprint": "1.6.1"
 }

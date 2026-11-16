@@ -102,6 +102,20 @@ class PreparedEffects:
         )
 
     def _work(self):
+        from jukebox import _active, _active_lock
+
+        identity = str(self.base.resolve())
+        with _active_lock:
+            _active[identity] += 1
+        try:
+            self._render()
+        finally:
+            with _active_lock:
+                _active[identity] -= 1
+                if not _active[identity]:
+                    _active.pop(identity, None)
+
+    def _render(self):
         from audio_tools import executable, effects_filter, process_options
 
         while not self.closed:

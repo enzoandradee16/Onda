@@ -688,6 +688,20 @@ class Session:
         self.base = Path(cache).resolve()
         if self.base.parent != cache_root().resolve():
             raise ValueError('Cache inválido.')
+        with _active_lock:
+            _active[str(self.base)] += 1
+        try:
+            self._open(seed)
+        except BaseException:
+            with _active_lock:
+                _active[str(self.base)] -= 1
+                if not _active[str(self.base)]:
+                    _active.pop(str(self.base), None)
+            if getattr(self, 'sound', None):
+                self.sound.close()
+            raise
+
+    def _open(self, seed):
         self.model = json.loads((self.base / 'analysis.json').read_text())
         validate_model(self.model)
         self.sound = wave.open(str(self.base / 'audio.wav'), 'rb')
@@ -716,8 +730,8 @@ class Session:
         self.effects = PreparedEffects(self.base)
         self.effect_key = None
         self.original_beats = list(self.model['beats'])
-        with _active_lock:
-            _active[str(self.base)] += 1
+        from playback_cache_budget import mark_played
+        mark_played(self.base)
 
     def _read(self, start, count):
         start = max(0, min(start, self.sound.getnframes()))

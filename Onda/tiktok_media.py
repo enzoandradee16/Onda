@@ -141,45 +141,39 @@ def embedded_post(state, post_id):
 
 def mobile_post(source, session, url):
     """Read this public post's mobile/player HTML when desktop HTML is unusable."""
-    import re, json
-
     post_id = source._match_id(url)
 
+    from social_recovery import public_html, script_json
+
     def page(target):
-        import time
+        return public_html(session, target, headers={
+            'User-Agent': MOBILE_USER_AGENT,
+            'Accept-Encoding': 'gzip, deflate',
+        })
 
-        for attempt in range(2):
-            with session.get(
-                target,
-                headers={
-                    'User-Agent': MOBILE_USER_AGENT,
-                    'Accept-Encoding': 'gzip, deflate',
-                },
-                stream=True,
-                timeout=(15, 20),
-            ) as response:
-                if response.status_code in (429, 502, 503, 504) and attempt == 0:
-                    try:
-                        wait = float(response.headers.get('Retry-After', '1'))
-                    except (TypeError, ValueError):
-                        wait = 6
-                    if 0 <= wait <= 5:
-                        response.close()
-                        time.sleep(max(0.5, wait))
-                        continue
-                response.raise_for_status()
-                data = bytearray()
-                for chunk in response.iter_content(65536):
-                    data.extend(chunk)
-                    if len(data) > 8 * 1024 * 1024:
-                        raise ValueError('Página TikTok acima do limite.')
-            return data.decode('utf-8', errors='replace')
-
-    state = source._get_universal_data(page(url), post_id) or {}
+    html = page(url)
+    state = source._get_universal_data(html, post_id) or {}
+    state = state if isinstance(state, dict) else {}
     detail = state.get('webapp.video-detail') or {}
-    post = (detail.get('itemInfo') or {}).get('itemStruct') or {}
+    detail = detail if isinstance(detail, dict) else {}
+    if not detail:
+        # Known alternate layouts only: never choose a recommended video.
+        data = script_json(html, 'api-data')
+        candidate = data.get('videoDetail') if isinstance(data, dict) else None
+        if isinstance(candidate, dict):
+            detail = candidate
+        else:
+            data = script_json(html, 'SIGI_STATE')
+            items = data.get('ItemModule') if isinstance(data, dict) else None
+            post = items.get(post_id) if isinstance(items, dict) else None
+            if isinstance(post, dict):
+                detail = dict(statusCode=0, itemInfo=dict(itemStruct=post))
+    info = detail.get('itemInfo')
+    post = info.get('itemStruct') if isinstance(info, dict) else None
+    post = post if isinstance(post, dict) else {}
     if detail.get('statusCode') not in (None, 0) or (
-        post and str(post.get('id') or '') != post_id
+        post and (str(post.get('id') or '') != post_id
+                  or post.get('secret') or post.get('forFriend') or post.get('privateItem'))
     ):
         raise ExtractorError(
             'O TikTok não disponibilizou esta publicação na página móvel.',
@@ -188,16 +182,12 @@ def mobile_post(source, session, url):
     if post:
         return post
     html = page('https://www.tiktok.com/embed/v2/' + post_id)
-    match = re.search(
-        r"<script[^>]+id=[\"']__FRONTITY_CONNECT_STATE__[\"'][^>]*>(.*?)</script>",
-        html,
-        re.S,
-    )
-    if not match:
+    state = script_json(html, '__FRONTITY_CONNECT_STATE__')
+    if not isinstance(state, dict):
         raise ExtractorError(
             'O TikTok não disponibilizou dados no player público.', expected=True
         )
-    return embedded_post(json.loads(match[1]), post_id)
+    return embedded_post(state, post_id)
 
 
 def tiktok_items(url, session, cookies="", logger=None):
@@ -225,7 +215,8 @@ def tiktok_items(url, session, cookies="", logger=None):
     with YoutubeDL(options) as downloader:
         source = TikTokMediaIE(downloader)
         try:
-            source.extract(canonical)
+            from social_recovery import retry_metadata
+            retry_metadata(lambda: source.extract(canonical))
         except ExtractorError as error:
             message = str(error).lower()
             if not any(

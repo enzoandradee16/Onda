@@ -16,7 +16,7 @@ val prepareNativeTools by tasks.registering(Sync::class) {
     inputs.file(nativeHashes)
     inputs.property("targetAbis", targetAbis)
     from(nativeSource) {
-        targetAbis.forEach { abi -> include("$abi/libffmpeg.so", "$abi/libffprobe.so", "$abi/libqjs.so") }
+        targetAbis.forEach { abi -> include("$abi/libffmpeg.so", "$abi/libffprobe.so", "$abi/libqjs.so", "$abi/libchromaprint.so") }
     }
     into(layout.buildDirectory.dir("generated/nativeTools"))
     doFirst {
@@ -25,7 +25,7 @@ val prepareNativeTools by tasks.registering(Sync::class) {
             parts[1] to parts[0]
         }
         targetAbis.forEach { abi ->
-            listOf("libffmpeg.so", "libffprobe.so", "libqjs.so").forEach { name ->
+            listOf("libffmpeg.so", "libffprobe.so", "libqjs.so", "libchromaprint.so").forEach { name ->
                 val relative = "$abi/$name"
                 val file = nativeSource.resolve(relative)
                 check(file.isFile) { "Ferramenta ausente: $relative. Siga Android/nativebuild/README.md." }
@@ -56,8 +56,8 @@ android {
         minSdk = 26
         targetSdk = 35
         buildConfigField("String", "ONDA_ABIS", "\"${targetAbis.joinToString(",")}\"")
-        versionCode = 37
-        versionName = "1.2.9"
+        versionCode = 38
+        versionName = "1.3.0"
         ndk { abiFilters += targetAbis }
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

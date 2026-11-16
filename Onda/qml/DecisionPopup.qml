@@ -4,7 +4,7 @@ import QtQuick.Layouts
 Popup {
     id: decisionDialog
     objectName: "decisionPopup"
-    parent: Overlay.overlay; anchors.centerIn: parent; width: Math.min(compact ? Math.max(340,Math.min(620,decisionMeasure.boundingRect.width+60),titleMeasure.boundingRect.width+48) : 780,parent.width-60); height: Math.min(compact ? body.implicitHeight+48 : 680,parent.height-70); modal: true; focus: true; padding: 24; closePolicy: Popup.NoAutoClose
+    parent: Overlay.overlay; anchors.centerIn: parent; width: Math.min(compact ? Math.max(340,Math.min(620,decisionMeasure.boundingRect.width+60),titleMeasure.boundingRect.width+48) : 780,parent.width-60); height: Math.min(compact ? body.implicitHeight+48 : (metadata && (decision.candidates || []).length === 1 ? 420 : 680),parent.height-70); modal: true; focus: true; padding: 24; closePolicy: Popup.NoAutoClose
     readonly property bool compact: !media && !review && !(decision.candidates || []).length
     property var selected: []
     property var rejected: []
@@ -12,6 +12,7 @@ Popup {
     property var changes: ({})
     readonly property var decision: workspace.choice
     readonly property bool media: decision.type === "choose_media"
+    readonly property bool metadata: decision.type === "choose_catalog"
     readonly property bool review: decision.type === "review_metadata"
     TextMetrics { id: decisionMeasure; font: decisionText.font; text: decisionText.text }
     TextMetrics { id: titleMeasure; font: decisionHeading.font; text: decisionHeading.text }
@@ -36,12 +37,21 @@ Popup {
             ColumnLayout { width: candidatesScroll.availableWidth; spacing: Math.round(9*bridge.spacing)
                 Repeater { model: decisionDialog.decision.candidates || []
                     Card { required property var modelData; visible: decisionDialog.rejected.indexOf(modelData.id) < 0; Layout.fillWidth: true; Layout.minimumWidth: 0; implicitHeight: Math.max(124,candidateRow.implicitHeight+24)
-                        RowLayout { id: candidateRow; objectName: "decisionCandidateRow"; anchors.fill: parent; anchors.margins: 12; spacing: 12
+                        RowLayout { id: candidateRow; objectName: "decisionCandidateRow"; anchors.top: parent.top; anchors.left: parent.left; anchors.margins: 12; width: parent.width-24; spacing: 12
                             CheckBox { visible: decisionDialog.media; checked: decisionDialog.selected.indexOf(modelData.id) >= 0
                                 onToggled: { var values=decisionDialog.selected.slice(); if (checked && values.indexOf(modelData.id)<0) values.push(modelData.id); else if (!checked) values.splice(values.indexOf(modelData.id),1);decisionDialog.selected=values }
                             }
-                            Image { visible: decisionDialog.media; Layout.preferredWidth: 100; Layout.preferredHeight: 100; source: modelData.thumbnail || modelData.preview_url || modelData.url || ""; fillMode: Image.PreserveAspectFit; asynchronous: true }
-                            Label { Layout.fillWidth: true; Layout.minimumWidth: 0; text: modelData.title || modelData.name || modelData.id || ""; wrapMode: Text.Wrap; color: bridge.palette.text }
+                            Rectangle { visible: decisionDialog.media || decisionDialog.metadata; Layout.preferredWidth: 96; Layout.preferredHeight: 96; color: bridge.palette.surface; radius: 8
+                                Image { id:candidateArtwork; anchors.fill:parent; source: decisionDialog.metadata ? (modelData.cover_url || modelData.cover || "") : (modelData.thumbnail || modelData.preview_url || modelData.url || ""); fillMode: Image.PreserveAspectFit; asynchronous: true }
+                                Label {anchors.centerIn:parent;visible:candidateArtwork.status!==Image.Ready;text:"♫";color:bridge.palette.muted;font.pixelSize:32}
+                            }
+                            ColumnLayout { Layout.fillWidth:true;Layout.minimumWidth:0;spacing:5
+                                Label { Layout.fillWidth: true; Layout.minimumWidth: 0; text: modelData.title || modelData.name || modelData.id || ""; wrapMode: Text.Wrap; color: bridge.palette.text; font.bold:decisionDialog.metadata }
+                                Label {visible:decisionDialog.metadata;Layout.fillWidth:true;wrapMode:Text.Wrap;color:bridge.palette.text;text:(modelData.artists || []).join(", ")}
+                                Label {visible:decisionDialog.metadata && !!modelData.manual_review;Layout.fillWidth:true;wrapMode:Text.Wrap;color:bridge.palette.muted;text:(modelData.match_reasons || []).join(" ")}
+                                Label {visible:decisionDialog.metadata;Layout.fillWidth:true;wrapMode:Text.Wrap;color:bridge.palette.muted;text:[modelData.album,modelData.release_date,modelData.genre,modelData.platform].filter(function(v){return !!v}).join(" · ")}
+                                Label {visible:decisionDialog.metadata;Layout.fillWidth:true;wrapMode:Text.Wrap;color:bridge.palette.muted;text:[modelData.track_number ? bridge.translate("Faixa")+" "+modelData.track_number : "",modelData.disc_number ? bridge.translate("Disco")+" "+modelData.disc_number : "",modelData.duration_ms ? Math.floor(modelData.duration_ms/60000)+":"+String(Math.floor(modelData.duration_ms/1000)%60).padStart(2,"0") : "",modelData.isrc ? "ISRC "+modelData.isrc : ""].filter(function(v){return !!v}).join(" · ")}
+                            }
                             ChoiceBox { visible: decisionDialog.media && (modelData.outputLabels || []).length > 0; model: modelData.outputLabels || []; onActivated: { var values=Object.assign({},decisionDialog.modes);values[modelData.id]=modelData.outputCodes[index];decisionDialog.modes=values } }
                             ActionButton { visible: decisionDialog.decision.type === "choose_version"; text: bridge.translate("Versão errada"); onClicked: { var ids=decisionDialog.rejected.slice();ids.push(modelData.id);decisionDialog.rejected=ids } }
                             ActionButton { visible: !decisionDialog.media; text: bridge.translate("Escolher"); primary: true; onClicked: decisionDialog.reply({selected_id:modelData.id || modelData.source_url,remember_choice:remember.checked,rejected_ids:decisionDialog.rejected}) }

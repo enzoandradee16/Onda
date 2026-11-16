@@ -238,6 +238,9 @@ def configure(root, native, libs):
     if _configured:
         return
     _root, _native = Path(root), Path(native)
+    chromaprint = _native / 'libchromaprint.so'
+    if chromaprint.is_file():
+        os.environ['ONDA_CHROMAPRINT'] = str(chromaprint)
     _root.mkdir(parents=True, exist_ok=True)
     os.environ["ONDA_ALIAS_CACHE_ROOT"] = str(_root)
     import image_background
@@ -756,6 +759,12 @@ def perform(action, config):
 
         return recognize_link(config.get("text")) or {}
 
+    if action == 'playback_cache_trim':
+        from playback_cache_budget import prune, model_paths, ANDROID_LIMIT
+
+        return prune(_root / 'jukebox', max_bytes=ANDROID_LIMIT,
+                     protected=model_paths(config.get('models', [])) +
+                     config.get('_stream_cache_protected', []))
     if action == 'cache_auto':
         from cache_cleanup import automatic_cleanup
 
@@ -804,6 +813,41 @@ def perform(action, config):
             size=Path(result['path']).stat().st_size,
         )
         return {'message': 'Vídeo convertido e salvo.'}
+    if action == 'audio_tags_copy':
+        from tag_transfer import copy_snapshot, encode
+        source = Path(config['source'])
+        try:
+            transfer = copy_snapshot(config)
+            Path(config['clipboard_path']).write_text(encode(transfer), encoding='utf-8')
+            return {'clipboard_path': config['clipboard_path']}
+        finally:
+            if config.get('temporary_source') and source.name.startswith('tag-copy-') and source.parent.resolve() == (_root / 'imports').resolve():
+                source.unlink(missing_ok=True)
+    if action == 'audio_tags_paste':
+        from tag_transfer import decode, cover_file, LIMIT
+        path = Path(config['clipboard_path'])
+        if path.stat().st_size > LIMIT:
+            raise ValueError('As tags excedem o limite de tamanho.')
+        transfer = decode(path.read_text(encoding='utf-8'))
+        return {'record': transfer['tags'], 'tag_transfer_path': str(path),
+                'cover_path': cover_file(transfer, path.parent)}
+    if action == 'audio_name_lookup':
+        from filename_metadata import identify_entries
+
+        return identify_entries(config, _local.state['cancel'], ask_catalog, emit)
+    if action == 'audio_fingerprint_lookup':
+        from audio_identification import identify_audio
+        from audio_library import FIELDS
+
+        fields = identify_audio(config['source'], _local.state['cancel'])
+        if not fields:
+            return {'matches': []}
+        candidate = dict(fields, platform='AcoustID / MusicBrainz',
+                         source_url='acoustid:' + str(fields.get('_recording_id') or 'recording'),
+                         cover_url=fields.get('cover') or fields.get('cover_url') or '')
+        ask_catalog(config.get('record') or fields, [candidate])
+        return {'matches': [dict(identity='single', changes={k: v for k, v in fields.items() if k in FIELDS},
+                                 cover_url=candidate['cover_url'])]}
     if action == 'audio_batch_edit':
         from batch_metadata import edit_batch
 

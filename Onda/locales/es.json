@@ -2515,5 +2515,22 @@
   "Verificar consulta as versões instaladas; Atualizar instala novas versões dos componentes.": "Verificar consulta las versiones instaladas; Actualizar instala versiones nuevas de los componentes.",
   "Arquivos temporários e cache": "Archivos temporales y caché",
   "Os downloads salvos na pasta de destino não são removidos.": "No se eliminan las descargas guardadas en la carpeta de destino.",
-  "Alterações valem para os próximos downloads iniciados, inclusive itens pendentes.": "Los cambios se aplican a las próximas descargas que se inicien, incluidos los elementos pendientes."
+  "Alterações valem para os próximos downloads iniciados, inclusive itens pendentes.": "Los cambios se aplican a las próximas descargas que se inicien, incluidos los elementos pendientes.",
+  "Expandir opções": "Expandir opciones",
+  "Recolher opções": "Contraer opciones",
+  "Muito pequeno": "Muy pequeño",
+  "Página da rede social acima do limite.": "La página de la red social supera el límite de tamaño.",
+  "Copiar tags": "Copiar etiquetas",
+  "Colar tags": "Pegar etiquetas",
+  "Compositor": "Compositor",
+  "Comentário": "Comentario",
+  "Copie as tags de uma música no ONDA primeiro.": "Primero copia las etiquetas de una canción en ONDA.",
+  "As tags excedem o limite de tamanho.": "Las etiquetas superan el límite de tamaño.",
+  "Aguarde a leitura dos metadados.": "Espera a que se carguen los metadatos.",
+  "Identificar pelo nome": "Reconocer por nombre",
+  "Metadados prontos para revisar e salvar.": "Metadatos listos para revisar y guardar.",
+  "O nome do arquivo não informa uma música. Preencha título ou artista para pesquisar.": "El nombre del archivo no identifica una canción. Introduce título o artista para buscar.",
+  "Não foi possível consultar os catálogos. Tente novamente.": "No se pudieron consultar los catálogos. Inténtalo de nuevo.",
+  "Consulta dos metadados selecionados": "Consulta de los metadatos seleccionados",
+  "Obtendo a capa selecionada…": "Obteniendo la portada seleccionada…"
 }

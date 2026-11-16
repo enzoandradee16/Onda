@@ -118,6 +118,10 @@ import java.io.File
 @Composable fun AudioFileEditor(item:HistoryItem,vm:OndaViewModel,close:()->Unit) {
     var source by androidx.compose.runtime.saveable.rememberSaveable {mutableStateOf("")}
     var changes by androidx.compose.runtime.saveable.rememberSaveable(stateSaver=androidx.compose.runtime.saveable.Saver<JSONObject,String>(save={it.toString()},restore={JSONObject(it)})) {mutableStateOf(JSONObject())}
+    val pasteAvailable=rememberMetadataPasteAvailable()
+    var transferPath by androidx.compose.runtime.saveable.rememberSaveable {mutableStateOf("")}
+    var transferCover by androidx.compose.runtime.saveable.rememberSaveable {mutableStateOf("")}
+    var originalTags by androidx.compose.runtime.saveable.rememberSaveable {mutableStateOf("{}")}
     var moreTags by androidx.compose.runtime.saveable.rememberSaveable {mutableStateOf(false)}
     var loaded by androidx.compose.runtime.saveable.rememberSaveable {mutableStateOf(false)}
     var editing by androidx.compose.runtime.saveable.rememberSaveable {mutableStateOf(true)}
@@ -126,15 +130,61 @@ import java.io.File
     var lyrics by androidx.compose.runtime.saveable.rememberSaveable {mutableStateOf("")}
     var cover by androidx.compose.runtime.saveable.rememberSaveable {mutableStateOf("")}
     var cropCandidate by androidx.compose.runtime.saveable.rememberSaveable {mutableStateOf("")}
+    var identifiedCoverUrl by androidx.compose.runtime.saveable.rememberSaveable {mutableStateOf("")}
     var originalCover by androidx.compose.runtime.saveable.rememberSaveable {mutableStateOf("")}
     var preview by androidx.compose.runtime.saveable.rememberSaveable {mutableStateOf("")}
     val busy by vm.busy.collectAsStateWithLifecycle()
     val pickLyrics=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()){uri->if(uri!=null)vm.importLocal(uri,"lyrics",dialog=true){lyrics=it.absolutePath}}
     val pickCover=rememberImageSourcePicker {uri->vm.importLocal(uri,"cover",dialog=false){if(cover.isNotBlank())File(cover).delete();cover=it.absolutePath}}
-    LaunchedEffect(item.uri) {if(!loaded)vm.importLocal(Uri.parse(item.uri),"audio-editor",dialog=false){file->source=file.absolutePath;vm.operation("audio_read",JSONObject().put("source",source),dialog=false){changes=it.getJSONObject("record").apply {if(optString("title")==file.nameWithoutExtension)put("title",item.title.substringBeforeLast('.'))};originalCover=it.optString("cover_preview");loaded=true}}}
+    LaunchedEffect(item.uri) {if(!loaded)vm.importLocal(Uri.parse(item.uri),"audio-editor",dialog=false){file->source=file.absolutePath;vm.operation("audio_read",JSONObject().put("source",source),dialog=false){changes=it.getJSONObject("record").apply {if(optString("title")==file.nameWithoutExtension)put("title",item.title.substringBeforeLast('.'))};originalTags=changes.toString();originalCover=it.optString("cover_preview");loaded=true}}}
+    fun saveChanges()=JSONObject(changes.toString()).apply {
+        val original=JSONObject(originalTags)
+        for(key in listOf("album_artist","composer","comment"))if(optString(key)==original.optString(key))remove(key)
+    }
     fun config()=OndaStore.config().put("source",source).put("output_name",item.title.substringBeforeLast('.'))
-        .put("overwrite_original",overwrite).put("original_uri",item.uri).put("edit_metadata",editing).put("normalize_volume",normalize).put("changes",changes).put("lyrics_path",lyrics).put("cover_path",cover)
-    fun finish() {vm.stopPreview();listOf(preview,source,cover,lyrics,cropCandidate).filter {it.isNotBlank()}.forEach {File(it).delete()};close()}
+        .put("overwrite_original",overwrite).put("original_uri",item.uri).put("edit_metadata",editing).put("normalize_volume",normalize).put("changes",saveChanges()).put("lyrics_path",lyrics).put("cover_path",if(transferCover.isNotBlank() && cover==transferCover)"" else cover).put("cover_url",identifiedCoverUrl).put("tag_transfer_path",transferPath).put("tag_transfer_cover",transferCover.isNotBlank() && cover==transferCover)
+    fun copyTags() {
+        val output=MetadataClipboard.newCopyFile()
+        val request=JSONObject().put("source",source).put("record",changes).put("clipboard_path",output.absolutePath)
+            .put("base_transfer_path",transferPath).put("cover_path",if(cover==transferCover)"" else cover).put("cover_url",identifiedCoverUrl).put("lyrics_path",lyrics)
+        vm.operation("audio_tags_copy",request,dialog=false){result->MetadataClipboard.publish(result.getString("clipboard_path"))}
+    }
+    fun pasteTags() {
+        runCatching {
+            val draft=MetadataClipboard.draft()
+            vm.operation("audio_tags_paste",JSONObject().put("clipboard_path",draft.absolutePath),dialog=false){result->
+                if(result.optBoolean("cancelled"))return@operation
+                val tags=result.getJSONObject("record")
+                changes=JSONObject(changes.toString()).apply {tags.keys().forEach {put(it,tags.get(it))}}
+                if(transferPath.isNotBlank())File(transferPath).delete()
+                transferPath=result.getString("tag_transfer_path")
+                if(result.optString("cover_path").isNotBlank()) {
+                    if(cover.isNotBlank())File(cover).delete()
+                    cover=result.getString("cover_path");transferCover=cover;identifiedCoverUrl=""
+                } else transferCover=""
+                lyrics=""
+            }
+        }.onFailure {vm.showNotice("Colar tags",uiExceptionMessage(it,"Copie as tags de uma música no ONDA primeiro."))}
+    }
+    fun recognizeName(audio:Boolean=false) {
+        val requestedSource=source
+        val request=JSONObject().put("source",source).put("filename",item.title).put("record",changes)
+        vm.operation(if(audio)"audio_fingerprint_lookup" else "audio_name_lookup",request,dialog=false) nameResult@{result->
+            if(source!=requestedSource || result.optBoolean("cancelled"))return@nameResult
+            val match=result.optJSONArray("matches")?.optJSONObject(0)
+            if(match==null)vm.showNotice(if(audio)"Identificar pelo áudio" else "Identificar pelo nome",result.optJSONArray("errors")?.optJSONObject(0)?.optString("error").orEmpty().ifBlank {"Nenhuma gravação correspondente foi encontrada."})
+            else {
+                val tags=match.getJSONObject("changes")
+                changes=JSONObject(changes.toString()).apply {tags.keys().forEach {put(it,tags.get(it))}}
+                if(match.optString("cover_url").isNotBlank()) {
+                    if(cover.isNotBlank())File(cover).delete()
+                    cover="";identifiedCoverUrl=match.getString("cover_url")
+                }
+                vm.status.value="Metadados prontos para revisar e salvar."
+            }
+        }
+    }
+    fun finish() {vm.stopPreview();listOf(preview,source,cover,lyrics,cropCandidate,transferPath,transferCover).filter {it.isNotBlank()}.forEach {File(it).delete()};close()}
     if(cropCandidate.isNotBlank())CoverCropper(cropCandidate,
         onCancel={cropCandidate=""},
         onApply={cropped->if(cover.isNotBlank())File(cover).delete();cover=cropped;File(cropCandidate).delete();cropCandidate=""})
@@ -142,20 +192,30 @@ import java.io.File
         ToolHeading("Editar metadados") {
             var fileMenu by remember {mutableStateOf(false)}
             Box {IconButton(onClick={fileMenu=true}){OndaIcon("more-vertical","Mais ações",Modifier.size(22.dp))}
-                DropdownMenu(fileMenu,{fileMenu=false}){DropdownMenuItem(text={UiText("Escolher outro arquivo")},enabled=!busy,onClick={fileMenu=false;finish()})}
+                DropdownMenu(fileMenu,{fileMenu=false}){
+                    DropdownMenuItem(text={UiText("Identificar pelo nome")},enabled=loaded && editing && !busy,onClick={fileMenu=false;recognizeName()})
+                    DropdownMenuItem(text={UiText("Identificar pelo áudio")},enabled=loaded && editing && !busy,onClick={fileMenu=false;recognizeName(true)})
+                    DropdownMenuItem(text={UiText("Copiar tags")},enabled=loaded && !busy,onClick={fileMenu=false;copyTags()})
+                    DropdownMenuItem(text={UiText("Colar tags")},enabled=loaded && editing && !busy && pasteAvailable,onClick={fileMenu=false;pasteTags()})
+                    DropdownMenuItem(text={UiText("Escolher outro arquivo")},enabled=!busy,onClick={fileMenu=false;finish()})}
             }
+        }
+        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick={recognizeName()},enabled=loaded && editing && !busy,modifier=Modifier.weight(1f)){UiText("Identificar pelo nome")}
+            OutlinedButton(onClick={recognizeName(true)},enabled=loaded && editing && !busy,modifier=Modifier.weight(1f)){UiText("Identificar pelo áudio")}
         }
         ToolCard {
             Row(verticalAlignment=androidx.compose.ui.Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(16.dp)) {
                 val originalBitmap=remember(originalCover) {runCatching {val bytes=android.util.Base64.decode(originalCover,android.util.Base64.DEFAULT);android.graphics.BitmapFactory.decodeByteArray(bytes,0,bytes.size)}.getOrNull()}
+                val identifiedArtwork=remember(identifiedCoverUrl) {if(identifiedCoverUrl.startsWith("data:image/"))runCatching {android.util.Base64.decode(identifiedCoverUrl.substringAfter(','),android.util.Base64.DEFAULT)}.getOrNull() else identifiedCoverUrl}
                 Surface(Modifier.size(124.dp),shape=androidx.compose.foundation.shape.RoundedCornerShape(14.dp),color=MaterialTheme.colorScheme.surfaceVariant) {
-                    if(cover.isNotBlank() || originalBitmap!=null)coil.compose.AsyncImage(model=if(cover.isNotBlank())File(cover) else originalBitmap,contentDescription=translateUi("Capa do álbum",LocalUiLanguage.current),modifier=Modifier.fillMaxSize(),contentScale=androidx.compose.ui.layout.ContentScale.Crop)
+                    if(cover.isNotBlank() || identifiedCoverUrl.isNotBlank() || originalBitmap!=null)coil.compose.AsyncImage(model=if(cover.isNotBlank())File(cover) else if(identifiedCoverUrl.isNotBlank())identifiedArtwork else originalBitmap,contentDescription=translateUi("Capa do álbum",LocalUiLanguage.current),modifier=Modifier.fillMaxSize(),contentScale=androidx.compose.ui.layout.ContentScale.Crop)
                     else Box(contentAlignment=androidx.compose.ui.Alignment.Center){OndaIcon("album",modifier=Modifier.size(40.dp))}
                 }
                 Column(Modifier.weight(1f)) {
                     TextButton(onClick={pickCover()},enabled=editing && !busy){UiText("Alterar capa")}
                     TextButton(onClick={cropCandidate=cover},enabled=cover.isNotBlank() && editing && !busy){UiText("Ajustar capa")}
-                    TextButton(onClick={File(cover).delete();cover=""},enabled=cover.isNotBlank() && !busy){UiText("Desfazer capa")}
+                    TextButton(onClick={if(cover.isNotBlank())File(cover).delete();cover="";identifiedCoverUrl=""},enabled=(cover.isNotBlank() || identifiedCoverUrl.isNotBlank()) && !busy){UiText("Desfazer capa")}
                 }
             }
         }
@@ -170,6 +230,9 @@ import java.io.File
             }
             TextButton(onClick={moreTags=!moreTags}){UiText(if(moreTags)"Menos informações" else "Mais informações")}
             if(moreTags){
+            for((key,label) in listOf("album_artist" to "Artista do álbum","composer" to "Compositor")) {
+                OutlinedTextField(changes.optString(key),{changes=JSONObject(changes.toString()).put(key,it)},label={UiText(label)},enabled=editing && !busy,modifier=Modifier.fillMaxWidth())
+            }
             OutlinedTextField(changes.optString("genre"),{changes=JSONObject(changes.toString()).put("genre",it)},label={UiText("Gênero")},singleLine=true,enabled=editing && !busy,modifier=Modifier.fillMaxWidth())
             OutlinedTextField(changes.optString("disc_number"),{changes=JSONObject(changes.toString()).put("disc_number",it)},label={UiText("Disco")},singleLine=true,enabled=editing && !busy,modifier=Modifier.fillMaxWidth())
             }

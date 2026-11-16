@@ -52,6 +52,7 @@ class DesktopWorkspace(QObject):
 
     changed = Signal()
     optionsChanged = Signal()
+    metadataClipboardChanged = Signal()
     settingsChanged = Signal()
     discordPresenceChanged = Signal()
     navigationChanged = Signal()
@@ -65,6 +66,7 @@ class DesktopWorkspace(QObject):
     settingsCategoryRequested = Signal(str)
     shortcutsRequested = Signal()
     message = Signal(str, str)
+    musicSelectionChanged = Signal()
     _event = Signal(str, object)
 
     def __init__(self, bridge, parent=None):
@@ -145,6 +147,11 @@ class DesktopWorkspace(QObject):
             key: RowsModel(self)
             for key in ('queue', 'links', 'catalog', 'playlists', 'history')
         }
+        self._music_selections = {}
+        self._music_anchors = {}
+        self._music_selection_revision = 0
+        for name, model in self.models.items():
+            model.modelReset.connect(lambda name=name: self.clear_music_selection(name))
         from qt_collection_filter import CollectionFilterModel
 
         self.collection_filter = CollectionFilterModel(self.models['playlists'], self)
@@ -276,6 +283,11 @@ class DesktopWorkspace(QObject):
         self.player = PreviewPlayer()
         self.tray = None
         self.shell = None
+        self._metadata_transfer = None
+        self._metadata_transfer_cover = ''
+        self._metadata_clipboard_available = False
+        QGuiApplication.clipboard().dataChanged.connect(self.refresh_metadata_clipboard)
+        self.refresh_metadata_clipboard()
         self.shortcuts = []
         self.shortcuts_suspended = False
         self.tasks_threads = []
@@ -1230,7 +1242,7 @@ class DesktopWorkspace(QObject):
         if action == 'unified_effects_export':
             if not self.bridge.model:
                 return
-            self.dispatch('effects_export', {})
+            self.export_effects(unified=True)
             return
         # Legacy entry points remain usable, but all new audio belongs to one queue.
         if action in ('effects_add', 'effects_enqueue_result'):
@@ -1802,6 +1814,7 @@ class DesktopWorkspace(QObject):
         elif action == 'check':
             self.toggle_row(p['model'], p['index'], p['checked'])
         elif action == 'check_all':
+            self.clear_music_selection(p['model'])
             for index in range(len(self.models[p['model']].rows)):
                 self.toggle_row(p['model'], index, p['checked'], notify=False)
             self.statusChanged.emit()
@@ -2055,6 +2068,8 @@ class DesktopWorkspace(QObject):
                 else:
                     self.show_result(result)
             self.run_task(action, {}, downloaded)
+        elif action == 'audio_identify_name':
+            self.identify_metadata_names()
         elif action == 'audio_identify':
             sources = list(self.options['metadataSources'])
             if len(sources) != 1:
@@ -2066,23 +2081,26 @@ class DesktopWorkspace(QObject):
                 if not fields:
                     self.message.emit(tr('Identificar pelo áudio'), tr('Nenhuma gravação correspondente foi encontrada.'))
                     return
-                lines = [fields['title'], ', '.join(fields['artists'])]
-                for key, label in (('album', 'Álbum'), ('release_date', 'Data de lançamento'),
-                                   ('track_number', 'Número da faixa'), ('isrc', 'ISRC')):
-                    if fields.get(key):
-                        lines.append(f'{tr(label)} · {fields[key]}')
-                cover = fields.pop('cover', '')
+                cover = fields.get('cover') or fields.get('cover_url') or ''
+                identity = 'acoustid:' + str(fields.get('_recording_id') or uuid.uuid4().hex)
+                row = dict(fields, id=identity, source_url=identity, cover_url=cover,
+                           platform='AcoustID / MusicBrainz')
 
-                def apply():
-                    if sources == self.options['metadataSources']:
-                        self.options['metadata'].update(fields)
+                def selected(reply):
+                    if reply.get('selected_id') == identity and sources == self.options['metadataSources']:
+                        from audio_library import FIELDS
+                        self.options['metadata'].update({key: value for key, value in fields.items() if key in FIELDS})
                         if cover:
-                            self.options.update(metadataCover=cover, cover_path=cover)
+                            self.options.update(metadataCover=cover, metadataCoverUrl=cover, cover_path='')
                         self.optionsChanged.emit()
 
-                self.confirm('Identificar pelo áudio', '\n'.join(lines), apply)
+                self.present_choice(uuid.uuid4().hex, dict(type='choose_catalog', title=tr('Identificar pelo áudio'), candidates=[row]), selected)
 
             self.run_task(action, {'source': sources[0]}, identified)
+        elif action == 'metadata_copy':
+            self.copy_metadata_tags()
+        elif action == 'metadata_paste':
+            self.paste_metadata_tags()
         elif action == 'audio_edit':
             self.edit_audio()
         elif action == 'metadata_preview':
@@ -2117,6 +2135,7 @@ class DesktopWorkspace(QObject):
         elif action == 'undo_cover':
             self.options['cover_path'] = ''
             self.options['metadataCover'] = self.options.get('originalCover', '')
+            self.options['metadataCoverUrl'] = ''
             self.optionsChanged.emit()
         elif action == 'reset_selected':
             for key in p.get('keys', []):
@@ -2534,6 +2553,9 @@ class DesktopWorkspace(QObject):
             'convert': 'Conversão',
             'probe': 'Leitura do áudio',
             'audio_read': 'Leitura dos metadados',
+            'audio_tags_copy': 'Copiar tags',
+            'audio_name_search': 'Identificar pelo nome',
+            'audio_name_details': 'Consulta dos metadados selecionados',
             'audio_edit': 'Edição dos metadados',
             'normalize_preview': 'Prévia normalizada',
             'cover_crop': 'Ajuste da capa',
@@ -2957,13 +2979,89 @@ class DesktopWorkspace(QObject):
         self.library.clear_history()
         self.refresh_history()
 
+    @Property(int, notify=musicSelectionChanged)
+    def musicSelectionRevision(self):
+        return self._music_selection_revision
+
+    @staticmethod
+    def music_row_key(row, index, model):
+        for field in ('id', 'source_url', 'path', 'source'):
+            if row.get(field) is not None and row.get(field) != '':
+                identity = (field, str(row[field]))
+                return identity + (index,) if model in ('catalog', 'playlists') else identity
+        return ('index', index)
+
+    def clear_music_selection(self, model):
+        self._music_selections.pop(model, None)
+        self._music_anchors.pop(model, None)
+        self._music_selection_revision += 1
+        self.musicSelectionChanged.emit()
+
+    @Slot(int, str, int, result=bool)
+    def musicRowSelected(self, revision, model, index):
+        rows = self.models[model].rows
+        return (0 <= index < len(rows) and bool(rows[index].get('checked')) and
+                self.music_row_key(rows[index], index, model) in self._music_selections.get(model, set()))
+
+    @Slot(str, int, int)
+    def selectMusicRows(self, model, index, modifiers):
+        if model not in self.models:
+            return
+        ctrl = bool(modifiers & Qt.ControlModifier.value)
+        shift = bool(modifiers & Qt.ShiftModifier.value)
+        if not (ctrl or shift):
+            return
+        rows = self.models[model].rows
+        visible = ([self.collection_filter.sourceRow(i) for i in range(self.collection_filter.count)]
+                   if model == 'playlists' else list(range(len(rows))))
+        if not 0 <= index < len(visible):
+            return
+        keys = [self.music_row_key(rows[i], i, model) for i in visible]
+        key = keys[index]
+        selected = set(self._music_selections.get(model, set()))
+        if shift:
+            anchor = self._music_anchors.get(model, key)
+            start = keys.index(anchor) if anchor in keys else index
+            span = set(keys[min(start, index):max(start, index)+1])
+            selected = selected | span if ctrl else span
+            self._music_anchors[model] = anchor if anchor in keys else key
+        else:
+            if key in selected:
+                selected.remove(key)
+            else:
+                selected.add(key)
+            self._music_anchors[model] = key
+        self._music_selections[model] = selected
+        for source_index, identity in zip(visible, keys):
+            checked = identity in selected
+            if bool(rows[source_index].get('checked')) != checked:
+                self.toggle_row(model, source_index, checked, notify=False)
+        self._music_selection_revision += 1
+        self.musicSelectionChanged.emit()
+        self.statusChanged.emit()
+
     def toggle_row(self, model, index, checked, notify=True):
         row = self.models[model].rows[index]
         self.models[model].update(index, checked=checked)
-        if model == 'queue':
-            job = next((job for job in self.jobs if job['id'] == row['id']), None)
+        identity = self.music_row_key(row, index, model)
+        selected = self._music_selections.get(model, set())
+        if not checked and identity in selected:
+            selected.remove(identity)
+            self._music_selection_revision += 1
+            self.musicSelectionChanged.emit()
+        if model in ('queue', 'links'):
+            job = self.job_by_id(row['id'])
             if job:
                 job['checked'] = checked
+            other_name = 'links' if model == 'queue' else 'queue'
+            other = self.models[other_name]
+            other_index = other.index_for_id(row['id'])
+            if other_index >= 0:
+                if not checked:
+                    self._music_selections.get(other_name, set()).discard(
+                        self.music_row_key(other.rows[other_index], other_index, other_name)
+                    )
+                other.update(other_index, checked=checked)
             if notify:
                 self.statusChanged.emit()
 
@@ -3989,6 +4087,7 @@ class DesktopWorkspace(QObject):
             self.load_lyrics(str(Path(paths[0]).with_suffix('.lrc')))
             self.run_task('effects_info', {'source': paths[0]}, self.effects_loaded)
         elif kind == 'cover_path':
+            self.options['metadataCoverUrl'] = ''
             self.options['cover_path'] = paths[0]
             self.options['metadataCover'] = QUrl.fromLocalFile(paths[0]).toString()
         elif kind == 'jukeboxLyrics':
@@ -4000,6 +4099,14 @@ class DesktopWorkspace(QObject):
             self.load_lyrics(paths[0], selected=True)
         elif kind == 'metadata':
             self.cancel_task('cover_crop')
+            self._metadata_name_token = uuid.uuid4().hex
+            self.cancel_task('audio_name_search')
+            self.cancel_task('audio_name_details')
+            self.options.update(metadataMatches={}, metadataCoverUrl='')
+            if self._metadata_transfer_cover:
+                Path(self._metadata_transfer_cover).unlink(missing_ok=True)
+            self._metadata_transfer = None
+            self._metadata_transfer_cover = ''
             self.options.update(
                 metadataFields={},
                 metadataSources=paths,
@@ -4112,6 +4219,7 @@ class DesktopWorkspace(QObject):
             ('data:image/png;base64,' + result['cover']) if result.get('cover') else ''
         )
         self.options['metadata'] = result['record']
+        self.options['metadataOriginal'] = dict(result['record'])
         self.options['metadataCover'] = cover
         self.options['originalCover'] = cover
         self.optionsChanged.emit()
@@ -4211,6 +4319,127 @@ class DesktopWorkspace(QObject):
         else:
             self.show_result(result)
 
+    @Property(bool, notify=metadataClipboardChanged)
+    def metadataClipboardAvailable(self):
+        return self._metadata_clipboard_available
+
+    def metadata_clipboard_text(self):
+        from tag_transfer import MIME
+        mime = QGuiApplication.clipboard().mimeData()
+        return bytes(mime.data(MIME)).decode('utf-8') if mime and mime.hasFormat(MIME) else QGuiApplication.clipboard().text()
+
+    def refresh_metadata_clipboard(self):
+        from tag_transfer import decode
+        try:
+            decode(self.metadata_clipboard_text())
+            available = True
+        except (ValueError, UnicodeError):
+            available = False
+        if available != self._metadata_clipboard_available:
+            self._metadata_clipboard_available = available
+            self.metadataClipboardChanged.emit()
+
+    def copy_metadata_tags(self):
+        sources = self.options['metadataSources']
+        if not sources:
+            raise ValueError('Escolha um arquivo de áudio.')
+        def copied(payload):
+            from tag_transfer import MIME, encode
+            from PySide6.QtCore import QMimeData
+            mime = QMimeData()
+            mime.setData(MIME, encode(payload).encode('utf-8'))
+            QGuiApplication.clipboard().setMimeData(mime)
+        config = dict(source=sources[0], record=dict(self.options['metadata']),
+                      base_transfer=self._metadata_transfer,
+                      cover_path='' if self.options['cover_path']==self._metadata_transfer_cover else self.options['cover_path'],
+                      cover_url=self.options.get('metadataCoverUrl', ''), lyrics_path=self.options.get('lyrics_path', ''))
+        self.run_task('audio_tags_copy', config, copied)
+
+    def paste_metadata_tags(self):
+        from tag_transfer import decode, cover_file
+        if not self.options['metadataSources'] or not self.options['metadata']:
+            raise ValueError('Aguarde a leitura dos metadados.')
+        payload = decode(self.metadata_clipboard_text())
+        from cache_cleanup import root_path
+        folder = root_path() / 'metadata-tags'
+        preview = cover_file(payload, folder)
+        previous = self._metadata_transfer_cover
+        if preview and previous and Path(previous).parent.resolve()==folder.resolve() and Path(previous).name.startswith('tag-cover-'):
+            Path(previous).unlink(missing_ok=True)
+        self._metadata_transfer, self._metadata_transfer_cover = payload, preview
+        self.options['metadata'] = dict(self.options['metadata'], **payload['tags'])
+        self.options['metadataFields'] = dict(self.options['metadataFields'], **dict.fromkeys(payload['tags'], True))
+        self.options['lyrics_path'] = ''
+        if preview:
+            self.options.update(cover_path=preview, metadataCover=QUrl.fromLocalFile(preview).toString(), metadataCoverUrl='')
+        self.optionsChanged.emit()
+
+    def identify_metadata_names(self):
+        from catalog_match import picker_event
+
+        sources = list(self.options['metadataSources'])
+        if not sources or not self.options['metadata']:
+            raise ValueError('Aguarde a leitura dos metadados.')
+        token = self._metadata_name_token = uuid.uuid4().hex
+        self.cancel_task('audio_name_search')
+        self.cancel_task('audio_name_details')
+        pending, matches, missing = list(sources), {}, []
+
+        def current():
+            return (not self.closed and token == self._metadata_name_token
+                    and sources == self.options['metadataSources'])
+
+        def advance():
+            if not current():
+                return
+            if not pending:
+                if not matches:
+                    self.message.emit(tr('Identificar pelo nome'), tr('Nenhuma gravação correspondente foi encontrada.'))
+                    return
+                self.options['metadataMatches'] = matches if len(sources) > 1 else {}
+                first = next(iter(matches.values()))
+                self.options['metadata'].update(first['changes'])
+                self.options['metadataFields'] = {}
+                self.options['metadataCoverUrl'] = first.get('cover_url', '') if len(sources) == 1 else ''
+                if first.get('cover_url'):
+                    self.options.update(metadataCover=first['cover_url'], cover_path='')
+                self.optionsChanged.emit()
+                self.notify(f"{len(matches)}/{len(sources)} · " + tr('Metadados prontos para revisar e salvar.'))
+                return
+            source = pending.pop(0)
+
+            def found(result):
+                if not current():
+                    return
+                if not result['candidates']:
+                    missing.append(source)
+                    advance()
+                    return
+
+                def selected(reply):
+                    if not current() or reply.get('cancel'):
+                        return
+                    chosen = next((row for row in result['candidates']
+                                   if row['source_url'] == reply.get('selected_id')), None)
+                    if chosen is None:
+                        return
+
+                    def completed(value):
+                        if current():
+                            matches[source] = value
+                            advance()
+                    self.run_task('audio_name_details', {'record': chosen}, completed)
+
+                event = dict(picker_event(result['anchor'], result['candidates']), type='choose_catalog')
+                self.present_choice(uuid.uuid4().hex, event, selected)
+
+            config = {'source': source, 'filename': Path(source).name}
+            if len(sources) == 1:
+                config['record'] = dict(self.options['metadata'])
+            self.run_task('audio_name_search', config, found)
+
+        advance()
+
     def edit_audio(self):
         sources = self.options['metadataSources']
         if not sources:
@@ -4222,6 +4451,8 @@ class DesktopWorkspace(QObject):
             for key, value in self.options['metadata'].items()
             if key in FIELDS
             and (len(sources) == 1 or self.options['metadataFields'].get(key, False))
+            and (len(sources) > 1 or key not in ('album_artist', 'composer', 'comment')
+                 or value != self.options.get('metadataOriginal', {}).get(key))
         }
         if isinstance(changes.get('artists'), str):
             changes['artists'] = [
@@ -4235,33 +4466,40 @@ class DesktopWorkspace(QObject):
             edit_metadata=True,
             overwrite_original=self.options['overwrite_original'],
             normalize_volume=self.options['normalize_volume'],
-            cover_path=self.options['cover_path'],
+            cover_path='' if getattr(self, '_metadata_transfer_cover', '') and self.options['cover_path']==getattr(self, '_metadata_transfer_cover', '') else self.options['cover_path'],
+            tag_transfer=getattr(self, '_metadata_transfer', None),
+            tag_transfer_cover=bool(getattr(self, '_metadata_transfer_cover', '') and self.options['cover_path']==getattr(self, '_metadata_transfer_cover', '')),
             lyrics_path=self.options['lyrics_path'],
+            cover_url=self.options.get('metadataCoverUrl', ''),
         )
         if len(sources) > 1:
-            config['sources'] = [{'source': source} for source in sources]
+            config['sources'] = [dict(self.options.get('metadataMatches', {}).get(source, {}), source=source) for source in sources]
         self.run_task('audio_edit', config, self.show_result)
 
-    def export_effects(self):
+    def export_effects(self, unified=None):
         from PySide6.QtWidgets import QFileDialog
         from effects_export import export_config
 
-        unified = self._page == 'jukebox' and self.bridge.model is not None
-        source = (
-            self.bridge.model['source'] if unified else self.options['effectsSource']
+        model = dict(self.bridge.model or {})
+        if unified is None:
+            unified = self._page == 'jukebox' and self.bridge.model is not None
+        entry = (
+            self.bridge.playlist[self.bridge.queue_index]
+            if unified and 0 <= self.bridge.queue_index < len(self.bridge.playlist)
+            else {}
         )
-        if not source and unified:
-            source = (self.bridge.model.get('_stream') or {}).get('source_url', '')
+        record = dict(entry.get('record') or {})
+        stream = model.get('_stream') or {}
+        source = (
+            model.get('source')
+            or stream.get('source_url')
+            or record.get('source_url')
+            or stream.get('url')
+            if unified else self.options['effectsSource']
+        )
         if not source:
             raise ValueError('Abra um arquivo de áudio primeiro.')
         if unified:
-            entry = (
-                self.bridge.playlist[self.bridge.queue_index]
-                if 0 <= self.bridge.queue_index < len(self.bridge.playlist)
-                else {}
-            )
-            record = dict(entry.get('record') or {})
-            model = self.bridge.model
             record.update(
                 media_title=model.get('media_title') or self.bridge.state['title'],
                 media_artist=model.get('media_artist') or self.bridge.state['artist'],
@@ -4511,6 +4749,7 @@ class DesktopWorkspace(QObject):
             ):
                 self.begin_queue()
         if self.shell:
+            self.sync_taskbar_media()
             active = [
                 job['percent']
                 for identity in self.active
@@ -4566,6 +4805,33 @@ class DesktopWorkspace(QObject):
                 else ''
             )
             self.optionsChanged.emit()
+
+    def sync_taskbar_media(self):
+        if not self.shell:
+            return
+        opened = bool(self.bridge.model)
+        can_next = opened and (
+            self.bridge.normal_next_index() is not None
+            or bool(getattr(self.bridge, '_queue_priority', None))
+        )
+        commands = {'previous': self.bridge.previousTrack,
+                    'toggle': self.bridge.playPause, 'next': self.bridge.nextTrack}
+        for _ in range(8):
+            try:
+                command = self.shell.thumbnail_events.get_nowait()
+            except queue.Empty:
+                break
+            if opened and command in commands and (command != 'next' or can_next):
+                commands[command]()
+                opened = bool(self.bridge.model)
+                can_next = opened and (self.bridge.normal_next_index() is not None
+                                       or bool(getattr(self.bridge, '_queue_priority', None)))
+        try:
+            self.shell.thumbnail(opened,
+                                 playing=self.bridge._state['playing'] and not self.bridge.paused.is_set(),
+                                 previous=opened, next=can_next)
+        except OSError:
+            pass  # Shell controls must never interrupt audio or the main window.
 
     def setup_shell(self):
         from PySide6.QtWidgets import QSystemTrayIcon, QMenu

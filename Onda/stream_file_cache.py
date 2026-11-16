@@ -51,6 +51,9 @@ def prepare(model, config, cancelled=lambda: False):
         str(Path(p).resolve()) for p in config.get('_stream_cache_protected', [])
     }
 
+    from playback_cache_budget import recent_paths
+    recent = recent_paths(root.parent)
+
     def prune(reserve=0):
         entries = []
         for path in root.glob('*.mka'):
@@ -67,6 +70,7 @@ def prepare(model, config, cancelled=lambda: False):
                 (expired or total + reserve > limit)
                 and str(path.resolve()) not in protected
                 and path != target
+                and path not in recent
             ):
                 try:
                     path.unlink()

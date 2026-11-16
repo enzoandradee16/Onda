@@ -1,26 +1,25 @@
-# ONDA 1.2.9
+# ONDA 1.3.0
 
 Disponível para Windows x64 e Android ARM64 e x86_64.
 
 ## Windows e Android
 
-- Ajustes de reprodução recolhíveis, com a fila e os controles sempre acessíveis.
-- Indicações mais claras de carregamento e preparação das músicas na fila.
-- Destaque visual ao arrastar músicas e resultados de pesquisa mais compactos.
-- Configurações com informações sobre o ONDA e opções de cache reunidas em Desempenho.
-- Descrições mais claras para a seleção de metadados e da versão do áudio.
+- Reconhecimento de metadados pelas tags existentes ou pelo nome do arquivo, com consultas a Deezer, Apple/iTunes e MusicBrainz e escolha dos resultados antes de salvar.
+- Reconhecimento individual e em lote, preservando título, número de faixa e capa próprios de cada música.
+- Cópia e colagem de tags entre músicas, incluindo artista do álbum, compositor e comentário.
+- Limpeza automática do cache de áudio, preservando a música atual, três anteriores e as próximas preparadas.
+- Recuperação de falhas temporárias nas consultas a páginas de redes sociais.
 
 ## Windows
 
-- Layout adaptado ao redimensionamento, com controles distribuídos em mais linhas quando necessário.
-- Melhor espaçamento entre capa, informações da música e botões da barra de reprodução.
-- Modo Claro puro disponível nas configurações de Aparência.
-- Botões de configuração com larguras uniformes e opções de restauração reunidas em uma janela.
-- Seleção de idioma corrigida. O botão Reiniciar ONDA aparece abaixo do idioma somente enquanto houver uma mudança pendente.
+- Controles de anterior, reproduzir/pausar e próxima na prévia da barra de tarefas, exibidos somente com uma música aberta em Reprodução.
+- Atalhos Ctrl+Shift+C e Ctrl+Shift+V para copiar e colar tags no editor.
+- Seleção múltipla sincronizada aos quadradinhos e tamanho Muito pequeno nas listas de músicas.
+- Opções da Coleção recolhíveis, mantendo o seletor de tamanho dos cards acessível.
+- Melhor adaptação dos controles ao redimensionamento da janela.
 
 ## Android
 
-- Melhor adaptação das telas ao teclado, mantendo o player compacto acessível.
-- Fechamento do teclado ao abrir a fila, preservando o texto da pesquisa.
-- Busca das configurações direcionada à categoria correspondente.
-- Ajustes de reprodução em segundo plano e de seleção de faixas na fila.
+- Ações de reconhecimento e transferência de tags nos menus do editor individual e em lote.
+- Leitura das tags para reconhecimento em lote sem copiar os áudios inteiros para o armazenamento temporário.
+- Melhor compatibilidade com páginas móveis atualizadas do TikTok e recuperação de falhas de conexão.

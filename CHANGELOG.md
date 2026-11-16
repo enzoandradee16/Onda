@@ -1,5 +1,13 @@
 # Histórico de versões
 
+## 1.3.0 — 2026-11-16
+
+- Reconhecimento de metadados pelo nome do arquivo e edição individual e em lote.
+- Cópia e colagem de tags, artista do álbum, compositor e comentário.
+- Cache de reprodução com proteção das músicas recentes e próximas preparadas.
+- Controles de mídia na prévia da barra de tarefas do Windows.
+- Recuperação de falhas temporárias nas páginas de redes sociais.
+
 ## 1.2.9 — 2026-11-09
 
 - Atualização dos pacotes Windows e Android para 1.2.9; código Android 37.

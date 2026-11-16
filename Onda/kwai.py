@@ -171,9 +171,10 @@ class OndaKwaiIE(InfoExtractor):
 
     def _real_extract(self, url):
         short_id = self._match_id(url).rstrip("/").split("/")[-1]
-        webpage, response = self._download_webpage_handle(
+        from social_recovery import retry_metadata
+        webpage, response = retry_metadata(lambda: self._download_webpage_handle(
             url, short_id, impersonate=True
-        )
+        ))
         canonical = (
             self._og_search_property("url", webpage, default=None) or response.url
         )

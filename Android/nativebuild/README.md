@@ -35,3 +35,5 @@ python .\bootstrap.py --work .\fontes-extraidos --sources-only
 ```
 
 `bootstrap.py` aproveita os arquivos em `sources/` ao lado dele quando presentes. Os compiladores não são redistribuídos no APK. As licenças estão em `licenses/` e no aplicativo, em Menu → Licenças e fontes. Os componentes Python/Android e seus avisos estão nos outros pacotes de fontes e em THIRD_PARTY_NOTICES_ANDROID.md.
+
+Chromaprint 1.6.1 usa a biblioteca Kiss FFT incluída nos fontes. `build_chromaprint.py --work <pasta>` gera `libchromaprint.so` para ARM64 e x86_64 com NDK r28c, CMake 3.31.6 e Ninja 1.11.1.3, ligação C++ estática e alinhamento de 16 KiB. A pasta deve conter o arquivo original verificado, seus fontes extraídos em `chromaprint-1.6.1`, o NDK em `android-ndk-r28c` e as ferramentas em `tooling`. O hash dos fontes está em `source-lock.json`; os hashes resultantes devem ser registrados em `SHA256SUMS.txt` antes do empacotamento.

@@ -34,12 +34,24 @@ class IconData(c.Structure):
     ]
 
 
+class ThumbnailButton(c.Structure):
+    _fields_ = [
+        ('mask', w.DWORD), ('identity', w.UINT), ('bitmap', w.UINT),
+        ('icon', w.HICON), ('tip', w.WCHAR * 260), ('flags', w.DWORD),
+    ]
+
+
 class WindowsShell:
     MESSAGE = 0x8000 + 43
+    THUMBNAIL_COMMANDS = {0x5101: 'previous', 0x5102: 'toggle', 0x5103: 'next'}
 
     def __init__(self, root):
         self.root = root
         self.events = queue.Queue()
+        self.thumbnail_events = queue.SimpleQueue()
+        self._thumbnail_added = False
+        self._thumbnail_signature = None
+        self._thumbnail_icons = {}
         self.added = False
         self._progress_signature = None
         self.taskbar = c.c_void_p()
@@ -79,11 +91,19 @@ class WindowsShell:
             if message == self.button_message:
                 self.ready = True
                 self._progress_signature = None
+                self._thumbnail_signature = None
             elif message == self.restart_message:
                 self.added = False
                 self.ready = False
                 self._progress_signature = None
+                self._thumbnail_added = False
+                self._thumbnail_signature = None
                 self.events.put('restart')
+            elif message == 0x111 and (wp >> 16) & 0xFFFF == 0x1800:
+                command = self.THUMBNAIL_COMMANDS.get(wp & 0xFFFF)
+                if command:
+                    self.thumbnail_events.put(command)
+                    return 0
             elif message == self.MESSAGE:
                 if lp in (0x202, 0x203, 0x405, 0x400, 0x401):
                     self.events.put('open')
@@ -244,10 +264,83 @@ class WindowsShell:
         self._progress_signature = signature if result >= 0 else None
         return result >= 0
 
+    def _create_thumbnail_icons(self):
+        from io import BytesIO
+        import struct
+        from PIL import Image, ImageDraw
+
+        create = self.user.CreateIconFromResourceEx
+        create.argtypes = [c.POINTER(c.c_ubyte), w.DWORD, w.BOOL, w.DWORD, c.c_int, c.c_int, w.UINT]
+        create.restype = w.HICON
+        try:
+            for name in ('previous', 'play', 'pause', 'next'):
+                image = Image.new('RGBA', (96, 96))
+                draw = ImageDraw.Draw(image)
+                if name == 'pause':
+                    draw.rectangle((25, 20, 39, 76), fill='#808080')
+                    draw.rectangle((57, 20, 71, 76), fill='#808080')
+                else:
+                    draw.polygon([(28, 20), (28, 76), (73, 48)], fill='#808080')
+                    if name in ('previous', 'next'):
+                        draw.rectangle((70, 20, 79, 76), fill='#808080')
+                    if name == 'previous':
+                        image = image.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
+                image = image.resize((32, 32), Image.Resampling.LANCZOS)
+                stream = BytesIO()
+                image.save(stream, format='ICO', sizes=[(32, 32)], bitmap_format='bmp')
+                data = stream.getvalue()
+                length, offset = struct.unpack_from('<II', data, 14)
+                resource = (c.c_ubyte * length).from_buffer_copy(data[offset:offset + length])
+                icon = create(resource, length, True, 0x30000, 32, 32, 0)
+                if not icon:
+                    raise OSError('Não foi possível criar os controles da barra de tarefas.')
+                self._thumbnail_icons[name] = icon
+        except Exception:
+            for icon in self._thumbnail_icons.values():
+                self.user.DestroyIcon(icon)
+            self._thumbnail_icons.clear()
+            raise
+
+    def thumbnail(self, opened, playing=False, previous=False, next=False):
+        """Buttons belong to loaded playback, independently of the selected page."""
+        if self.closed or not self.taskbar or not self.ready:
+            return False
+        if not opened and not self._thumbnail_added:
+            return True
+        from i18n import tr
+
+        labels = (tr('Anterior'), tr('Pausar' if playing else 'Reproduzir'), tr('Próxima'))
+        signature = (bool(opened), bool(playing), bool(previous), bool(next), labels)
+        if signature == self._thumbnail_signature:
+            return True
+        if not self._thumbnail_icons:
+            self._create_thumbnail_icons()
+        buttons = (ThumbnailButton * 3)()
+        names = ('previous', 'pause' if playing else 'play', 'next')
+        for button, identity, name, enabled, label in zip(
+            buttons, self.THUMBNAIL_COMMANDS, names, (previous, True, next), labels
+        ):
+            button.mask, button.identity = 0xE, identity  # ICON | TOOLTIP | FLAGS
+            button.icon, button.tip = self._thumbnail_icons[name], label[:259]
+            button.flags = 0 if opened and enabled else 1 if opened else 0x9
+        result = self.com(16 if self._thumbnail_added else 15,
+                          [w.HWND, w.UINT, c.POINTER(ThumbnailButton)])(self.hwnd, 3, buttons)
+        if result < 0 and not self._thumbnail_added:
+            # A taskbar button may have survived a transient failed update.
+            result = self.com(16, [w.HWND, w.UINT, c.POINTER(ThumbnailButton)])(self.hwnd, 3, buttons)
+        if result >= 0:
+            self._thumbnail_added = True
+            self._thumbnail_signature = signature
+        else:
+            self._thumbnail_signature = None
+            self._thumbnail_added = False
+        return result >= 0
+
     def close(self):
         if self.closed:
             return
         self.progress(enabled=False)
+        self.thumbnail(False)
         self.remove()
         self.set_proc(self.hwnd, -4, self.old_proc)
         if self.taskbar:
@@ -258,4 +351,7 @@ class WindowsShell:
             self.com_initialized = False
         if self.owns_icon:
             self.user.DestroyIcon(self.icon)
+        for icon in self._thumbnail_icons.values():
+            self.user.DestroyIcon(icon)
+        self._thumbnail_icons.clear()
         self.closed = True

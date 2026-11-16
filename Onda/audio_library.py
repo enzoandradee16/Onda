@@ -18,6 +18,9 @@ FIELDS = {
     'track_number': 'tracknumber',
     'disc_number': 'discnumber',
     'isrc': 'isrc',
+    'album_artist': 'albumartist',
+    'composer': 'composer',
+    'comment': 'comment',
 }
 
 
@@ -43,6 +46,9 @@ def read_audio(source):
             'tracknumber': 'TRCK',
             'discnumber': 'TPOS',
             'isrc': 'TSRC',
+            'albumartist': 'TPE2',
+            'composer': 'TCOM',
+            'comment': 'COMM',
         }
         values = {
             tag: list(audio.tags[frame].text) if frame in audio.tags else []
@@ -67,11 +73,16 @@ def read_audio(source):
         )
         for key, value in record.items()
     }
+    native = File(path)
     if path.suffix.lower() == '.m4a':
-        native = File(path)
+        for field, tag in (('composer', '\xa9wrt'), ('comment', '\xa9cmt')):
+            record[field] = str(next(iter((native.tags or {}).get(tag, [])), ''))
         codes = (native.tags or {}).get('----:com.apple.iTunes:ISRC', [])
         if codes:
             record['isrc'] = bytes(codes[0]).decode('utf-8', errors='replace')
+    if isinstance(native.tags, ID3):
+        comments = native.tags.getall('COMM')
+        record['comment'] = str(comments[0].text[0]) if comments and comments[0].text else ''
     record['title'] = record['title'] or path.stem
     record['duration'] = getattr(audio.info, 'length', 0)
     return record
@@ -149,7 +160,7 @@ def write_audio(source, changes, cover_path='', lyrics=''):
         raise ValueError('Áudio não reconhecido.')
     if audio.tags is None:
         audio.add_tags()
-    from mutagen.id3 import TIT2, TPE1, TALB, TCON, TDRC, TRCK, TPOS, TSRC
+    from mutagen.id3 import TIT2, TPE1, TALB, TCON, TDRC, TRCK, TPOS, TSRC, TPE2, TCOM, COMM
 
     frames = {
         'title': TIT2,
@@ -160,9 +171,11 @@ def write_audio(source, changes, cover_path='', lyrics=''):
         'track_number': TRCK,
         'disc_number': TPOS,
         'isrc': TSRC,
+        'album_artist': TPE2,
+        'composer': TCOM,
     }
     for field, value in changes.items():
-        if field not in FIELDS:
+        if field not in FIELDS or field == 'comment':
             continue
         values = value if isinstance(value, list) else [str(value)]
         values = [str(v).strip() for v in values if str(v).strip()]
@@ -170,7 +183,7 @@ def write_audio(source, changes, cover_path='', lyrics=''):
             audio.tags.delall(frames[field].__name__)
             if values:
                 audio.tags.add(frames[field](encoding=3, text=values))
-        elif field == 'isrc' and path.suffix.lower() == '.m4a':
+        elif field in ('isrc', 'composer') and path.suffix.lower() == '.m4a':
             continue
         elif values:
             audio[FIELDS[field]] = values
@@ -180,6 +193,24 @@ def write_audio(source, changes, cover_path='', lyrics=''):
     native = File(path)
     if native.tags is None:
         native.add_tags()
+    if 'comment' in changes:
+        text = str(changes['comment']).strip()
+        if isinstance(native.tags, ID3):
+            native.tags.delall('COMM')
+            if text:
+                native.tags.add(COMM(encoding=3, lang='eng', desc='', text=[text]))
+        else:
+            key = '\xa9cmt' if isinstance(native, MP4) else 'comment'
+            if text:
+                native[key] = [text]
+            else:
+                native.tags.pop(key, None)
+    if isinstance(native, MP4) and 'composer' in changes:
+        value = str(changes['composer']).strip()
+        if value:
+            native.tags['\xa9wrt'] = [value]
+        else:
+            native.tags.pop('\xa9wrt', None)
     if isinstance(native, MP4) and 'isrc' in changes:
         key = '----:com.apple.iTunes:ISRC'
         value = str(changes['isrc']).strip()
@@ -384,10 +415,34 @@ def edit_copy(config, emit=lambda *args, **kwargs: None, *, cancelled=lambda: Fa
         if config.get('normalize_volume'):
             normalize_audio(target, config, emit)
         if config.get('edit_metadata'):
+            changes = config.get('changes', {})
+            transfer = config.get('tag_transfer')
+            if config.get('tag_transfer_path'):
+                from tag_transfer import decode, LIMIT
+                path = Path(config['tag_transfer_path'])
+                if path.stat().st_size > LIMIT:
+                    raise ValueError('As tags excedem o limite de tamanho.')
+                transfer = decode(path.read_text(encoding='utf-8'))
+            if transfer:
+                from tag_transfer import apply
+                changes = apply(target, transfer, changes, config.get('tag_transfer_cover', True))
+            cover_path = config.get('cover_path', '')
+            if not cover_path and str(config.get('cover_url') or '').startswith('data:image/jpeg;base64,'):
+                cover_path = config['cover_url']
+            if not cover_path and config.get('cover_url'):
+                from tagging import fetch_cover
+
+                emit('stage', message='Obtendo a capa selecionada…')
+                data, mime = fetch_cover(config['cover_url'])
+                if cancelled():
+                    raise InterruptedError('Operação cancelada.')
+                image = Path(directory) / ('metadata-cover.jpg' if mime == 'image/jpeg' else 'metadata-cover.png')
+                image.write_bytes(data)
+                cover_path = str(image)
             write_audio(
                 target,
-                config.get('changes', {}),
-                config.get('cover_path', ''),
+                changes,
+                cover_path,
                 config.get('lyrics_path', ''),
             )
         elif config.get('lyrics_path'):

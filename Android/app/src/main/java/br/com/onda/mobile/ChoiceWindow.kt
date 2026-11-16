@@ -96,6 +96,24 @@ import org.json.JSONObject
                         val video=candidate.optString("kind") in listOf("video","Vídeo") || candidate.optString("type")=="video"
                         ElevatedCard(Modifier.fillMaxWidth().clickable {selected=if(kind=="choose_media") if(id in selected) selected-id else selected+id else setOf(id)}) {
                             Column(Modifier.padding(10.dp)) {
+                                if(kind=="choose_catalog") {
+                                    Row(horizontalArrangement=Arrangement.spacedBy(10.dp)) {
+                                        val artwork=candidate.cleanString("cover_url").ifBlank {candidate.cleanString("cover")}
+                                        val image=remember(artwork) {if(artwork.startsWith("data:image/"))runCatching {android.util.Base64.decode(artwork.substringAfter(','),android.util.Base64.DEFAULT)}.getOrNull() else artwork}
+                                        Surface(Modifier.size(80.dp),shape=MaterialTheme.shapes.small) {
+                                            if(artwork.isNotBlank())AsyncImage(image,translateUi("Capa do álbum",LocalUiLanguage.current),Modifier.size(80.dp),contentScale=androidx.compose.ui.layout.ContentScale.Fit)
+                                            else Box(contentAlignment=androidx.compose.ui.Alignment.Center){OndaIcon("album",modifier=Modifier.size(32.dp))}
+                                        }
+                                        Column(Modifier.weight(1f)) {
+                                            Toggle(candidate.cleanString("title"),id in selected){selected=if(it)setOf(id) else emptySet()}
+                                            Text(candidate.stringList("artists"),style=MaterialTheme.typography.bodyMedium)
+                                            if(candidate.optBoolean("manual_review"))Text(candidate.getJSONArray("match_reasons").let {a->(0 until a.length()).joinToString(" "){a.getString(it)}},style=MaterialTheme.typography.bodySmall)
+                                            Text(listOf(candidate.cleanString("album"),candidate.cleanString("release_date"),candidate.cleanString("genre"),candidate.cleanString("platform")).filter {it.isNotBlank()}.joinToString(" · "),style=MaterialTheme.typography.bodySmall)
+                                            val duration=if(candidate.optLong("duration_ms")>0)candidate.optLong("duration_ms")/1000 else candidate.optDouble("duration",0.0).toLong()
+                                            Text(listOf(candidate.cleanString("track_number").takeIf {it.isNotBlank()}?.let {translateUi("Faixa",LocalUiLanguage.current)+" "+it}.orEmpty(),candidate.cleanString("disc_number").takeIf {it.isNotBlank()}?.let {translateUi("Disco",LocalUiLanguage.current)+" "+it}.orEmpty(),if(duration>0)mediaClock(duration) else "",candidate.cleanString("isrc")).filter {it.isNotBlank()}.joinToString(" · "),style=MaterialTheme.typography.bodySmall)
+                                        }
+                                    }
+                                } else {
                                 Toggle(candidate.optString("title",candidate.optString("label","Mídia $id")),id in selected){selected=if(kind=="choose_media") if(it) selected+id else selected-id else setOf(id)}
                                 Text(candidate.optString("channel",candidate.optString("uploader",candidate.stringList("artists"))),style=MaterialTheme.typography.bodySmall)
                                 if(candidate.optBoolean("manual_review")) UiText("Conferir",style=MaterialTheme.typography.bodySmall)
@@ -105,6 +123,7 @@ import org.json.JSONObject
                                 candidate.optJSONArray("match_reasons")?.let {reasons->Text((0 until reasons.length()).joinToString("; "){translateUi(reasons.optString(it))},style=MaterialTheme.typography.bodySmall)}
                                 val thumbnail=candidate.optString("thumbnail",candidate.optString("preview_url"))
                                 if(thumbnail.startsWith("https://")) AsyncImage(thumbnail,translateUi("Prévia da mídia",LocalUiLanguage.current),Modifier.height(110.dp))
+                                }
                                 if(kind=="choose_media" && video && !candidate.optBoolean("automatic_quality")) {
                                     val outputs=linkedMapOf("Vídeo · MP4" to "mp4", "Vídeo · MKV" to "video", "Só áudio · MP3" to "mp3", "Só áudio · M4A" to "m4a", "Só áudio · FLAC" to "flac", "Só áudio · original" to "original")
                                     val mode=mediaModes[id] ?: candidate.optString("default_mode", "mp4")

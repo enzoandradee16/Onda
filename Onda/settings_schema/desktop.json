@@ -491,6 +491,7 @@
       "label": "Tamanho dos cards da pesquisa",
       "kind": "select",
       "choices": [
+        "Muito pequeno",
         "Pequeno",
         "Médio",
         "Grande"
@@ -502,6 +503,7 @@
       "label": "Tamanho dos cards de álbuns e playlists",
       "kind": "select",
       "choices": [
+        "Muito pequeno",
         "Pequeno",
         "Médio",
         "Grande"
@@ -513,6 +515,7 @@
       "label": "Tamanho dos cards de downloads",
       "kind": "select",
       "choices": [
+        "Muito pequeno",
         "Pequeno",
         "Médio",
         "Grande"
@@ -534,6 +537,7 @@
       "label": "Tamanho dos cards do histórico",
       "kind": "select",
       "choices": [
+        "Muito pequeno",
         "Pequeno",
         "Médio",
         "Grande"

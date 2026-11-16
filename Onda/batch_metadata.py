@@ -4,15 +4,9 @@ from pathlib import Path
 from audio_library import FIELDS, edit_copy
 
 
-def edit_batch(config, emit=lambda *args, **kwargs: None, *, cancelled=lambda: False):
-    entries = config.get('sources')
-    changes = config.get('changes', {})
-    if not isinstance(entries, list) or not 1 <= len(entries) <= 500:
-        raise ValueError('Escolha de 1 a 500 arquivos de áudio.')
+def validate_changes(changes):
     if not isinstance(changes, dict) or set(changes) - set(FIELDS):
         raise ValueError('Campo de metadados inválido.')
-    if not changes and not config.get('cover_path'):
-        raise ValueError('Selecione pelo menos um campo ou uma capa para aplicar.')
     for key, value in changes.items():
         if key == 'artists':
             if not isinstance(value, list) or any(
@@ -26,6 +20,20 @@ def edit_batch(config, emit=lambda *args, **kwargs: None, *, cancelled=lambda: F
 
             if not positive_number(value):
                 raise ValueError('Informe um número de faixa ou disco válido.')
+
+
+def edit_batch(config, emit=lambda *args, **kwargs: None, *, cancelled=lambda: False):
+    entries = config.get('sources')
+    changes = config.get('changes', {})
+    if not isinstance(entries, list) or not 1 <= len(entries) <= 500:
+        raise ValueError('Escolha de 1 a 500 arquivos de áudio.')
+    validate_changes(changes)
+    for entry in entries:
+        if not isinstance(entry, dict) or not isinstance(entry.get('source'), str):
+            raise ValueError('Escolha um arquivo de áudio compatível.')
+        validate_changes(entry.get('changes', {}))
+    if not changes and not config.get('cover_path') and not config.get('cover_url') and not config.get('tag_transfer') and not config.get('tag_transfer_path') and not any(entry.get('changes') or entry.get('cover_url') for entry in entries):
+        raise ValueError('Selecione pelo menos um campo ou uma capa para aplicar.')
     results, errors, seen = [], [], set()
     for index, entry in enumerate(entries):
         if cancelled():
@@ -34,12 +42,18 @@ def edit_batch(config, emit=lambda *args, **kwargs: None, *, cancelled=lambda: F
         if path in seen:
             continue
         seen.add(path)
+        fields = dict(entry.get('changes', {}), **changes)
+        cover_url = config.get('cover_url') or entry.get('cover_url') or ''
+        if not fields and not config.get('cover_path') and not cover_url and not config.get('tag_transfer') and not config.get('tag_transfer_path'):
+            continue
         emit('stage', message=f'Editando arquivo {index + 1} de {len(entries)}')
         try:
             options = dict(
                 config,
                 source=str(path),
                 output_name=entry.get('output_name') or path.stem,
+                changes=fields,
+                cover_url=cover_url,
                 edit_metadata=True,
                 normalize_volume=False,
                 lyrics_path='',

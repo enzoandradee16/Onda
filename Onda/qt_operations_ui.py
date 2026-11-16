@@ -367,6 +367,13 @@ def perform(action, config, cancel, emit):
             'cover': cover_preview(config['source']) or '',
             'duration': duration,
         }
+    if action in ('audio_name_search', 'audio_name_details'):
+        from filename_metadata import search, details
+
+        return search(config, cancel) if action == 'audio_name_search' else details(config['record'], cancel)
+    if action == 'audio_tags_copy':
+        from tag_transfer import copy_snapshot
+        return copy_snapshot(config)
     if action == 'audio_identify':
         from audio_identification import identify_audio
 

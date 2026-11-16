@@ -64,3 +64,19 @@ internal fun localAudioItem(uri:Uri):HistoryItem {
     }
     return HistoryItem(-1,name,uri.toString(),name.substringAfterLast('.',"").lowercase(),size)
 }
+
+/** Optional tag hints without copying whole files into the app's imports folder. */
+internal fun localMetadataHint(uri:Uri):org.json.JSONObject {
+    val result=org.json.JSONObject()
+    try {
+        val reader=android.media.MediaMetadataRetriever()
+        try {
+            reader.setDataSource(OndaStore.context,uri)
+            reader.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_TITLE)?.takeIf {it.isNotBlank()}?.let {result.put("title",it)}
+            reader.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_ARTIST)?.takeIf {it.isNotBlank()}?.let {result.put("artists",org.json.JSONArray(it.split(';').map {part->part.trim()}.filter {part->part.isNotEmpty()}))}
+            reader.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_ALBUM)?.takeIf {it.isNotBlank()}?.let {result.put("album",it)}
+            reader.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)?.toDoubleOrNull()?.takeIf {it.isFinite() && it>0}?.let {result.put("duration",it/1000)}
+        } finally {reader.release()}
+    } catch(_:Exception) { /* Unsupported tags still allow searching by filename. */ }
+    return result
+}

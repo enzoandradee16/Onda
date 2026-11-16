@@ -17,6 +17,8 @@ OndaScrollView {
         if(!workspace.clipboardHasImage() && field && typeof field.paste === "function")field.paste()
         else workspace.invoke("image_paste",{})
     }}
+    Shortcut {sequence:"Ctrl+Shift+C";enabled:page.visible && page.mode==="metadata";onActivated:workspace.invoke("metadata_copy",{})}
+    Shortcut {sequence:"Ctrl+Shift+V";enabled:page.visible && page.mode==="metadata" && workspace.metadataClipboardAvailable;onActivated:workspace.invoke("metadata_paste",{})}
     property var effectsLyricFrame: ({})
     Timer { interval: 100; running: page.visible; repeat: true; onTriggered: page.effectsLyricFrame=workspace.lyricsClock(true) }
     signal lyricsRequested()
@@ -39,6 +41,10 @@ OndaScrollView {
         OndaMenuItem {visible:page.mode==="effects";text:bridge.translate("Buscar letra online");enabled:!!workspace.optionValue(workspace.optionsRevision,"effectsSource");onTriggered:workspace.invoke("lyrics_online",{jukebox:false})}
         OndaMenuItem {visible:page.mode==="converter";text:bridge.translate("Converter");enabled:workspace.optionValue(workspace.optionsRevision,"converterSources").length>0;onTriggered:workspace.invoke("convert",{})}
         OndaMenuItem {visible:page.mode==="images";text:bridge.translate("Prévia");enabled:!!workspace.optionValue(workspace.optionsRevision,"imageSource");onTriggered:workspace.invoke("image_preview",{})}
+        OndaMenuItem {visible:page.mode==="metadata";text:bridge.translate("Identificar pelo nome");enabled:workspace.optionValue(workspace.optionsRevision,"metadataSources").length>0;onTriggered:workspace.invoke("audio_identify_name",{})}
+        OndaMenuItem {visible:page.mode==="metadata";text:bridge.translate("Identificar pelo áudio");enabled:workspace.optionValue(workspace.optionsRevision,"metadataSources").length===1;onTriggered:workspace.invoke("audio_identify",{})}
+        OndaMenuItem {visible:page.mode==="metadata";text:bridge.translate("Copiar tags");enabled:workspace.optionValue(workspace.optionsRevision,"metadataSources").length>0;onTriggered:workspace.invoke("metadata_copy",{})}
+        OndaMenuItem {visible:page.mode==="metadata";text:bridge.translate("Colar tags");enabled:workspace.metadataClipboardAvailable && workspace.optionValue(workspace.optionsRevision,"metadataSources").length>0;onTriggered:workspace.invoke("metadata_paste",{})}
         OndaMenuItem {visible:page.mode==="metadata";text:bridge.translate("Salvar");enabled:workspace.optionValue(workspace.optionsRevision,"metadataSources").length>0;onTriggered:workspace.invoke("audio_edit",{})}
     }
     TapHandler {enabled:page.mode!=="effects" || !(workspace.optionValue(workspace.optionsRevision,"effectsResults") || []).length;acceptedButtons:Qt.RightButton;onTapped:toolActions.popup()}
@@ -264,14 +270,22 @@ OndaScrollView {
             }
         }
         ColumnLayout { visible: page.mode === "metadata"; Layout.fillWidth: true; spacing: Math.round(14*bridge.spacing)
+            RowLayout { Layout.fillWidth: true; spacing: 12
+            TaskButton {
+                idleText: bridge.translate("Identificar pelo nome")
+                enabled: taskRunning || workspace.optionValue(workspace.optionsRevision,"metadataSources").length>0
+                operation: "audio_identify_name"
+                taskNames: ["audio_name_search","audio_name_details"]
+            }
             TaskButton {
                 idleText: bridge.translate("Identificar pelo áudio")
                 enabled: taskRunning || workspace.optionValue(workspace.optionsRevision, "metadataSources").length === 1
                 operation: "audio_identify"
                 taskNames: ["audio_identify"]
             }
+            }
             GridLayout { columns: 2; Layout.fillWidth: true; columnSpacing: 16; rowSpacing: 14
-                Repeater { model: [{key:"title",label:"Título"},{key:"artists",label:"Artista"},{key:"album",label:"Álbum"},{key:"genre",label:"Gênero"},{key:"release_date",label:"Data de lançamento"},{key:"track_number",label:"Número da faixa"},{key:"disc_number",label:"Disco"},{key:"isrc",label:"ISRC"}]
+                Repeater { model: [{key:"title",label:"Título"},{key:"artists",label:"Artista"},{key:"album",label:"Álbum"},{key:"genre",label:"Gênero"},{key:"release_date",label:"Data de lançamento"},{key:"track_number",label:"Número da faixa"},{key:"disc_number",label:"Disco"},{key:"isrc",label:"ISRC"},{key:"album_artist",label:"Artista do álbum"},{key:"composer",label:"Compositor"}]
                     ColumnLayout { required property var modelData; Layout.fillWidth: true
                         RowLayout {
                             CheckBox { visible: workspace.optionValue(workspace.optionsRevision,"metadataSources").length > 1; checked: workspace.optionValue(workspace.optionsRevision,"metadataFields")[modelData.key] || false; onToggled: { var values=workspace.optionValue(workspace.optionsRevision,"metadataFields");values[modelData.key]=checked;workspace.setOption("metadataFields",values) } }

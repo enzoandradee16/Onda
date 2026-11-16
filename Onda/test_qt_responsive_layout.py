@@ -80,3 +80,59 @@ class ResponsiveLayoutTests(unittest.TestCase):
             children = metadata.childItems()
             cover, details = children[:2]
             self.assertAlmostEqual(details.x()-(cover.x()+cover.width()), 12, delta=1)
+
+    def test_collection_options_collapse_preserves_tracks_filters_and_selection(self):
+        from PySide6.QtCore import QObject, QMetaObject
+        self.case.ws.selectPage('playlists')
+        self.case.ws.playlistModel.replace([
+            dict(title=f'Track {i}', artists=['Artist'], checked=i==3)
+            for i in range(50)
+        ])
+        self.case.ws.collectionFilterModel.setFilters('Track', '', '')
+        for _ in range(4): self.case.settle()
+        root = self.case.window
+        button = root.findChild(QObject, 'collectionOptionsToggle')
+        panel = root.findChild(QObject, 'collectionOptionsPanel')
+        tracks = root.findChild(QObject, 'libraryScrollList')
+        height = tracks.height()
+        before = list(self.case.ws.collectionFilterModel.visible_rows())
+        self.assertTrue(button.isVisible())
+        self.assertGreaterEqual(button.width(), button.property('contentItem').implicitWidth()+24)
+        self.assertTrue(QMetaObject.invokeMethod(button, 'click'))
+        for _ in range(4): self.case.settle()
+        self.assertFalse(panel.isVisible())
+        self.assertTrue(root.findChild(QObject, 'collapsedCollectionCardSizeControl').isVisible())
+        self.assertGreater(tracks.height(), height+150)
+        self.assertEqual(self.case.ws.collectionFilterModel.visible_rows(), before)
+        self.assertTrue(self.case.ws.playlistModel.rows[3]['checked'])
+        self.assertIs(tracks, root.findChild(QObject, 'libraryScrollList'))
+        self.assertTrue(QMetaObject.invokeMethod(button, 'click'))
+        self.case.settle()
+        self.assertTrue(panel.isVisible())
+        self.assertEqual(self.case.ws.collectionFilterModel.filters['title'], 'Track')
+
+    def test_very_small_cards_and_collapsed_size_control_share_header(self):
+        from PySide6.QtCore import QObject, QMetaObject
+        for key in ('catalog_card_size','playlist_card_size','history_card_size','queue_card_size'):
+            self.case.ws.setSetting(key, 'Muito pequeno')
+            self.assertEqual(self.case.ws.preferences[key], 'Muito pequeno')
+        self.case.ws.store.save(self.case.ws.settings)
+        saved = self.case.ws.store.load()
+        for key in ('catalog_card_size','playlist_card_size','history_card_size','queue_card_size'):
+            self.assertEqual(saved[key], 'Muito pequeno')
+        self.case.ws.selectPage('playlists')
+        self.case.ws.playlistModel.replace([dict(title='Track', artist='Artist', checked=False)])
+        for _ in range(4): self.case.settle()
+        root = self.case.window
+        button = root.findChild(QObject, 'collectionOptionsToggle')
+        QMetaObject.invokeMethod(button, 'click')
+        for _ in range(4): self.case.settle()
+        size = root.findChild(QObject, 'collapsedCollectionCardSizeControl')
+        self.assertTrue(size.isVisible())
+        self.assertLessEqual(size.x()+size.width(), button.x())
+        self.assertAlmostEqual(size.y()+size.height()/2, button.y()+button.height()/2, delta=1)
+        self.assertFalse(root.findChild(QObject,'collectionCardSizeControl').isVisible())
+        view = root.findChild(QObject, 'libraryScrollList')
+        cards = [item for item in view.property('contentItem').childItems() if item.objectName()=='libraryTrackCard']
+        self.assertTrue(cards)
+        self.assertLessEqual(cards[0].height(), 70)

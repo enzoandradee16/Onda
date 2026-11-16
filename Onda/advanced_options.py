@@ -160,9 +160,9 @@ def import_settings(payload, platform):
     choices = {
         'interface_spacing': {'Compacto', 'Padrão', 'Confortável'},
         'queue_view': {'Compacto', 'Completa'},
-        'queue_card_size': {'Pequeno', 'Médio', 'Grande'},
+        'queue_card_size': {'Muito pequeno', 'Pequeno', 'Médio', 'Grande'},
         'language': {'pt-BR', 'es', 'en'},
-        'history_card_size': {'Pequeno', 'Médio', 'Grande'},
+        'history_card_size': {'Muito pequeno', 'Pequeno', 'Médio', 'Grande'},
         'history_view': {'Compacto', 'Completa'},
         'mode': set(MODES.values()),
         'height': set(HEIGHTS.values()),

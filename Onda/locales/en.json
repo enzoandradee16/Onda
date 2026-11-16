@@ -2515,5 +2515,22 @@
   "Verificar consulta as versões instaladas; Atualizar instala novas versões dos componentes.": "Check reads installed versions; Update installs new component versions.",
   "Arquivos temporários e cache": "Temporary files and cache",
   "Os downloads salvos na pasta de destino não são removidos.": "Downloads saved in the destination folder are not removed.",
-  "Alterações valem para os próximos downloads iniciados, inclusive itens pendentes.": "Changes apply to downloads started next, including pending items."
+  "Alterações valem para os próximos downloads iniciados, inclusive itens pendentes.": "Changes apply to downloads started next, including pending items.",
+  "Expandir opções": "Expand options",
+  "Recolher opções": "Collapse options",
+  "Muito pequeno": "Very small",
+  "Página da rede social acima do limite.": "Social network page exceeds the size limit.",
+  "Copiar tags": "Copy tags",
+  "Colar tags": "Paste tags",
+  "Compositor": "Composer",
+  "Comentário": "Comment",
+  "Copie as tags de uma música no ONDA primeiro.": "Copy tags from a song in ONDA first.",
+  "As tags excedem o limite de tamanho.": "The tags exceed the size limit.",
+  "Aguarde a leitura dos metadados.": "Wait for the metadata to load.",
+  "Identificar pelo nome": "Identify by filename",
+  "Metadados prontos para revisar e salvar.": "Metadata ready to review and save.",
+  "O nome do arquivo não informa uma música. Preencha título ou artista para pesquisar.": "The filename does not identify a song. Enter a title or artist to search.",
+  "Não foi possível consultar os catálogos. Tente novamente.": "Could not query the catalogs. Try again.",
+  "Consulta dos metadados selecionados": "Loading selected metadata",
+  "Obtendo a capa selecionada…": "Fetching selected artwork…"
 }

@@ -51,13 +51,15 @@ def prune(root, reserve=0, expire=True):
             entries.append((folder.stat().st_mtime, size, folder))
         except OSError:
             pass
+    from playback_cache_budget import recent_paths
+    recent = recent_paths(root.parent)
     size = sum(row[1] for row in entries)
     for modified, amount, folder in sorted(entries):
         if size + reserve <= LIMIT and (
             not expire or modified > time.time() - 7 * 86400
         ):
             continue
-        if in_use(folder):
+        if folder in recent or in_use(folder):
             continue
         try:
             shutil.rmtree(folder)
@@ -213,6 +215,8 @@ class ProgressiveAudioCache:
                 self.condition.notify_all()
 
     def reader(self, seconds=0):
+        from playback_cache_budget import mark_played
+        mark_played(self.folder)
         return CachedPcmReader(self, seconds)
 
     def cancel(self):
