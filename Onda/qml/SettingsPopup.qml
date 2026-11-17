@@ -8,6 +8,7 @@ Popup {
     padding: 24; modal: true; focus: true
     onOpened: workspace.invoke("tools_status",{})
     property string category: "Geral"
+    onCategoryChanged:if(category==="Desempenho" && visible)workspace.invoke("cache_report",{})
     readonly property int actionColumns: settingsScroll.availableWidth >= 560*bridge.fontScale ? 2 : 1
     readonly property bool searching: search.text.trim().length>0
     readonly property int resultCount: workspace.settingsFields.filter(function(field) {
@@ -103,7 +104,7 @@ Popup {
                     }
                     ColumnLayout { visible: popup.category === "Ferramentas" && !popup.searching; Layout.fillWidth: true; spacing: Math.round(12*bridge.spacing)
                         ToolStatusPanel {Layout.fillWidth:true}
-                        Label { Layout.fillWidth: true; wrapMode: Text.Wrap; text: bridge.translate("Verificar consulta as versões instaladas; Atualizar instala novas versões dos componentes."); color: bridge.palette.muted }
+                        Label { Layout.fillWidth: true; wrapMode: Text.Wrap; text: bridge.translate("Atualizar ferramentas atualiza yt-dlp, gallery-dl, Pillow, Mutagen, Requests e PyYAML. Python e Node.js são atualizados junto com o ONDA."); color: bridge.palette.muted }
                         GridLayout { objectName: "settingsToolActions"; Layout.fillWidth: true; columns: popup.actionColumns; uniformCellWidths: true; columnSpacing: 8; rowSpacing: 8
                             Repeater { model: [{name:"Preparar FFmpeg",key:"prepare_tools"},{name:"Verificar ferramentas",key:"verify_tools"},{name:"Atualizar ferramentas",key:"update_tools"}]
                                 TaskButton { required property var modelData; Layout.fillWidth: true; Layout.minimumWidth: 0; objectName: modelData.key; idleText: bridge.translate(modelData.name); operation: modelData.key }
@@ -113,9 +114,10 @@ Popup {
                     ColumnLayout { visible: popup.category === "Desempenho" && !popup.searching; Layout.fillWidth: true; spacing: 8
                         Label { text: bridge.translate("Arquivos temporários e cache"); color: bridge.palette.text; font.weight: Font.DemiBold }
                         Label { Layout.fillWidth: true; wrapMode: Text.Wrap; text: bridge.translate("Os downloads salvos na pasta de destino não são removidos."); color: bridge.palette.muted }
+                        CacheDetails {Layout.fillWidth:true}
                         GridLayout { objectName: "settingsCacheActions"; Layout.fillWidth: true; columns: popup.actionColumns; uniformCellWidths: true; columnSpacing: 8; rowSpacing: 8
-                            TaskButton { objectName: "cache_info"; Layout.fillWidth: true; Layout.minimumWidth: 0; idleText: bridge.translate("Atualizar tamanho do cache"); operation: "cache_info" }
-                            TaskButton { objectName: "cache_clear"; Layout.fillWidth: true; Layout.minimumWidth: 0; idleText: bridge.translate("Limpar cache"); operation: "cache_clear" }
+                            TaskButton { objectName: "cache_info"; Layout.fillWidth: true; Layout.minimumWidth: 0; idleText: bridge.translate("Atualizar tamanho do cache"); operation: "cache_report" }
+                            TaskButton { objectName: "cache_clear"; Layout.fillWidth: true; Layout.minimumWidth: 0; idleText: bridge.translate("Limpar arquivos dispensáveis"); operation: "cache_clear" }
                         }
                     }
                     Item { Layout.preferredHeight: 20 }

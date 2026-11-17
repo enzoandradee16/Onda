@@ -94,49 +94,24 @@ class AndroidSessionTests(unittest.TestCase):
                 )
 
     def test_android_tools_update_reports_download_and_verification_progress(self):
-        import io, zipfile, hashlib, tempfile
-        from unittest.mock import Mock, MagicMock, patch
+        import tempfile
+        from unittest.mock import patch
+        from test_mobile_tool_updates import Client
+        import mobile_tool_updates
 
-        buffer = io.BytesIO()
-        with zipfile.ZipFile(buffer, 'w') as archive:
-            archive.writestr('yt_dlp/__init__.py', 'fixture')
-        data = buffer.getvalue()
-        digest = hashlib.sha256(data).hexdigest()
-        release = Mock()
-        release.json.return_value = {
-            'tag_name': 'fixture',
-            'assets': [
-                {'name': 'yt-dlp', 'browser_download_url': 'https://example.test/tool'},
-                {
-                    'name': 'SHA2-256SUMS',
-                    'browser_download_url': 'https://example.test/sums',
-                },
-            ],
-        }
-        sums = Mock(text=digest + '  yt-dlp')
-        download = MagicMock()
-        download.__enter__.return_value = download
-        download.headers = {'Content-Length': str(len(data))}
-        download.iter_content.return_value = [data[:10], data[10:]]
         with (
             tempfile.TemporaryDirectory() as temporary,
             patch.object(backend, '_root', Path(temporary)),
-            patch('requests.get', side_effect=[release, sums, download]),
+            patch('requests.get', side_effect=Client().get),
+            patch.object(mobile_tool_updates.metadata, 'version', return_value='0.7'),
             patch.object(backend, 'emit') as emit,
         ):
             result = backend.perform('update', {})
             progress = [call.kwargs for call in emit.call_args_list]
-            self.assertTrue(
-                any(
-                    row.get('done') == 10 and row.get('total') == len(data)
-                    for row in progress
-                )
-            )
-            self.assertEqual(
-                progress[-1]['message'], 'Verificando atualização das ferramentas…'
-            )
-            self.assertEqual((Path(temporary) / 'tools/yt-dlp.zip').read_bytes(), data)
-            self.assertEqual(result['version'], 'fixture')
+            self.assertTrue(any(row.get('done', 0) > 0 for row in progress))
+            self.assertEqual(progress[-1]['message'], 'Verificando atualização das ferramentas…')
+            self.assertTrue((Path(temporary) / 'tools/python-updates/active').is_file())
+            self.assertEqual(set(result['versions']), set(mobile_tool_updates.PACKAGES))
 
     def test_general_cookie_import_remains_supported(self):
         self.assertEqual(

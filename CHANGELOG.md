@@ -3,7 +3,11 @@
 ## 1.3.0 — 2026-11-16
 
 - Reconhecimento de metadados pelo nome do arquivo e edição individual e em lote.
-- Cópia e colagem de tags, artista do álbum, compositor e comentário.
+- Cópia e colagem de tags, letras e capas; prévia com seleção das alterações antes de salvar.
+- Desfazer a última edição de metadados, com Ctrl+Alt+Z no PC.
+- Numeração, substituição de texto e ajuste de maiúsculas/minúsculas em lote.
+- Cache transparente com categorias, músicas protegidas e limite configurável.
+- Estados de preparação e recuperação de falhas mais claros na fila.
 - Cache de reprodução com proteção das músicas recentes e próximas preparadas.
 - Controles de mídia na prévia da barra de tarefas do Windows.
 - Recuperação de falhas temporárias nas páginas de redes sociais.

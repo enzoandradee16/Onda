@@ -28,6 +28,8 @@ Las canciones del catálogo se pueden escuchar por streaming en PC y Android. La
 
 ## Características destacadas
 
+- Revisa los valores actuales y nuevos antes de guardar metadatos y elige los campos y portadas que deseas aplicar. Deshaz la última edición desde el editor o con **Ctrl+Alt+Z** en Windows. La edición por lotes permite numerar pistas, reemplazar texto y cambiar mayúsculas/minúsculas. Configuración → Rendimiento muestra las categorías de caché, las canciones protegidas y el límite de audio; los archivos descargados permanecen separados.
+
 - **Metadatos:** reconocimiento por nombre de archivo o etiquetas existentes, revisión antes de guardar, copia y pegado de etiquetas y edición individual o por lotes.
 - **Barra de tareas de Windows:** anterior, reproducir/pausar y siguiente en la miniatura de ONDA, solo con una canción abierta en Reproducción.
 

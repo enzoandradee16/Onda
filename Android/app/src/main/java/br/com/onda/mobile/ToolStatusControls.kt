@@ -69,6 +69,7 @@ internal fun toolDateText(value:String,language:String,zone:ZoneId=ZoneId.system
         if(!result.has("error"))report=result.optJSONObject("display") ?: JSONObject()
     }
     ToolStatusList(report)
+    UiText("Atualiza yt-dlp, gallery-dl, Mutagen, Requests e suas dependências. Python, Pillow e ferramentas nativas são atualizados junto com o ONDA.")
     if(report.optBoolean("can_restart"))OutlinedButton(enabled=!busy&&!tools.running&&!downloading&&!preparing&&!loadingCollection&&!jukebox.busy,onClick=vm::restartAfterToolCheck,modifier=Modifier.fillMaxWidth().testTag("restart-after-tools-check")){UiText("Reiniciar ONDA")}
 
     Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)) {

@@ -29,6 +29,8 @@ Catalog music can be streamed on PC and Android. Playback starts with a small bu
 ## Application highlights
 
 - **Metadata:** recognize songs from filenames or existing tags, review before saving, copy and paste tags, and edit individual files or batches.
+
+- Preview metadata changes and select which fields and artwork to apply. Undo the last metadata edit from the editor or with **Ctrl+Alt+Z** on Windows. Batch tools support track numbering, text replacement and letter case. Settings → Performance shows cache categories, protected tracks and the audio cache limit; downloaded files remain separate.
 - **Windows taskbar:** previous, play/pause and next controls in the ONDA thumbnail, only when a song is loaded in Playback.
 
 - **Desktop lists:** Very small size with compact rows; Ctrl and Shift select tracks and update their checkboxes. Collapse collection options to see more tracks and adjust card size on the same row.

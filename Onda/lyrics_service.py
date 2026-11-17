@@ -87,7 +87,7 @@ def timed_record(record):
 
 def best_recording(rows, title, artist, album='', duration=0):
     """Reject unrelated recordings before preferring timing and synchronized lyrics."""
-    import re, unicodedata, math
+    import unicodedata, math
     from difflib import SequenceMatcher
 
     from text_search import normalize as fold, tokens, equivalent

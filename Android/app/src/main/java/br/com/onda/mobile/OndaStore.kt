@@ -69,6 +69,7 @@ object OndaStore {
     }
     fun initialize(value: Context) {
         context = value.applicationContext
+        MetadataUndo.refresh()
         database = OndaDatabase(context)
         settings.value = defaults().apply {
             val text = context.getSharedPreferences("preferences",0).getString("settings",null)
@@ -101,6 +102,7 @@ object OndaStore {
         .put("concurrent_downloads","1").put("resume_downloads",true).put("resume_queue",false).put("normalize_volume",false)
         .put("schedule_enabled",false).put("schedule_start","22:00").put("schedule_stop","07:00").put("check_updates",true).put("automatic_cache_cleanup",true).put("notice_duration","Após 3 segundos").put("notice_animation",true)
         .put("playback_prepare_ahead",2)
+        .put("playback_cache_limit_mb",384)
         .put("playback_tab_order","Efeitos primeiro").put("jukebox_transition_seconds",2).put("jukebox_gradual_transition",true).put("jukebox_equalizer",JSONObject()).put("jukebox_background",true).put("synced_lyrics",false).put("search_preview",25).put("effects_preview",25).put("keep_preview",false).put("remember",true)
         .put("image_format","Original").put("image_size","Original").put("image_width",0).put("image_height",0).put("keep_ratio",true).put("image_remove_background",false).put("image_rotation",0).put("image_crop","Original").put("image_background","transparent").put("image_background_color","#ffffff").put("image_background_image","")
         .put("bottom_bar_order",JSONArray(bottomBarDefaults))

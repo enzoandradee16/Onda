@@ -1,13 +1,13 @@
 [
   {
-    "name": "brotli",
-    "version": "1.2.0",
+    "name": "brotlicffi",
+    "version": "1.2.1.0",
     "license": "MIT",
     "homepage": []
   },
   {
     "name": "certifi",
-    "version": "2026.7.22",
+    "version": "2026.10.23",
     "license": "MPL-2.0",
     "homepage": [
       "Source, https://github.com/certifi/python-certifi"
@@ -38,8 +38,16 @@
     ]
   },
   {
+    "name": "colorama",
+    "version": "0.4.6",
+    "license": "",
+    "homepage": [
+      "Homepage, https://github.com/tartley/colorama"
+    ]
+  },
+  {
     "name": "curl_cffi",
-    "version": "0.16.3",
+    "version": "0.17.0",
     "license": "MIT",
     "homepage": [
       "repository, https://github.com/lexiforest/curl_cffi"
@@ -47,7 +55,7 @@
   },
   {
     "name": "gallery_dl",
-    "version": "1.32.16",
+    "version": "1.32.20",
     "license": "GPL-2.0-only",
     "homepage": []
   },
@@ -71,22 +79,32 @@
     ]
   },
   {
+    "name": "packaging",
+    "version": "26.3",
+    "license": "Apache-2.0 OR BSD-2-Clause",
+    "homepage": [
+      "Documentation, https://packaging.pypa.io/",
+      "Source, https://github.com/pypa/packaging"
+    ]
+  },
+  {
     "name": "pillow",
-    "version": "12.3.0",
+    "version": "13.0.0",
     "license": "MIT-CMU",
     "homepage": [
       "Release notes, https://pillow.readthedocs.io/en/stable/releasenotes/index.html",
       "Changelog, https://github.com/python-pillow/Pillow/releases",
       "Documentation, https://pillow.readthedocs.io",
-      "Funding, https://tidelift.com/subscription/pkg/pypi-pillow?utm_source=pypi-pillow&utm_medium=pypi",
-      "Homepage, https://python-pillow.github.io",
+      "Funding, https://tidelift.com/lifter/search/pypi/pillow",
+      "Homepage, https://python-pillow.org",
       "Mastodon, https://fosstodon.org/@pillow",
+      "Security, https://pillow.readthedocs.io/en/stable/handbook/security.html",
       "Source, https://github.com/python-pillow/Pillow"
     ]
   },
   {
     "name": "pip",
-    "version": "26.2.1",
+    "version": "26.2.2",
     "license": "MIT",
     "homepage": [
       "Changelog, https://pip.pypa.io/en/stable/news/",
@@ -97,7 +115,7 @@
   },
   {
     "name": "pycparser",
-    "version": "3.11",
+    "version": "3.12",
     "license": "BSD-3-Clause",
     "homepage": [
       "Homepage, https://github.com/eliben/pycparser"
@@ -105,12 +123,42 @@
   },
   {
     "name": "pycryptodomex",
-    "version": "3.24.1",
+    "version": "3.24.2",
     "license": "BSD, Public Domain",
     "homepage": [
       "Source, https://github.com/Legrandin/pycryptodome/",
       "Changelog, https://www.pycryptodome.org/src/changelog"
     ]
+  },
+  {
+    "name": "PySide6_Essentials",
+    "version": "6.12.0",
+    "license": "LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only",
+    "homepage": [
+      "Homepage, https://pyside.org",
+      "Documentation, https://doc.qt.io/qtforpython",
+      "Repository, https://code.qt.io/cgit/pyside/pyside-setup.git/",
+      "Changelog, https://code.qt.io/cgit/pyside/pyside-setup.git/tree/doc/changelogs",
+      "Tracker, https://qt-project.atlassian.net/browse/PYSIDE"
+    ]
+  },
+  {
+    "name": "PyYAML",
+    "version": "6.0.3",
+    "license": "MIT",
+    "homepage": [
+      "Bug Tracker, https://github.com/yaml/pyyaml/issues",
+      "CI, https://github.com/yaml/pyyaml/actions",
+      "Documentation, https://pyyaml.org/wiki/PyYAMLDocumentation",
+      "Mailing lists, http://lists.sourceforge.net/lists/listinfo/yaml-core",
+      "Source Code, https://github.com/yaml/pyyaml"
+    ]
+  },
+  {
+    "name": "qrcode",
+    "version": "8.2",
+    "license": "BSD",
+    "homepage": []
   },
   {
     "name": "requests",
@@ -122,13 +170,15 @@
     ]
   },
   {
-    "name": "setuptools",
-    "version": "84.0.0",
-    "license": "MIT",
+    "name": "shiboken6",
+    "version": "6.12.0",
+    "license": "LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only",
     "homepage": [
-      "Source, https://github.com/pypa/setuptools",
-      "Documentation, https://setuptools.pypa.io/",
-      "Changelog, https://setuptools.pypa.io/en/stable/history.html"
+      "Homepage, https://pyside.org",
+      "Documentation, https://doc.qt.io/qtforpython",
+      "Repository, https://code.qt.io/cgit/pyside/pyside-setup.git/",
+      "Changelog, https://code.qt.io/cgit/pyside/pyside-setup.git/tree/doc/changelogs",
+      "Tracker, https://qt-project.atlassian.net/browse/PYSIDE"
     ]
   },
   {
@@ -145,7 +195,7 @@
   },
   {
     "name": "websockets",
-    "version": "17.2",
+    "version": "17.4",
     "license": "BSD-3-Clause",
     "homepage": [
       "Homepage, https://github.com/python-websockets/websockets",
@@ -157,7 +207,7 @@
   },
   {
     "name": "yt-dlp",
-    "version": "2026.8.19",
+    "version": "2026.10.26",
     "license": "Unlicense",
     "homepage": [
       "Documentation, https://github.com/yt-dlp/yt-dlp#readme",

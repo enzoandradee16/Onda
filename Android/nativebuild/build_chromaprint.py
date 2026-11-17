@@ -5,17 +5,21 @@ from pathlib import Path
 import shutil
 import subprocess
 
-SOURCE_SHA256 = '3368805af0ee47b9df74df10b5001a44569e01df2844dab520031720dde9ad23'
+SOURCE_SHA256 = 'd54ada62c16b2db396d3251ec54fc7a58909c163131a1cfcf7fa6407dbc14360'
 
 
 def build(work, output):
     work, output = Path(work).resolve(), Path(output).resolve()
-    source = work / 'chromaprint-1.6.1'
-    archive = work / 'chromaprint-1.6.1.tar.gz'
+    source = work / 'chromaprint-1.6.2'
+    archive = work / 'chromaprint-1.6.2.tar.gz'
+    if not source.is_dir():source = work / 'src/chromaprint-1.6.2'
+    if not archive.is_file():archive = work / 'sources/chromaprint-1.6.2.tar.gz'
     with archive.open('rb') as stream:
         assert hashlib.file_digest(stream, 'sha256').hexdigest() == SOURCE_SHA256
     cmake = work / 'tooling/cmake/data/bin/cmake.exe'
     ninja = work / 'tooling/bin/ninja.exe'
+    if not cmake.is_file():cmake = work / 'msys64/ucrt64/bin/cmake.exe'
+    if not ninja.is_file():ninja = work / 'msys64/ucrt64/bin/ninja.exe'
     ndk = work / 'android-ndk-r28c'
     for abi in ('arm64-v8a', 'x86_64'):
         folder = work / ('chromaprint-build-' + abi)

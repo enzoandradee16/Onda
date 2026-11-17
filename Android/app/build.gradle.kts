@@ -36,6 +36,7 @@ val prepareNativeTools by tasks.registering(Sync::class) {
         }
     }
 }
+val pythonSources = layout.buildDirectory.dir("generated/pythonSources")
 val syncSharedEngine by tasks.registering(Sync::class) {
     from("../../Onda") {
         include("*.py")
@@ -44,7 +45,8 @@ val syncSharedEngine by tasks.registering(Sync::class) {
             "instagram_session.py", "appearance.py", "brand_mark.py", "interface_fonts.py", "library.py", "reset_settings.py",
             "flac_browser_ui.py", "catalog_picker.py", "media_picker.py", "version_picker.py", "parallel_queue.py", "lazy_ui.py")
     }
-    into("src/main/python/shared")
+    from("src/main/python") { include("*.py") }
+    into(pythonSources)
 }
 android {
     namespace = "br.com.onda.mobile"
@@ -68,31 +70,34 @@ android {
         require(Regex("\\.[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*").matches(suffix)) {"Sufixo de aplicação de testes inválido"}
         buildTypes.getByName("debug").applicationIdSuffix = suffix
     }
-    buildFeatures { compose = true; buildConfig = true }
+    buildFeatures { compose = true; buildConfig = true; resValues = true }
     sourceSets["main"].assets.srcDir("../../Onda/locales")
     sourceSets["main"].assets.srcDir("../../Onda/assets/background-licenses")
     sourceSets["main"].assets.srcDir("../../Onda/settings_schema")
     sourceSets["main"].assets.srcDir("../../Onda/assets/tool-icons")
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
-    kotlinOptions { jvmTarget = "17" }
-    sourceSets["main"].jniLibs.srcDir(layout.buildDirectory.dir("generated/nativeTools"))
+    sourceSets["main"].jniLibs.srcDir(layout.buildDirectory.dir("generated/nativeTools").get().asFile)
     packaging { jniLibs.useLegacyPackaging = true; resources.excludes += listOf("META-INF/DEPENDENCIES", "META-INF/LICENSE*", "META-INF/NOTICE*") }
 }
+kotlin { compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) } }
+
 chaquopy {
     defaultConfig {
-        version = "3.11"
+        version = "3.13"
         providers.gradleProperty("onda.buildPython").orNull?.let { buildPython(it) }
         pip {
-            install("yt-dlp==2026.10.21")
+            install("yt-dlp==2026.10.26")
             install("yt-dlp-ejs==0.8.0")
-            install("requests==2.32.5")
-            install("mutagen==1.47.0")
-            install("PyYAML>=6.0.2,<7")
-            install("gallery-dl==1.32.17")
+            install("requests==2.34.2")
+            install("mutagen==1.48.1")
+            install("PyYAML==6.0.3")
+            install("gallery-dl==1.32.20")
             install("Pillow==11.0.0")
+            install("packaging==26.0")
         }
     }
-    sourceSets["main"].srcDir("src/main/python/shared")
+    // One generated import root avoids packaging the shared engine twice.
+    sourceSets["main"].setSrcDirs(listOf(pythonSources.get().asFile))
 }
 tasks.named("preBuild") { dependsOn(prepareNativeTools, syncSharedEngine) }
 tasks.matching { it.name.contains("Python") }.configureEach { dependsOn(syncSharedEngine) }

@@ -23,6 +23,37 @@ import org.junit.Test
 
 class QueueImprovementsTest {
     @get:Rule val compose=createComposeRule()
+    @Test fun movingToFirstVisibleSlotKeepsScrollIndexAndOffset() {
+        var rows by mutableStateOf((0 until 30).map {"Track $it"})
+        lateinit var state:androidx.compose.foundation.lazy.LazyListState
+        var anchor:Pair<Int,Int>?=null
+        var moved=false
+        compose.setContent {MaterialTheme {
+            state=rememberLazyListState(initialFirstVisibleItemIndex=8,initialFirstVisibleItemScrollOffset=13)
+            LazyColumn(state=state,modifier=Modifier.height(360.dp)) {
+                itemsIndexed(rows,key={_,row->row}) {index,row->
+                    DraggableQueueCard(state,index,rows.size,move={from,to->
+                        anchor=state.firstVisibleItemIndex to state.firstVisibleItemScrollOffset
+                        rows=rows.toMutableList().apply {add(to,removeAt(from))}
+                        moved=true
+                    }) {
+                        Box(Modifier.fillMaxWidth().height(80.dp).testTag("scroll-drag-$row")){Text(row)}
+                    }
+                }
+            }
+        }}
+        compose.onNodeWithTag("scroll-drag-Track 11").performTouchInput {down(center)}
+        compose.mainClock.advanceTimeBy(750)
+        Thread.sleep(650)
+        compose.onNodeWithTag("scroll-drag-Track 11").performTouchInput {moveBy(Offset(0f,-height*3f),300);up()}
+        compose.waitForIdle()
+        compose.runOnIdle {
+            assertTrue("A música deve mudar de posição",moved)
+            assertEquals("A fila não deve seguir a música que mudou de índice",anchor!!.first,state.firstVisibleItemIndex)
+            assertEquals(anchor!!.second,state.firstVisibleItemScrollOffset)
+        }
+    }
+
     @Test fun longPressDragReordersAndOffersAccessibleMoveActions() {
         var rows by mutableStateOf(listOf("First","Second","Third"))
         compose.setContent {MaterialTheme {

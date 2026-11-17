@@ -116,6 +116,7 @@ import java.io.File
 }
 
 @Composable fun AudioFileEditor(item:HistoryItem,vm:OndaViewModel,close:()->Unit) {
+    val canUndo by MetadataUndo.available.collectAsState()
     var source by androidx.compose.runtime.saveable.rememberSaveable {mutableStateOf("")}
     var changes by androidx.compose.runtime.saveable.rememberSaveable(stateSaver=androidx.compose.runtime.saveable.Saver<JSONObject,String>(save={it.toString()},restore={JSONObject(it)})) {mutableStateOf(JSONObject())}
     val pasteAvailable=rememberMetadataPasteAvailable()
@@ -195,6 +196,7 @@ import java.io.File
                 DropdownMenu(fileMenu,{fileMenu=false}){
                     DropdownMenuItem(text={UiText("Identificar pelo nome")},enabled=loaded && editing && !busy,onClick={fileMenu=false;recognizeName()})
                     DropdownMenuItem(text={UiText("Identificar pelo áudio")},enabled=loaded && editing && !busy,onClick={fileMenu=false;recognizeName(true)})
+                    DropdownMenuItem(text={UiText("Desfazer última edição")},enabled=canUndo && !busy,onClick={fileMenu=false;vm.undoMetadata()})
                     DropdownMenuItem(text={UiText("Copiar tags")},enabled=loaded && !busy,onClick={fileMenu=false;copyTags()})
                     DropdownMenuItem(text={UiText("Colar tags")},enabled=loaded && editing && !busy && pasteAvailable,onClick={fileMenu=false;pasteTags()})
                     DropdownMenuItem(text={UiText("Escolher outro arquivo")},enabled=!busy,onClick={fileMenu=false;finish()})}
@@ -250,7 +252,7 @@ import java.io.File
             ToolSwitch("Substituir original",overwrite,enabled=!busy){overwrite=it}
             UiText(if(overwrite) "O arquivo original será substituído, mantendo o nome e a pasta." else "O arquivo original será preservado. Uma cópia será salva na pasta de destino.",style=MaterialTheme.typography.bodySmall)
         }
-        Button(enabled=loaded && !busy,onClick={vm.operation("audio_edit",config(),dialog=false){if(overwrite)finish();vm.status.value=if(overwrite) "Arquivo original atualizado." else "Cópia editada salva na pasta de destino."}},modifier=Modifier.fillMaxWidth()){UiText("Salvar alterações")}
+        Button(enabled=loaded && !busy,onClick={vm.operation("audio_edit",config(),dialog=false){if(!it.optBoolean("cancelled")){if(overwrite)finish();vm.status.value=if(overwrite) "Arquivo original atualizado." else "Cópia editada salva na pasta de destino."}}},modifier=Modifier.fillMaxWidth()){UiText("Revisar e salvar")}
         Spacer(Modifier.height(LayoutSpacing.section))
     }
 }

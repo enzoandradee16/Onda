@@ -4,3 +4,5 @@ pyproject.toml text eol=lf
 Celular/nativebuild/** text eol=lf
 Celular/native-provenance/** text eol=lf
 Celular/app/src/main/assets/open-source-notices.txt text eol=lf
+
+Android/nativebuild/*.sh text eol=lf

@@ -56,7 +56,7 @@ Card {
                 id:queueTrack
                 objectName:"unifiedQueueTrack"+index
                 required property var modelData;required property int index
-                width:ListView.view.contentAreaWidth;height:60
+                width:ListView.view.contentAreaWidth;height:Math.max(72,queueTrackDetails.implicitHeight+12)
                 z:drag.dragging || (selected && queueList.activeDrag && queueList.activeDrag.dragItem.selected) ? 20 : 0
                 transform:Translate {y:drag.cardOffset;Behavior on y {enabled:queueList.activeDrag!==null&&!drag.dragging;NumberAnimation {duration:140;easing.type:Easing.OutCubic}}}
                 activeFocusOnTab:true;Accessible.role:Accessible.ListItem;Accessible.name:modelData.title || ""
@@ -84,18 +84,18 @@ Card {
                         RoundedArtwork {anchors.fill:parent;source:(modelData.record || {}).cover_url || modelData.cover || "";fallbackSource:modelData.cover || "";sourceSize.width:192;sourceSize.height:192;fillMode:Image.PreserveAspectCrop;asynchronous:true}
                         PreparationProgress {anchors.left:parent.left;anchors.right:parent.right;anchors.bottom:parent.bottom;height:3;preparing:modelData.analysis==="preparing";progress:bridge.queuePreparation[modelData.id] || 0}
                     }
-                    ColumnLayout {Layout.fillWidth:true;Layout.minimumWidth:0;spacing:4
+                    ColumnLayout {id:queueTrackDetails;Layout.fillWidth:true;Layout.minimumWidth:0;spacing:4
                         Label {Layout.fillWidth:true;text:modelData.title || "";font.weight:Font.DemiBold;elide:Text.ElideRight;color:modelData.current?bridge.palette.accent:bridge.palette.text}
                         Label {Layout.fillWidth:true;text:modelData.artist || "";elide:Text.ElideRight;color:bridge.palette.muted}
 
-                        Label {Layout.fillWidth:true;elide:Text.ElideRight;text:modelData.current || queuePanel.recent ? "" : bridge.translate(modelData.analysis==="error" ? "Falha na preparação" : modelData.analysis==="ready" ? "Pronta" : modelData.analysis==="preparing" ? "Preparando" : "Aguardando");color:modelData.analysis==="ready" ? bridge.palette.accent : bridge.palette.muted;font.pixelSize:11}
+                        Label {Layout.fillWidth:true;elide:Text.ElideRight;text:modelData.current || queuePanel.recent ? "" : bridge.translate(modelData.analysis==="error" ? "Falha na preparação" : modelData.analysis==="ready" ? "Pronta para tocar" : modelData.analysis==="preparing" ? "Preparando" : "Na fila de preparação")+(modelData.analysis==="preparing" && (bridge.queuePreparation[modelData.id] || 0)>0 ? " · "+Math.floor(bridge.queuePreparation[modelData.id])+"%" : "");color:modelData.analysis==="ready" ? bridge.palette.accent : bridge.palette.muted;font.pixelSize:11}
                     }
                 }
                 QueueIconButton {
                     anchors.right:parent.right;anchors.verticalCenter:parent.verticalCenter
-                    glyph:"more";text:bridge.translate("Mais ações")
-                    opacity:rowHover.hovered||activeFocus||queueTrack.selected?1:0
-                    onClicked:actions.popup()
+                    glyph:modelData.analysis==="error"?"repeat":"more";text:bridge.translate(modelData.analysis==="error"?"Tentar novamente":"Mais ações")
+                    opacity:modelData.analysis==="error"||rowHover.hovered||activeFocus||queueTrack.selected?1:0
+                    onClicked:modelData.analysis==="error"?bridge.retryQueued(modelData.queueIndex):actions.popup()
                 }
                 OndaMenu {id:actions
                     OndaMenuItem {text:bridge.translate("Reproduzir");onTriggered:bridge.playQueued(modelData.queueIndex)}

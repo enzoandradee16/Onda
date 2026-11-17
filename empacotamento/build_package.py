@@ -1,6 +1,7 @@
 """Build a Windows bundle; FFmpeg is fetched on first launch from a local CPython with Tcl/Tk."""
 
 import argparse
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -24,7 +25,9 @@ runtime.mkdir(parents=True, exist_ok=True)
 for pattern in ('*.exe', '*.dll', 'LICENSE.txt'):
     for path in args.python_home.glob(pattern):
         shutil.copy2(path, runtime / path.name)
-for name in ('Lib', 'DLLs', 'tcl'):
+for name in ('Lib', 'DLLs', 'tcl', 'share'):
+    if not (args.python_home / name).is_dir():
+        continue
     shutil.copytree(
         args.python_home / name,
         runtime / name,
@@ -63,7 +66,9 @@ shutil.copy2(args.node, node / 'node.exe')
 # Preserve application licensing and dependency inventory in distributions.
 for name in ('LICENSE', 'THIRD_PARTY_NOTICES.md', 'CHANGELOG.md'):
     shutil.copy2(args.source.parent / name, out / name)
-shutil.copytree(args.source.parent / 'docs', out / 'docs', dirs_exist_ok=True)
+from package_docs import copy_docs
+
+copy_docs(args.source.parent, out / 'docs')
 
 # Install into the private runtime before rendering (a fresh build host need not have Pillow).
 subprocess.run(
@@ -77,6 +82,7 @@ subprocess.run(
         '-r',
         str(out / 'Onda/requirements.txt'),
     ],
+    env=dict(os.environ, PYYAML_FORCE_LIBYAML='0'),
     check=True,
 )
 # Use the same continuous wave as the running application at every Windows icon size.

@@ -19,6 +19,7 @@ OndaScrollView {
     }}
     Shortcut {sequence:"Ctrl+Shift+C";enabled:page.visible && page.mode==="metadata";onActivated:workspace.invoke("metadata_copy",{})}
     Shortcut {sequence:"Ctrl+Shift+V";enabled:page.visible && page.mode==="metadata" && workspace.metadataClipboardAvailable;onActivated:workspace.invoke("metadata_paste",{})}
+    Shortcut {sequence:"Ctrl+Alt+Z";enabled:page.visible && page.mode==="metadata" && !!workspace.optionValue(workspace.optionsRevision,"metadataUndoAvailable");onActivated:workspace.invoke("metadata_undo",{})}
     property var effectsLyricFrame: ({})
     Timer { interval: 100; running: page.visible; repeat: true; onTriggered: page.effectsLyricFrame=workspace.lyricsClock(true) }
     signal lyricsRequested()
@@ -46,6 +47,7 @@ OndaScrollView {
         OndaMenuItem {visible:page.mode==="metadata";text:bridge.translate("Copiar tags");enabled:workspace.optionValue(workspace.optionsRevision,"metadataSources").length>0;onTriggered:workspace.invoke("metadata_copy",{})}
         OndaMenuItem {visible:page.mode==="metadata";text:bridge.translate("Colar tags");enabled:workspace.metadataClipboardAvailable && workspace.optionValue(workspace.optionsRevision,"metadataSources").length>0;onTriggered:workspace.invoke("metadata_paste",{})}
         OndaMenuItem {visible:page.mode==="metadata";text:bridge.translate("Salvar");enabled:workspace.optionValue(workspace.optionsRevision,"metadataSources").length>0;onTriggered:workspace.invoke("audio_edit",{})}
+        OndaMenuItem {visible:page.mode==="metadata";text:bridge.translate("Desfazer última edição")+" · Ctrl+Alt+Z";enabled:!!workspace.optionValue(workspace.optionsRevision,"metadataUndoAvailable");onTriggered:workspace.invoke("metadata_undo",{})}
     }
     TapHandler {enabled:page.mode!=="effects" || !(workspace.optionValue(workspace.optionsRevision,"effectsResults") || []).length;acceptedButtons:Qt.RightButton;onTapped:toolActions.popup()}
 
@@ -270,6 +272,19 @@ OndaScrollView {
             }
         }
         ColumnLayout { visible: page.mode === "metadata"; Layout.fillWidth: true; spacing: Math.round(14*bridge.spacing)
+            ColumnLayout {visible:workspace.optionValue(workspace.optionsRevision,"metadataSources").length>1;Layout.fillWidth:true;spacing:10
+                Label {text:bridge.translate("Ações em lote");color:bridge.palette.text;font.bold:true}
+                RowLayout {Layout.fillWidth:true
+                    ChoiceBox {model:["Título","Artista","Álbum"];property var keys:["title","artists","album"];onActivated:workspace.setOption("batchTarget",keys[index])}
+                    ChoiceBox {Layout.fillWidth:true;model:["Manter texto","Iniciais maiúsculas","MAIÚSCULAS","minúsculas"];property var keys:["none","title","upper","lower"];onActivated:workspace.setOption("batchCase",keys[index])}
+                }
+                RowLayout {Layout.fillWidth:true
+                    OndaTextField {Layout.fillWidth:true;placeholderText:bridge.translate("Localizar texto");onTextEdited:workspace.setOption("batchFind",text)}
+                    OndaTextField {Layout.fillWidth:true;placeholderText:bridge.translate("Substituir por");onTextEdited:workspace.setOption("batchReplace",text)}
+                }
+                RowLayout {OndaSwitch {text:bridge.translate("Numerar faixas");onToggled:workspace.setOption("batchNumber",checked)} OndaTextField {Layout.preferredWidth:90;text:"1";Accessible.name:bridge.translate("Número inicial");onTextEdited:workspace.setOption("batchStart",text)}}
+                Label {Layout.fillWidth:true;wrapMode:Text.Wrap;text:bridge.translate("A numeração segue a ordem dos arquivos selecionados. Confira cada faixa na prévia.");color:bridge.palette.muted;font.pixelSize:12}
+            }
             RowLayout { Layout.fillWidth: true; spacing: 12
             TaskButton {
                 idleText: bridge.translate("Identificar pelo nome")
@@ -311,6 +326,7 @@ OndaScrollView {
             OndaSwitch { text: bridge.translate("Normalizar volume"); checked: workspace.optionValue(workspace.optionsRevision,"normalize_volume"); onToggled: workspace.setOption("normalize_volume",checked) }
             OndaSwitch { text: bridge.translate("Substituir arquivo original"); checked: workspace.optionValue(workspace.optionsRevision,"overwrite_original"); onToggled: workspace.setOption("overwrite_original",checked) }
             TaskButton { primary: true; idleText: bridge.translate("Salvar alterações"); enabled: taskRunning || workspace.optionValue(workspace.optionsRevision,"metadataSources").length > 0; operation: "audio_edit"; taskNames: ["audio_edit"] }
+            TaskButton {idleText:bridge.translate("Desfazer última edição")+" · Ctrl+Alt+Z";operation:"metadata_undo";enabled:taskRunning || !!workspace.optionValue(workspace.optionsRevision,"metadataUndoAvailable")}
                 }
                 RoundedArtwork { objectName: "metadataArtwork"; visible: !!workspace.optionValue(workspace.optionsRevision,"metadataCover"); source: workspace.optionValue(workspace.optionsRevision,"metadataCover") || ""; Layout.preferredWidth: Math.min(220,page.availableWidth*0.33); Layout.preferredHeight: Layout.preferredWidth; Layout.alignment: Qt.AlignTop; fillMode: Image.PreserveAspectFit }
                 Item { Layout.fillWidth: true }

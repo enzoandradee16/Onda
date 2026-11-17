@@ -129,7 +129,10 @@ def main():
             else []
         )
         lines = [
-            line for line in lines if not line.split()[-1].startswith(args.abi + '/')
+            line for line in lines if line.split()[-1] not in {
+                args.abi + '/' + name
+                for name in ('libffmpeg.so', 'libffprobe.so', 'libqjs.so')
+            }
         ]
         for name in ('libffmpeg.so', 'libffprobe.so', 'libqjs.so'):
             original = work / 'out' / args.abi / name

@@ -38,10 +38,10 @@ cmake_build libogg-1.3.6 -DBUILD_TESTING=OFF
 cmake_build libvorbis-1.3.7 -DBUILD_TESTING=OFF -DOGG_INCLUDE_DIR="$(cygpath -m "$PREFIX/include")" -DOGG_LIBRARY="$(cygpath -m "$PREFIX/lib/libogg.a")"
 cmake_build opus-1.5.2 -DOPUS_BUILD_TESTING=OFF -DOPUS_BUILD_PROGRAMS=OFF
 cmake_build libwebp-1.6.0 -DWEBP_BUILD_ANIM_UTILS=OFF -DWEBP_BUILD_CWEBP=OFF -DWEBP_BUILD_DWEBP=OFF -DWEBP_BUILD_GIF2WEBP=OFF -DWEBP_BUILD_IMG2WEBP=OFF -DWEBP_BUILD_VWEBP=OFF -DWEBP_BUILD_WEBPINFO=OFF -DWEBP_BUILD_EXTRAS=OFF -DWEBP_BUILD_WEBPMUX=OFF -DWEBP_BUILD_LIBWEBPMUX=ON -DWEBP_BUILD_LIBWEBPDEMUX=ON
-cmake_build mbedtls-3.6.4 -DENABLE_PROGRAMS=OFF -DENABLE_TESTING=OFF -DMBEDTLS_FATAL_WARNINGS=OFF
+cmake_build mbedtls-3.6.8 -DENABLE_PROGRAMS=OFF -DENABLE_TESTING=OFF -DMBEDTLS_FATAL_WARNINGS=OFF
 if [[ ! -f "$BUILD/lame.done" ]];then
  mkdir -p "$BUILD/lame";cd "$BUILD/lame"
- "$BASE/src/lame-3.100/configure" --host="$TARGET" --prefix="$PREFIX" --disable-shared --enable-static --disable-frontend --disable-dependency-tracking
+ "$BASE/src/lame-4.0/configure" --host="$TARGET" --prefix="$PREFIX" --disable-shared --enable-static --disable-frontend --disable-decoder --disable-dependency-tracking
  make -j "$JOBS";make install;touch "$BUILD/lame.done"
 fi
 if [[ ! -f "$BUILD/x264.done" ]];then
@@ -51,7 +51,7 @@ if [[ ! -f "$BUILD/x264.done" ]];then
 fi
 if [[ ! -f "$BUILD/ffmpeg.done" ]];then
  mkdir -p "$BUILD/ffmpeg";cd "$BUILD/ffmpeg"
- "$BASE/src/ffmpeg-7.1.3/configure" --prefix="$PREFIX" --target-os=android --arch="$ARCH" --enable-cross-compile \
+ "$BASE/src/ffmpeg-9.0.2/configure" --prefix="$PREFIX" --target-os=android --arch="$ARCH" --enable-cross-compile \
   --cc="$CC" --cxx="$CXX" --ar="$AR" --ranlib="$RANLIB" --strip="$STRIP" --nm="$TC/llvm-nm.exe" \
   --host-cc=gcc --extra-libs=-lm --pkg-config=pkgconf --pkg-config-flags=--static \
   --extra-cflags="-I$PREFIX/include -O2 -fPIC" --extra-ldflags="-L$PREFIX/lib -Wl,-z,max-page-size=16384 -Wl,--gc-sections" \
@@ -66,15 +66,15 @@ if [[ ! -f "$BUILD/ffmpeg.done" ]];then
 fi
 if [[ ! -f "$BASE/build/host-qjsc.done" ]];then
  mkdir -p "$BASE/build/quickjs-host"
- cp -R "$BASE/src/quickjs-2025-09-13/." "$BASE/build/quickjs-host/"
+ cp -R "$BASE/src/quickjs-2026-06-04/." "$BASE/build/quickjs-host/"
  cd "$BASE/build/quickjs-host"
  make -j "$JOBS" qjsc.exe CONFIG_WIN32=y CROSS_PREFIX= CC=gcc AR=ar LDFLAGS=
  touch "$BASE/build/host-qjsc.done"
 fi
 if [[ ! -f "$BUILD/quickjs.done" ]];then
- mkdir -p "$BUILD/quickjs";cp -R "$BASE/src/quickjs-2025-09-13/." "$BUILD/quickjs/";cd "$BUILD/quickjs"
+ mkdir -p "$BUILD/quickjs";cp -R "$BASE/src/quickjs-2026-06-04/." "$BUILD/quickjs/";cd "$BUILD/quickjs"
  "$BASE/build/quickjs-host/qjsc.exe" -c -o repl.c -m repl.js
- $CC $CFLAGS -D_GNU_SOURCE '-DCONFIG_VERSION="2025-09-13"' qjs.c repl.c quickjs.c dtoa.c libregexp.c libunicode.c cutils.c quickjs-libc.c -lm -ldl -pthread $LDFLAGS -o "$BASE/out/$ABI/libqjs.so"
+ $CC $CFLAGS -D_GNU_SOURCE '-DCONFIG_VERSION="2026-06-04"' qjs.c repl.c quickjs.c dtoa.c libregexp.c libunicode.c cutils.c quickjs-libc.c -lm -ldl -pthread $LDFLAGS -o "$BASE/out/$ABI/libqjs.so"
  touch "$BUILD/quickjs.done"
 fi
 for name in ffmpeg ffprobe qjs;do "$STRIP" "$BASE/out/$ABI/lib$name.so";done

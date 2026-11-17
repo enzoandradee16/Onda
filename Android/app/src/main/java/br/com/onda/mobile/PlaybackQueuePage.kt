@@ -277,8 +277,10 @@ import org.json.JSONObject
             Text(record.optString("title"),style=MaterialTheme.typography.titleSmall,fontWeight=FontWeight.SemiBold,color=if(current)colors.primary else colors.onSurface,maxLines=1,overflow=TextOverflow.Ellipsis)
             Text(artist,style=MaterialTheme.typography.bodySmall,color=colors.onSurfaceVariant,maxLines=1,overflow=TextOverflow.Ellipsis)
             val preparation=record.optString("_analysis")
-            val preparationText=if(current || recent || remote.connected)"" else when(preparation){"Erro"->"Falha na preparação";"Pronta"->"Pronta";"Analisando","Preparando"->"Preparando";else->"Aguardando"}
-            UiText(preparationText,style=MaterialTheme.typography.labelSmall,color=if(preparation=="Erro")colors.error else if(preparation=="Pronta")colors.primary else colors.onSurfaceVariant,maxLines=1)
+            val preparationText=if(current || recent || remote.connected)"" else when(preparation){"Erro"->"Falha na preparação";"Pronta"->"Pronta para tocar";"Analisando"->"Analisando áudio";"Preparando"->"Preparando áudio";else->"Na fila de preparação"}
+            UiText(preparationText,style=MaterialTheme.typography.labelSmall,color=if(preparation=="Erro")colors.error else if(preparation=="Pronta")colors.primary else colors.onSurfaceVariant,maxLines=2)
+            if(preparation=="Erro" && record.optString("_error").isNotBlank())UiErrorText(record.getString("_error"),style=MaterialTheme.typography.bodySmall,color=colors.error,maxLines=2)
+            if(preparation=="Erro" && !current && !recent && !remote.connected)TextButton(onClick=play){UiText("Tentar novamente")}
         }
         if(duration>0)Text(mediaClock(duration),style=MaterialTheme.typography.labelSmall,color=colors.onSurfaceVariant)
         Box {

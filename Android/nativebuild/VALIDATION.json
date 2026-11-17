@@ -1,36 +1,38 @@
 {
-  "date": "2026-10-13",
-  "abi": "arm64-v8a",
-  "environment": "Android API 36 emulator with ARM64 translation",
-  "release_unit_tests": {
-    "passed": 5,
+  "date": "2026-11-17",
+  "compiled_abis": [
+    "arm64-v8a",
+    "x86_64"
+  ],
+  "executed_abi": "x86_64",
+  "environment": "BlueStacks Android 11 emulator; isolated runtimeupgrade package",
+  "tools": {
+    "ffmpeg": "9.0.2",
+    "quickjs": "2026-06-04",
+    "chromaprint": "1.6.2",
+    "lame": "4.0",
+    "mbedtls": "3.6.8"
+  },
+  "android_python": "3.13.16",
+  "openssl": "3.5.9",
+  "unit_tests": {
+    "passed": 109,
     "failed": 0
   },
-  "integration_tests": {
-    "passed": 5,
+  "instrumentation": {
+    "passed": 10,
     "failed": 0,
     "coverage": [
-      "native executables",
-      "downloads: images/video/audio",
-      "mixed social posts",
-      "single photo as image or MP4 with music",
-      "effects and pitch",
-      "tags and cover preservation",
-      "normalization and metadata editing",
-      "parallel downloads",
-      "Spotify return and encrypted credential fixture"
+      "local playback and seek",
+      "MP3/M4A/FLAC/OGG/OPUS encoding and tags",
+      "MP4/MKV/MOV conversion",
+      "speed/reverb with and without pitch preservation",
+      "Chromaprint fingerprint",
+      "PNG/JPEG/WebP",
+      "metadata preview and undo",
+      "search and licenses UI",
+      "tool updates"
     ]
   },
-  "license_navigation_test": {
-    "passed": 1,
-    "failed": 0
-  },
-  "production_apk": {
-    "signature_v2": true,
-    "signature_v3": true,
-    "installed_on_emulator": true,
-    "cold_start_succeeded": true,
-    "cold_start_ms_emulator": 1835
-  },
-  "physical_device": "not tested"
+  "load_alignment_minimum": 16384
 }

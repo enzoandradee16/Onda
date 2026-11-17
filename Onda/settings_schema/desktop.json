@@ -111,7 +111,8 @@
     "image_background": "transparent",
     "image_background_color": "#ffffff",
     "image_background_image": "",
-    "discord_presence_enabled": false
+    "discord_presence_enabled": false,
+    "playback_cache_limit_mb": "1024"
   },
   "fields": [
     {
@@ -1087,6 +1088,20 @@
       "label": "Limpar temporários automaticamente",
       "kind": "bool",
       "choices": []
+    },
+    {
+      "category": "Desempenho",
+      "key": "playback_cache_limit_mb",
+      "label": "Limite do cache de áudio (MB)",
+      "kind": "select",
+      "choices": [
+        "256",
+        "384",
+        "512",
+        "1024",
+        "2048",
+        "4096"
+      ]
     }
   ]
 }

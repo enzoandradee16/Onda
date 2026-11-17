@@ -1,13 +1,13 @@
 # Ferramentas nativas Android construídas pelo ONDA
 
-A alpha.2 substitui as ferramentas do AAR youtubedl-android por executáveis próprios compilados dos arquivos de `source-lock.json`. Não incorpora libffmpeg.zip.so, libpython.zip.so nem libonda-support.zip.so. O Python utilizado pelo aplicativo continua sendo o do Chaquopy.
+FFmpeg, FFprobe, QuickJS e Chromaprint são compilados a partir dos fontes verificados em `source-lock.json`. O Python do aplicativo é fornecido pelo Chaquopy.
 
 ## Componentes e construção
 
-- FFmpeg / FFprobe 7.1.3: configuração resultante GPL-3.0-or-later.
-- LAME 3.100 (MP3), x264 b35605ace3ddf7c1a5d67a2eb553f034aef41d55 (H.264), WebP 1.6.0, Opus 1.5.2, Ogg 1.3.6 e Vorbis 1.3.7.
-- Mbed TLS 3.6.4 para HTTPS. AAC, FLAC, WAV, filtros e demais codecs internos são fornecidos pelo FFmpeg.
-- QuickJS 2025-09-13 (arquivo oficial de revisão `-2`), MIT, para yt-dlp/ejs.
+- FFmpeg / FFprobe 9.0.2: configuração resultante GPL-3.0-or-later.
+- LAME 4.0 (MP3), x264 b35605ace3ddf7c1a5d67a2eb553f034aef41d55 (H.264), WebP 1.6.0, Opus 1.5.2, Ogg 1.3.6 e Vorbis 1.3.7.
+- Mbed TLS 3.6.8 para HTTPS. AAC, FLAC, WAV, filtros e demais codecs internos são fornecidos pelo FFmpeg.
+- QuickJS 2026-06-04, MIT, para yt-dlp/ejs.
 - Android NDK r28c, API 26, ARM64. Alinhamento de segmentos de 16 KiB. As dependências dos executáveis são somente bibliotecas do sistema Android; os codecs acima são ligados estaticamente.
 
 Os arquivos compactados originais, incluindo licenças, são distribuídos no pacote `Fontes-nativos-Android` da mesma release. Os fontes não foram modificados. A configuração e os passos para gerar o REPL do QuickJS estão em `build-native.sh`; `arm64-config.h`, `arm64-config_components.h` e `arm64-ffmpeg-config.log` registram a construção realizada. `NATIVE_ARTIFACTS.json` registra os executáveis e suas dependências. `SHA256SUMS.txt` permite ao Gradle recusar binários diferentes dos preparados.
@@ -36,4 +36,23 @@ python .\bootstrap.py --work .\fontes-extraidos --sources-only
 
 `bootstrap.py` aproveita os arquivos em `sources/` ao lado dele quando presentes. Os compiladores não são redistribuídos no APK. As licenças estão em `licenses/` e no aplicativo, em Menu → Licenças e fontes. Os componentes Python/Android e seus avisos estão nos outros pacotes de fontes e em THIRD_PARTY_NOTICES_ANDROID.md.
 
-Chromaprint 1.6.1 usa a biblioteca Kiss FFT incluída nos fontes. `build_chromaprint.py --work <pasta>` gera `libchromaprint.so` para ARM64 e x86_64 com NDK r28c, CMake 3.31.6 e Ninja 1.11.1.3, ligação C++ estática e alinhamento de 16 KiB. A pasta deve conter o arquivo original verificado, seus fontes extraídos em `chromaprint-1.6.1`, o NDK em `android-ndk-r28c` e as ferramentas em `tooling`. O hash dos fontes está em `source-lock.json`; os hashes resultantes devem ser registrados em `SHA256SUMS.txt` antes do empacotamento.
+Chromaprint 1.6.2 usa a biblioteca Kiss FFT incluída nos fontes. `build_chromaprint.py --work <pasta>` gera `libchromaprint.so` para ARM64 e x86_64 com NDK r28c, CMake e Ninja do MSYS2, ligação C++ estática e alinhamento de 16 KiB. A pasta preparada pelo bootstrap contém os fontes em `src/`, arquivos verificados em `sources/`, NDK em `android-ndk-r28c` e CMake/Ninja em `msys64/ucrt64/bin`. O formato anterior com `tooling/` também é aceito. O hash dos fontes está em `source-lock.json`; os hashes resultantes devem ser registrados em `SHA256SUMS.txt` antes do empacotamento.
+
+## Compilar os APKs no ambiente local
+
+O aplicativo usa Python 3.13 no Android. O Python 3.15 do portátil é independente e não deve ser passado como `onda.buildPython`.
+
+Na pasta `E:\Projetos\Onda\Android`, depois de preparar as ferramentas nativas:
+
+```powershell
+$env:JAVA_HOME = 'E:\Projetos\Onda-Local\Compilacao\jdk\jdk-25.0.5+8'
+$env:ANDROID_HOME = 'E:\Projetos\Onda-Local\Compilacao\android-sdk'
+$env:ANDROID_USER_HOME = 'E:\Projetos\Onda-Local\Compilacao\android-user'
+$env:GRADLE_USER_HOME = 'E:\Projetos\Onda-Local\Compilacao\gradle-cache'
+$BuildPython = 'E:\Projetos\Onda-Local\Compilacao\python-3.13.17\python.exe'
+$ProjectCache = 'E:\Projetos\Onda-Local\Compilacao\gradle-project-9'
+.\gradlew.bat :app:assembleRelease :app:testDebugUnitTest --project-cache-dir "$ProjectCache" '-Ponda.abis=arm64-v8a' "-Ponda.buildPython=$BuildPython"
+.\gradlew.bat :app:assembleRelease --project-cache-dir "$ProjectCache" '-Ponda.abis=x86_64' "-Ponda.buildPython=$BuildPython"
+```
+
+A compilação usa JDK 25, Gradle 9.7, Android Gradle Plugin 9.5.1 e Kotlin 2.4.21. Os comandos acima geram APKs sem assinatura; a assinatura de produção é feita separadamente pelo processo local de empacotamento.

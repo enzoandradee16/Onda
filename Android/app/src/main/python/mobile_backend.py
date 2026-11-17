@@ -1,6 +1,5 @@
 """Android adapter for ONDA's shared engine. No desktop/UI imports required."""
 
-import hashlib
 import json
 import os
 from pathlib import Path
@@ -243,6 +242,9 @@ def configure(root, native, libs):
         os.environ['ONDA_CHROMAPRINT'] = str(chromaprint)
     _root.mkdir(parents=True, exist_ok=True)
     os.environ["ONDA_ALIAS_CACHE_ROOT"] = str(_root)
+    from mobile_tool_updates import activate
+
+    tools_active = activate(_root)
     import image_background
     from java import jclass
 
@@ -254,7 +256,7 @@ def configure(root, native, libs):
         str(libs) + ':' + str(_native) + ':' + os.environ.get('LD_LIBRARY_PATH', '')
     )
     update = _root / 'tools/yt-dlp.zip'
-    if select_cached_extractor(update):
+    if not tools_active and select_cached_extractor(update):
         sys.path.insert(0, str(update))
     import engine
     import audio_tools
@@ -760,15 +762,19 @@ def perform(action, config):
         return recognize_link(config.get("text")) or {}
 
     if action == 'playback_cache_trim':
-        from playback_cache_budget import prune, model_paths, ANDROID_LIMIT
+        from playback_cache_budget import prune, model_paths
 
-        return prune(_root / 'jukebox', max_bytes=ANDROID_LIMIT,
+        return prune(_root / 'jukebox', max_bytes=max(256,min(4096,int(config.get('playback_cache_limit_mb',384))))*1048576,
                      protected=model_paths(config.get('models', [])) +
                      config.get('_stream_cache_protected', []))
     if action == 'cache_auto':
         from cache_cleanup import automatic_cleanup
 
         return automatic_cleanup(_root)
+    if action in ('cache_report','cache_remove'):
+        from cache_report import report,remove
+        return (remove(_root,config['cache_id'],config.get('_stream_cache_protected',[])) if action=='cache_remove'
+                else report(_root,config.get('_stream_cache_protected',[]),int(config.get('playback_cache_limit_mb',384)),config.get('_cache_models',[])))
     if action in ('cache_info', 'cache_clear'):
         from cache_cleanup import cache_info, clear_cache
 
@@ -850,6 +856,11 @@ def perform(action, config):
                                  cover_url=candidate['cover_url'])]}
     if action == 'audio_batch_edit':
         from batch_metadata import edit_batch
+        from metadata_editing import preview,select
+        report=preview(config,_local.state['cancel'].is_set)
+        config=select(config,report,ask('review_metadata_changes',**report))
+        if not config['sources']:return {'cancelled':True,'message':'Nenhuma alteração selecionada.'}
+        config.update(_metadata_transaction=str(__import__('uuid').uuid4()),_android_metadata=True)
 
         return edit_batch(
             dict(config, _android_batch=True),
@@ -873,6 +884,11 @@ def perform(action, config):
                 )
             }
         # Android edits an imported staging file; the original is its content URI.
+        from metadata_editing import preview,select
+        report=preview(config,_local.state['cancel'].is_set)
+        chosen=select(config,report,ask('review_metadata_changes',**report))
+        if not chosen['sources']:return {'cancelled':True,'message':'Nenhuma alteração selecionada.'}
+        config=dict(chosen,_metadata_transaction=str(__import__('uuid').uuid4()),_android_metadata=True)
         result = edit_copy(
             dict(config, overwrite_original=False),
             emit,
@@ -1258,70 +1274,23 @@ def perform(action, config):
         account().disconnect()
         return {'connected': False}
     if action == 'update':
-        import requests
-
-        emit(
-            'stage', message='Consultando atualização das ferramentas…', done=0, total=0
-        )
-        response = requests.get(
-            'https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest', timeout=30
-        )
-        response.raise_for_status()
-        data = response.json()
-        assets = {a['name']: a['browser_download_url'] for a in data.get('assets', [])}
-        sums = requests.get(assets['SHA2-256SUMS'], timeout=30)
-        sums.raise_for_status()
-        expected = next(
-            line.split()[0]
-            for line in sums.text.splitlines()
-            if line.split()[-1].lstrip('*') == 'yt-dlp'
-        )
-        target = _root / 'tools/yt-dlp.zip'
-        target.parent.mkdir(exist_ok=True)
-        tmp = target.with_suffix('.tmp')
-        digest = hashlib.sha256()
-        try:
-            with requests.get(
-                assets['yt-dlp'], stream=True, timeout=(10, 30)
-            ) as download:
-                download.raise_for_status()
-                with tmp.open('wb') as stream:
-                    size = 0
-                    for chunk in download.iter_content(65536):
-                        size += len(chunk)
-                        if size > 40 * 1024 * 1024:
-                            raise ValueError('Atualização acima do limite.')
-                        digest.update(chunk)
-                        stream.write(chunk)
-                        emit(
-                            'stage',
-                            message='Baixando atualização do yt-dlp…',
-                            done=size,
-                            total=int(download.headers.get('Content-Length', 0)),
-                        )
-            emit(
-                'stage',
-                message='Verificando atualização das ferramentas…',
-                done=size,
-                total=size,
-            )
-            if digest.hexdigest() != expected:
-                raise ValueError('A verificação da atualização falhou.')
-            with zipfile.ZipFile(tmp) as archive:
-                if 'yt_dlp/__init__.py' not in archive.namelist() or archive.testzip():
-                    raise ValueError('Pacote inválido.')
-            os.replace(tmp, target)
-        finally:
-            tmp.unlink(missing_ok=True)
+        from mobile_tool_updates import prepare
         from tool_status import updated, present, display
 
+        try:
+            versions = prepare(_root, emit=emit)
+        except Exception:
+            updated(_root, False)
+            raise
         report = updated(_root, True)
         return {
-            'version': data['tag_name'],
+            'versions': versions,
             'report': report,
             'display': display(report),
             'message': present(report)
-            + '\nAtualização preparada. Use Forçar parada nas configurações Android e abra o ONDA novamente para aplicar.',
+            + '\nAtualizadas: yt-dlp, yt-dlp-ejs, gallery-dl, Mutagen e Requests.'
+            + '\nAtualização preparada. Toque em Verificar e depois em Reiniciar ONDA para aplicar.'
+            + '\nPython, Pillow e ferramentas nativas são atualizados junto com o ONDA.',
         }
     if action == 'self_test':
         import yt_dlp
@@ -1380,6 +1349,8 @@ def run(identity, action, payload, callback, raw_pcm=False):
             return json.dumps(result, ensure_ascii=False), pcm
         return json.dumps(result, ensure_ascii=False)
     except Exception as exc:
+        if action in ('audio_edit','audio_batch_edit') and isinstance(exc,Cancelled):
+            return json.dumps({'cancelled':True,'message':'Alterações canceladas.'},ensure_ascii=False)
         if action == 'update':
             from tool_status import updated
 

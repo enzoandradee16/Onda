@@ -38,9 +38,9 @@ import java.io.File
     var recognized by remember {mutableStateOf(JSONObject())}
     var cover by rememberSaveable {mutableStateOf("")}
     var overwrite by rememberSaveable {mutableStateOf(false)}
-    var confirm by remember {mutableStateOf(false)}
     var preparing by remember {mutableStateOf(false)}
     var summary by rememberSaveable {mutableStateOf("")}
+    var actions by rememberSaveable {mutableStateOf("{}")}
     val locked=busy || preparing
     val picker=rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()){uris->
         if(uris.isNotEmpty()) {
@@ -113,7 +113,7 @@ import java.io.File
             val imports=mutableListOf<File>()
             try {
                 val entries=withContext(Dispatchers.IO) {
-                    sources.filter {selected.isNotEmpty() || cover.isNotBlank() || transferPath.isNotBlank() || recognized.has(it)}.map {value->
+                    sources.filter {selected.isNotEmpty() || hasBatchActions(JSONObject(actions)) || cover.isNotBlank() || transferPath.isNotBlank() || recognized.has(it)}.map {value->
                         val item=localAudioItem(Uri.parse(value))
                         val file=OndaStore.importDocument(Uri.parse(value),"batch-audio");imports.add(file)
                         JSONObject().put("source",file.absolutePath).put("original_uri",value).put("output_name",item.title.substringBeforeLast('.',item.title)).apply {recognized.optJSONObject(value)?.let {match->put("changes",match.getJSONObject("changes"));put("cover_url",match.optString("cover_url"))}}
@@ -121,7 +121,7 @@ import java.io.File
                 }
                 val changes=JSONObject()
                 selected.forEach {key->val value=fields[key].orEmpty();changes.put(key,if(key=="artists")JSONArray(value.split(';').map {it.trim()}.filter {it.isNotEmpty()}) else value)}
-                val config=OndaStore.config().put("sources",JSONArray(entries)).put("changes",changes).put("cover_path",if(transferCover.isNotBlank() && cover==transferCover)"" else cover).put("tag_transfer_path",transferPath).put("tag_transfer_cover",transferCover.isNotBlank() && cover==transferCover).put("overwrite_original",overwrite)
+                val config=OndaStore.config().put("sources",JSONArray(entries)).put("changes",changes).put("batch_actions",JSONObject(actions)).put("cover_path",if(transferCover.isNotBlank() && cover==transferCover)"" else cover).put("tag_transfer_path",transferPath).put("tag_transfer_cover",transferCover.isNotBlank() && cover==transferCover).put("overwrite_original",overwrite)
                 vm.operation("audio_batch_edit",config,dialog=false){result->
                     summary=result.optString("message")
                     val errors=result.optJSONArray("errors")?.objects().orEmpty()
@@ -134,7 +134,6 @@ import java.io.File
             } finally {preparing=false}
         }
     }
-    if(confirm)AlertDialog(onDismissRequest={confirm=false},title={UiText("Editar metadados em lote")},text={UiText("Os arquivos originais selecionados serão substituídos. Continuar?")},confirmButton={TextButton(onClick={confirm=false;apply()}){UiText("Continuar")}},dismissButton={TextButton(onClick={confirm=false}){UiText("Cancelar")}})
     Dialog(onDismissRequest={if(!locked)close()}) {
         Surface(shape=MaterialTheme.shapes.large) {
             Column(Modifier.fillMaxWidth().fillMaxHeight(.9f).padding(LayoutSpacing.inset)) {
@@ -153,6 +152,7 @@ import java.io.File
                     UiText("${sources.size} arquivos selecionados")
                     OutlinedButton(onClick={picker.launch(arrayOf("audio/*","application/ogg"))},enabled=!locked){UiText("Escolher vários arquivos de áudio")}
                     UiText("Marque somente os campos que deseja alterar. Campos desmarcados serão preservados.",style=MaterialTheme.typography.bodySmall)
+                    BatchActionsControls(JSONObject(actions),!locked){actions=it.toString()}
                     for((key,label) in listOf("artists" to "Artistas (separados por ;)","album" to "Álbum","genre" to "Gênero","release_date" to "Data","track_number" to "Faixa","disc_number" to "Disco","title" to "Música","isrc" to "ISRC","album_artist" to "Artista do álbum","composer" to "Compositor")) {
                         Row(verticalAlignment=Alignment.CenterVertically) {
                             Checkbox(checked=key in selected,onCheckedChange={checked->selected=ArrayList(if(checked)selected+key else selected-key)},enabled=!locked,modifier=Modifier.padding(end=LayoutSpacing.checkboxLabel).a11yLabel(label))
@@ -169,7 +169,7 @@ import java.io.File
                     if(preparing && !busy)LinearProgressIndicator(Modifier.fillMaxWidth())
                     if(summary.isNotBlank())UiText(summary)
                 }
-                Button(onClick={if(overwrite)confirm=true else apply()},enabled=!locked && sources.size in 1..500 && (selected.isNotEmpty() || cover.isNotBlank() || transferPath.isNotBlank() || recognized.length()>0),modifier=Modifier.fillMaxWidth().testTag("batch-apply")){UiText("Aplicar aos arquivos selecionados")}
+                Button(onClick={apply()},enabled=!locked && sources.size in 1..500 && (selected.isNotEmpty() || hasBatchActions(JSONObject(actions)) || cover.isNotBlank() || transferPath.isNotBlank() || recognized.length()>0),modifier=Modifier.fillMaxWidth().testTag("batch-apply")){UiText("Revisar e salvar")}
                 TextButton(onClick=close,enabled=!locked,modifier=Modifier.align(Alignment.End)){UiText("Fechar")}
             }
         }

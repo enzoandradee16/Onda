@@ -385,15 +385,19 @@ def perform(action, config, cancel, emit):
             'record': read_audio(config['source']),
             'cover': cover_preview(config['source']) or '',
         }
+    if action == 'metadata_changes_preview':
+        from metadata_editing import preview
+        return preview(config,cancel.is_set)
+    if action == 'metadata_undo':
+        from metadata_undo import undo
+        return undo(cancel.is_set)
     if action == 'audio_edit':
         from audio_library import edit_copy
         from batch_metadata import edit_batch
 
-        return (
-            edit_batch(config, emit, cancelled=cancel.is_set)
-            if len(config.get('sources', [])) > 1
-            else edit_copy(config, emit, cancelled=cancel.is_set)
-        )
+        if len(config.get('sources',[]))>1:return edit_batch(config,emit,cancelled=cancel.is_set)
+        entry=(config.get('sources') or [{}])[0]
+        return edit_copy(dict(config,**entry),emit,cancelled=cancel.is_set)
     if action == 'image_info':
         return {'source': image_details(config['source'])}
     if action in ('image_preview', 'image_export'):
@@ -479,10 +483,14 @@ def perform(action, config, cancel, emit):
         from cache_cleanup import automatic_cleanup
 
         return automatic_cleanup(config['_root'])
+    if action in ('cache_report','cache_remove'):
+        from cache_report import report,remove
+        return (remove(config['_root'],config['cache_id'],config.get('_protected_cache',[])) if action=='cache_remove'
+                else report(config['_root'],config.get('_protected_cache',[]),int(config.get('playback_cache_limit_mb',1024)),config.get('_cache_models',[])))
     if action in ('cache_info', 'cache_clear'):
         from cache_cleanup import cache_info, clear_cache
 
-        return (clear_cache if action == 'cache_clear' else cache_info)(config['_root'])
+        return clear_cache(config['_root'],protected=config.get('_protected_cache',[])) if action=='cache_clear' else cache_info(config['_root'])
     if action == 'prepare_tools':
         from ffmpeg_runtime import download_tools
 
@@ -562,7 +570,7 @@ def perform(action, config, cancel, emit):
     if action == 'update_tools':
         emit('stage', message='Atualizando ferramentas…', done=0, total=0)
         from audio_tools import process_options
-        import sys
+        import os, sys
 
         python = Path(sys.executable).with_name('python.exe')
         result = subprocess.run(
@@ -572,10 +580,21 @@ def perform(action, config, cancel, emit):
                 'pip',
                 'install',
                 '--upgrade',
-                'yt-dlp[default,curl-cffi]',
+                'yt-dlp[curl-cffi]' if sys.version_info >= (3, 15) else 'yt-dlp[default,curl-cffi]',
                 'gallery-dl<2',
-                'Pillow>=10',
+                'Pillow>=10,<14',
+                'mutagen>=1.48.1,<2',
+                'requests>=2.32.5,<3',
+                'PyYAML>=6.0.3,<7',
+                'yt-dlp-ejs>=0.8.0,<0.9',
+                'certifi',
+                'urllib3<3',
+                'idna<4',
+                'charset-normalizer<4',
+                *(('brotlicffi>=1.2.0.1', 'pycryptodomex', 'websockets>=13.0')
+                  if sys.version_info >= (3, 15) else ()),
             ],
+            env=dict(os.environ, PYYAML_FORCE_LIBYAML='0'),
             capture_output=True,
             text=True,
             timeout=240,

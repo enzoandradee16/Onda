@@ -137,9 +137,10 @@ def prune(root=None, *, protected=(), max_bytes=DESKTOP_LIMIT, now=None, keep_re
         _scan_lock.release()
 
 
-def recent_paths(root, count=4):
+def recent_paths(root, count=4, *, entries=None):
+    entries = _entries(Path(root)) if entries is None else entries
     return {row[4] for row in sorted(
-        (row for row in _entries(Path(root)) if row[2] > 0),
+        (row for row in entries if row[2] > 0),
         key=lambda row: row[2], reverse=True)[:count]}
 
 

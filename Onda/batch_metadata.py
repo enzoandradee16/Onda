@@ -56,7 +56,7 @@ def edit_batch(config, emit=lambda *args, **kwargs: None, *, cancelled=lambda: F
                 cover_url=cover_url,
                 edit_metadata=True,
                 normalize_volume=False,
-                lyrics_path='',
+                lyrics_path=config.get('lyrics_path',''),
             )
             if config.get('_android_batch'):
                 options['overwrite_original'] = False

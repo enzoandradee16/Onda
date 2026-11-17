@@ -26,14 +26,12 @@ class NativeLicensesTest {
         compose.onNodeWithTag("nav-Mais").performClick()
         compose.onNodeWithTag("more-list").performScrollToNode(hasText("Licenças e fontes"))
         compose.onNodeWithText("Licenças e fontes").performScrollTo().performClick()
-        compose.waitUntil(10000) {
-            compose.onAllNodesWithText("ffmpeg-7.1.3 / LICENSE.md").fetchSemanticsNodes().isNotEmpty()
-        }
-        compose.onNodeWithText("ffmpeg-7.1.3 / LICENSE.md").performScrollTo().performClick()
+        compose.onNodeWithTag("license-list").performScrollToNode(hasText("ffmpeg-9.0.2 / LICENSE.md"))
+        compose.onNodeWithText("ffmpeg-9.0.2 / LICENSE.md").performScrollTo().performClick()
         compose.onNodeWithTag("license-details").performScrollToNode(hasText("Most files in FFmpeg", substring=true))
         compose.onNodeWithText("Most files in FFmpeg", substring=true).assertIsDisplayed()
         compose.onNodeWithText("Voltar").performClick()
-        for(name in listOf("gallery_dl-1.32.17.dist-info/licenses/LICENSE","yt_dlp-2026.10.21.dist-info/licenses/LICENSE","certifi-2026.10.23.dist-info/licenses/LICENSE")) {
+        for(name in listOf("gallery_dl-1.32.20.dist-info/licenses/LICENSE","yt_dlp-2026.10.26.dist-info/licenses/LICENSE","certifi-2026.10.23.dist-info/licenses/LICENSE")) {
             compose.onNodeWithTag("license-list").performScrollToNode(hasText(name))
             compose.onNodeWithText(name).assertIsDisplayed()
         }

@@ -72,11 +72,18 @@ internal object StreamAudioCache {
         } finally {loader.cancel()}
     }
     fun size(context:Context):Long = cache?.cacheSpace ?: if(File(context.cacheDir,"stream-audio-v1").exists())get(context).cacheSpace else 0
+    fun recentSize(context:Context):Long {
+        if(cache==null && !File(context.cacheDir,"stream-audio-v1").exists())return 0
+        val instance=get(context)
+        return instance.keys.sortedByDescending {key->instance.getCachedSpans(key).maxOfOrNull {it.lastTouchTimestamp} ?: 0}.take(4)
+            .sumOf {key->instance.getCachedSpans(key).sumOf {it.length}}
+    }
     fun clear(context:Context):Long {
         if(cache==null && !File(context.cacheDir,"stream-audio-v1").exists())return 0
         val instance=get(context)
         val before=instance.cacheSpace
-        instance.keys.toList().forEach {instance.removeResource(it)}
+        val recent=instance.keys.sortedByDescending {key->instance.getCachedSpans(key).maxOfOrNull {it.lastTouchTimestamp} ?: 0}.take(4).toSet()
+        instance.keys.toList().filter {it !in recent}.forEach {instance.removeResource(it)}
         return (before-instance.cacheSpace).coerceAtLeast(0)
     }
 }

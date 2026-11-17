@@ -17,6 +17,7 @@ import org.json.JSONObject
 @Composable fun ChoiceWindow(question: Question, vm: OndaViewModel) {
     val event=question.event
     val kind=event.optString("type")
+    if(kind=="review_metadata_changes") {MetadataChangesWindow(question);return}
     DisposableEffect(question) {
         onDispose {if(kind=="choose_version")vm.stopPreview(stopJukebox=false)}
     }
@@ -50,7 +51,7 @@ import org.json.JSONObject
     }
     val candidates=event.optJSONArray("candidates")?.objects() ?: emptyList()
     val cancel={OndaStore.answer(JSONObject().put("cancel",true))}
-    AlertDialog(containerColor=ondaDialogContainerColor(),onDismissRequest=cancel,title={UiText(when(kind) {"choose_queue_space"->"Espaço possivelmente insuficiente";"choose_flac"->"FLAC pelo navegador";"choose_version"->"Qual versão você prefere?";"choose_catalog"->"Confirme os metadados";"choose_media"->"O que você quer baixar?";"choose_queue_duplicate"->"Duplicatas detectadas";"choose_duplicate"->"Arquivo já existe";else->"Sua música, do seu jeito."})},text={
+    AlertDialog(containerColor=ondaDialogContainerColor(),onDismissRequest=cancel,title={UiText(when(kind) {"choose_queue_space"->"Espaço possivelmente insuficiente";"choose_flac"->"FLAC pelo navegador";"choose_version"->"Qual versão você prefere?";"choose_catalog"->"Confirme os metadados";"choose_media"->"O que você quer baixar?";"choose_queue_duplicate"->"Duplicatas detectadas";"choose_duplicate"->"Arquivo já existe";else->"Sua música, do seu jeito."},style=if(kind=="choose_catalog")MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineSmall)},text={
         Column(Modifier.fillMaxWidth().heightIn(max=500.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
             when(kind) {
                 "choose_queue_space"->{UiText(event.optString("message"));UiText("Continuar mesmo assim?")}
@@ -94,25 +95,10 @@ import org.json.JSONObject
                     candidates.filterNot {kind=="choose_version" && it.opt("id")?.toString() in rejectedIds}.forEach {candidate->
                         val id=if(kind=="choose_catalog") candidate.optString("source_url") else candidate.opt("id")?.toString().orEmpty()
                         val video=candidate.optString("kind") in listOf("video","Vídeo") || candidate.optString("type")=="video"
-                        ElevatedCard(Modifier.fillMaxWidth().clickable {selected=if(kind=="choose_media") if(id in selected) selected-id else selected+id else setOf(id)}) {
-                            Column(Modifier.padding(10.dp)) {
+                        Surface(Modifier.fillMaxWidth().then(if(kind=="choose_catalog") Modifier else Modifier.clickable {selected=if(kind=="choose_media") if(id in selected) selected-id else selected+id else setOf(id)}),color=if(kind=="choose_catalog") androidx.compose.ui.graphics.Color.Transparent else MaterialTheme.colorScheme.surfaceContainerLow,shape=MaterialTheme.shapes.medium) {
+                            Column(Modifier.padding(if(kind=="choose_catalog") 0.dp else 10.dp)) {
                                 if(kind=="choose_catalog") {
-                                    Row(horizontalArrangement=Arrangement.spacedBy(10.dp)) {
-                                        val artwork=candidate.cleanString("cover_url").ifBlank {candidate.cleanString("cover")}
-                                        val image=remember(artwork) {if(artwork.startsWith("data:image/"))runCatching {android.util.Base64.decode(artwork.substringAfter(','),android.util.Base64.DEFAULT)}.getOrNull() else artwork}
-                                        Surface(Modifier.size(80.dp),shape=MaterialTheme.shapes.small) {
-                                            if(artwork.isNotBlank())AsyncImage(image,translateUi("Capa do álbum",LocalUiLanguage.current),Modifier.size(80.dp),contentScale=androidx.compose.ui.layout.ContentScale.Fit)
-                                            else Box(contentAlignment=androidx.compose.ui.Alignment.Center){OndaIcon("album",modifier=Modifier.size(32.dp))}
-                                        }
-                                        Column(Modifier.weight(1f)) {
-                                            Toggle(candidate.cleanString("title"),id in selected){selected=if(it)setOf(id) else emptySet()}
-                                            Text(candidate.stringList("artists"),style=MaterialTheme.typography.bodyMedium)
-                                            if(candidate.optBoolean("manual_review"))Text(candidate.getJSONArray("match_reasons").let {a->(0 until a.length()).joinToString(" "){a.getString(it)}},style=MaterialTheme.typography.bodySmall)
-                                            Text(listOf(candidate.cleanString("album"),candidate.cleanString("release_date"),candidate.cleanString("genre"),candidate.cleanString("platform")).filter {it.isNotBlank()}.joinToString(" · "),style=MaterialTheme.typography.bodySmall)
-                                            val duration=if(candidate.optLong("duration_ms")>0)candidate.optLong("duration_ms")/1000 else candidate.optDouble("duration",0.0).toLong()
-                                            Text(listOf(candidate.cleanString("track_number").takeIf {it.isNotBlank()}?.let {translateUi("Faixa",LocalUiLanguage.current)+" "+it}.orEmpty(),candidate.cleanString("disc_number").takeIf {it.isNotBlank()}?.let {translateUi("Disco",LocalUiLanguage.current)+" "+it}.orEmpty(),if(duration>0)mediaClock(duration) else "",candidate.cleanString("isrc")).filter {it.isNotBlank()}.joinToString(" · "),style=MaterialTheme.typography.bodySmall)
-                                        }
-                                    }
+                                    MetadataChoiceCard(candidate,id in selected) {selected=setOf(id)}
                                 } else {
                                 Toggle(candidate.optString("title",candidate.optString("label","Mídia $id")),id in selected){selected=if(kind=="choose_media") if(it) selected+id else selected-id else setOf(id)}
                                 Text(candidate.optString("channel",candidate.optString("uploader",candidate.stringList("artists"))),style=MaterialTheme.typography.bodySmall)
@@ -158,7 +144,7 @@ import org.json.JSONObject
                 if(rejectedIds.isNotEmpty()) UiText("Versões marcadas como erradas: ${rejectedIds.size}",style=MaterialTheme.typography.bodySmall)
             }
         }
-    },confirmButton={TextButton(enabled=kind in setOf("choose_flac","review_metadata","choose_queue_duplicate","choose_queue_space") || selected.isNotEmpty(),onClick={
+    },confirmButton={TextButton(colors=if(kind=="choose_catalog")ButtonDefaults.buttonColors() else ButtonDefaults.textButtonColors(),shape=if(kind=="choose_catalog")androidx.compose.foundation.shape.RoundedCornerShape(10.dp) else ButtonDefaults.textShape,enabled=kind in setOf("choose_flac","review_metadata","choose_queue_duplicate","choose_queue_space") || selected.isNotEmpty(),onClick={
         if(kind=="choose_flac") {
             pickFlac.launch(arrayOf("audio/flac","audio/x-flac","application/octet-stream"))
             return@TextButton

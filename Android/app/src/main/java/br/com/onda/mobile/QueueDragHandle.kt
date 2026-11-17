@@ -78,6 +78,9 @@ private val queueDragPreviews=WeakHashMap<LazyListState,QueueDragPreview>()
                     val target=preview.target;val targetId=preview.identity
                     offset=0f;dragging=false;preview.clear()
                     if(target in 0 until latestCount && target!=latestIndex) {
+                        // Keep the viewport at the drop position instead of following
+                        // the old first visible key when the reordered list is measured.
+                        state.requestScrollToItem(state.firstVisibleItemIndex,state.firstVisibleItemScrollOffset)
                         if(targetId.isNotBlank() && identityAction!=null)identityAction?.invoke(targetId)
                         else moveAction(latestIndex,target)
                     }

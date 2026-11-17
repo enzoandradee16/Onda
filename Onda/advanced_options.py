@@ -26,6 +26,7 @@ DEFAULTS = {
     'schedule_stop': '07:00',
     'check_updates': True,
     'automatic_cache_cleanup': True,
+    'playback_cache_limit_mb': '1024',
     'notice_animation': True,
     'queue_actions_at_top': True,
     'confirm_version': False,
@@ -76,6 +77,8 @@ def clean_advanced(options):
             str(n) for n in range(1, 16)
         ):
             result[key] = str(value)
+        elif key == 'playback_cache_limit_mb' and str(value) in ('256','384','512','1024','2048','4096'):
+            result[key]=str(value)
         elif key in ('schedule_start', 'schedule_stop') and valid_time(value):
             result[key] = value
     return result

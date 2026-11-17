@@ -4,9 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.unit.dp
 import org.json.JSONObject
 
 /** Size remains directly available on the redesigned downloads screen. */

@@ -619,13 +619,16 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
                 val result=withContext(Dispatchers.IO) { MobileEngine.call(getApplication(),id,action,payload,EventCallback { raw ->
                     val event=JSONObject(raw)
                     when(event.optString("type")) {
-                        "choose_flac","choose_version","choose_catalog","choose_duplicate","choose_media","review_metadata"->OndaStore.ask(id,event)
+                        "choose_flac","choose_version","choose_catalog","choose_duplicate","choose_media","review_metadata","review_metadata_changes"->OndaStore.ask(id,event)
                         "open_browser"->openSpotifyAuthorization(getApplication(),event.getString("url"))
-                        "file"->if(!event.optBoolean("skipped")) OndaStore.publish(event.getString("path"),OndaStore.publicationConfig(payload,event).put("_identity",id),event.optString("mode", "MP3"))
+                        "file"->if(!event.optBoolean("skipped")) {
+                            val uri=OndaStore.publish(event.getString("path"),OndaStore.publicationConfig(payload,event).put("_identity",id),event.optString("mode", "MP3"))
+                            MetadataUndo.record(event,uri.toString())
+                        }
                         "batch_original"->{
                             val edited=java.io.File(event.getString("path"))
                             val original=JSONObject(payload.toString()).put("source",event.getString("source")).put("original_uri",event.getString("original_uri"))
-                            try {OndaStore.overwriteAudio(edited,original)} finally {edited.delete()}
+                            try {OndaStore.overwriteAudio(edited,original);MetadataUndo.record(event,event.getString("original_uri"))} finally {edited.delete()}
                         }
                         "done"->if(event.has("path")) OndaStore.publish(event.getString("path"),payload,event.getString("path").substringAfterLast('.'))
                         "progress"->status.value="Processando: ${event.optInt("percent")}%"
@@ -633,10 +636,10 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
                         else->if(event.has("message")) status.value=event.optString("message")
                     }
                 }) }
-                if(!result.has("error") && action=="audio_edit" && payload.optBoolean("overwrite_original")) {
+                if(!result.has("error") && !result.optBoolean("cancelled") && action=="audio_edit" && payload.optBoolean("overwrite_original")) {
                     withContext(Dispatchers.IO) {
                         val edited=java.io.File(result.getString("path"))
-                        try { OndaStore.overwriteAudio(edited,payload) }
+                        try { OndaStore.overwriteAudio(edited,payload);MetadataUndo.record(result,payload.getString("original_uri")) }
                         finally {edited.delete();java.io.File(edited.parentFile,edited.nameWithoutExtension+".lrc").delete()}
                     }
                 }
@@ -657,6 +660,17 @@ class OndaViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 busy.value=false; OndaStore.dismissQuestions(id); queryId.value=""
             }
+        }
+    }
+    fun undoMetadata() {
+        if(busy.value)return
+        busy.value=true
+        viewModelScope.launch {
+            try {
+                val count=withContext(Dispatchers.IO){MetadataUndo.restore()}
+                showNotice("Desfazer última edição","Metadados anteriores restaurados em $count arquivo(s).")
+            } catch(error:Exception){showNotice("Desfazer última edição",uiExceptionMessage(error,"Não foi possível desfazer a edição."),true)}
+            finally {busy.value=false}
         }
     }
     fun openHistoryFolder(uri: String) {

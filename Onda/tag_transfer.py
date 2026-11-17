@@ -172,7 +172,7 @@ def decode(raw):
         raise ValueError('Copie as tags de uma música no ONDA primeiro.') from None
 
 
-def apply(source, payload, changes, include_art=True):
+def apply(source, payload, changes, include_art=True, include_extras=True):
     from mutagen import File
     from mutagen.id3 import ID3, APIC, TXXX, USLT, COMM
     from mutagen.mp4 import MP4Cover
@@ -190,6 +190,8 @@ def apply(source, payload, changes, include_art=True):
         values = ID3(fileobj=io.BytesIO(base64.b64decode(native['data']))) if kind == 'id3' else native.get('values', {})
         for key, value in values.items():
             field = mapping.get(value.FrameID if kind == 'id3' else key.lower() if kind == 'vorbis' else key)
+            if (not field or field=='comment') and not include_extras:
+                continue
             if field and field != 'comment' and (field not in changes or changes[field] != copied.get(field)):
                 continue
             if kind == 'id3':
@@ -198,10 +200,11 @@ def apply(source, payload, changes, include_art=True):
                 target.tags[key] = _unpack(value)
             if field and changes.get(field) == copied.get(field):
                 remaining.pop(field, None)
-        if kind == 'id3':
+        if kind == 'id3' and include_extras:
             target.tags.unknown_frames = list(dict.fromkeys(target.tags.unknown_frames + values.unknown_frames))
     else:
         for label, texts in payload.get('portable', {}).items():
+            if not include_extras:continue
             if not isinstance(label, str) or not isinstance(texts, list) or not all(isinstance(v, str) for v in texts):
                 raise ValueError('Campo de metadados inválido.')
             if kind == 'id3':
@@ -214,7 +217,7 @@ def apply(source, payload, changes, include_art=True):
             else:
                 import re
                 target.tags[re.sub(r'[^\x20-\x3C\x3E-\x7D]', '_', label)] = texts
-    if payload.get('lyrics_override') is not None:
+    if include_extras and payload.get('lyrics_override') is not None:
         text = payload['lyrics_override']
         if kind == 'id3':
             target.tags.delall('USLT'); target.tags.add(USLT(encoding=3, lang='eng', text=text))
@@ -224,7 +227,7 @@ def apply(source, payload, changes, include_art=True):
         if kind == 'id3': target.tags.delall('APIC')
         elif kind == 'mp4': target.tags.pop('covr', None)
         elif hasattr(target, 'clear_pictures'): target.clear_pictures()
-        else: target.tags.pop('metadata_block_picture', None)
+        elif 'metadata_block_picture' in target.tags: del target.tags['metadata_block_picture']
         for image in payload['artwork']:
             data = base64.b64decode(image['data'])
             if kind == 'id3':

@@ -154,7 +154,7 @@ Drawer {
                 readonly property bool current:drawer.effects?index===workspace.optionValue(workspace.optionsRevision,"effectsQueueIndex"):!!modelData.current
                 readonly property bool failed:!!modelData.error||modelData.analysis==="error"
                 readonly property bool section:!!modelData.section&&!drawer.recent
-                width:queueList.contentAreaWidth;height:60
+                width:queueList.contentAreaWidth;height:Math.max(72,queueTrackDetails.implicitHeight+12)
                 z:playbackDrag.dragging || (selected && queueList.activeDrag && queueList.activeDrag.dragItem.selected) ? 20 : 0
                 transform:Translate {y:playbackDrag.cardOffset;Behavior on y {enabled:queueList.activeDrag!==null&&!playbackDrag.dragging;NumberAnimation {duration:140;easing.type:Easing.OutCubic}}}
                 activeFocusOnTab:true;Accessible.role:Accessible.ListItem;Accessible.name:record.title||""
@@ -177,18 +177,18 @@ Drawer {
                 Rectangle {anchors.fill:parent;radius:5;color:queueTrack.selected ? bridge.palette.accent : bridge.palette.hover;opacity:queueTrack.selected ? 0.20 : 1;visible:queueTrack.selected||rowHover.hovered||playbackDrag.dragging||queueTrack.activeFocus}
                 QueueDragHandle {doubleClickEnabled:true;showIndicator:false;id:playbackDrag;selectedRows:queueTrack.selected ? stableTracks.selectedRows : [];objectName:"playbackQueueDrag";anchors.right:parent.right;anchors.bottom:parent.bottom;width:16;height:60;opacity:rowHover.hovered||dragging||activeFocus?1:0;enabled:!drawer.recent && !queueTrack.current;dragItem:queueTrack;listView:queueList;rowIndex:queueTrack.index;itemCount:drawer.tracks.length;onMoved:function(target){drawer.effects?drawer.move(queueTrack.index,target-queueTrack.index):stableTracks.moveSelection(queueTrack.index,target)};onClickedWithModifiers:function(modifiers){if (!drawer.effects) {queueTrack.forceActiveFocus();stableTracks.select(queueTrack.index,modifiers)}};onDoubleTapped:queueTrack.failed?drawer.retry(queueTrack.index):drawer.play(queueTrack.index)}
                 RowLayout {
-                    anchors.fill:parent;anchors.rightMargin:16;spacing:10
+                    anchors.fill:parent;anchors.leftMargin:6;anchors.rightMargin:16;spacing:10
                     Rectangle {Layout.preferredWidth:44;Layout.preferredHeight:44;radius:4;color:bridge.palette.input
                         RoundedArtwork {id:artwork;anchors.fill:parent;source:queueTrack.record.cover_url || (drawer.effects?modelData.cover_url||"":modelData.cover||"");fallbackSource:drawer.effects?modelData.cover_url||"":modelData.cover||"";fillMode:Image.PreserveAspectCrop;asynchronous:true;sourceSize.width:192;sourceSize.height:192}
                         Label {anchors.centerIn:parent;visible:artwork.status!==Image.Ready;text:"♪";color:bridge.palette.muted}
                         PreparationProgress {anchors.left:parent.left;anchors.right:parent.right;anchors.bottom:parent.bottom;height:3;preparing:modelData.analysis==="preparing";progress:bridge.queuePreparation[modelData.id] || 0}
                     }
-                    ColumnLayout {Layout.fillWidth:true;Layout.minimumWidth:0;spacing:4
+                    ColumnLayout {id:queueTrackDetails;Layout.fillWidth:true;Layout.minimumWidth:0;spacing:4
                         Label {Layout.fillWidth:true;elide:Text.ElideRight;text:record.title||"";font.weight:Font.DemiBold;color:queueTrack.current?bridge.palette.accent:bridge.palette.text}
                         Label {Layout.fillWidth:true;elide:Text.ElideRight;text:drawer.effects?(record.artists||[]).join(", "):modelData.artist||"";color:bridge.palette.muted}
-                        Label {Layout.fillWidth:true;elide:Text.ElideRight;text:queueTrack.current || drawer.recent || drawer.effects ? (queueTrack.failed ? bridge.translate("Falha na preparação") : "") : bridge.translate(queueTrack.failed ? "Falha na preparação" : modelData.analysis==="ready" ? "Pronta" : modelData.analysis==="preparing" ? "Preparando" : "Aguardando");color:modelData.analysis==="ready" ? bridge.palette.accent : bridge.palette.muted;font.pixelSize:11}
+                        Label {Layout.fillWidth:true;elide:Text.ElideRight;text:queueTrack.current || drawer.recent || drawer.effects ? (queueTrack.failed ? bridge.translate("Falha na preparação") : "") : bridge.translate(queueTrack.failed ? "Falha na preparação" : modelData.analysis==="ready" ? "Pronta para tocar" : modelData.analysis==="preparing" ? "Preparando" : "Na fila de preparação")+(modelData.analysis==="preparing" && (bridge.queuePreparation[modelData.id] || 0)>0 ? " · "+Math.floor(bridge.queuePreparation[modelData.id])+"%" : "");color:modelData.analysis==="ready" ? bridge.palette.accent : bridge.palette.muted;font.pixelSize:11}
                     }
-                    QueueIconButton {glyph:"more";text:bridge.translate("Mais ações");opacity:rowHover.hovered||activeFocus?1:0;onClicked:trackActions.popup()}
+                    QueueIconButton {glyph:queueTrack.failed?"repeat":"more";text:bridge.translate(queueTrack.failed?"Tentar novamente":"Mais ações");opacity:queueTrack.failed||rowHover.hovered||activeFocus?1:0;onClicked:queueTrack.failed?drawer.retry(index):trackActions.popup()}
                 }
                 OndaMenu {id:trackActions
                     OndaMenuItem {text:bridge.translate(queueTrack.failed?"Tentar novamente":"Reproduzir");onTriggered:queueTrack.failed?drawer.retry(index):drawer.play(index)}

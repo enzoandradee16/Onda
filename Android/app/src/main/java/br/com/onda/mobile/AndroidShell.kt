@@ -42,7 +42,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import org.json.JSONArray
-import org.json.JSONObject
 import androidx.compose.ui.graphics.drawscope.rotate
 
 /** Small vector icons keep the shell independent of downloadable fonts. */

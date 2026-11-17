@@ -9,7 +9,6 @@ import android.media.*
 import android.util.Base64
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.input.pointer.pointerInput
 import java.util.concurrent.atomic.AtomicInteger
@@ -21,11 +20,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -38,7 +35,6 @@ import androidx.compose.ui.unit.dp
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.lifecycle.*
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -211,6 +207,9 @@ internal class JukeboxController(private val context:Context,private val scope:C
         if(nextSong)switchTask=job else timerTask=job
     }
     private val preparedModels=mutableMapOf<String,JSONObject>()
+    fun protectedCachePaths():List<String> = (preparedModels.values.toList()+listOfNotNull(state.value.model)+switchModels.values.map {it.model})
+        .flatMap {model->listOf("cache","source","_stream_file").mapNotNull {key->model.optString(key).takeIf {it.isNotBlank() && !it.startsWith("http")}}}
+    fun cacheLabels():List<JSONObject> = preparedModels.values.toList()+listOfNotNull(state.value.model)+playbackQueue.value.mapNotNull {row->row.optJSONObject("_prepared_cache")?.let {JSONObject(it.toString()).put("media_title",row.optString("title"))}}
     private var queueWorker:Job?=null
     private var queuePreparing=""
     private var queuePreparationId=""
@@ -248,6 +247,7 @@ internal class JukeboxController(private val context:Context,private val scope:C
             val previous=playbackQueue.value.take(maxOf(0,nextQueueIndex-1)).takeLast(3).mapNotNull {it.optJSONObject("_prepared_cache")}
             val models=org.json.JSONArray(preparedModels.values.toList()+listOfNotNull(state.value.model)+switchModels.values.map {it.model}+previous)
             val config=JSONObject().put("models",models)
+                .put("playback_cache_limit_mb",OndaStore.settings.value.optInt("playback_cache_limit_mb",384))
                 .put("_stream_cache_protected",org.json.JSONArray(StreamAudioCache.protectedPaths()))
             cacheTrimJob=scope.launch {
                 try {call("playback_cache_trim",config,"playback-cache-trim")}

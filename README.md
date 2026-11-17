@@ -29,6 +29,8 @@ Músicas de catálogo podem ser ouvidas por streaming no PC e no Android. A repr
 ## Destaques do aplicativo
 
 - **Metadados:** reconhecimento pelo nome do arquivo ou pelas tags existentes, com revisão antes de salvar; copie e cole tags entre músicas e trabalhe com arquivos individuais ou em lote.
+
+- Antes de salvar metadados, compare os valores atuais e novos e desmarque o que deseja preservar. Desfaça a última edição pelo editor ou com **Ctrl+Alt+Z** no Windows. Em lote, numere faixas, substitua texto e ajuste maiúsculas/minúsculas. Em Configurações → Desempenho, consulte o cache por categoria, as músicas protegidas e o limite de áudio; arquivos baixados permanecem separados.
 - **Barra de tarefas do Windows:** anterior, reproduzir/pausar e próxima na prévia do ONDA, somente com uma música aberta em Reprodução.
 
 - **Listas no PC:** tamanho Muito pequeno com linhas compactas; Ctrl e Shift selecionam músicas e acompanham os quadradinhos. Na Coleção, recolha as opções para ver mais faixas e ajuste o tamanho dos cards na mesma linha.

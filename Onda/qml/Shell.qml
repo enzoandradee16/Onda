@@ -245,6 +245,7 @@ Pane {
     SettingsPopup { id: settings }
     ShortcutsPopup { id: shortcuts }
     DecisionPopup {}
+    MetadataChangesPopup {}
     ComparisonPopup {}
     CoverCropPopup {}
     Popup {

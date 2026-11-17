@@ -217,6 +217,7 @@ def finalize(
     base_commit=None,
     uninstaller_validation=None,
     third_party_sources=None,
+    native_sources=None,
 ):
     assert not RELEASE.exists(), 'Never replace an existing release directory.'
     dirty = bool(
@@ -287,6 +288,10 @@ def finalize(
             'docs/dependencias.json',
             'Onda/requirements.txt',
         ):
+            if native_sources and entry['path'].startswith('Android/nativebuild/'):
+                continue
+            if third_party_sources and entry['path'] in ('docs/dependencias.json', 'Onda/requirements.txt'):
+                continue
             assert sha(ROOT / entry['path']) == entry['sha256'], (
                 'Dependency sources changed: ' + entry['path']
             )
@@ -351,10 +356,23 @@ def finalize(
         else previous / f'Onda-{prior}-Fontes-de-terceiros.zip'
     )
     verify_third_party_sources(third_party_archive)
+    if native_sources:
+        native_sources = Path(native_sources).resolve()
+        with zipfile.ZipFile(native_sources) as archive:
+            for path in tracked():
+                relative = path.relative_to(ROOT).as_posix()
+                if relative.startswith('Android/nativebuild/'):
+                    member = 'Fontes-nativos-Android/' + relative.removeprefix('Android/nativebuild/')
+                    assert hashlib.sha256(archive.read(member)).hexdigest() == sha(path), relative
+            for row in json.loads((ROOT / 'Android/nativebuild/source-lock.json').read_text(encoding='utf8')):
+                with archive.open('Fontes-nativos-Android/sources/' + row['filename']) as stream:
+                    assert hashlib.file_digest(stream, 'sha256').hexdigest() == row['sha256'], row['filename']
     RELEASE.mkdir()
     for kind in ('Fontes-de-terceiros', 'Fontes-nativos-Android'):
         if kind == 'Fontes-de-terceiros' and third_party_sources:
             source = third_party_archive
+        elif kind == 'Fontes-nativos-Android' and native_sources:
+            source = native_sources
         else:
             source = previous / f'Onda-{prior}-{kind}.zip'
             expected = next(
@@ -470,12 +488,9 @@ def finalize(
             'windows_uninstaller_self_test': uninstaller_check,
             'windows_uninstaller_validation': uninstaller_checks,
             'current_validation': current_validation,
-            'prior_validation': {
-                'pc_passed': 149,
-                'pc_skipped': 4,
-                'android_jvm_passed': 72,
-                'android_instrumented_debug_x86_64_passed': 45,
-            },
+            'prior_validation': previous_manifest.get(
+                'current_validation', previous_manifest.get('prior_validation')
+            ),
             'physical_arm64_validation': False,
             'validation': 'VALIDACAO.md',
             'artifacts': artifacts,
@@ -531,6 +546,10 @@ if __name__ == '__main__':
         help='Source archive matching updated Android extractors',
     )
     parser.add_argument(
+        '--native-sources', type=Path,
+        help='Verified source archive matching updated Android native libraries',
+    )
+    parser.add_argument(
         '--allow-uncommitted',
         action='store_true',
         help='Explicitly mark local changes in the source and release manifests',
@@ -556,4 +575,5 @@ if __name__ == '__main__':
             args.base_commit,
             args.uninstaller_validation,
             args.third_party_sources,
+            args.native_sources,
         )

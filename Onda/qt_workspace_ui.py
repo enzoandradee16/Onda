@@ -286,11 +286,13 @@ class DesktopWorkspace(QObject):
         self._metadata_transfer = None
         self._metadata_transfer_cover = ''
         self._metadata_clipboard_available = False
+        self.options['metadataUndoAvailable'] = __import__('metadata_undo').available()
         QGuiApplication.clipboard().dataChanged.connect(self.refresh_metadata_clipboard)
         self.refresh_metadata_clipboard()
         self.shortcuts = []
         self.shortcuts_suspended = False
         self.tasks_threads = []
+        self._task_workers = {}
         bridge.playbackRequested.connect(self.pause_effects_for_jukebox)
         self.shutdown_timer = QTimer(self)
         self.shutdown_timer.setSingleShot(True)
@@ -1174,7 +1176,8 @@ class DesktopWorkspace(QObject):
                     'task_finished', {'action': action, 'revision': revision}
                 )
 
-        self.launch_thread(work)
+        self._task_workers = {key:value for key,value in self._task_workers.items() if value[0].is_alive()}
+        self._task_workers[(action,revision)] = (self.launch_thread(work),cancel)
 
     def launch_thread(self, work):
         self.tasks_threads = [
@@ -1183,6 +1186,46 @@ class DesktopWorkspace(QObject):
         thread = threading.Thread(target=work, daemon=True)
         self.tasks_threads.append(thread)
         thread.start()
+        return thread
+
+    def cache_blocking_operations(self):
+        rows=[]
+        for identity,state in self.active.items():
+            job=self.job_by_id(identity) or {}
+            title=job.get('display_name') or (job.get('queue_info') or {}).get('title') or 'Item em andamento'
+            rows.append('Download — '+str(title))
+        tasks=set(self.tasks)
+        tasks.update(key[0] for key,(worker,_) in self._task_workers.items() if worker.is_alive())
+        for key in sorted(tasks):
+            label=self.taskLabel(key);rows.append(label[:1].upper()+label[1:])
+        return rows
+
+    def stop_operations_for_cache(self):
+        if getattr(self,'_cache_stop_pending',False):return
+        self._cache_stop_pending=True
+        # Pause the queue and cancel app workers; wait for actual worker exits.
+        for job in self.jobs:
+            if job['id'] in self.active:
+                job['_paused']=True;job['_pause_reason']='manual'
+                job.pop('_resume_requested',None)
+        self.stop_queue()
+        self.card_timer.stop();self.history_timer.stop()
+        for _,cancel in self._task_workers.values():cancel.set()
+        for action in list(self.tasks):self.cancel_task(action)
+        self.stop_preview()
+        self.notify('Encerrando as operações antes de limpar o cache…')
+        started=time.monotonic()
+        timer=QTimer(self);timer.setInterval(150);self._cache_stop_timer=timer
+        def check():
+            if self.closed:
+                timer.stop();timer.deleteLater();self._cache_stop_pending=False;return
+            remaining=self.cache_blocking_operations()
+            if remaining and time.monotonic()-started<30:return
+            timer.stop();timer.deleteLater();self._cache_stop_pending=False
+            if remaining:
+                self.message.emit(tr('Operações ainda em andamento'),'Aguarde a finalização segura destas operações:\n\n'+'\n'.join('• '+label for label in remaining))
+            else:self.dispatch('cache_clear',{})
+        timer.timeout.connect(check);timer.start()
 
     def cancel_task(self, action):
         if action == 'image_gallery_manifest' and action in self.tasks:
@@ -2103,6 +2146,16 @@ class DesktopWorkspace(QObject):
             self.paste_metadata_tags()
         elif action == 'audio_edit':
             self.edit_audio()
+        elif action == 'metadata_undo':
+            if self.choice or any(key in self.tasks for key in ('audio_edit','metadata_changes_preview')):
+                raise ValueError('Aguarde a edição atual terminar antes de desfazer.')
+            def undone(result):
+                self.options['metadataUndoAvailable'] = __import__('metadata_undo').available()
+                self.optionsChanged.emit()
+                self.show_result(result)
+                if self.options['metadataSources']:
+                    self.accept_files('metadata',self.options['metadataSources'])
+            self.run_task('metadata_undo',{},undone)
         elif action == 'metadata_preview':
             source = self.options['metadataSources'][0]
             normalized = p.get('normalized', False)
@@ -2507,6 +2560,17 @@ class DesktopWorkspace(QObject):
             )
             values[p['key']] = sequence
             self.setSetting('shortcut_keys', json.dumps(validate_overrides(values)))
+        elif action in ('cache_report','cache_remove'):
+            from playback_cache_budget import model_paths
+            protected=model_paths(list(self.bridge._prepared.values())+[self.bridge.model])
+            def cache_updated(result):
+                if action=='cache_remove':
+                    self.notify(result.get('message',''))
+                    self.dispatch('cache_report',{})
+                else:self.setOption('cacheReport',result)
+            models=list(self.bridge._prepared.values())+[self.bridge.model]
+            models += [dict(row.get('prepared_cache') or {},media_title=row.get('title','')) for row in self.bridge.playlist if row.get('prepared_cache')]
+            self.run_task(action,dict(_protected_cache=protected,_cache_models=models,**p),cache_updated)
         elif action in (
             'cache_info',
             'cache_clear',
@@ -2516,10 +2580,20 @@ class DesktopWorkspace(QObject):
             'app_update',
             'update_tools',
         ):
-            if action == 'cache_clear' and (
-                self.active or self.tasks or self.bridge.state['playing']
-            ):
-                raise ValueError('Pare as operações antes de limpar o cache.')
+            if action=='cache_clear' and self.cache_blocking_operations():
+                labels=self.cache_blocking_operations()
+                self.present_choice(uuid.uuid4().hex,{
+                    'type':'confirm','title':tr('Operações em andamento'),
+                    'confirm_label':'Parar operações e continuar',
+                    'message':'Para limpar o cache, estas operações precisam encerrar:\n\n'+'\n'.join('• '+label for label in labels)+'\n\nOs downloads ativos serão pausados e poderão ser retomados.'},
+                    lambda reply:self.stop_operations_for_cache() if reply.get('yes') else None)
+                return
+            if action=='cache_clear' and not p.get('confirmed'):
+                size=(self.options.get('cacheReport') or {}).get('removable_bytes')
+                text='A música atual, as próximas preparadas e as últimas músicas ouvidas serão preservadas. Os áudios removidos precisarão ser preparados novamente.'
+                if size is not None:text=f'Até {size/1048576:.1f} MB podem ser liberados.\n\n'+text
+                self.confirm('Limpar arquivos dispensáveis',text,lambda:self.dispatch('cache_clear',{'confirmed':True}))
+                return
 
             def completed(result):
                 if action == 'prepare_tools':
@@ -2535,8 +2609,11 @@ class DesktopWorkspace(QObject):
                     )
                 else:
                     self.show_result(result, notification=False)
+                    if action=='cache_clear':self.dispatch('cache_report',{})
 
-            self.run_task(action, {}, completed)
+            from playback_cache_budget import model_paths
+            protected=model_paths(list(self.bridge._prepared.values())+[self.bridge.model])
+            self.run_task(action, {'_protected_cache':protected}, completed)
         else:
             raise ValueError('Ação desconhecida: ' + action)
 
@@ -2553,10 +2630,20 @@ class DesktopWorkspace(QObject):
             'convert': 'Conversão',
             'probe': 'Leitura do áudio',
             'audio_read': 'Leitura dos metadados',
+            'card_details':'Carregamento de capas e metadados',
+            'history_details':'Carregamento de detalhes do histórico',
+            'effects_collection':'Carregamento da lista para reprodução',
+            'effects_info':'Leitura do arquivo de áudio',
+            'effects_load':'Preparação do áudio',
+            'playback_input':'Pesquisa para reprodução',
             'audio_tags_copy': 'Copiar tags',
             'audio_name_search': 'Identificar pelo nome',
             'audio_name_details': 'Consulta dos metadados selecionados',
             'audio_edit': 'Edição dos metadados',
+            'metadata_changes_preview':'Prévia das alterações',
+            'metadata_undo':'Desfazer última edição',
+            'cache_report':'Detalhamento do cache',
+            'cache_remove':'Remover cache da música',
             'normalize_preview': 'Prévia normalizada',
             'cover_crop': 'Ajuste da capa',
             'image_preview': 'Prévia da imagem',
@@ -4441,6 +4528,7 @@ class DesktopWorkspace(QObject):
         advance()
 
     def edit_audio(self):
+        if 'metadata_undo' in getattr(self,'tasks',{}):raise ValueError('Aguarde o desfazer terminar antes de editar.')
         sources = self.options['metadataSources']
         if not sources:
             raise ValueError('Escolha um arquivo de áudio.')
@@ -4455,11 +4543,9 @@ class DesktopWorkspace(QObject):
                  or value != self.options.get('metadataOriginal', {}).get(key))
         }
         if isinstance(changes.get('artists'), str):
-            changes['artists'] = [
-                value.strip()
-                for value in changes['artists'].split(',')
-                if value.strip()
-            ]
+            original=self.options.get('metadataOriginal',{}).get('artists',[])
+            if changes['artists']==', '.join(original):changes['artists']=list(original)
+            else:changes['artists']=[value.strip() for value in changes['artists'].split(';' if ';' in changes['artists'] else ',') if value.strip()]
         config = dict(
             source=sources[0],
             changes=changes,
@@ -4474,7 +4560,26 @@ class DesktopWorkspace(QObject):
         )
         if len(sources) > 1:
             config['sources'] = [dict(self.options.get('metadataMatches', {}).get(source, {}), source=source) for source in sources]
-        self.run_task('audio_edit', config, self.show_result)
+        config['batch_actions'] = {
+            'case': self.options.get('batchCase','none'),
+            'find': self.options.get('batchFind',''), 'replace': self.options.get('batchReplace',''),
+            'fields': [self.options.get('batchTarget','title')],
+            'number_tracks':self.options.get('batchNumber',False),
+            'start':int(self.options.get('batchStart','1') or 1)} if len(sources)>1 else {}
+        def reviewed(report):
+            def selected(reply):
+                if reply.get('cancel'):return
+                from metadata_editing import select
+                chosen=select(config,report,reply)
+                if not chosen['sources']:return
+                chosen['_metadata_transaction']=str(uuid.uuid4())
+                def saved(result):
+                    self.options['metadataUndoAvailable']=__import__('metadata_undo').available()
+                    self.optionsChanged.emit()
+                    self.show_result(result)
+                self.run_task('audio_edit',chosen,saved)
+            self.present_choice(uuid.uuid4().hex,dict(type='review_metadata_changes',**report),selected)
+        self.run_task('metadata_changes_preview',config,reviewed)
 
     def export_effects(self, unified=None):
         from PySide6.QtWidgets import QFileDialog

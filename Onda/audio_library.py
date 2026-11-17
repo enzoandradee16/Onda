@@ -394,7 +394,25 @@ def edit_copy(config, emit=lambda *args, **kwargs: None, *, cancelled=lambda: Fa
     if cancelled():
         raise InterruptedError('Operação cancelada.')
     source = Path(config['source']).resolve()
+    expected=config.get('_preview_signatures',{}).get(str(source))
+    if expected:
+        current=source.stat()
+        if [current.st_size,current.st_mtime_ns]!=expected:raise ValueError('O arquivo mudou durante a revisão. Abra a prévia novamente.')
+    selection = config.get('preview_selection', {}).get(str(source))
+    if selection is not None:
+        config = dict(config, changes={k:v for k,v in config.get('changes',{}).items() if k in selection},
+                      tag_transfer_extras='__extras__' in selection,
+                      normalize_volume=bool(config.get('normalize_volume')) and '__normalize__' in selection,
+                      lyrics_path=config.get('lyrics_path','') if '__lyrics__' in selection else '')
+        if '__cover__' not in selection:
+            config.update(cover_path='',cover_url='',tag_transfer_cover=False)
     read_audio(source)
+    undo_snapshot = ''
+    if config.get('_metadata_transaction'):
+        from metadata_undo import capture
+        undo_snapshot = capture(source, config['_metadata_transaction'],
+                                not config.get('_android_metadata') and str(config.get('lyrics_path','')).lower().endswith('.lrc'),
+                                bool(config.get('overwrite_original')))
     overwrite = bool(config.get('overwrite_original'))
     original_stat = source.stat()
     folder = (
@@ -425,7 +443,7 @@ def edit_copy(config, emit=lambda *args, **kwargs: None, *, cancelled=lambda: Fa
                 transfer = decode(path.read_text(encoding='utf-8'))
             if transfer:
                 from tag_transfer import apply
-                changes = apply(target, transfer, changes, config.get('tag_transfer_cover', True))
+                changes = apply(target, transfer, changes, config.get('tag_transfer_cover', True),config.get('tag_transfer_extras',True))
             cover_path = config.get('cover_path', '')
             if not cover_path and str(config.get('cover_url') or '').startswith('data:image/jpeg;base64,'):
                 cover_path = config['cover_url']
@@ -478,7 +496,13 @@ def edit_copy(config, emit=lambda *args, **kwargs: None, *, cancelled=lambda: Fa
                 None,
                 companions={'.lrc': companion} if companion is not None else None,
             )
+    if undo_snapshot and not config.get('_android_metadata'):
+        from metadata_undo import register
+        register(undo_snapshot, final, final, config['_metadata_transaction'])
     return {
+        'undo_snapshot': undo_snapshot,
+        'undo_transaction': config.get('_metadata_transaction',''),
+        'undo_sha256': __import__('metadata_undo').digest(final) if undo_snapshot and config.get('_android_metadata') else '',
         'path': final,
         'mode': source.suffix.lstrip('.'),
         'size': Path(final).stat().st_size,

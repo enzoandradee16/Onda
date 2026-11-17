@@ -1,15 +1,18 @@
 {
-  "build": "ONDA-source-1",
-  "ffmpeg": "7.1.3",
-  "quickjs": "2025-09-13",
+  "build": "ONDA-source-20261117",
+  "ffmpeg": "9.0.2",
+  "quickjs": "2026-06-04",
+  "chromaprint": "1.6.2",
+  "lame": "4.0",
+  "mbedtls": "3.6.8",
   "ndk": "r28c",
   "android_api": 26,
   "sources_modified": false,
   "artifacts": [
     {
       "file": "arm64-v8a/libffmpeg.so",
-      "bytes": 24954608,
-      "sha256": "9c9240e0c4a582a06158b1eea85f627b74ed57e839043c3b633d99e86ae09389",
+      "bytes": 25826992,
+      "sha256": "5a4865b8086d3f1773e96f2e21b602b6f3382a21b04fc7e3745364c200d2f924",
       "needed": [
         "libm.so",
         "libz.so",
@@ -17,12 +20,18 @@
         "libmediandk.so",
         "libdl.so",
         "libc.so"
+      ],
+      "load_alignment": [
+        "0x4000",
+        "0x4000",
+        "0x4000",
+        "0x4000"
       ]
     },
     {
       "file": "arm64-v8a/libffprobe.so",
-      "bytes": 24871768,
-      "sha256": "ea8529cc6a039b19738db479a20490fa0f4c721bddecef9231df54e8fbcfc15c",
+      "bytes": 25632664,
+      "sha256": "0fa99ce85eeea18c4d9ecb48cd19139239e2fd3014bcbdc25fac6e92d9464f74",
       "needed": [
         "libm.so",
         "libz.so",
@@ -30,38 +39,113 @@
         "libmediandk.so",
         "libdl.so",
         "libc.so"
+      ],
+      "load_alignment": [
+        "0x4000",
+        "0x4000",
+        "0x4000",
+        "0x4000"
       ]
     },
     {
       "file": "arm64-v8a/libqjs.so",
-      "bytes": 904288,
-      "sha256": "5e29085457606a503ae8c401a51f2b309746f2ce5a7e8f03f0132328e29db337",
+      "bytes": 1028416,
+      "sha256": "d0abb2727cd4243a290b75f6c9e479387b6442a6e5b798f7c4626de789c19322",
       "needed": [
         "libm.so",
         "libdl.so",
         "libc.so"
+      ],
+      "load_alignment": [
+        "0x4000",
+        "0x4000",
+        "0x4000",
+        "0x4000"
       ]
     },
     {
       "file": "arm64-v8a/libchromaprint.so",
       "bytes": 439064,
-      "sha256": "6c11209454b58237b45d68e5980ba22a52f518efd5baaad92ef8c70b7f95ea9b",
+      "sha256": "0c77afacfa1f55c1598a59fc82eff351e6f1e3ffc80f433c489fa1aa804c7e94",
       "needed": [
         "libm.so",
         "libdl.so",
         "libc.so"
+      ],
+      "load_alignment": [
+        "0x4000",
+        "0x4000",
+        "0x4000"
+      ]
+    },
+    {
+      "file": "x86_64/libffmpeg.so",
+      "bytes": 31951880,
+      "sha256": "956e561856c87d4a467d5fb21a92306f278431759aa05e283d5c1584ac9700e2",
+      "needed": [
+        "libm.so",
+        "libz.so",
+        "libandroid.so",
+        "libmediandk.so",
+        "libdl.so",
+        "libc.so"
+      ],
+      "load_alignment": [
+        "0x4000",
+        "0x4000",
+        "0x4000",
+        "0x4000"
+      ]
+    },
+    {
+      "file": "x86_64/libffprobe.so",
+      "bytes": 31737448,
+      "sha256": "37b136dfaf9f4a627e42bad9019ba05ec7e4c7152172f4d1c2aac05118509e0f",
+      "needed": [
+        "libm.so",
+        "libz.so",
+        "libandroid.so",
+        "libmediandk.so",
+        "libdl.so",
+        "libc.so"
+      ],
+      "load_alignment": [
+        "0x4000",
+        "0x4000",
+        "0x4000",
+        "0x4000"
+      ]
+    },
+    {
+      "file": "x86_64/libqjs.so",
+      "bytes": 1106328,
+      "sha256": "25c4df92bfd373951aa6d42c1fc13ab819a9a18f0d0ca5d2cefed19b2a5dac78",
+      "needed": [
+        "libm.so",
+        "libdl.so",
+        "libc.so"
+      ],
+      "load_alignment": [
+        "0x4000",
+        "0x4000",
+        "0x4000",
+        "0x4000"
       ]
     },
     {
       "file": "x86_64/libchromaprint.so",
       "bytes": 446536,
-      "sha256": "c28c84bc04d382496171ebbed4560f15213436f68fc26b50c84dd5c3700f2117",
+      "sha256": "4fbed30fb64196a4df7eebedff827ab3feb29f94718581f9cf24decc6b6ca67b",
       "needed": [
         "libm.so",
         "libdl.so",
         "libc.so"
+      ],
+      "load_alignment": [
+        "0x4000",
+        "0x4000",
+        "0x4000"
       ]
     }
-  ],
-  "chromaprint": "1.6.1"
+  ]
 }

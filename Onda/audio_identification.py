@@ -16,8 +16,8 @@ from zipfile import ZipFile
 from app_version import VERSION
 
 CLIENT = 'vRD9rnTlW1'
-FPCALC_ASSET = 'chromaprint-fpcalc-1.6.1-windows-x86_64'
-FPCALC_SHA256 = '735d6182b38e9f364b84ce6f4ccd682c75e2851de89735711d6b762d12b92a4e'
+FPCALC_ASSET = 'chromaprint-fpcalc-1.6.2-windows-x86_64'
+FPCALC_SHA256 = 'b74369726676670af3ab0eadff45f960cf969fdf4a87a971ba37eaf8d530e874'
 
 
 def fingerprint_tool():
@@ -26,11 +26,11 @@ def fingerprint_tool():
         return installed
     if os.name != 'nt':
         raise RuntimeError('Instale o Chromaprint (fpcalc) para identificar pelo áudio.')
-    folder = Path(os.environ.get('LOCALAPPDATA', Path.home())) / 'Onda/tools/chromaprint/1.6.1'
+    folder = Path(os.environ.get('LOCALAPPDATA', Path.home())) / 'Onda/tools/chromaprint/1.6.2'
     executable = folder / 'fpcalc.exe'
     if executable.is_file():
         return executable
-    url = f'https://github.com/acoustid/chromaprint/releases/download/v1.6.1/{FPCALC_ASSET}.zip'
+    url = f'https://github.com/acoustid/chromaprint/releases/download/v1.6.2/{FPCALC_ASSET}.zip'
     with urlopen(url, timeout=30) as response:
         archive = response.read(32 * 1024 * 1024)
     if hashlib.sha256(archive).hexdigest() != FPCALC_SHA256:
