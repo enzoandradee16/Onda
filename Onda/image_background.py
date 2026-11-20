@@ -35,9 +35,10 @@ def model_path(emit):
     try:
         digest = hashlib.sha256()
         size = 0
-        with os.fdopen(descriptor, 'wb') as output, requests.get(
-            MODEL_URL, stream=True, timeout=(15, 30)
-        ) as response:
+        with (
+            os.fdopen(descriptor, 'wb') as output,
+            requests.get(MODEL_URL, stream=True, timeout=(15, 30)) as response,
+        ):
             response.raise_for_status()
             for block in response.iter_content(65536):
                 if not block:
@@ -84,7 +85,7 @@ def _desktop_predict(model, values):
         input=values,
         capture_output=True,
         timeout=60,
-        **process_options()
+        **process_options(),
     )
     if result.returncode or len(result.stdout) != 320 * 320 * 4:
         raise ValueError('Não foi possível remover o fundo desta imagem.')

@@ -52,6 +52,7 @@ def prune(root, reserve=0, expire=True):
         except OSError:
             pass
     from playback_cache_budget import recent_paths
+
     recent = recent_paths(root.parent)
     size = sum(row[1] for row in entries)
     for modified, amount, folder in sorted(entries):
@@ -216,6 +217,7 @@ class ProgressiveAudioCache:
 
     def reader(self, seconds=0):
         from playback_cache_budget import mark_played
+
         mark_played(self.folder)
         return CachedPcmReader(self, seconds)
 

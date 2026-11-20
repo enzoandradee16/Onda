@@ -723,9 +723,7 @@ class QtJukeboxTests(unittest.TestCase):
             self.assertEqual(bridge.track_minutes, 5)
             self.assertAlmostEqual(
                 bridge.playback_gain(),
-                volume_gain(
-                    bridge.playbackParams["volume"]
-                ),
+                volume_gain(bridge.playbackParams["volume"]),
             )
         self.assertEqual(
             self.store.clean({'jukebox_transition_seconds': '4'})[

@@ -9,9 +9,14 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class CacheCleanupTest {
     @Test fun clearsOnlyDisposableCache() {
-        val context=InstrumentationRegistry.getInstrumentation().targetContext
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
         MobileEngine.initialize(context)
-        val result=JSONObject(Python.getInstance().getModule("cache_cleanup_smoke").callAttr("verify",context.cacheDir.absolutePath).toString())
+        val result =
+            JSONObject(
+                Python.getInstance().getModule(
+                    "cache_cleanup_smoke"
+                ).callAttr("verify", context.cacheDir.absolutePath).toString()
+            )
         assertTrue(result.getBoolean("success"))
     }
 }

@@ -16,7 +16,8 @@ class PlaybackContinuityTest {
     @Test fun nativePreparationKeepsOriginalAndDisablingRestoresExactPcm() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         MobileEngine.initialize(context)
-        val report = JSONObject(Python.getInstance().getModule("playback_continuity_smoke").callAttr("verify").toString())
+        val report =
+            JSONObject(Python.getInstance().getModule("playback_continuity_smoke").callAttr("verify").toString())
         assertTrue(report.getBoolean("pending_keeps_original"))
         assertTrue(report.getBoolean("disabled_is_bit_exact"))
         assertTrue(report.getBoolean("neutral_is_bit_exact"))
@@ -27,19 +28,27 @@ class PlaybackContinuityTest {
         var selected = 85f
         compose.setContent {
             MaterialTheme {
-                PlaybackAdjustment("Velocidade · 85%",85f,50f..150f,"continuity-speed") {
+                PlaybackAdjustment("Velocidade · 85%", 85f, 50f..150f, "continuity-speed") {
                     commits++
                     selected = it
                 }
             }
         }
         val slider = compose.onNodeWithTag("continuity-speed")
-        slider.performTouchInput {down(center);moveTo(androidx.compose.ui.geometry.Offset(width*.8f,centerY),200)}
-        compose.runOnIdle {assertEquals(0,commits)}
-        slider.assert(SemanticsMatcher("live draft") {node ->
-            node.config[androidx.compose.ui.semantics.SemanticsProperties.ProgressBarRangeInfo].current != 85f
-        })
-        slider.performTouchInput {up()}
-        compose.runOnIdle {assertEquals(1,commits);assertTrue(selected>100f)}
+        slider.performTouchInput {
+            down(center)
+            moveTo(androidx.compose.ui.geometry.Offset(width * .8f, centerY), 200)
+        }
+        compose.runOnIdle { assertEquals(0, commits) }
+        slider.assert(
+            SemanticsMatcher("live draft") { node ->
+                node.config[androidx.compose.ui.semantics.SemanticsProperties.ProgressBarRangeInfo].current != 85f
+            }
+        )
+        slider.performTouchInput { up() }
+        compose.runOnIdle {
+            assertEquals(1, commits)
+            assertTrue(selected > 100f)
+        }
     }
 }

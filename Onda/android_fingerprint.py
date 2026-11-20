@@ -1,4 +1,5 @@
 """Bounded PCM decoding and the official Chromaprint C API on Android."""
+
 import ctypes as c
 import os
 from pathlib import Path
@@ -30,35 +31,62 @@ def fingerprint(source, cancel):
         raise RuntimeError('Não foi possível iniciar o Chromaprint.')
     encoded = c.c_void_p()
     try:
-        command = [executable('ffmpeg'), '-nostdin', '-v', 'error', '-i', str(Path(source).resolve()),
-                   '-t', '120', '-vn', '-ac', '1', '-ar', '11025', '-f', 's16le', 'pipe:1']
+        command = [
+            executable('ffmpeg'),
+            '-nostdin',
+            '-v',
+            'error',
+            '-i',
+            str(Path(source).resolve()),
+            '-t',
+            '120',
+            '-vn',
+            '-ac',
+            '1',
+            '-ar',
+            '11025',
+            '-f',
+            's16le',
+            'pipe:1',
+        ]
         with tempfile.TemporaryFile() as errors:
-            process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=errors, **process_options())
+            process = subprocess.Popen(
+                command, stdout=subprocess.PIPE, stderr=errors, **process_options()
+            )
             started = time.monotonic()
             try:
                 while True:
                     if cancel.is_set():
                         raise InterruptedError('Operação cancelada.')
                     if time.monotonic() - started > 45:
-                        raise TimeoutError('A preparação do áudio excedeu o tempo limite.')
+                        raise TimeoutError(
+                            'A preparação do áudio excedeu o tempo limite.'
+                        )
                     try:
-                        pcm, _ = process.communicate(timeout=.1)
+                        pcm, _ = process.communicate(timeout=0.1)
                         break
                     except subprocess.TimeoutExpired:
                         continue
                 if process.returncode or len(pcm) < 22050 or len(pcm) > 11025 * 2 * 121:
-                    raise ValueError('Não foi possível gerar a impressão digital do áudio.')
+                    raise ValueError(
+                        'Não foi possível gerar a impressão digital do áudio.'
+                    )
             finally:
                 if process.poll() is None:
                     process.kill()
                     process.communicate()
         samples = (c.c_int16 * (len(pcm) // 2)).from_buffer_copy(pcm)
-        if not (library.chromaprint_start(context, 11025, 1)
-                and library.chromaprint_feed(context, samples, len(samples))
-                and library.chromaprint_finish(context)
-                and library.chromaprint_get_fingerprint(context, c.byref(encoded))):
+        if not (
+            library.chromaprint_start(context, 11025, 1)
+            and library.chromaprint_feed(context, samples, len(samples))
+            and library.chromaprint_finish(context)
+            and library.chromaprint_get_fingerprint(context, c.byref(encoded))
+        ):
             raise RuntimeError('Não foi possível gerar a impressão digital do áudio.')
-        return {'duration': duration, 'fingerprint': c.string_at(encoded).decode('ascii')}
+        return {
+            'duration': duration,
+            'fingerprint': c.string_at(encoded).decode('ascii'),
+        }
     finally:
         if encoded.value:
             library.chromaprint_dealloc(encoded)

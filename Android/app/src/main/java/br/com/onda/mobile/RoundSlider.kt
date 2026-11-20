@@ -12,38 +12,70 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 
 /** Keep native slider semantics, gestures and touch targets; customize only the thumb. */
 @OptIn(ExperimentalMaterial3Api::class)
-@Composable internal fun RoundSlider(
-    value:Float,
-    onValueChange:(Float)->Unit,
-    modifier:Modifier=Modifier,
-    enabled:Boolean=true,
-    valueRange:ClosedFloatingPointRange<Float> = 0f..1f,
-    onValueChangeFinished:(()->Unit)?=null,
-    slim:Boolean=false,
-    bufferedRange:ClosedFloatingPointRange<Float>?=null,
+@Composable
+internal fun RoundSlider(
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    valueRange: ClosedFloatingPointRange<Float> = 0f..1f,
+    onValueChangeFinished: (() -> Unit)? = null,
+    slim: Boolean = false,
+    bufferedRange: ClosedFloatingPointRange<Float>? = null,
 ) {
-    val colors=MaterialTheme.colorScheme
+    val colors = MaterialTheme.colorScheme
     androidx.compose.material3.Slider(
-        value=value,onValueChange=onValueChange,modifier=modifier.pageSwipeExclusion(),enabled=enabled,
-        valueRange=valueRange,onValueChangeFinished=onValueChangeFinished,
-        track={state->
-            if(slim)Canvas(Modifier.fillMaxWidth().height(5.dp)) {
-                val fraction=((state.value-valueRange.start)/(valueRange.endInclusive-valueRange.start)).coerceIn(0f,1f)
-                val start=androidx.compose.ui.geometry.Offset(0f,center.y)
-                drawLine(colors.onSurface.copy(alpha=.2f),start,androidx.compose.ui.geometry.Offset(size.width,center.y),size.height,androidx.compose.ui.graphics.StrokeCap.Round)
-                bufferedRange?.let {range->
-                    val span=(valueRange.endInclusive-valueRange.start).coerceAtLeast(.001f)
-                    val a=((range.start-valueRange.start)/span).coerceIn(0f,1f)
-                    val b=((range.endInclusive-valueRange.start)/span).coerceIn(a,1f)
-                    drawLine(colors.primary.copy(alpha=.35f),androidx.compose.ui.geometry.Offset(size.width*a,center.y),androidx.compose.ui.geometry.Offset(size.width*b,center.y),size.height,androidx.compose.ui.graphics.StrokeCap.Round)
+        value = value,
+        onValueChange = onValueChange,
+        modifier = modifier.pageSwipeExclusion(),
+        enabled = enabled,
+        valueRange = valueRange,
+        onValueChangeFinished = onValueChangeFinished,
+        track = { state ->
+            if (slim) Canvas(Modifier.fillMaxWidth().height(5.dp)) {
+                val fraction = ((state.value - valueRange.start) / (valueRange.endInclusive - valueRange.start)).coerceIn(
+                    0f,
+                    1f
+                )
+                val start = androidx.compose.ui.geometry.Offset(0f, center.y)
+                drawLine(
+                    colors.onSurface.copy(alpha = .2f),
+                    start,
+                    androidx.compose.ui.geometry.Offset(size.width, center.y),
+                    size.height,
+                    androidx.compose.ui.graphics.StrokeCap.Round
+                )
+                bufferedRange?.let { range ->
+                    val span = (valueRange.endInclusive - valueRange.start).coerceAtLeast(.001f)
+                    val a = ((range.start - valueRange.start) / span).coerceIn(0f, 1f)
+                    val b = ((range.endInclusive - valueRange.start) / span).coerceIn(a, 1f)
+                    drawLine(
+                        colors.primary.copy(alpha = .35f),
+                        androidx.compose.ui.geometry.Offset(size.width * a, center.y),
+                        androidx.compose.ui.geometry.Offset(size.width * b, center.y),
+                        size.height,
+                        androidx.compose.ui.graphics.StrokeCap.Round
+                    )
                 }
-                drawLine(if(enabled)colors.primary else colors.onSurface.copy(alpha=.38f),start,androidx.compose.ui.geometry.Offset(size.width*fraction,center.y),size.height,androidx.compose.ui.graphics.StrokeCap.Round)
-            } else SliderDefaults.Track(sliderState=state,enabled=enabled,thumbTrackGapSize=0.dp)
+                drawLine(
+                    if (enabled) colors.primary else colors.onSurface.copy(alpha = .38f),
+                    start,
+                    androidx.compose.ui.geometry.Offset(size.width * fraction, center.y),
+                    size.height,
+                    androidx.compose.ui.graphics.StrokeCap.Round
+                )
+            } else SliderDefaults.Track(sliderState = state, enabled = enabled, thumbTrackGapSize = 0.dp)
         },
-        thumb={Canvas(Modifier.size(24.dp)) {
-            drawCircle(colors.surface,radius=11.dp.toPx())
-            drawCircle(if(enabled) colors.primary else colors.onSurface.copy(alpha=.38f),radius=10.dp.toPx())
-            drawCircle(colors.onSurface.copy(alpha=if(enabled).45f else .2f),radius=10.dp.toPx(),style=Stroke(1.dp.toPx()))
-        }},
+        thumb = {
+            Canvas(Modifier.size(24.dp)) {
+                drawCircle(colors.surface, radius = 11.dp.toPx())
+                drawCircle(if (enabled) colors.primary else colors.onSurface.copy(alpha = .38f), radius = 10.dp.toPx())
+                drawCircle(
+                    colors.onSurface.copy(alpha = if (enabled) .45f else .2f),
+                    radius = 10.dp.toPx(),
+                    style = Stroke(1.dp.toPx())
+                )
+            }
+        },
     )
 }

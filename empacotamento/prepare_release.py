@@ -290,7 +290,10 @@ def finalize(
         ):
             if native_sources and entry['path'].startswith('Android/nativebuild/'):
                 continue
-            if third_party_sources and entry['path'] in ('docs/dependencias.json', 'Onda/requirements.txt'):
+            if third_party_sources and entry['path'] in (
+                'docs/dependencias.json',
+                'Onda/requirements.txt',
+            ):
                 continue
             assert sha(ROOT / entry['path']) == entry['sha256'], (
                 'Dependency sources changed: ' + entry['path']
@@ -362,11 +365,24 @@ def finalize(
             for path in tracked():
                 relative = path.relative_to(ROOT).as_posix()
                 if relative.startswith('Android/nativebuild/'):
-                    member = 'Fontes-nativos-Android/' + relative.removeprefix('Android/nativebuild/')
-                    assert hashlib.sha256(archive.read(member)).hexdigest() == sha(path), relative
-            for row in json.loads((ROOT / 'Android/nativebuild/source-lock.json').read_text(encoding='utf8')):
-                with archive.open('Fontes-nativos-Android/sources/' + row['filename']) as stream:
-                    assert hashlib.file_digest(stream, 'sha256').hexdigest() == row['sha256'], row['filename']
+                    member = 'Fontes-nativos-Android/' + relative.removeprefix(
+                        'Android/nativebuild/'
+                    )
+                    assert hashlib.sha256(archive.read(member)).hexdigest() == sha(
+                        path
+                    ), relative
+            for row in json.loads(
+                (ROOT / 'Android/nativebuild/source-lock.json').read_text(
+                    encoding='utf8'
+                )
+            ):
+                with archive.open(
+                    'Fontes-nativos-Android/sources/' + row['filename']
+                ) as stream:
+                    assert (
+                        hashlib.file_digest(stream, 'sha256').hexdigest()
+                        == row['sha256']
+                    ), row['filename']
     RELEASE.mkdir()
     for kind in ('Fontes-de-terceiros', 'Fontes-nativos-Android'):
         if kind == 'Fontes-de-terceiros' and third_party_sources:
@@ -546,7 +562,8 @@ if __name__ == '__main__':
         help='Source archive matching updated Android extractors',
     )
     parser.add_argument(
-        '--native-sources', type=Path,
+        '--native-sources',
+        type=Path,
         help='Verified source archive matching updated Android native libraries',
     )
     parser.add_argument(

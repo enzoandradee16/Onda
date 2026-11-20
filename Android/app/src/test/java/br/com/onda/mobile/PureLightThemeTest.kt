@@ -11,22 +11,31 @@ class PureLightThemeTest {
         (maxOf(a.luminance(), b.luminance()) + .05f) / (minOf(a.luminance(), b.luminance()) + .05f)
 
     @Test fun bordersCanBeHiddenWithoutChangingTextOrAccent() {
-        val base=lightColorScheme()
-        val shown=pureLightSurfaces(base,true)
-        val hidden=pureLightSurfaces(base,false)
-        assertEquals(Color.White,hidden.outline)
-        assertEquals(Color.White,hidden.outlineVariant)
-        assertNotEquals(shown.outline,hidden.outline)
-        assertEquals(shown.primary,hidden.primary)
-        assertEquals(shown.onSurface,hidden.onSurface)
+        val base = lightColorScheme()
+        val shown = pureLightSurfaces(base, true)
+        val hidden = pureLightSurfaces(base, false)
+        assertEquals(Color.White, hidden.outline)
+        assertEquals(Color.White, hidden.outlineVariant)
+        assertNotEquals(shown.outline, hidden.outline)
+        assertEquals(shown.primary, hidden.primary)
+        assertEquals(shown.onSurface, hidden.onSurface)
     }
 
     @Test fun pureLightRemovesSurfaceTintAndKeepsEveryAccentReadable() {
         assertEquals(accents.keys, lightAccents.keys)
         for (accent in lightAccents.values) {
             val scheme = pureLightSurfaces(lightColorScheme(primary = Color(accent)))
-            val surfaces = listOf(scheme.background, scheme.surface, scheme.surfaceVariant, scheme.surfaceContainerLowest,
-                scheme.surfaceContainerLow, scheme.surfaceContainer, scheme.surfaceContainerHigh, scheme.surfaceContainerHighest)
+            val surfaces =
+                listOf(
+                    scheme.background,
+                    scheme.surface,
+                    scheme.surfaceVariant,
+                    scheme.surfaceContainerLowest,
+                    scheme.surfaceContainerLow,
+                    scheme.surfaceContainer,
+                    scheme.surfaceContainerHigh,
+                    scheme.surfaceContainerHighest
+                )
             assertTrue(surfaces.all { it == Color.White })
             assertEquals(Color.Transparent, scheme.surfaceTint)
             assertTrue(contrast(scheme.primary, scheme.onPrimary) >= 4.5f)

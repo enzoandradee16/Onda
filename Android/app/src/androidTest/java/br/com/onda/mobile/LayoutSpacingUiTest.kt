@@ -14,31 +14,43 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class LayoutSpacingUiTest {
-    @get:Rule val compose=createComposeRule()
+    @get:Rule val compose = createComposeRule()
+
     @Test fun appearanceChoiceAppliesLiveAndSurvivesReload() {
-        val context=InstrumentationRegistry.getInstrumentation().targetContext
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
         OndaStore.initialize(context)
-        val original=JSONObject(OndaStore.settings.value.toString())
-        val vm=OndaViewModel(androidx.test.core.app.ApplicationProvider.getApplicationContext())
+        val original = JSONObject(OndaStore.settings.value.toString())
+        val vm = OndaViewModel(androidx.test.core.app.ApplicationProvider.getApplicationContext())
         try {
-            OndaStore.saveSettings(JSONObject(original.toString()).put("remember",true).put("language","pt-BR").put("interface_spacing","Padrão"))
+            OndaStore.saveSettings(
+                JSONObject(
+                    original.toString()
+                ).put("remember", true).put("language", "pt-BR").put("interface_spacing", "Padrão")
+            )
             compose.setContent {
                 val settings by OndaStore.settings.collectAsState()
-                LocalizedTheme("pt-BR",MaterialTheme.colorScheme,MaterialTheme.typography,settings.optString("interface_spacing")) {
-                    SettingsWindow(vm,"Aparência") {}
+                LocalizedTheme(
+                    "pt-BR",
+                    MaterialTheme.colorScheme,
+                    MaterialTheme.typography,
+                    settings.optString("interface_spacing")
+                ) {
+                    SettingsWindow(vm, "Aparência") {}
                 }
             }
             compose.onNodeWithText("Padrão").performScrollTo().performClick()
             compose.onNodeWithText("Confortável").performClick()
-            compose.runOnIdle {assertEquals("Confortável",OndaStore.settings.value.getString("interface_spacing"))}
+            compose.runOnIdle { assertEquals("Confortável", OndaStore.settings.value.getString("interface_spacing")) }
             compose.onNodeWithText("Confortável").performClick()
             compose.onNode(hasText("Compacto") and hasAnyAncestor(isPopup())).performClick()
             compose.runOnIdle {
-                assertEquals("Compacto",OndaStore.settings.value.getString("interface_spacing"))
+                assertEquals("Compacto", OndaStore.settings.value.getString("interface_spacing"))
                 OndaStore.initialize(context)
-                assertEquals("Compacto",OndaStore.settings.value.getString("interface_spacing"))
+                assertEquals("Compacto", OndaStore.settings.value.getString("interface_spacing"))
                 assertTrue("interface_spacing" in categories.getValue("Aparência"))
             }
-        } finally {OndaStore.saveSettings(original)}
+        } finally {
+            OndaStore.saveSettings(original)
+        }
     }
 }

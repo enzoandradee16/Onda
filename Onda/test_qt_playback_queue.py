@@ -59,8 +59,14 @@ class PlaybackQueueDrawerTests(unittest.TestCase):
         self.seed()
         bridge = self.bridge
         bridge.queue_index = len(bridge.playlist) - 1
-        bridge.model = {'beats': [0.0, 10.0, 20.0], 'duration': 20.0, 'links': 0,
-                        'source': 'retained-song.wav', 'neighbors': [[], []], 'cache': 'test-cache'}
+        bridge.model = {
+            'beats': [0.0, 10.0, 20.0],
+            'duration': 20.0,
+            'links': 0,
+            'source': 'retained-song.wav',
+            'neighbors': [[], []],
+            'cache': 'test-cache',
+        }
         bridge.update_state(ready=True, playing=True)
         self.ws._lyric_source = 'retained-song.wav'
         self.ws._jukebox_lyrics = [(1.0, 'first'), (12.0, 'last'), (20.0, '')]
@@ -76,12 +82,17 @@ class PlaybackQueueDrawerTests(unittest.TestCase):
     def test_search_selection_prepares_without_stopping_current_track(self):
         self.seed()
         bridge = self.bridge
-        bridge.records = [{'title': 'Search result', 'source_url': 'https://example.com/track'}]
+        bridge.records = [
+            {'title': 'Search result', 'source_url': 'https://example.com/track'}
+        ]
         bridge.refreshSearchResults()
         bridge.update_state(playing=True)
         current_index = bridge.queue_index
         current = bridge.playlist[current_index]
-        with patch.object(bridge, 'prepare_next_queued') as prepare, patch.object(bridge, 'stop') as stop:
+        with (
+            patch.object(bridge, 'prepare_next_queued') as prepare,
+            patch.object(bridge, 'stop') as stop,
+        ):
             bridge.selectResult(0)
             prepare.assert_called_once()
             stop.assert_not_called()
@@ -371,7 +382,11 @@ class PlaybackQueueDrawerTests(unittest.TestCase):
         view = self.drawer(False).findChild(QQuickItem, 'playbackQueueList')
         children = view.property('contentItem').childItems()
         rows = sorted(
-            (row for row in children if row.metaObject().indexOfProperty('selected') >= 0),
+            (
+                row
+                for row in children
+                if row.metaObject().indexOfProperty('selected') >= 0
+            ),
             key=lambda row: row.property('index'),
         )
         self.assertEqual(len(rows), 3)
@@ -388,15 +403,22 @@ class PlaybackQueueDrawerTests(unittest.TestCase):
         QTest.mouseMove(self.window, end, 20)
         handles = [row.findChild(QQuickItem, 'playbackQueueDrag') for row in rows]
         self.assertGreater(handles[0].property('cardOffset'), 0)
-        self.assertEqual(handles[1].property('cardOffset'), handles[0].property('cardOffset'))
-        self.assertEqual(handles[2].property('cardOffset'), -2 * (rows[2].height() + view.property('spacing')))
+        self.assertEqual(
+            handles[1].property('cardOffset'), handles[0].property('cardOffset')
+        )
+        self.assertEqual(
+            handles[2].property('cardOffset'),
+            -2 * (rows[2].height() + view.property('spacing')),
+        )
         QTest.mouseRelease(self.window, Qt.LeftButton, Qt.NoModifier, end)
         self.assertEqual([row['id'] for row in self.bridge.playlist], ['2', '0', '1'])
         self.settle()
         rows.sort(key=lambda row: row.property('index'))
         click(0)
         click(2, Qt.ControlModifier)
-        self.assertEqual([row.property('selected') for row in rows], [True, False, True])
+        self.assertEqual(
+            [row.property('selected') for row in rows], [True, False, True]
+        )
         click(0, Qt.ShiftModifier)
         self.assertTrue(all(row.property('selected') for row in rows))
         click(1)
@@ -413,11 +435,15 @@ class PlaybackQueueDrawerTests(unittest.TestCase):
         )
         with patch.object(self.bridge, 'prepare_next_queued') as prepare:
             self.bridge.moveQueuedGroup([2, 4], 1, False)
-            self.assertEqual([row['id'] for row in self.bridge.playlist], ['0', '2', '5', '1', '4'])
+            self.assertEqual(
+                [row['id'] for row in self.bridge.playlist], ['0', '2', '5', '1', '4']
+            )
             self.assertEqual(self.bridge.queue_index, 0)
             prepare.assert_called_once()
             self.bridge.removeQueuedGroup([1, 3])
-            self.assertEqual([row['id'] for row in self.bridge.playlist], ['0', '5', '4'])
+            self.assertEqual(
+                [row['id'] for row in self.bridge.playlist], ['0', '5', '4']
+            )
             self.bridge.undoQueueRemoval()
             self.assertEqual(len(self.bridge.playlist), 5)
             self.assertEqual(self.bridge.playlist[2]['id'], '5')
@@ -435,6 +461,7 @@ class PlaybackQueueDrawerTests(unittest.TestCase):
 
     def test_collapsing_adjustments_keeps_queue_and_playback_parameters(self):
         from PySide6.QtCore import QObject, QMetaObject
+
         self.ws.selectPage('jukebox')
         self.settle()
         params = dict(self.bridge.playbackParams)

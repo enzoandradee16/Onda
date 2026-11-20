@@ -9,28 +9,33 @@ import org.junit.Rule
 import org.junit.Test
 
 class KeyboardResizeTest {
-    @get:Rule val compose=createAndroidComposeRule<MainActivity>()
+    @get:Rule val compose = createAndroidComposeRule<MainActivity>()
 
     @Test fun searchAndPlaybackResizeWhenKeyboardOpens() {
-        val instrumentation=InstrumentationRegistry.getInstrumentation()
-        fun height():Int {
-            var height=0
-            compose.runOnUiThread {val rect=Rect();compose.activity.window.decorView.getWindowVisibleDisplayFrame(rect);height=rect.height()}
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        fun height(): Int {
+            var height = 0
+            compose.runOnUiThread {
+                val rect = Rect()
+                compose.activity.window.decorView.getWindowVisibleDisplayFrame(rect)
+                height =
+                    rect.height()
+            }
             return height
         }
         fun checkKeyboard() {
-            val before=height()
+            val before = height()
             compose.onAllNodes(hasSetTextAction()).onFirst().performClick()
-            compose.waitUntil(5000){height()<before-100}
-            assertTrue(height()<before)
+            compose.waitUntil(5000) { height() < before - 100 }
+            assertTrue(height() < before)
             compose.onNodeWithTag("nav-Mais").assertDoesNotExist()
             instrumentation.sendKeyDownUpSync(android.view.KeyEvent.KEYCODE_BACK)
-            compose.waitUntil(5000){height()>=before-10}
+            compose.waitUntil(5000) { height() >= before - 10 }
             compose.onNodeWithTag("nav-Mais").assertExists()
         }
         compose.waitForIdle()
         checkKeyboard()
-        compose.onNodeWithText("Reprodução",useUnmergedTree=true).performClick()
+        compose.onNodeWithText("Reprodução", useUnmergedTree = true).performClick()
         compose.waitForIdle()
         checkKeyboard()
     }

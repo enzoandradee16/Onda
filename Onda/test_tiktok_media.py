@@ -206,6 +206,7 @@ class MobileTikTokTests(unittest.TestCase):
         first.status_code = 503
         first.headers = {'Retry-After': '0'}
         import requests
+
         first.raise_for_status.side_effect = requests.HTTPError(response=first)
         second = MagicMock()
         second.__enter__.return_value = second
@@ -238,30 +239,54 @@ class MobileTikTokTests(unittest.TestCase):
     def test_mobile_api_data_is_used_without_requesting_embed(self):
         import json
         from tiktok_media import mobile_post
+
         source = Mock()
         source._match_id.return_value = '123'
         source._get_universal_data.return_value = {'webapp.app-context': {}}
         post = dict(id='123', video=dict(playAddr='https://cdn.example/video.mp4'))
-        html = '<script id="api-data" type="application/json">' + json.dumps(dict(videoDetail=dict(statusCode=0, itemInfo=dict(itemStruct=post)))) + '</script>'
+        html = (
+            '<script id="api-data" type="application/json">'
+            + json.dumps(
+                dict(videoDetail=dict(statusCode=0, itemInfo=dict(itemStruct=post)))
+            )
+            + '</script>'
+        )
         response = MagicMock()
         response.__enter__.return_value = response
         response.status_code = 200
         response.iter_content.return_value = [html.encode()]
         session = Mock()
         session.get.return_value = response
-        self.assertEqual(mobile_post(source,session,'https://www.tiktok.com/@a/video/123'),post)
+        self.assertEqual(
+            mobile_post(source, session, 'https://www.tiktok.com/@a/video/123'), post
+        )
         session.get.assert_called_once()
 
     def test_mobile_api_data_rejects_wrong_id_private_and_unavailable_posts(self):
         import json
         from tiktok_media import mobile_post
         from yt_dlp.utils import ExtractorError
-        for post,status in [(dict(id='other'),0),(dict(id='123',privateItem=True),0),(dict(id='123'),10216)]:
-            with self.subTest(post=post,status=status):
+
+        for post, status in [
+            (dict(id='other'), 0),
+            (dict(id='123', privateItem=True), 0),
+            (dict(id='123'), 10216),
+        ]:
+            with self.subTest(post=post, status=status):
                 source = Mock()
                 source._match_id.return_value = '123'
                 source._get_universal_data.return_value = {}
-                html = '<script id="api-data">'+json.dumps(dict(videoDetail=dict(statusCode=status,itemInfo=dict(itemStruct=post))))+'</script>'
+                html = (
+                    '<script id="api-data">'
+                    + json.dumps(
+                        dict(
+                            videoDetail=dict(
+                                statusCode=status, itemInfo=dict(itemStruct=post)
+                            )
+                        )
+                    )
+                    + '</script>'
+                )
                 response = MagicMock()
                 response.__enter__.return_value = response
                 response.status_code = 200
@@ -269,24 +294,31 @@ class MobileTikTokTests(unittest.TestCase):
                 session = Mock()
                 session.get.return_value = response
                 with self.assertRaises(ExtractorError):
-                    mobile_post(source,session,'https://www.tiktok.com/@a/video/123')
+                    mobile_post(source, session, 'https://www.tiktok.com/@a/video/123')
                 session.get.assert_called_once()
 
     def test_mobile_legacy_sigi_layout_selects_only_requested_post(self):
         import json
         from tiktok_media import mobile_post
+
         source = Mock()
         source._match_id.return_value = '123'
         source._get_universal_data.return_value = {}
         post = dict(id='123', desc='Requested')
-        html = '<script type="application/json" id = "SIGI_STATE">'+json.dumps(dict(ItemModule={'123':post,'999':dict(id='999')}))+'</script>'
+        html = (
+            '<script type="application/json" id = "SIGI_STATE">'
+            + json.dumps(dict(ItemModule={'123': post, '999': dict(id='999')}))
+            + '</script>'
+        )
         response = MagicMock()
         response.__enter__.return_value = response
         response.status_code = 200
         response.iter_content.return_value = [html.encode()]
         session = Mock()
         session.get.return_value = response
-        self.assertEqual(mobile_post(source,session,'https://www.tiktok.com/@a/video/123'),post)
+        self.assertEqual(
+            mobile_post(source, session, 'https://www.tiktok.com/@a/video/123'), post
+        )
         session.get.assert_called_once()
 
 

@@ -370,9 +370,14 @@ def perform(action, config, cancel, emit):
     if action in ('audio_name_search', 'audio_name_details'):
         from filename_metadata import search, details
 
-        return search(config, cancel) if action == 'audio_name_search' else details(config['record'], cancel)
+        return (
+            search(config, cancel)
+            if action == 'audio_name_search'
+            else details(config['record'], cancel)
+        )
     if action == 'audio_tags_copy':
         from tag_transfer import copy_snapshot
+
         return copy_snapshot(config)
     if action == 'audio_identify':
         from audio_identification import identify_audio
@@ -387,17 +392,20 @@ def perform(action, config, cancel, emit):
         }
     if action == 'metadata_changes_preview':
         from metadata_editing import preview
-        return preview(config,cancel.is_set)
+
+        return preview(config, cancel.is_set)
     if action == 'metadata_undo':
         from metadata_undo import undo
+
         return undo(cancel.is_set)
     if action == 'audio_edit':
         from audio_library import edit_copy
         from batch_metadata import edit_batch
 
-        if len(config.get('sources',[]))>1:return edit_batch(config,emit,cancelled=cancel.is_set)
-        entry=(config.get('sources') or [{}])[0]
-        return edit_copy(dict(config,**entry),emit,cancelled=cancel.is_set)
+        if len(config.get('sources', [])) > 1:
+            return edit_batch(config, emit, cancelled=cancel.is_set)
+        entry = (config.get('sources') or [{}])[0]
+        return edit_copy(dict(config, **entry), emit, cancelled=cancel.is_set)
     if action == 'image_info':
         return {'source': image_details(config['source'])}
     if action in ('image_preview', 'image_export'):
@@ -420,12 +428,18 @@ def perform(action, config, cancel, emit):
                     emit(event, **data)
 
                 from download_defaults import download_cookies
+
                 done, _ = prepare_link(
                     {
                         'url': config['source'],
                         'mode': 'photos',
                         'folder': temp,
-                        'cookies_file': download_cookies(config['source'], config.get('social_cookies', ''), '', config.get('instagram_cookies_file', '')),
+                        'cookies_file': download_cookies(
+                            config['source'],
+                            config.get('social_cookies', ''),
+                            '',
+                            config.get('instagram_cookies_file', ''),
+                        ),
                         'duplicate_policy': 'keep',
                     },
                     capture,
@@ -483,14 +497,29 @@ def perform(action, config, cancel, emit):
         from cache_cleanup import automatic_cleanup
 
         return automatic_cleanup(config['_root'])
-    if action in ('cache_report','cache_remove'):
-        from cache_report import report,remove
-        return (remove(config['_root'],config['cache_id'],config.get('_protected_cache',[])) if action=='cache_remove'
-                else report(config['_root'],config.get('_protected_cache',[]),int(config.get('playback_cache_limit_mb',1024)),config.get('_cache_models',[])))
+    if action in ('cache_report', 'cache_remove'):
+        from cache_report import report, remove
+
+        return (
+            remove(
+                config['_root'], config['cache_id'], config.get('_protected_cache', [])
+            )
+            if action == 'cache_remove'
+            else report(
+                config['_root'],
+                config.get('_protected_cache', []),
+                int(config.get('playback_cache_limit_mb', 1024)),
+                config.get('_cache_models', []),
+            )
+        )
     if action in ('cache_info', 'cache_clear'):
         from cache_cleanup import cache_info, clear_cache
 
-        return clear_cache(config['_root'],protected=config.get('_protected_cache',[])) if action=='cache_clear' else cache_info(config['_root'])
+        return (
+            clear_cache(config['_root'], protected=config.get('_protected_cache', []))
+            if action == 'cache_clear'
+            else cache_info(config['_root'])
+        )
     if action == 'prepare_tools':
         from ffmpeg_runtime import download_tools
 
@@ -534,13 +563,17 @@ def perform(action, config, cancel, emit):
         folder = Path(config['_root']) / 'updates'
         folder.mkdir(parents=True, exist_ok=True)
         target = folder / Path(release['asset']).name
-        with tempfile.NamedTemporaryFile(dir=folder, suffix='.part', delete=False) as file:
+        with tempfile.NamedTemporaryFile(
+            dir=folder, suffix='.part', delete=False
+        ) as file:
             partial = Path(file.name)
         try:
             digest = hashlib.sha256()
             with requests.get(release['url'], stream=True, timeout=(5, 30)) as response:
                 response.raise_for_status()
-                total = int(release.get('size') or response.headers.get('Content-Length') or 0)
+                total = int(
+                    release.get('size') or response.headers.get('Content-Length') or 0
+                )
                 written = 0
                 with partial.open('wb') as output:
                     for block in response.iter_content(256 * 1024):
@@ -549,12 +582,17 @@ def perform(action, config, cancel, emit):
                         output.write(block)
                         digest.update(block)
                         written += len(block)
-                        emit('progress', percent=min(100, written * 100 // total) if total else 0)
+                        emit(
+                            'progress',
+                            percent=min(100, written * 100 // total) if total else 0,
+                        )
             if total and written != total:
                 raise ValueError('Download da atualização incompleto.')
             expected = release.get('digest') or ''
             if expected.startswith('sha256:') and digest.hexdigest() != expected[7:]:
-                raise ValueError('A atualização não passou na verificação de integridade.')
+                raise ValueError(
+                    'A atualização não passou na verificação de integridade.'
+                )
             with partial.open('rb') as file:
                 if file.read(2) != b'MZ':
                     raise ValueError('O instalador recebido é inválido.')
@@ -580,7 +618,11 @@ def perform(action, config, cancel, emit):
                 'pip',
                 'install',
                 '--upgrade',
-                'yt-dlp[curl-cffi]' if sys.version_info >= (3, 15) else 'yt-dlp[default,curl-cffi]',
+                (
+                    'yt-dlp[curl-cffi]'
+                    if sys.version_info >= (3, 15)
+                    else 'yt-dlp[default,curl-cffi]'
+                ),
                 'gallery-dl<2',
                 'Pillow>=10,<14',
                 'mutagen>=1.48.1,<2',
@@ -591,8 +633,11 @@ def perform(action, config, cancel, emit):
                 'urllib3<3',
                 'idna<4',
                 'charset-normalizer<4',
-                *(('brotlicffi>=1.2.0.1', 'pycryptodomex', 'websockets>=13.0')
-                  if sys.version_info >= (3, 15) else ()),
+                *(
+                    ('brotlicffi>=1.2.0.1', 'pycryptodomex', 'websockets>=13.0')
+                    if sys.version_info >= (3, 15)
+                    else ()
+                ),
             ],
             env=dict(os.environ, PYYAML_FORCE_LIBYAML='0'),
             capture_output=True,

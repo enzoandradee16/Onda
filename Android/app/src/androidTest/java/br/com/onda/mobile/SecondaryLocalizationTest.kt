@@ -13,12 +13,22 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class SecondaryLocalizationTest {
-    @get:Rule val compose=createComposeRule()
+    @get:Rule val compose = createComposeRule()
+
     @Test fun downloadPopupTranslatesFallbackWithoutChangingSongOrArtist() {
         OndaStore.initialize(InstrumentationRegistry.getInstrumentation().targetContext)
         compose.setContent {
-            LocalizedTheme("en",darkColorScheme(),MaterialTheme.typography) {
-                TrackDownloadDialog(JSONObject().put("title","Original").put("artists",org.json.JSONArray(listOf("Spotify conectado"))),JSONObject(),{}, {_,_->})
+            LocalizedTheme("en", darkColorScheme(), MaterialTheme.typography) {
+                TrackDownloadDialog(
+                    JSONObject().put(
+                        "title",
+                        "Original"
+                    ).put("artists", org.json.JSONArray(listOf("Spotify conectado"))),
+                    JSONObject(),
+                    {
+                    },
+                    { _, _ -> }
+                )
             }
         }
         compose.onNodeWithText("Choose a format").assertIsDisplayed()

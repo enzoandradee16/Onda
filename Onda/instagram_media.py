@@ -95,10 +95,12 @@ def instagram_items(url, session, cookies="", logger=None):
     }
     if cookies:
         from session_cookies import cookie_source
+
         options["cookiefile"] = cookie_source(cookies)
     with YoutubeDL(options) as downloader:
         source = InstagramMediaIE(downloader)
         from social_recovery import retry_metadata
+
         retry_metadata(lambda: source.extract(url))
         session.cookies.update(downloader.cookiejar)
         return list(product_items(source, source.product))

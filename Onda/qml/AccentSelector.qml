@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+
 ColumnLayout {
     id: root
     property string value: bridge.accent
@@ -13,10 +14,16 @@ ColumnLayout {
         displayText: bridge.translate(root.custom ? "Cor personalizada" : root.value) + (root.custom ? " · " + root.value : "")
         onActivated: root.selected(model[index])
     }
-    ActionButton { objectName: "customAccentButton"; text: bridge.translate("Cor personalizada"); onClicked: picker.open() }
+    ActionButton {
+        objectName: "customAccentButton"
+        text: bridge.translate("Cor personalizada")
+        onClicked: picker.open()
+    }
     CustomAccentPopup {
         id: picker
         initialColor: root.custom ? root.value : bridge.accentHex
-        onSelected: function(color) { root.selected(color) }
+        onSelected: function (color) {
+            root.selected(color);
+        }
     }
 }

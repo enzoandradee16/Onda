@@ -82,7 +82,9 @@ def read_audio(source):
             record['isrc'] = bytes(codes[0]).decode('utf-8', errors='replace')
     if isinstance(native.tags, ID3):
         comments = native.tags.getall('COMM')
-        record['comment'] = str(comments[0].text[0]) if comments and comments[0].text else ''
+        record['comment'] = (
+            str(comments[0].text[0]) if comments and comments[0].text else ''
+        )
     record['title'] = record['title'] or path.stem
     record['duration'] = getattr(audio.info, 'length', 0)
     return record
@@ -160,7 +162,19 @@ def write_audio(source, changes, cover_path='', lyrics=''):
         raise ValueError('Áudio não reconhecido.')
     if audio.tags is None:
         audio.add_tags()
-    from mutagen.id3 import TIT2, TPE1, TALB, TCON, TDRC, TRCK, TPOS, TSRC, TPE2, TCOM, COMM
+    from mutagen.id3 import (
+        TIT2,
+        TPE1,
+        TALB,
+        TCON,
+        TDRC,
+        TRCK,
+        TPOS,
+        TSRC,
+        TPE2,
+        TCOM,
+        COMM,
+    )
 
     frames = {
         'title': TIT2,
@@ -394,25 +408,41 @@ def edit_copy(config, emit=lambda *args, **kwargs: None, *, cancelled=lambda: Fa
     if cancelled():
         raise InterruptedError('Operação cancelada.')
     source = Path(config['source']).resolve()
-    expected=config.get('_preview_signatures',{}).get(str(source))
+    expected = config.get('_preview_signatures', {}).get(str(source))
     if expected:
-        current=source.stat()
-        if [current.st_size,current.st_mtime_ns]!=expected:raise ValueError('O arquivo mudou durante a revisão. Abra a prévia novamente.')
+        current = source.stat()
+        if [current.st_size, current.st_mtime_ns] != expected:
+            raise ValueError(
+                'O arquivo mudou durante a revisão. Abra a prévia novamente.'
+            )
     selection = config.get('preview_selection', {}).get(str(source))
     if selection is not None:
-        config = dict(config, changes={k:v for k,v in config.get('changes',{}).items() if k in selection},
-                      tag_transfer_extras='__extras__' in selection,
-                      normalize_volume=bool(config.get('normalize_volume')) and '__normalize__' in selection,
-                      lyrics_path=config.get('lyrics_path','') if '__lyrics__' in selection else '')
+        config = dict(
+            config,
+            changes={
+                k: v for k, v in config.get('changes', {}).items() if k in selection
+            },
+            tag_transfer_extras='__extras__' in selection,
+            normalize_volume=bool(config.get('normalize_volume'))
+            and '__normalize__' in selection,
+            lyrics_path=(
+                config.get('lyrics_path', '') if '__lyrics__' in selection else ''
+            ),
+        )
         if '__cover__' not in selection:
-            config.update(cover_path='',cover_url='',tag_transfer_cover=False)
+            config.update(cover_path='', cover_url='', tag_transfer_cover=False)
     read_audio(source)
     undo_snapshot = ''
     if config.get('_metadata_transaction'):
         from metadata_undo import capture
-        undo_snapshot = capture(source, config['_metadata_transaction'],
-                                not config.get('_android_metadata') and str(config.get('lyrics_path','')).lower().endswith('.lrc'),
-                                bool(config.get('overwrite_original')))
+
+        undo_snapshot = capture(
+            source,
+            config['_metadata_transaction'],
+            not config.get('_android_metadata')
+            and str(config.get('lyrics_path', '')).lower().endswith('.lrc'),
+            bool(config.get('overwrite_original')),
+        )
     overwrite = bool(config.get('overwrite_original'))
     original_stat = source.stat()
     folder = (
@@ -437,15 +467,25 @@ def edit_copy(config, emit=lambda *args, **kwargs: None, *, cancelled=lambda: Fa
             transfer = config.get('tag_transfer')
             if config.get('tag_transfer_path'):
                 from tag_transfer import decode, LIMIT
+
                 path = Path(config['tag_transfer_path'])
                 if path.stat().st_size > LIMIT:
                     raise ValueError('As tags excedem o limite de tamanho.')
                 transfer = decode(path.read_text(encoding='utf-8'))
             if transfer:
                 from tag_transfer import apply
-                changes = apply(target, transfer, changes, config.get('tag_transfer_cover', True),config.get('tag_transfer_extras',True))
+
+                changes = apply(
+                    target,
+                    transfer,
+                    changes,
+                    config.get('tag_transfer_cover', True),
+                    config.get('tag_transfer_extras', True),
+                )
             cover_path = config.get('cover_path', '')
-            if not cover_path and str(config.get('cover_url') or '').startswith('data:image/jpeg;base64,'):
+            if not cover_path and str(config.get('cover_url') or '').startswith(
+                'data:image/jpeg;base64,'
+            ):
                 cover_path = config['cover_url']
             if not cover_path and config.get('cover_url'):
                 from tagging import fetch_cover
@@ -454,7 +494,11 @@ def edit_copy(config, emit=lambda *args, **kwargs: None, *, cancelled=lambda: Fa
                 data, mime = fetch_cover(config['cover_url'])
                 if cancelled():
                     raise InterruptedError('Operação cancelada.')
-                image = Path(directory) / ('metadata-cover.jpg' if mime == 'image/jpeg' else 'metadata-cover.png')
+                image = Path(directory) / (
+                    'metadata-cover.jpg'
+                    if mime == 'image/jpeg'
+                    else 'metadata-cover.png'
+                )
                 image.write_bytes(data)
                 cover_path = str(image)
             write_audio(
@@ -498,11 +542,16 @@ def edit_copy(config, emit=lambda *args, **kwargs: None, *, cancelled=lambda: Fa
             )
     if undo_snapshot and not config.get('_android_metadata'):
         from metadata_undo import register
+
         register(undo_snapshot, final, final, config['_metadata_transaction'])
     return {
         'undo_snapshot': undo_snapshot,
-        'undo_transaction': config.get('_metadata_transaction',''),
-        'undo_sha256': __import__('metadata_undo').digest(final) if undo_snapshot and config.get('_android_metadata') else '',
+        'undo_transaction': config.get('_metadata_transaction', ''),
+        'undo_sha256': (
+            __import__('metadata_undo').digest(final)
+            if undo_snapshot and config.get('_android_metadata')
+            else ''
+        ),
         'path': final,
         'mode': source.suffix.lstrip('.'),
         'size': Path(final).stat().st_size,

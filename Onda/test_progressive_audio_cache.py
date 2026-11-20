@@ -30,17 +30,19 @@ class ProgressiveCacheTests(unittest.TestCase):
         from unittest.mock import patch
         from online_audio import prepare_stream
 
-        with tempfile.TemporaryDirectory() as root, patch(
-            'jukebox.cache_root', return_value=Path(root)
-        ), patch(
-            'stream_file_cache.lookup',
-            return_value={'path': str(Path(root) / 'bad.mka')},
-        ), patch(
-            'jukebox.prepare',
-            side_effect=[ValueError('Damaged cache'), {'cache': 'fresh'}],
-        ) as analyze, patch(
-            'online_audio.NetworkAudio'
-        ) as network:
+        with (
+            tempfile.TemporaryDirectory() as root,
+            patch('jukebox.cache_root', return_value=Path(root)),
+            patch(
+                'stream_file_cache.lookup',
+                return_value={'path': str(Path(root) / 'bad.mka')},
+            ),
+            patch(
+                'jukebox.prepare',
+                side_effect=[ValueError('Damaged cache'), {'cache': 'fresh'}],
+            ) as analyze,
+            patch('online_audio.NetworkAudio') as network,
+        ):
             network.return_value.read.side_effect = [b'\0' * 17640, b'']
             model = dict(
                 title='Recovered',
@@ -57,8 +59,9 @@ class ProgressiveCacheTests(unittest.TestCase):
         from online_audio import prepare_stream
         from unittest.mock import patch
 
-        with tempfile.TemporaryDirectory() as root, patch(
-            'jukebox.cache_root', return_value=Path(root)
+        with (
+            tempfile.TemporaryDirectory() as root,
+            patch('jukebox.cache_root', return_value=Path(root)),
         ):
             raw = b'\x01\x00\x01\x00' * (2 * 44100)
             source = Mock()
@@ -84,9 +87,13 @@ class ProgressiveCacheTests(unittest.TestCase):
                     self.assertEqual(sound.readframes(sound.getnframes()), raw)
                 return dict(cache='prepared')
 
-            with patch(
-                'online_audio.NetworkAudio', side_effect=AssertionError('No network')
-            ), patch('jukebox.prepare', side_effect=analyze):
+            with (
+                patch(
+                    'online_audio.NetworkAudio',
+                    side_effect=AssertionError('No network'),
+                ),
+                patch('jukebox.prepare', side_effect=analyze),
+            ):
                 prepared = prepare_stream(model, {})
             self.assertEqual(prepared['title'], 'Cached song')
 
@@ -318,9 +325,12 @@ class ProgressiveCacheTests(unittest.TestCase):
                 self.assertEqual(stream['sample_rate'], '44100')
                 from online_audio import prepare_stream
 
-                with patch('jukebox.cache_root', return_value=root / 'cache'), patch(
-                    'online_audio.NetworkAudio',
-                    side_effect=AssertionError('No second audio download'),
+                with (
+                    patch('jukebox.cache_root', return_value=root / 'cache'),
+                    patch(
+                        'online_audio.NetworkAudio',
+                        side_effect=AssertionError('No second audio download'),
+                    ),
                 ):
                     analyzed = prepare_stream(
                         dict(model, title='Packet cached song'), config

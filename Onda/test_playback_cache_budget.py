@@ -39,6 +39,7 @@ class PlaybackBudgetTests(unittest.TestCase):
     def test_active_analysis_and_stream_are_never_removed(self):
         import jukebox
         import progressive_audio_cache as streaming
+
         active = self.track(1)
         stream_root = self.root / 'streaming'
         stream_root.mkdir()
@@ -74,7 +75,9 @@ class PlaybackBudgetTests(unittest.TestCase):
 
     def test_protected_source_protects_entire_group(self):
         track = self.track(1)
-        self.trim(max_bytes=0, protected=model_paths([{'source': str(track / 'audio.wav')}]))
+        self.trim(
+            max_bytes=0, protected=model_paths([{'source': str(track / 'audio.wav')}])
+        )
         self.assertTrue(track.exists())
 
     def test_handoff_grace_and_unknown_nested_directories(self):
@@ -106,6 +109,7 @@ class PlaybackBudgetTests(unittest.TestCase):
     def test_failed_session_does_not_leave_active_pin(self):
         import jukebox
         from unittest.mock import patch
+
         track = self.track(1)
         with patch('jukebox.cache_root', return_value=self.root):
             with self.assertRaises((ValueError, KeyError)):
@@ -116,6 +120,7 @@ class PlaybackBudgetTests(unittest.TestCase):
         import jukebox
         from playback_effects import PreparedEffects
         from unittest.mock import patch
+
         track = self.track(1)
         effects = PreparedEffects(track)
 
@@ -132,6 +137,7 @@ class PlaybackBudgetTests(unittest.TestCase):
     def test_stream_local_limit_also_preserves_recent_tracks(self):
         from progressive_audio_cache import prune as stream_prune
         from unittest.mock import patch
+
         root = self.root / 'streaming'
         root.mkdir()
         paths = []

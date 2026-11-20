@@ -16,67 +16,144 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.font.FontWeight
 
 /** Shared surfaces for the Android tools; all colors follow the selected theme. */
-@Composable internal fun ToolCard(modifier:Modifier=Modifier,content:@Composable ColumnScope.()->Unit) {
-    Surface(modifier.fillMaxWidth(),shape=RoundedCornerShape(18.dp),color=MaterialTheme.colorScheme.surfaceVariant.copy(alpha=.45f),border=BorderStroke(1.dp,MaterialTheme.colorScheme.outlineVariant.copy(alpha=.45f))) {
-        Column(Modifier.padding(LayoutSpacing.inset),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.section),content=content)
+@Composable internal fun ToolCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+    Surface(
+        modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .45f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = .45f))
+    ) {
+        Column(
+            Modifier.padding(LayoutSpacing.inset),
+            verticalArrangement = Arrangement.spacedBy(LayoutSpacing.section),
+            content = content
+        )
     }
 }
 
-@Composable internal fun ToolHeading(title:String,action:(@Composable ()->Unit)?=null) {
-    Row(Modifier.fillMaxWidth().padding(vertical=8.dp),verticalAlignment=Alignment.CenterVertically) {
-        UiText(title,Modifier.weight(1f),style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.Bold)
+@Composable internal fun ToolHeading(title: String, action: (@Composable () -> Unit)? = null) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        UiText(title, Modifier.weight(1f), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         action?.invoke()
     }
 }
 
-@Composable internal fun ToolEmpty(icon:String,title:String,description:String) {
+@Composable internal fun ToolEmpty(icon: String, title: String, description: String) {
     ToolCard {
-        OndaIcon(icon,modifier=Modifier.size(36.dp),tint=MaterialTheme.colorScheme.primary)
-        UiText(title,style=MaterialTheme.typography.titleMedium)
-        UiText(description,style=MaterialTheme.typography.bodyMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
+        OndaIcon(icon, modifier = Modifier.size(36.dp), tint = MaterialTheme.colorScheme.primary)
+        UiText(title, style = MaterialTheme.typography.titleMedium)
+        UiText(
+            description,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
-@Composable internal fun ToolSwitch(title:String,checked:Boolean,subtitle:String="",enabled:Boolean=true,changed:(Boolean)->Unit) {
-    Row(Modifier.fillMaxWidth().heightIn(min=56.dp).toggleable(value=checked,enabled=enabled,role=androidx.compose.ui.semantics.Role.Switch,onValueChange=changed),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
-        Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(4.dp)) {
-            UiText(title,style=MaterialTheme.typography.bodyLarge)
-            if(subtitle.isNotBlank())UiText(subtitle,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+@Composable internal fun ToolSwitch(
+    title: String,
+    checked: Boolean,
+    subtitle: String = "",
+    enabled: Boolean = true,
+    changed: (Boolean) -> Unit
+) {
+    Row(
+        Modifier.fillMaxWidth().heightIn(
+            min = 56.dp
+        ).toggleable(
+            value = checked,
+            enabled = enabled,
+            role = androidx.compose.ui.semantics.Role.Switch,
+            onValueChange = changed
+        ),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            UiText(title, style = MaterialTheme.typography.bodyLarge)
+            if (subtitle.isNotBlank()) UiText(
+                subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
-        val scheme=MaterialTheme.colorScheme
+        val scheme = MaterialTheme.colorScheme
         // Pure black intentionally clears surface/outline colors; interactive
         // switches still need an explicit track, thumb and boundary.
-        Switch(checked,onCheckedChange=null,enabled=enabled,modifier=Modifier.testTag("switch-indicator-$title"),colors=SwitchDefaults.colors(
-            checkedThumbColor=scheme.onPrimary,checkedTrackColor=scheme.primary,checkedBorderColor=scheme.primary,
-            uncheckedThumbColor=scheme.onSurface,
-            uncheckedTrackColor=scheme.onSurface.copy(alpha=.20f).compositeOver(scheme.surface),
-            uncheckedBorderColor=scheme.onSurfaceVariant,
-            disabledCheckedThumbColor=scheme.onSurface.copy(alpha=.38f).compositeOver(scheme.surface),
-            disabledCheckedTrackColor=scheme.primary.copy(alpha=.25f).compositeOver(scheme.surface),
-            disabledCheckedBorderColor=scheme.onSurfaceVariant.copy(alpha=.38f).compositeOver(scheme.surface),
-            disabledUncheckedThumbColor=scheme.onSurface.copy(alpha=.38f).compositeOver(scheme.surface),
-            disabledUncheckedTrackColor=scheme.onSurface.copy(alpha=.12f).compositeOver(scheme.surface),
-            disabledUncheckedBorderColor=scheme.onSurfaceVariant.copy(alpha=.38f).compositeOver(scheme.surface)
-        ))
+        Switch(
+            checked,
+            onCheckedChange = null,
+            enabled = enabled,
+            modifier = Modifier.testTag("switch-indicator-$title"),
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = scheme.onPrimary, checkedTrackColor = scheme.primary, checkedBorderColor = scheme.primary,
+                uncheckedThumbColor = scheme.onSurface,
+                uncheckedTrackColor = scheme.onSurface.copy(alpha = .20f).compositeOver(scheme.surface),
+                uncheckedBorderColor = scheme.onSurfaceVariant,
+                disabledCheckedThumbColor = scheme.onSurface.copy(alpha = .38f).compositeOver(scheme.surface),
+                disabledCheckedTrackColor = scheme.primary.copy(alpha = .25f).compositeOver(scheme.surface),
+                disabledCheckedBorderColor = scheme.onSurfaceVariant.copy(alpha = .38f).compositeOver(scheme.surface),
+                disabledUncheckedThumbColor = scheme.onSurface.copy(alpha = .38f).compositeOver(scheme.surface),
+                disabledUncheckedTrackColor = scheme.onSurface.copy(alpha = .12f).compositeOver(scheme.surface),
+                disabledUncheckedBorderColor = scheme.onSurfaceVariant.copy(alpha = .38f).compositeOver(scheme.surface)
+            )
+        )
     }
 }
 
-@Composable internal fun ToolLink(value:String,changed:(String)->Unit,label:String,modifier:Modifier=Modifier,submit:(()->Unit)?=null) {
-    val clipboard=LocalClipboardManager.current
-    OutlinedTextField(value,changed,modifier.fillMaxWidth(),label={UiText(label)},singleLine=true,shape=RoundedCornerShape(16.dp),trailingIcon={
-        IconButton(onClick={if(submit!=null && value.isNotBlank())submit() else clipboard.getText()?.text?.let(changed)}) {
-            OndaIcon(if(submit!=null && value.isNotBlank())"chevron" else "paste",if(submit!=null && value.isNotBlank())"Carregar" else "Colar",Modifier.size(22.dp))
+@Composable internal fun ToolLink(
+    value: String,
+    changed: (String) -> Unit,
+    label: String,
+    modifier: Modifier = Modifier,
+    submit: (() -> Unit)? = null
+) {
+    val clipboard = LocalClipboardManager.current
+    OutlinedTextField(value, changed, modifier.fillMaxWidth(), label = {
+        UiText(label)
+    }, singleLine = true, shape = RoundedCornerShape(16.dp), trailingIcon = {
+        IconButton(onClick = {
+            if (submit != null &&
+                value.isNotBlank()
+            ) submit() else clipboard.getText()?.text?.let(changed)
+        }) {
+            OndaIcon(
+                if (submit != null &&
+                    value.isNotBlank()
+                ) "chevron" else "paste",
+                if (submit != null &&
+                    value.isNotBlank()
+                ) "Carregar" else "Colar",
+                Modifier.size(22.dp)
+            )
         }
     })
 }
 
-@Composable internal fun ToolTabs(labels:List<String>,selected:Int,compact:Boolean=false,onSelect:(Int)->Unit) {
-    Surface(shape=RoundedCornerShape(16.dp),color=MaterialTheme.colorScheme.surfaceVariant.copy(alpha=.5f)) {
-        Row(Modifier.fillMaxWidth().padding(horizontal=6.dp,vertical=if(compact)2.dp else 6.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-            labels.forEachIndexed {index,label->
-                val active=index==selected
-                Surface(Modifier.weight(1f).selectable(selected=active,role=androidx.compose.ui.semantics.Role.Tab,onClick={onSelect(index)}),shape=RoundedCornerShape(12.dp),color=if(active)MaterialTheme.colorScheme.primary else androidx.compose.ui.graphics.Color.Transparent,contentColor=if(active)MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface) {
-                    Box(Modifier.heightIn(min=44.dp).padding(horizontal=8.dp,vertical=10.dp),contentAlignment=Alignment.Center){UiText(label,style=MaterialTheme.typography.labelLarge)}
+@Composable internal fun ToolTabs(labels: List<String>, selected: Int, compact: Boolean = false, onSelect: (Int) -> Unit) {
+    Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .5f)) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = if (compact) 2.dp else 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            labels.forEachIndexed { index, label ->
+                val active = index == selected
+                Surface(
+                    Modifier.weight(
+                        1f
+                    ).selectable(selected = active, role = androidx.compose.ui.semantics.Role.Tab, onClick = {
+                        onSelect(index)
+                    }),
+                    shape = RoundedCornerShape(12.dp),
+                    color = if (active) MaterialTheme.colorScheme.primary else androidx.compose.ui.graphics.Color.Transparent,
+                    contentColor = if (active) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                ) {
+                    Box(
+                        Modifier.heightIn(min = 44.dp).padding(horizontal = 8.dp, vertical = 10.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        UiText(label, style = MaterialTheme.typography.labelLarge)
+                    }
                 }
             }
         }

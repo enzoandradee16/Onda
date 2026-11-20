@@ -157,11 +157,21 @@ class PreferenceStore:
         for name in ("catalog_card_size", "playlist_card_size"):
             if data.get(name) in ("Muito pequeno", "Pequeno", "Médio", "Grande"):
                 result[name] = data[name]
-        if data.get("queue_card_size") in ("Muito pequeno", "Pequeno", "Médio", "Grande"):
+        if data.get("queue_card_size") in (
+            "Muito pequeno",
+            "Pequeno",
+            "Médio",
+            "Grande",
+        ):
             result["queue_card_size"] = data["queue_card_size"]
         if data.get("queue_view") in ("Compacto", "Completa"):
             result["queue_view"] = data["queue_view"]
-        if data.get("history_card_size") in ("Muito pequeno", "Pequeno", "Médio", "Grande"):
+        if data.get("history_card_size") in (
+            "Muito pequeno",
+            "Pequeno",
+            "Médio",
+            "Grande",
+        ):
             result["history_card_size"] = data["history_card_size"]
         if data.get("history_view") in ("Compacto", "Completa"):
             result["history_view"] = data["history_view"]

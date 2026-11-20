@@ -116,8 +116,20 @@ def resolve(
         ),
         cache='',
         source='',
-        title=(info.get('track') or info.get('title') if record.get('_jukebox_direct') else record.get('title')) or info.get('title') or 'ONDA',
-        media_title=(info.get('track') or info.get('title') if record.get('_jukebox_direct') else record.get('title')) or info.get('title') or 'ONDA',
+        title=(
+            info.get('track') or info.get('title')
+            if record.get('_jukebox_direct')
+            else record.get('title')
+        )
+        or info.get('title')
+        or 'ONDA',
+        media_title=(
+            info.get('track') or info.get('title')
+            if record.get('_jukebox_direct')
+            else record.get('title')
+        )
+        or info.get('title')
+        or 'ONDA',
         media_artist=', '.join(
             record.get('artists') or [info.get('artist') or info.get('uploader') or '']
         ),

@@ -16,11 +16,16 @@ class ThumbnailToolbarTests(unittest.TestCase):
         shell._thumbnail_added, shell._thumbnail_signature = False, None
         shell._thumbnail_icons = dict(previous=1, play=2, pause=3, next=4)
         shell.calls = []
+
         def com(index, args):
             def call(hwnd, count, buttons):
-                shell.calls.append((index, [(b.identity, b.icon, b.flags, b.tip) for b in buttons]))
+                shell.calls.append(
+                    (index, [(b.identity, b.icon, b.flags, b.tip) for b in buttons])
+                )
                 return 0
+
             return call
+
         shell.com = com
         return shell
 
@@ -53,19 +58,34 @@ class ThumbnailToolbarTests(unittest.TestCase):
 
     @unittest.skipUnless(os.name == 'nt', 'Windows structure layout')
     def test_native_structure_layout_matches_windows_sdk(self):
-        self.assertEqual(c.sizeof(ThumbnailButton), 552 if c.sizeof(c.c_void_p) == 8 else 540)
-        self.assertEqual(ThumbnailButton.icon.offset, 16 if c.sizeof(c.c_void_p) == 8 else 12)
+        self.assertEqual(
+            c.sizeof(ThumbnailButton), 552 if c.sizeof(c.c_void_p) == 8 else 540
+        )
+        self.assertEqual(
+            ThumbnailButton.icon.offset, 16 if c.sizeof(c.c_void_p) == 8 else 12
+        )
 
 
 @unittest.skipUnless(os.environ.get('ONDA_QT_TESTS'), 'Qt controller')
 class TaskbarRoutingTests(unittest.TestCase):
     def test_only_loaded_reproduction_enables_and_receives_commands(self):
         from qt_workspace_ui import DesktopWorkspace
+
         shell = SimpleNamespace(thumbnail_events=queue.SimpleQueue(), thumbnail=Mock())
-        bridge = SimpleNamespace(model=None, _state={'playing': False}, paused=threading.Event(),
-                                 normal_next_index=Mock(return_value=1), previousTrack=Mock(), playPause=Mock(), nextTrack=Mock())
-        workspace = SimpleNamespace(shell=shell, bridge=bridge,
-                                    options={'effectsSource': 'metadata-preview.wav'})
+        bridge = SimpleNamespace(
+            model=None,
+            _state={'playing': False},
+            paused=threading.Event(),
+            normal_next_index=Mock(return_value=1),
+            previousTrack=Mock(),
+            playPause=Mock(),
+            nextTrack=Mock(),
+        )
+        workspace = SimpleNamespace(
+            shell=shell,
+            bridge=bridge,
+            options={'effectsSource': 'metadata-preview.wav'},
+        )
         shell.thumbnail_events.put('toggle')
         DesktopWorkspace.sync_taskbar_media(workspace)
         self.assertFalse(shell.thumbnail.call_args.args[0])
@@ -91,12 +111,15 @@ class TaskbarRoutingTests(unittest.TestCase):
         self.assertFalse(shell.thumbnail.call_args.args[0])
 
 
-@unittest.skipUnless(os.name == 'nt' and os.environ.get('ONDA_UI_TESTS'), 'Native taskbar integration')
+@unittest.skipUnless(
+    os.name == 'nt' and os.environ.get('ONDA_UI_TESTS'), 'Native taskbar integration'
+)
 class NativeTaskbarTests(unittest.TestCase):
     def test_real_com_buttons_native_click_and_resource_cleanup(self):
         from PySide6.QtWidgets import QApplication
         from PySide6.QtGui import QWindow
         from PySide6.QtTest import QTest
+
         app = QApplication.instance() or QApplication([])
         window = QWindow()
         window.setTitle('ONDA · verificação dos controles')

@@ -135,6 +135,7 @@ def build_options(config: dict) -> dict:
         options["ffmpeg_location"] = config["ffmpeg"]
     if config.get("cookies_file"):
         from session_cookies import cookie_source
+
         options["cookiefile"] = cookie_source(config["cookies_file"])
     if mode in ("mp3", "m4a"):
         bitrate = audio_bitrate(config)

@@ -28,7 +28,11 @@ internal class PlaybackSessionWrites(private val executor: Executor, private val
             }
         }
         if (synchronous) write() else executor.execute {
-            try { write() } catch (error: Exception) { failed(error) }
+            try {
+                write()
+            } catch (error: Exception) {
+                failed(error)
+            }
         }
     }
 }

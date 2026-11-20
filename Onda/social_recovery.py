@@ -1,4 +1,5 @@
 """Bounded recovery for public social metadata, shared by PC and Android."""
+
 import json
 import time
 from html.parser import HTMLParser
@@ -27,11 +28,17 @@ def _cause(error):
 def retry_delay(error):
     error = _cause(error)
     response = getattr(error, 'response', None)
-    status = getattr(response, 'status_code', None) or getattr(error, 'status', None) or getattr(error, 'code', None)
+    status = (
+        getattr(response, 'status_code', None)
+        or getattr(error, 'status', None)
+        or getattr(error, 'code', None)
+    )
     if status is not None:
         if status not in TRANSIENT_STATUS:
             return None
-        headers = getattr(response, 'headers', None) or getattr(error, 'headers', {}) or {}
+        headers = (
+            getattr(response, 'headers', None) or getattr(error, 'headers', {}) or {}
+        )
         try:
             delay = float(headers.get('Retry-After', '0.5'))
         except (TypeError, ValueError):
@@ -39,16 +46,27 @@ def retry_delay(error):
                 until = parsedate_to_datetime(headers.get('Retry-After', ''))
                 if until.tzinfo is None:
                     until = until.replace(tzinfo=timezone.utc)
-                delay = max(0, (until-datetime.now(timezone.utc)).total_seconds())
+                delay = max(0, (until - datetime.now(timezone.utc)).total_seconds())
             except (TypeError, ValueError, OverflowError):
                 delay = 0.5
         # Never turn rate limiting into an unbounded wait/retry loop.
         return max(0.5, delay) if 0 <= delay <= 5 else None
     if isinstance(error, requests.exceptions.SSLError):
         return None
-    if isinstance(error, (requests.Timeout, requests.ConnectionError, requests.exceptions.ChunkedEncodingError, TimeoutError, ConnectionError)):
+    if isinstance(
+        error,
+        (
+            requests.Timeout,
+            requests.ConnectionError,
+            requests.exceptions.ChunkedEncodingError,
+            TimeoutError,
+            ConnectionError,
+        ),
+    ):
         return 0.5
-    if isinstance(error, URLError) and isinstance(error.reason, (TimeoutError, ConnectionError)):
+    if isinstance(error, URLError) and isinstance(
+        error.reason, (TimeoutError, ConnectionError)
+    ):
         return 0.5
     return None
 
@@ -73,12 +91,17 @@ def public_response(session, url, **kwargs):
             response.close()
             raise
         return response
+
     return retry_metadata(request)
 
 
-def public_html(session, url, *, headers=None, max_bytes=8*1024*1024, with_url=False):
+def public_html(
+    session, url, *, headers=None, max_bytes=8 * 1024 * 1024, with_url=False
+):
     def request():
-        with session.get(url, headers=headers, stream=True, timeout=(15, 20)) as response:
+        with session.get(
+            url, headers=headers, stream=True, timeout=(15, 20)
+        ) as response:
             response.raise_for_status()
             data = bytearray()
             for chunk in response.iter_content(65536):
@@ -87,6 +110,7 @@ def public_html(session, url, *, headers=None, max_bytes=8*1024*1024, with_url=F
                     raise ValueError('Página da rede social acima do limite.')
             html = data.decode('utf-8', errors='replace')
             return (html, response.url) if with_url else html
+
     return retry_metadata(request)
 
 
@@ -117,6 +141,7 @@ def script_json(html, identity):
                     if self.value is None:
                         self.value = value
                 self.active = False
+
     parser = Scripts()
     parser.feed(html)
     return parser.value

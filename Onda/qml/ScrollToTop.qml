@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls
+
 PlaybackButton {
     id: button
     objectName: "scrollToTop"
@@ -18,7 +19,9 @@ PlaybackButton {
     ToolTip.visible: hovered
     ToolTip.text: Accessible.name
     onClicked: {
-        if (typeof target.positionViewAtBeginning === "function") target.positionViewAtBeginning()
-        else target.contentY = target.originY || 0
+        if (typeof target.positionViewAtBeginning === "function")
+            target.positionViewAtBeginning();
+        else
+            target.contentY = target.originY || 0;
     }
 }

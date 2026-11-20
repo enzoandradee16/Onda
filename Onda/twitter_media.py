@@ -119,6 +119,7 @@ def twitter_items(url, session, cookies="", logger=None):
         tweet_id = source._match_id(url)
         try:
             from social_recovery import retry_metadata
+
             status = retry_metadata(lambda: source._extract_status(tweet_id))
         except ExtractorError:
             if source.is_logged_in:

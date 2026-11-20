@@ -10,12 +10,14 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class TikTokPublicPostTest {
     @Test fun publicMobileFallbackDownloadsReportedVideo() {
-        val context=InstrumentationRegistry.getInstrumentation().targetContext
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
         MobileEngine.initialize(context)
-        val py=Python.getInstance()
-        val globals=py.getModule("builtins").callAttr("dict")
-        globals.callAttr("__setitem__","output_dir",context.cacheDir.absolutePath)
-        py.getModule("builtins").callAttr("exec", """
+        val py = Python.getInstance()
+        val globals = py.getModule("builtins").callAttr("dict")
+        globals.callAttr("__setitem__", "output_dir", context.cacheDir.absolutePath)
+        py.getModule("builtins").callAttr(
+            "exec",
+            """
 import requests
 from pathlib import Path
 from unittest.mock import patch
@@ -43,7 +45,9 @@ try:
     verified=True
 finally:
     output.unlink(missing_ok=True)
-""".trimIndent(),globals)
-        assertTrue(globals.callAttr("__getitem__","verified").toBoolean())
+""".trimIndent(),
+            globals
+        )
+        assertTrue(globals.callAttr("__getitem__", "verified").toBoolean())
     }
 }

@@ -731,6 +731,7 @@ class Session:
         self.effect_key = None
         self.original_beats = list(self.model['beats'])
         from playback_cache_budget import mark_played
+
         mark_played(self.base)
 
     def _read(self, start, count):

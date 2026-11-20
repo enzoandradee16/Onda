@@ -17,68 +17,139 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-@Composable fun MetadataPage(vm:OndaViewModel,requestedUri:String?=null,onRequestConsumed:()->Unit={}) {
-    var batchSources by rememberSaveable {mutableStateOf(arrayListOf<String>())}
+@Composable fun MetadataPage(vm: OndaViewModel, requestedUri: String? = null, onRequestConsumed: () -> Unit = {}) {
+    var batchSources by rememberSaveable { mutableStateOf(arrayListOf<String>()) }
     val canUndo by MetadataUndo.available.collectAsState()
-    var batchOpen by rememberSaveable {mutableStateOf(false)}
-    if(batchOpen)BatchMetadataEditor(vm,batchSources){batchOpen=false}
-    var selectedUri by rememberSaveable {mutableStateOf<String?>(null)}
-    var item by remember {mutableStateOf<HistoryItem?>(null)}
-    LaunchedEffect(requestedUri) {if(requestedUri!=null){selectedUri=requestedUri;item=null;onRequestConsumed()}}
-    val picker=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) {uri->
-        if(uri!=null) {
-            val resolver=OndaStore.context.contentResolver
-            runCatching {resolver.takePersistableUriPermission(uri,Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)}
-                .onFailure {runCatching {resolver.takePersistableUriPermission(uri,Intent.FLAG_GRANT_READ_URI_PERMISSION)}}
-            selectedUri=uri.toString()
+    var batchOpen by rememberSaveable { mutableStateOf(false) }
+    if (batchOpen) BatchMetadataEditor(vm, batchSources) { batchOpen = false }
+    var selectedUri by rememberSaveable { mutableStateOf<String?>(null) }
+    var item by remember { mutableStateOf<HistoryItem?>(null) }
+    LaunchedEffect(requestedUri) {
+        if (requestedUri != null) {
+            selectedUri = requestedUri
+            item = null
+            onRequestConsumed()
+        }
+    }
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            val resolver = OndaStore.context.contentResolver
+            runCatching {
+                resolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                )
+            }
+                .onFailure {
+                    runCatching { resolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+                }
+            selectedUri = uri.toString()
         }
     }
     LaunchedEffect(selectedUri) {
-        val value=selectedUri ?: return@LaunchedEffect
+        val value = selectedUri ?: return@LaunchedEffect
         try {
-            item=withContext(Dispatchers.IO) {localAudioItem(Uri.parse(value))}
-        } catch(cancelled:CancellationException) {throw cancelled}
-        catch(error:Exception) {vm.showNotice("Escolher arquivo de áudio",uiExceptionMessage(error,"Não foi possível abrir o arquivo."));selectedUri=null}
+            item = withContext(Dispatchers.IO) { localAudioItem(Uri.parse(value)) }
+        } catch (
+            cancelled: CancellationException
+        ) {
+            throw cancelled
+        } catch (
+            error: Exception
+        ) {
+            vm.showNotice("Escolher arquivo de áudio", uiExceptionMessage(error, "Não foi possível abrir o arquivo."))
+            selectedUri =
+                null
+        }
     }
-    val audio=item
-    if(audio!=null) {
-        key(audio.uri) {AudioFileEditor(audio,vm){item=null;selectedUri=null}}
-    } else Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal=20.dp),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.section)) {
+    val audio = item
+    if (audio != null) {
+        key(audio.uri) {
+            AudioFileEditor(audio, vm) {
+                item = null
+                selectedUri = null
+            }
+        }
+    } else Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(LayoutSpacing.section)
+    ) {
         ToolHeading("Editar metadados")
-        ToolEmpty("tag","Sua música, seus detalhes","Escolha um áudio para editar informações, capa e letra.")
-        Button(onClick={picker.launch(arrayOf("audio/*","application/ogg"))},modifier=Modifier.fillMaxWidth()) {UiText("Escolher arquivo de áudio")}
-        OutlinedButton(onClick={batchSources=arrayListOf();batchOpen=true},modifier=Modifier.fillMaxWidth()){UiText("Editar metadados em lote")}
-        OutlinedButton(onClick=vm::undoMetadata,enabled=canUndo,modifier=Modifier.fillMaxWidth()){UiText("Desfazer última edição")}
-        UiText("MP3, M4A, FLAC, WAV, OGG e OPUS. Edite música, artistas, álbum, gênero, data, capa e letra.",style=MaterialTheme.typography.bodySmall)
-        UiText("Salve uma cópia ou ative Sobrescrever arquivo original. Para substituir o original, a pasta precisa permitir a edição.",style=MaterialTheme.typography.bodySmall)
+        ToolEmpty("tag", "Sua música, seus detalhes", "Escolha um áudio para editar informações, capa e letra.")
+        Button(onClick = {
+            picker.launch(arrayOf("audio/*", "application/ogg"))
+        }, modifier = Modifier.fillMaxWidth()) { UiText("Escolher arquivo de áudio") }
+        OutlinedButton(onClick = {
+            batchSources = arrayListOf()
+            batchOpen = true
+        }, modifier = Modifier.fillMaxWidth()) { UiText("Editar metadados em lote") }
+        OutlinedButton(onClick = vm::undoMetadata, enabled = canUndo, modifier = Modifier.fillMaxWidth()) {
+            UiText("Desfazer última edição")
+        }
+        UiText(
+            "MP3, M4A, FLAC, WAV, OGG e OPUS. Edite música, artistas, álbum, gênero, data, capa e letra.",
+            style = MaterialTheme.typography.bodySmall
+        )
+        UiText(
+            "Salve uma cópia ou ative Sobrescrever arquivo original. Para substituir o original, a pasta precisa permitir a edição.",
+            style = MaterialTheme.typography.bodySmall
+        )
     }
 }
 
-internal fun localAudioItem(uri:Uri):HistoryItem {
-    val resolver=OndaStore.context.contentResolver
-    var name=uri.lastPathSegment ?: "Áudio"
-    var size=0L
-    resolver.query(uri,arrayOf(OpenableColumns.DISPLAY_NAME,OpenableColumns.SIZE),null,null,null)?.use {cursor->
-        if(cursor.moveToFirst()) {
-            cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME).takeIf {it>=0 && !cursor.isNull(it)}?.let {name=cursor.getString(it)}
-            cursor.getColumnIndex(OpenableColumns.SIZE).takeIf {it>=0 && !cursor.isNull(it)}?.let {size=cursor.getLong(it)}
+internal fun localAudioItem(uri: Uri): HistoryItem {
+    val resolver = OndaStore.context.contentResolver
+    var name = uri.lastPathSegment ?: "Áudio"
+    var size = 0L
+    resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE), null, null, null)?.use { cursor ->
+        if (cursor.moveToFirst()) {
+            cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME).takeIf { it >= 0 && !cursor.isNull(it) }?.let {
+                name =
+                    cursor.getString(it)
+            }
+            cursor.getColumnIndex(OpenableColumns.SIZE).takeIf { it >= 0 && !cursor.isNull(it) }?.let {
+                size =
+                    cursor.getLong(it)
+            }
         }
     }
-    return HistoryItem(-1,name,uri.toString(),name.substringAfterLast('.',"").lowercase(),size)
+    return HistoryItem(-1, name, uri.toString(), name.substringAfterLast('.', "").lowercase(), size)
 }
 
 /** Optional tag hints without copying whole files into the app's imports folder. */
-internal fun localMetadataHint(uri:Uri):org.json.JSONObject {
-    val result=org.json.JSONObject()
+internal fun localMetadataHint(uri: Uri): org.json.JSONObject {
+    val result = org.json.JSONObject()
     try {
-        val reader=android.media.MediaMetadataRetriever()
+        val reader = android.media.MediaMetadataRetriever()
         try {
-            reader.setDataSource(OndaStore.context,uri)
-            reader.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_TITLE)?.takeIf {it.isNotBlank()}?.let {result.put("title",it)}
-            reader.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_ARTIST)?.takeIf {it.isNotBlank()}?.let {result.put("artists",org.json.JSONArray(it.split(';').map {part->part.trim()}.filter {part->part.isNotEmpty()}))}
-            reader.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_ALBUM)?.takeIf {it.isNotBlank()}?.let {result.put("album",it)}
-            reader.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)?.toDoubleOrNull()?.takeIf {it.isFinite() && it>0}?.let {result.put("duration",it/1000)}
-        } finally {reader.release()}
-    } catch(_:Exception) { /* Unsupported tags still allow searching by filename. */ }
+            reader.setDataSource(OndaStore.context, uri)
+            reader.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_TITLE)?.takeIf {
+                it.isNotBlank()
+            }?.let { result.put("title", it) }
+            reader.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_ARTIST)?.takeIf {
+                it.isNotBlank()
+            }?.let {
+                result.put(
+                    "artists",
+                    org.json.JSONArray(
+                        it.split(';').map { part ->
+                            part.trim()
+                        }.filter { part -> part.isNotEmpty() }
+                    )
+                )
+            }
+            reader.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_ALBUM)?.takeIf {
+                it.isNotBlank()
+            }?.let { result.put("album", it) }
+            reader.extractMetadata(
+                android.media.MediaMetadataRetriever.METADATA_KEY_DURATION
+            )?.toDoubleOrNull()?.takeIf {
+                it.isFinite() &&
+                    it > 0
+            }?.let { result.put("duration", it / 1000) }
+        } finally {
+            reader.release()
+        }
+    } catch (_: Exception) { /* Unsupported tags still allow searching by filename. */ }
     return result
 }

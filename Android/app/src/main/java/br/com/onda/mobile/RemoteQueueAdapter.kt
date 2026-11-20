@@ -8,4 +8,11 @@ internal fun RemoteQueueTrack.queueRecord(): JSONObject = JSONObject()
     .put("_queue_id", id).put("title", title).put("artists", JSONArray(listOf(artist)))
     .put("duration_ms", (duration * 1000).toLong()).put("cover_url", cover)
     .put("_recent_rank", recentRank)
-    .put("_analysis", when (preparation) { "pending", "preparing" -> "Preparando"; "error" -> "Erro"; else -> "Pronto" })
+    .put(
+        "_analysis",
+        when (preparation) {
+            "pending", "preparing" -> "Preparando"
+            "error" -> "Erro"
+            else -> "Pronto"
+        }
+    )

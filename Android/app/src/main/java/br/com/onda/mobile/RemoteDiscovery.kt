@@ -33,13 +33,20 @@ internal suspend fun discoverPlaybackDevices(): List<PlaybackDevice> = withConte
         while (System.nanoTime() < deadline) {
             currentCoroutineContext().ensureActive()
             val packet = DatagramPacket(ByteArray(1025), 1025)
-            try { socket.receive(packet) } catch (_: SocketTimeoutException) { continue }
+            try {
+                socket.receive(packet)
+            } catch (_: SocketTimeoutException) {
+                continue
+            }
             if (packet.length > 1024) continue
             runCatching {
                 val reply = JSONObject(String(packet.data, 0, packet.length, Charsets.UTF_8))
-                if (reply.optString("type") != "onda-device" || reply.optString("nonce") != nonce || reply.optInt("protocol") != 1) return@runCatching
+                if (reply.optString("type") != "onda-device" || reply.optString("nonce") != nonce ||
+                    reply.optInt("protocol") != 1
+                ) return@runCatching
                 val address = remoteEndpoint("${packet.address.hostAddress}:${reply.optInt("port")}")
-                found[address] = PlaybackDevice(address, reply.optString("name", "ONDA PC").take(80).ifBlank { "ONDA PC" })
+                found[address] =
+                    PlaybackDevice(address, reply.optString("name", "ONDA PC").take(80).ifBlank { "ONDA PC" })
             }
         }
     }

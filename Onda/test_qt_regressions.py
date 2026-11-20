@@ -420,7 +420,8 @@ class ReviewRegressionTests(unittest.TestCase):
 
     def test_instagram_worker_uses_its_own_session(self):
         self.ws.settings.update(
-            social_cookies='/social.txt', youtube_cookies='/youtube.txt',
+            social_cookies='/social.txt',
+            youtube_cookies='/youtube.txt',
             instagram_cookies='/instagram.txt',
         )
         with patch.object(self.ws, 'process_worker') as worker:

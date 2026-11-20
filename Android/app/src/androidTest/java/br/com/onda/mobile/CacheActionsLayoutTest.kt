@@ -17,19 +17,24 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class CacheActionsLayoutTest {
-    @get:Rule val compose=createComposeRule()
+    @get:Rule val compose = createComposeRule()
+
     @Test fun refreshIsOnTheLeftAndClearIsOnTheSameRow() {
-        val context=InstrumentationRegistry.getInstrumentation().targetContext
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
         OndaStore.initialize(context)
-        val vm=OndaViewModel(androidx.test.core.app.ApplicationProvider.getApplicationContext())
-        compose.setContent {LocalizedTheme("pt-BR",lightColorScheme(),Typography()) {
-            Column(Modifier.width(320.dp).height(600.dp).verticalScroll(rememberScrollState())){CacheControls(vm)}
-        }}
+        val vm = OndaViewModel(androidx.test.core.app.ApplicationProvider.getApplicationContext())
+        compose.setContent {
+            LocalizedTheme("pt-BR", lightColorScheme(), Typography()) {
+                Column(Modifier.width(320.dp).height(600.dp).verticalScroll(rememberScrollState())) {
+                    CacheControls(vm)
+                }
+            }
+        }
         compose.onNodeWithText("Atualizar tamanho").performScrollTo()
-        val left=compose.onNodeWithText("Atualizar tamanho").fetchSemanticsNode().boundsInRoot
-        val right=compose.onNodeWithText("Limpar arquivos dispensáveis").fetchSemanticsNode().boundsInRoot
-        assertTrue(left.right<=right.left)
-        assertTrue(kotlin.math.abs(left.center.y-right.center.y)<2f)
+        val left = compose.onNodeWithText("Atualizar tamanho").fetchSemanticsNode().boundsInRoot
+        val right = compose.onNodeWithText("Limpar arquivos dispensáveis").fetchSemanticsNode().boundsInRoot
+        assertTrue(left.right <= right.left)
+        assertTrue(kotlin.math.abs(left.center.y - right.center.y) < 2f)
         compose.onNodeWithText("Limpar arquivos dispensáveis").assertIsDisplayed()
     }
 }

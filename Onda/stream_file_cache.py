@@ -52,6 +52,7 @@ def prepare(model, config, cancelled=lambda: False):
     }
 
     from playback_cache_budget import recent_paths
+
     recent = recent_paths(root.parent)
 
     def prune(reserve=0):

@@ -32,7 +32,14 @@ def edit_batch(config, emit=lambda *args, **kwargs: None, *, cancelled=lambda: F
         if not isinstance(entry, dict) or not isinstance(entry.get('source'), str):
             raise ValueError('Escolha um arquivo de áudio compatível.')
         validate_changes(entry.get('changes', {}))
-    if not changes and not config.get('cover_path') and not config.get('cover_url') and not config.get('tag_transfer') and not config.get('tag_transfer_path') and not any(entry.get('changes') or entry.get('cover_url') for entry in entries):
+    if (
+        not changes
+        and not config.get('cover_path')
+        and not config.get('cover_url')
+        and not config.get('tag_transfer')
+        and not config.get('tag_transfer_path')
+        and not any(entry.get('changes') or entry.get('cover_url') for entry in entries)
+    ):
         raise ValueError('Selecione pelo menos um campo ou uma capa para aplicar.')
     results, errors, seen = [], [], set()
     for index, entry in enumerate(entries):
@@ -44,7 +51,13 @@ def edit_batch(config, emit=lambda *args, **kwargs: None, *, cancelled=lambda: F
         seen.add(path)
         fields = dict(entry.get('changes', {}), **changes)
         cover_url = config.get('cover_url') or entry.get('cover_url') or ''
-        if not fields and not config.get('cover_path') and not cover_url and not config.get('tag_transfer') and not config.get('tag_transfer_path'):
+        if (
+            not fields
+            and not config.get('cover_path')
+            and not cover_url
+            and not config.get('tag_transfer')
+            and not config.get('tag_transfer_path')
+        ):
             continue
         emit('stage', message=f'Editando arquivo {index + 1} de {len(entries)}')
         try:
@@ -56,7 +69,7 @@ def edit_batch(config, emit=lambda *args, **kwargs: None, *, cancelled=lambda: F
                 cover_url=cover_url,
                 edit_metadata=True,
                 normalize_volume=False,
-                lyrics_path=config.get('lyrics_path',''),
+                lyrics_path=config.get('lyrics_path', ''),
             )
             if config.get('_android_batch'):
                 options['overwrite_original'] = False

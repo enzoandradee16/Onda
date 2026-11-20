@@ -2,13 +2,22 @@ const repo = "https://github.com/enzoandradee16/Onda";
 const latest = `${repo}/releases/latest`;
 const copy = {
   pt: {
-    newScreenLabels: ["Remoção de fundo no Windows", "Jukebox no Windows", "Reprodução no Android", "Jukebox no Android", "Dispositivos de reprodução no Android"],
+    newScreenLabels: [
+      "Remoção de fundo no Windows",
+      "Jukebox no Windows",
+      "Reprodução no Android",
+      "Jukebox no Android",
+      "Dispositivos de reprodução no Android"
+    ],
     emulator: "Android para emulador",
-    emulatorBody: "Android 8 ou superior · x86_64. Para emuladores compatíveis, como BlueStacks.",
+    emulatorBody:
+      "Android 8 ou superior · x86_64. Para emuladores compatíveis, como BlueStacks.",
     visualTitle: "Reprodução, com outra cara.",
-    visualIntro: "Jukebox infinito, efeitos, letras sincronizadas e um player que acompanha sua música.",
+    visualIntro:
+      "Jukebox infinito, efeitos, letras sincronizadas e um player que acompanha sua música.",
     galleryTitle: "Seu player. Em cada tela.",
-    galleryIntro: "Da barra compacta à letra em tela cheia, com a capa do álbum sempre por perto.",
+    galleryIntro:
+      "Da barra compacta à letra em tela cheia, com a capa do álbum sempre por perto.",
     playerLabel: "Player no Android",
     lyricsLabel: "Letras em tela cheia",
     miniLabel: "Miniplayer no Windows",
@@ -17,8 +26,16 @@ const copy = {
     androidSearchAlt: "Pesquisa de músicas no ONDA para Android, no tema preto puro",
     closeImage: "Fechar imagem",
     moreTitle: "Conheça mais do ONDA.",
-    moreIntro: "Organize seus downloads, edite suas músicas e cuide das suas imagens. Clique nas capturas para ver os detalhes.",
-    moreLabels: ["Editar metadados no Windows", "Fila de downloads no Windows", "Efeitos de áudio no Windows", "Conversão de imagens no Windows", "Álbuns e playlists no Android", "Downloads no Android"],
+    moreIntro:
+      "Organize seus downloads, edite suas músicas e cuide das suas imagens. Clique nas capturas para ver os detalhes.",
+    moreLabels: [
+      "Editar metadados no Windows",
+      "Fila de downloads no Windows",
+      "Efeitos de áudio no Windows",
+      "Conversão de imagens no Windows",
+      "Álbuns e playlists no Android",
+      "Downloads no Android"
+    ],
 
     lang: "pt-BR",
     nav: ["Início", "Downloads", "Recursos", "Guia", "Novidades", "Sobre"],
@@ -40,7 +57,8 @@ const copy = {
     portable: "Portátil",
     apk: "Android",
     installerBody: "Windows 10 ou superior · x64. Instale com atalhos e desinstalador.",
-    portableBody: "Windows 10 ou superior · x64. Extraia o ZIP inteiro e abra Onda.exe.",
+    portableBody:
+      "Windows 10 ou superior · x64. Extraia o ZIP inteiro e abra Onda.exe.",
     apkBody: "Android 8 ou superior · ARM64. Instale o APK no seu aparelho.",
     get: "Baixar",
     releaseFiles: "Todos os arquivos e verificações SHA-256 ↗",
@@ -51,16 +69,16 @@ const copy = {
     features: [
       [
         "Pesquisar e baixar",
-        "Encontre músicas e metadados no Deezer, Apple Music e Spotify. Adicione links à fila e escolha formato e qualidade.",
+        "Encontre músicas e metadados no Deezer, Apple Music e Spotify. Adicione links à fila e escolha formato e qualidade."
       ],
       [
         "Organizar sua biblioteca",
-        "Importe álbuns e playlists, acompanhe a fila e encontre seus arquivos no histórico, em lista ou cards.",
+        "Importe álbuns e playlists, acompanhe a fila e encontre seus arquivos no histórico, em lista ou cards."
       ],
       [
         "Editar do seu jeito",
-        "Edite metadados e capas, converta imagens e aplique Slowed, Sped Up e Reverb com prévia.",
-      ],
+        "Edite metadados e capas, converta imagens e aplique Slowed, Sped Up e Reverb com prévia."
+      ]
     ],
     featureNote:
       "Português, espanhol e inglês. Temas claro, escuro e preto puro, cores de destaque e recursos de acessibilidade.",
@@ -69,20 +87,20 @@ const copy = {
     guide: [
       [
         "Como abrir no Windows?",
-        "Use o instalador ou extraia todo o pacote portátil. Na versão portátil, mantenha Onda.exe junto das pastas Onda e _runtime. O FFmpeg é baixado automaticamente no primeiro uso.",
+        "Use o instalador ou extraia todo o pacote portátil. Na versão portátil, mantenha Onda.exe junto das pastas Onda e _runtime. O FFmpeg é baixado automaticamente no primeiro uso."
       ],
       [
         "Como instalar no Android?",
-        "Baixe o APK e abra o arquivo. Se o Android pedir, permita a instalação pela origem utilizada. Nas próximas atualizações, o ONDA pode baixar o pacote dentro do aplicativo; a instalação depende da sua confirmação no Android.",
+        "Baixe o APK e abra o arquivo. Se o Android pedir, permita a instalação pela origem utilizada. Nas próximas atualizações, o ONDA pode baixar o pacote dentro do aplicativo; a instalação depende da sua confirmação no Android."
       ],
       [
         "Como baixar uma música?",
-        "Pesquise por artista ou música, selecione o resultado e escolha o formato. Você também pode colar um link em Links e fila e adicionar à fila.",
+        "Pesquise por artista ou música, selecione o resultado e escolha o formato. Você também pode colar um link em Links e fila e adicionar à fila."
       ],
       [
         "De onde vem o áudio?",
-        "MP3 e M4A usam uma versão equivalente do YouTube. FLAC usa o acervo Monochrome quando há correspondência compatível. A disponibilidade varia conforme a fonte.",
-      ],
+        "MP3 e M4A usam uma versão equivalente do YouTube. FLAC usa o acervo Monochrome quando há correspondência compatível. A disponibilidade varia conforme a fonte."
+      ]
     ],
     fullGuide: "Documentação completa ↗",
     newsTitle: "O que há de novo.",
@@ -103,16 +121,25 @@ const copy = {
       "Este site não usa cookies de rastreamento, anúncios ou ferramentas de análise. As preferências de idioma e tema são salvas apenas neste navegador. Para mostrar a versão atual e os downloads, o site consulta a API pública do GitHub; a hospedagem e os downloads também usam os serviços do GitHub.",
     privacyMore: "Declaração de privacidade do GitHub ↗",
     localNote:
-      "A preferência de idioma pode não ser salva se o armazenamento do navegador estiver bloqueado.",
+      "A preferência de idioma pode não ser salva se o armazenamento do navegador estiver bloqueado."
   },
   es: {
-    newScreenLabels: ["Eliminar fondo en Windows", "Jukebox en Windows", "Reproducción en Android", "Jukebox en Android", "Dispositivos de reproducción en Android"],
+    newScreenLabels: [
+      "Eliminar fondo en Windows",
+      "Jukebox en Windows",
+      "Reproducción en Android",
+      "Jukebox en Android",
+      "Dispositivos de reproducción en Android"
+    ],
     emulator: "Android para emulador",
-    emulatorBody: "Android 8 o superior · x86_64. Para emuladores compatibles, como BlueStacks.",
+    emulatorBody:
+      "Android 8 o superior · x86_64. Para emuladores compatibles, como BlueStacks.",
     visualTitle: "La reproducción tiene nueva cara.",
-    visualIntro: "Jukebox infinito, efectos, letras sincronizadas y un reproductor que acompaña tu música.",
+    visualIntro:
+      "Jukebox infinito, efectos, letras sincronizadas y un reproductor que acompaña tu música.",
     galleryTitle: "Tu reproductor. En cada pantalla.",
-    galleryIntro: "Desde la barra compacta hasta las letras a pantalla completa, con la portada del álbum siempre cerca.",
+    galleryIntro:
+      "Desde la barra compacta hasta las letras a pantalla completa, con la portada del álbum siempre cerca.",
     playerLabel: "Reproductor en Android",
     lyricsLabel: "Letras a pantalla completa",
     miniLabel: "Minirreproductor en Windows",
@@ -121,8 +148,16 @@ const copy = {
     androidSearchAlt: "Búsqueda de música en ONDA para Android, con tema negro puro",
     closeImage: "Cerrar imagen",
     moreTitle: "Descubre más de ONDA.",
-    moreIntro: "Organiza tus descargas, edita tu música y trabaja con tus imágenes. Haz clic en las capturas para ver los detalles.",
-    moreLabels: ["Editar metadatos en Windows", "Cola de descargas en Windows", "Efectos de audio en Windows", "Conversión de imágenes en Windows", "Álbumes y playlists en Android", "Descargas en Android"],
+    moreIntro:
+      "Organiza tus descargas, edita tu música y trabaja con tus imágenes. Haz clic en las capturas para ver los detalles.",
+    moreLabels: [
+      "Editar metadatos en Windows",
+      "Cola de descargas en Windows",
+      "Efectos de audio en Windows",
+      "Conversión de imágenes en Windows",
+      "Álbumes y playlists en Android",
+      "Descargas en Android"
+    ],
 
     lang: "es",
     nav: ["Inicio", "Descargas", "Funciones", "Guía", "Novedades", "Acerca de"],
@@ -156,16 +191,16 @@ const copy = {
     features: [
       [
         "Buscar y descargar",
-        "Encuentra música y metadatos en Deezer, Apple Music y Spotify. Añade enlaces a la cola y elige formato y calidad.",
+        "Encuentra música y metadatos en Deezer, Apple Music y Spotify. Añade enlaces a la cola y elige formato y calidad."
       ],
       [
         "Organizar tu biblioteca",
-        "Importa álbumes y listas de reproducción, sigue la cola y encuentra tus archivos en el historial, en lista o tarjetas.",
+        "Importa álbumes y listas de reproducción, sigue la cola y encuentra tus archivos en el historial, en lista o tarjetas."
       ],
       [
         "Editar a tu manera",
-        "Edita metadatos y portadas, convierte imágenes y aplica Slowed, Sped Up y Reverb con vista previa.",
-      ],
+        "Edita metadatos y portadas, convierte imágenes y aplica Slowed, Sped Up y Reverb con vista previa."
+      ]
     ],
     featureNote:
       "Portugués, español e inglés. Temas claro, oscuro y negro puro, colores de acento y funciones de accesibilidad.",
@@ -174,20 +209,20 @@ const copy = {
     guide: [
       [
         "¿Cómo abrirlo en Windows?",
-        "Usa el instalador o extrae todo el paquete portátil. En la versión portátil, mantén Onda.exe junto a las carpetas Onda y _runtime. FFmpeg se descarga automáticamente en el primer uso.",
+        "Usa el instalador o extrae todo el paquete portátil. En la versión portátil, mantén Onda.exe junto a las carpetas Onda y _runtime. FFmpeg se descarga automáticamente en el primer uso."
       ],
       [
         "¿Cómo instalarlo en Android?",
-        "Descarga el APK y abre el archivo. Si Android lo solicita, permite la instalación desde el origen utilizado. Para próximas actualizaciones, ONDA puede descargar el paquete dentro de la aplicación; la instalación requiere tu confirmación en Android.",
+        "Descarga el APK y abre el archivo. Si Android lo solicita, permite la instalación desde el origen utilizado. Para próximas actualizaciones, ONDA puede descargar el paquete dentro de la aplicación; la instalación requiere tu confirmación en Android."
       ],
       [
         "¿Cómo descargar una canción?",
-        "Busca un artista o canción, selecciona el resultado y elige el formato. También puedes pegar un enlace en Enlaces y cola y añadirlo a la cola.",
+        "Busca un artista o canción, selecciona el resultado y elige el formato. También puedes pegar un enlace en Enlaces y cola y añadirlo a la cola."
       ],
       [
         "¿De dónde viene el audio?",
-        "MP3 y M4A usan una versión equivalente de YouTube. FLAC usa el catálogo de Monochrome cuando hay una coincidencia compatible. La disponibilidad varía según la fuente.",
-      ],
+        "MP3 y M4A usan una versión equivalente de YouTube. FLAC usa el catálogo de Monochrome cuando hay una coincidencia compatible. La disponibilidad varía según la fuente."
+      ]
     ],
     fullGuide: "Documentación completa ↗",
     newsTitle: "Qué hay de nuevo.",
@@ -206,16 +241,25 @@ const copy = {
     privacyTitle: "Privacidad del sitio.",
     privacyBody:
       "Este sitio no usa cookies de seguimiento, anuncios ni herramientas de análisis. Las preferencias de idioma y tema se guardan solo en este navegador. Para mostrar la versión actual y las descargas, consulta la API pública de GitHub; el alojamiento y las descargas también utilizan los servicios de GitHub.",
-    privacyMore: "Declaración de privacidad de GitHub ↗",
+    privacyMore: "Declaración de privacidad de GitHub ↗"
   },
   en: {
-    newScreenLabels: ["Background removal on Windows", "Jukebox on Windows", "Playback on Android", "Jukebox on Android", "Playback devices on Android"],
+    newScreenLabels: [
+      "Background removal on Windows",
+      "Jukebox on Windows",
+      "Playback on Android",
+      "Jukebox on Android",
+      "Playback devices on Android"
+    ],
     emulator: "Android for emulators",
-    emulatorBody: "Android 8 or later · x86_64. For compatible emulators, such as BlueStacks.",
+    emulatorBody:
+      "Android 8 or later · x86_64. For compatible emulators, such as BlueStacks.",
     visualTitle: "A fresh look for playback.",
-    visualIntro: "Infinite Jukebox, effects, synced lyrics and a player that follows your music.",
+    visualIntro:
+      "Infinite Jukebox, effects, synced lyrics and a player that follows your music.",
     galleryTitle: "Your player. On every screen.",
-    galleryIntro: "From the compact bar to full-screen lyrics, with album artwork close at hand.",
+    galleryIntro:
+      "From the compact bar to full-screen lyrics, with album artwork close at hand.",
     playerLabel: "Android player",
     lyricsLabel: "Full-screen lyrics",
     miniLabel: "Windows miniplayer",
@@ -224,8 +268,16 @@ const copy = {
     androidSearchAlt: "Music search in ONDA for Android, with the pure black theme",
     closeImage: "Close image",
     moreTitle: "Discover more of ONDA.",
-    moreIntro: "Organize downloads, edit your music and work with your images. Click the screenshots for a closer look.",
-    moreLabels: ["Edit metadata on Windows", "Download queue on Windows", "Audio effects on Windows", "Image conversion on Windows", "Albums and playlists on Android", "Downloads on Android"],
+    moreIntro:
+      "Organize downloads, edit your music and work with your images. Click the screenshots for a closer look.",
+    moreLabels: [
+      "Edit metadata on Windows",
+      "Download queue on Windows",
+      "Audio effects on Windows",
+      "Image conversion on Windows",
+      "Albums and playlists on Android",
+      "Downloads on Android"
+    ],
 
     lang: "en",
     nav: ["Home", "Downloads", "Features", "Guide", "News", "About"],
@@ -248,7 +300,8 @@ const copy = {
     apk: "Android",
     installerBody:
       "Windows 10 or later · x64. Install with shortcuts and an uninstaller.",
-    portableBody: "Windows 10 or later · x64. Extract the entire ZIP and open Onda.exe.",
+    portableBody:
+      "Windows 10 or later · x64. Extract the entire ZIP and open Onda.exe.",
     apkBody: "Android 8 or later · ARM64. Install the APK on your device.",
     get: "Download",
     releaseFiles: "All files and SHA-256 checksums ↗",
@@ -259,16 +312,16 @@ const copy = {
     features: [
       [
         "Search and download",
-        "Find music and metadata on Deezer, Apple Music and Spotify. Add links to the queue and choose a format and quality.",
+        "Find music and metadata on Deezer, Apple Music and Spotify. Add links to the queue and choose a format and quality."
       ],
       [
         "Organize your library",
-        "Import albums and playlists, follow the queue and find your files in history, as a list or cards.",
+        "Import albums and playlists, follow the queue and find your files in history, as a list or cards."
       ],
       [
         "Edit your way",
-        "Edit metadata and covers, convert images and apply Slowed, Sped Up and Reverb with a preview.",
-      ],
+        "Edit metadata and covers, convert images and apply Slowed, Sped Up and Reverb with a preview."
+      ]
     ],
     featureNote:
       "Portuguese, Spanish and English. Light, dark and pure black themes, accent colors and accessibility features.",
@@ -277,20 +330,20 @@ const copy = {
     guide: [
       [
         "How do I open it on Windows?",
-        "Use the installer or extract the entire portable package. For the portable version, keep Onda.exe alongside the Onda and _runtime folders. FFmpeg is downloaded automatically on first use.",
+        "Use the installer or extract the entire portable package. For the portable version, keep Onda.exe alongside the Onda and _runtime folders. FFmpeg is downloaded automatically on first use."
       ],
       [
         "How do I install it on Android?",
-        "Download the APK and open the file. If Android asks, allow installation from the source you used. For future updates, ONDA can download the package within the app; installation requires your confirmation in Android.",
+        "Download the APK and open the file. If Android asks, allow installation from the source you used. For future updates, ONDA can download the package within the app; installation requires your confirmation in Android."
       ],
       [
         "How do I download a track?",
-        "Search for an artist or track, select a result and choose a format. You can also paste a link into Links and queue and add it to the queue.",
+        "Search for an artist or track, select a result and choose a format. You can also paste a link into Links and queue and add it to the queue."
       ],
       [
         "Where does the audio come from?",
-        "MP3 and M4A use an equivalent version from YouTube. FLAC uses the Monochrome catalog when a compatible match is available. Availability varies by source.",
-      ],
+        "MP3 and M4A use an equivalent version from YouTube. FLAC uses the Monochrome catalog when a compatible match is available. Availability varies by source."
+      ]
     ],
     fullGuide: "Full documentation ↗",
     newsTitle: "What’s new.",
@@ -309,8 +362,8 @@ const copy = {
     privacyTitle: "Website privacy.",
     privacyBody:
       "This website uses no tracking cookies, ads or analytics tools. Your language and theme preferences are saved only in this browser. To show the current version and downloads, the site queries the public GitHub API; hosting and downloads also use GitHub services.",
-    privacyMore: "GitHub privacy statement ↗",
-  },
+    privacyMore: "GitHub privacy statement ↗"
+  }
 };
 const routes = ["home", "downloads", "features", "guide", "news", "about", "privacy"];
 let language = "pt";
@@ -324,14 +377,14 @@ const main = document.querySelector("main");
 const esc = (value) =>
   String(value).replace(
     /[&<>"']/g,
-    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c],
+    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]
   );
 function assetUrl(kind) {
   const patterns = {
     installer: /Setup-Windows-x64\.exe$/i,
     portable: /(?:Portable|Portatil)-Windows-x64\.zip$/i,
     apk: /Android-.*arm64-v8a\.apk$/i,
-    emulator: /Android-.*x86_64\.apk$/i,
+    emulator: /Android-.*x86_64\.apk$/i
   };
   const asset = release?.assets?.find((a) => patterns[kind].test(a.name));
   const url = asset?.browser_download_url;
@@ -348,8 +401,8 @@ function releaseLabel(t) {
       <time datetime="${esc(release.published_at)}">
         ${esc(
           new Intl.DateTimeFormat(t.lang, { dateStyle: "long" }).format(
-            new Date(release.published_at),
-          ),
+            new Date(release.published_at)
+          )
         )}
       </time>
     </p>
@@ -383,21 +436,35 @@ function platformIcon(platform) {
 
 const themeButton = document.querySelector("#theme-toggle");
 const themeLabels = {
-  pt: ["Modo claro", "Modo escuro", "Pesquisa de músicas no ONDA para Windows, no tema claro"],
-  es: ["Modo claro", "Modo oscuro", "Búsqueda de música en ONDA para Windows, en tema claro"],
-  en: ["Light mode", "Dark mode", "Music search in ONDA for Windows, in light mode"],
+  pt: [
+    "Modo claro",
+    "Modo escuro",
+    "Pesquisa de músicas no ONDA para Windows, no tema claro"
+  ],
+  es: [
+    "Modo claro",
+    "Modo oscuro",
+    "Búsqueda de música en ONDA para Windows, en tema claro"
+  ],
+  en: ["Light mode", "Dark mode", "Music search in ONDA for Windows, in light mode"]
 };
 function updateTheme() {
   const light = document.documentElement.dataset.theme === "light";
   const themeLabel = themeLabels[language][light ? 1 : 0];
   themeButton.setAttribute("aria-label", themeLabel);
   themeButton.title = themeLabel;
-  themeButton.innerHTML = `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${light
-    ? '<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/>'
-    : '<path d="M20.9 13A9 9 0 0 1 11 3.1 9 9 0 1 0 20.9 13Z"/>'}</svg>`;
+  themeButton.innerHTML = `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${
+    light
+      ? '<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/>'
+      : '<path d="M20.9 13A9 9 0 0 1 11 3.1 9 9 0 1 0 20.9 13Z"/>'
+  }</svg>`;
   themeButton.setAttribute("aria-pressed", String(light));
-  document.querySelector('meta[name="theme-color"]').content = light ? "#f3f6fa" : "#0d1318";
-  const desktop = main.querySelector(".hero-screens .shot, .feature-search .feature-desktop, .guide-search .feature-desktop");
+  document.querySelector('meta[name="theme-color"]').content = light
+    ? "#f3f6fa"
+    : "#0d1318";
+  const desktop = main.querySelector(
+    ".hero-screens .shot, .feature-search .feature-desktop, .guide-search .feature-desktop"
+  );
   if (desktop) {
     const image = desktop.querySelector("img");
     const source = `assets/desktop-search${light ? "-light" : ""}.png`;
@@ -407,11 +474,15 @@ function updateTheme() {
     desktop.setAttribute("aria-label", `${copy[language].enlarge}: ${image.alt}`);
     image.height = 1015;
   }
-  const phone = main.querySelector(".hero-screens .phone-shot, .feature-search .feature-phone, .guide-search .feature-phone");
+  const phone = main.querySelector(
+    ".hero-screens .phone-shot, .feature-search .feature-phone, .guide-search .feature-phone"
+  );
   if (phone) {
     const image = phone.querySelector("img");
     const source = `assets/android-search${light ? "-light" : ""}-cropped.png`;
-    const alt = light ? themeLabels[language][2].replace("Windows", "Android") : copy[language].androidSearchAlt;
+    const alt = light
+      ? themeLabels[language][2].replace("Windows", "Android")
+      : copy[language].androidSearchAlt;
     phone.href = source;
     phone.setAttribute("aria-label", `${copy[language].enlarge}: ${alt}`);
     image.src = source;
@@ -421,7 +492,9 @@ function updateTheme() {
 themeButton.addEventListener("click", () => {
   const theme = document.documentElement.dataset.theme === "light" ? "dark" : "light";
   document.documentElement.dataset.theme = theme;
-  try { localStorage.setItem("onda-site-theme", theme); } catch {}
+  try {
+    localStorage.setItem("onda-site-theme", theme);
+  } catch {}
   updateTheme();
 });
 
@@ -435,10 +508,18 @@ function revealElement(element, animate = true) {
   revealedSections.add(element.dataset.revealKey);
   revealObserver?.unobserve(element);
   if (!animate || revealMotion.matches) return;
-  const animation = element.animate([
-    { opacity: 0, translate: `${element.dataset.revealX}px 22px` },
-    { opacity: 1, translate: "0 0" },
-  ], { duration: 580, delay: Number(element.dataset.revealDelay), easing: "cubic-bezier(0.22, 1, 0.36, 1)", fill: "backwards" });
+  const animation = element.animate(
+    [
+      { opacity: 0, translate: `${element.dataset.revealX}px 22px` },
+      { opacity: 1, translate: "0 0" }
+    ],
+    {
+      duration: 580,
+      delay: Number(element.dataset.revealDelay),
+      easing: "cubic-bezier(0.22, 1, 0.36, 1)",
+      fill: "backwards"
+    }
+  );
   revealAnimations.add(animation);
   animation.finished.catch(() => {}).finally(() => revealAnimations.delete(animation));
 }
@@ -446,20 +527,41 @@ function setupScrollReveals(route) {
   revealObserver?.disconnect();
   revealAnimations.forEach((animation) => animation.cancel());
   revealAnimations.clear();
-  if (revealMotion.matches || !window.IntersectionObserver || !main.animate || !["home", "features", "guide"].includes(route)) return;
-  revealObserver = new IntersectionObserver((entries) => {
-    entries.forEach((entry) => {
-      if (entry.isIntersecting) revealElement(entry.target);
-    });
-  }, { threshold: 0, rootMargin: "0px 0px -24px 0px" });
-  const elements = main.querySelectorAll(".hero > div, .section-heading, .gallery > figure, .gallery > .gallery-detail, .feature-story, .feature-editor > .feature-copy, .feature-tools > figure, .feature-personal, .guide-platform, .guide-source, .guide-documentation");
+  if (
+    revealMotion.matches ||
+    !window.IntersectionObserver ||
+    !main.animate ||
+    !["home", "features", "guide"].includes(route)
+  )
+    return;
+  revealObserver = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) revealElement(entry.target);
+      });
+    },
+    { threshold: 0, rootMargin: "0px 0px -24px 0px" }
+  );
+  const elements = main.querySelectorAll(
+    ".hero > div, .section-heading, .gallery > figure, .gallery > .gallery-detail, .feature-story, .feature-editor > .feature-copy, .feature-tools > figure, .feature-personal, .guide-platform, .guide-source, .guide-documentation"
+  );
   elements.forEach((element, index) => {
     const key = `${language}:${route}:${index}`;
     if (revealedSections.has(key)) return;
     element.dataset.revealKey = key;
-    element.dataset.revealX = element.matches(".hero > div:first-child, .feature-story:not(.feature-reverse)") ? -28 : element.matches(".hero-screens, .feature-reverse") ? 28 : 0;
+    element.dataset.revealX = element.matches(
+      ".hero > div:first-child, .feature-story:not(.feature-reverse)"
+    )
+      ? -28
+      : element.matches(".hero-screens, .feature-reverse")
+        ? 28
+        : 0;
     const siblings = [...element.parentElement.children];
-    element.dataset.revealDelay = element.parentElement.matches(".gallery, .feature-tools, .guide-platforms") ? Math.min(siblings.indexOf(element), 2) * 70 : 0;
+    element.dataset.revealDelay = element.parentElement.matches(
+      ".gallery, .feature-tools, .guide-platforms"
+    )
+      ? Math.min(siblings.indexOf(element), 2) * 70
+      : 0;
     element.classList.add("scroll-reveal-pending");
     revealObserver.observe(element);
   });
@@ -472,12 +574,16 @@ revealMotion.addEventListener("change", () => {
   if (!revealMotion.matches) return;
   revealObserver?.disconnect();
   revealAnimations.forEach((animation) => animation.cancel());
-  main.querySelectorAll(".scroll-reveal-pending").forEach((element) => revealElement(element, false));
+  main
+    .querySelectorAll(".scroll-reveal-pending")
+    .forEach((element) => revealElement(element, false));
 });
 
 function render() {
   const t = copy[language];
-  const route = routes.includes(location.hash.slice(1)) ? location.hash.slice(1) : "home";
+  const route = routes.includes(location.hash.slice(1))
+    ? location.hash.slice(1)
+    : "home";
   document.documentElement.lang = t.lang;
   document.querySelector("#language").value = language;
   document.querySelector("#language").setAttribute("aria-label", t.language);
@@ -516,7 +622,7 @@ function render() {
               assetUrl("apk"),
               t.android,
               "button outline",
-              "android",
+              "android"
             )}
           </div>
           <p class="facts">${t.facts}</p>
@@ -556,22 +662,46 @@ function render() {
       <section class="showcase" aria-labelledby="more-screens-title">
         <div class="section-heading"><p class="eyebrow">Windows & Android</p><h2 id="more-screens-title">${t.moreTitle}</h2><p>${t.moreIntro}</p></div>
         <div class="gallery more-desktop">
-          ${[['desktop-metadata.png',1005],['desktop-downloads.png',1014],['desktop-effects.png',1017],['desktop-images.png',1013]].map(([file,height],index) => `
+          ${[
+            ["desktop-metadata.png", 1005],
+            ["desktop-downloads.png", 1014],
+            ["desktop-effects.png", 1017],
+            ["desktop-images.png", 1013]
+          ]
+            .map(
+              ([file, height], index) => `
             <figure><a href="assets/${file}" aria-label="${t.enlarge}: ${t.moreLabels[index]}"><img src="assets/${file}" alt="${t.moreLabels[index]}" width="1920" height="${height}" loading="lazy" decoding="async"></a><figcaption>${t.moreLabels[index]}</figcaption></figure>
-          `).join('')}
+          `
+            )
+            .join("")}
         </div>
         <div class="gallery more-mobile">
-          ${['android-library.png','android-downloads.png'].map((file,index) => `
-            <figure><a href="assets/${file}" aria-label="${t.enlarge}: ${t.moreLabels[index+4]}"><img src="assets/${file}" alt="${t.moreLabels[index+4]}" width="576" height="1193" loading="lazy" decoding="async"></a><figcaption>${t.moreLabels[index+4]}</figcaption></figure>
-          `).join('')}
+          ${["android-library.png", "android-downloads.png"]
+            .map(
+              (file, index) => `
+            <figure><a href="assets/${file}" aria-label="${t.enlarge}: ${t.moreLabels[index + 4]}"><img src="assets/${file}" alt="${t.moreLabels[index + 4]}" width="576" height="1193" loading="lazy" decoding="async"></a><figcaption>${t.moreLabels[index + 4]}</figcaption></figure>
+          `
+            )
+            .join("")}
         </div>
       <div class="gallery more-desktop latest-screens">
-          ${[["desktop-background-removal.png", 1011], ["desktop-jukebox.png", 1013]].map(([file, height], index) => `
-            <figure><a href="assets/${file}" aria-label="${t.enlarge}: ${t.newScreenLabels[index]}"><img src="assets/${file}" alt="${t.newScreenLabels[index]}" width="1920" height="${height}" loading="lazy" decoding="async"></a><figcaption>${t.newScreenLabels[index]}</figcaption></figure>`).join("")}
+          ${[
+            ["desktop-background-removal.png", 1011],
+            ["desktop-jukebox.png", 1013]
+          ]
+            .map(
+              ([file, height], index) => `
+            <figure><a href="assets/${file}" aria-label="${t.enlarge}: ${t.newScreenLabels[index]}"><img src="assets/${file}" alt="${t.newScreenLabels[index]}" width="1920" height="${height}" loading="lazy" decoding="async"></a><figcaption>${t.newScreenLabels[index]}</figcaption></figure>`
+            )
+            .join("")}
         </div>
         <div class="gallery latest-mobile">
-          ${["android-playback.png", "android-jukebox.png", "android-devices.png"].map((file, index) => `
-            <figure><a href="assets/${file}" aria-label="${t.enlarge}: ${t.newScreenLabels[index+2]}"><img src="assets/${file}" alt="${t.newScreenLabels[index+2]}" width="576" height="1193" loading="lazy" decoding="async"></a><figcaption>${t.newScreenLabels[index+2]}</figcaption></figure>`).join("")}
+          ${["android-playback.png", "android-jukebox.png", "android-devices.png"]
+            .map(
+              (file, index) => `
+            <figure><a href="assets/${file}" aria-label="${t.enlarge}: ${t.newScreenLabels[index + 2]}"><img src="assets/${file}" alt="${t.newScreenLabels[index + 2]}" width="576" height="1193" loading="lazy" decoding="async"></a><figcaption>${t.newScreenLabels[index + 2]}</figcaption></figure>`
+            )
+            .join("")}
         </div>
       </section>
     `;
@@ -591,10 +721,10 @@ function render() {
                     assetUrl(k),
                     t.get,
                     "button" + (k === "installer" ? "" : " outline"),
-                    ["apk", "emulator"].includes(k) ? "android" : "windows",
+                    ["apk", "emulator"].includes(k) ? "android" : "windows"
                   )}
                 </article>
-              `,
+              `
             )
             .join("")}
         </div>
@@ -606,7 +736,9 @@ function render() {
       <a data-preview class="${cls}" href="assets/${file}" aria-label="${t.enlarge}: ${alt}">
         <img src="assets/${file}" alt="${alt}" width="${width}" height="${height}" loading="lazy" decoding="async">
       </a>`;
-    body = heading(t.featuresTitle, t.featuresIntro) + `
+    body =
+      heading(t.featuresTitle, t.featuresIntro) +
+      `
       <div class="features-showcase">
         <article class="feature-story">
           <div class="feature-copy"><span class="feature-number">01 / Windows & Android</span>
@@ -632,8 +764,16 @@ function render() {
             <h2>${t.features[2][0]}</h2><p>${t.features[2][1]}</p>
           </div>
           <div class="feature-tools">
-            ${[["desktop-metadata.png", 0, 1005], ["desktop-effects.png", 2, 1017], ["desktop-images.png", 3, 1013]].map(([file, index, height]) => `
-              <figure>${preview(file, t.moreLabels[index], "", 1920, height)}<figcaption>${t.moreLabels[index]}</figcaption></figure>`).join("")}
+            ${[
+              ["desktop-metadata.png", 0, 1005],
+              ["desktop-effects.png", 2, 1017],
+              ["desktop-images.png", 3, 1013]
+            ]
+              .map(
+                ([file, index, height]) => `
+              <figure>${preview(file, t.moreLabels[index], "", 1920, height)}<figcaption>${t.moreLabels[index]}</figcaption></figure>`
+              )
+              .join("")}
           </div>
         </article>
         <aside class="feature-personal"><span class="feature-number">ONDA</span><p>${t.featureNote}</p></aside>
@@ -644,7 +784,9 @@ function render() {
       <a data-preview class="${cls}" href="assets/${file}" aria-label="${t.enlarge}: ${alt}">
         <img src="assets/${file}" alt="${alt}" width="${width}" height="${height}" loading="lazy" decoding="async">
       </a>`;
-    body = heading(t.guideTitle, t.guideIntro) + `
+    body =
+      heading(t.guideTitle, t.guideIntro) +
+      `
       <div class="features-showcase guide-showcase">
         <div class="guide-platforms">
           <article class="guide-platform">
@@ -683,7 +825,7 @@ function render() {
           ${link(latest, t.releaseLink, "button")}${link(
             repo + "/releases",
             t.history,
-            "button outline",
+            "button outline"
           )}
         </div>
       `;
@@ -707,7 +849,7 @@ function render() {
           <p>${t.privacyBody}</p>
           ${link(
             "https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement",
-            t.privacyMore,
+            t.privacyMore
           )}
         </div>
       `;
@@ -718,40 +860,49 @@ function render() {
           <section class="page">${body}</section>
         `;
   updateTheme();
-  main.querySelectorAll('.hero-screens a, .gallery a, .features-showcase a[data-preview]').forEach((anchor) => {
-    anchor.removeAttribute('target');
-    anchor.setAttribute('aria-haspopup', 'dialog');
-  });
+  main
+    .querySelectorAll(".hero-screens a, .gallery a, .features-showcase a[data-preview]")
+    .forEach((anchor) => {
+      anchor.removeAttribute("target");
+      anchor.setAttribute("aria-haspopup", "dialog");
+    });
   setupScrollReveals(route);
 }
-const imageViewer = document.querySelector('#image-viewer');
-const viewerImage = imageViewer.querySelector('img');
-const viewerClose = imageViewer.querySelector('button');
+const imageViewer = document.querySelector("#image-viewer");
+const viewerImage = imageViewer.querySelector("img");
+const viewerClose = imageViewer.querySelector("button");
 let imageTrigger = null;
-main.addEventListener('click', (event) => {
-  const anchor = event.target.closest('.hero-screens a, .gallery a, .features-showcase a[data-preview]');
+main.addEventListener("click", (event) => {
+  const anchor = event.target.closest(
+    ".hero-screens a, .gallery a, .features-showcase a[data-preview]"
+  );
   if (!anchor) return;
-  const image = anchor.querySelector('img');
+  const image = anchor.querySelector("img");
   if (!image) return;
   event.preventDefault();
   imageTrigger = anchor;
   viewerImage.src = anchor.href;
   viewerImage.alt = image.alt;
-  imageViewer.setAttribute('aria-label', image.alt);
-  viewerClose.textContent = copy[language].closeImage + ' ×';
+  imageViewer.setAttribute("aria-label", image.alt);
+  viewerClose.textContent = copy[language].closeImage + " ×";
   imageViewer.showModal();
-  document.body.classList.add('viewing-image');
+  document.body.classList.add("viewing-image");
 });
-viewerClose.addEventListener('click', () => imageViewer.close());
-imageViewer.addEventListener('click', (event) => {
+viewerClose.addEventListener("click", () => imageViewer.close());
+imageViewer.addEventListener("click", (event) => {
   if (event.target === imageViewer) imageViewer.close();
 });
-imageViewer.addEventListener('close', () => {
-  document.body.classList.remove('viewing-image');
-  const trigger = imageTrigger?.isConnected ? imageTrigger :
-    [...main.querySelectorAll('.hero-screens a, .gallery a, .features-showcase a[data-preview]')].find((anchor) => anchor.href === viewerImage.src);
-  (trigger || main).focus({preventScroll: true});
-  viewerImage.removeAttribute('src');
+imageViewer.addEventListener("close", () => {
+  document.body.classList.remove("viewing-image");
+  const trigger = imageTrigger?.isConnected
+    ? imageTrigger
+    : [
+        ...main.querySelectorAll(
+          ".hero-screens a, .gallery a, .features-showcase a[data-preview]"
+        )
+      ].find((anchor) => anchor.href === viewerImage.src);
+  (trigger || main).focus({ preventScroll: true });
+  viewerImage.removeAttribute("src");
 });
 document.querySelector("#language").addEventListener("change", (e) => {
   language = e.target.value;
@@ -774,10 +925,13 @@ window.addEventListener("hashchange", (event) => {
   render();
   pageAnimation?.cancel();
   if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-    pageAnimation = main.animate([
-      { opacity: 0, transform: `translateX(${direction * 56}px)` },
-      { opacity: 1, transform: "translateX(0)" },
-    ], { duration: 340, easing: "cubic-bezier(0.22, 1, 0.36, 1)" });
+    pageAnimation = main.animate(
+      [
+        { opacity: 0, transform: `translateX(${direction * 56}px)` },
+        { opacity: 1, transform: "translateX(0)" }
+      ],
+      { duration: 340, easing: "cubic-bezier(0.22, 1, 0.36, 1)" }
+    );
   }
   main.focus({ preventScroll: true });
   window.scrollTo(0, 0);
@@ -785,7 +939,7 @@ window.addEventListener("hashchange", (event) => {
 render();
 fetch("https://api.github.com/repos/enzoandradee16/Onda/releases/latest", {
   headers: { Accept: "application/vnd.github+json" },
-  signal: AbortSignal.timeout(10000),
+  signal: AbortSignal.timeout(10000)
 })
   .then((r) => {
     if (!r.ok) throw Error("Release unavailable");

@@ -92,6 +92,8 @@ def verify_equalizer_gain():
     samples = array('h', range(-32768, 32768))
     player = Equalizer()
     player.gain = 10 ** (-6 / 20)
-    expected = array('h', (max(-32768, min(32767, round(x * player.gain))) for x in samples))
+    expected = array(
+        'h', (max(-32768, min(32767, round(x * player.gain))) for x in samples)
+    )
     assert player.process(samples.tobytes()) == expected.tobytes()
     return json.dumps(dict(ok=True, samples=len(samples), bit_exact=True))

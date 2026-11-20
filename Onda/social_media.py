@@ -65,6 +65,7 @@ def session_for(cookies=""):
         import http.cookiejar
         from yt_dlp.cookies import YoutubeDLCookieJar
         from session_cookies import cookie_source
+
         source = cookie_source(cookies)
         jar = YoutubeDLCookieJar(source)
         try:
@@ -754,6 +755,7 @@ def _download_post(config, emit, ask_duplicate, choose=None):
             or "/share/" in url
         ):
             from social_recovery import public_response
+
             with public_response(session, url, timeout=20, stream=True) as response:
                 url = response.url
         resolved_host = (urlsplit(url).hostname or "").lower()
@@ -770,6 +772,7 @@ def _download_post(config, emit, ask_duplicate, choose=None):
             return True
         if resolved_host == "kwai.com" or resolved_host.endswith(".kwai.com"):
             from social_recovery import public_html
+
             html, resolved_url = public_html(session, url, with_url=True)
             items = list(kwai_images(html, resolved_url))
             if not items:
@@ -847,7 +850,8 @@ def video_fallback(config, emit):
 def access_error(exc):
     detail = str(exc)
     if 'instagram' in detail.lower() and any(
-        marker in detail.lower() for marker in ('login', 'empty media response', 'restricted', '403', '401')
+        marker in detail.lower()
+        for marker in ('login', 'empty media response', 'restricted', '403', '401')
     ):
         return (
             'O Instagram não liberou esta publicação. Abra Configurações → Contas → Conectar ao Instagram '

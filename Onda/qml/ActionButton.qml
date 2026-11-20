@@ -1,12 +1,13 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+
 Button {
     id: control
     property bool primary: false
     property bool compact: false
     property string symbol: ""
-    implicitHeight: Math.max(compact ? 28 : 34,Math.round((compact ? 32 : 42)*bridge.spacing))
+    implicitHeight: Math.max(compact ? 28 : 34, Math.round((compact ? 32 : 42) * bridge.spacing))
     implicitWidth: Math.max(42, label.implicitWidth + (compact ? 24 : 32))
     readonly property bool iconOnly: !/[A-Za-zÀ-ÖØ-öø-ÿ0-9]/.test(text) && (!!text || !!symbol || !!Accessible.name)
     ToolTip.visible: hovered && iconOnly && !!Accessible.name
@@ -16,19 +17,31 @@ Button {
     hoverEnabled: true
     opacity: enabled ? 1 : 0.45
     scale: down ? 0.97 : 1
-    Behavior on scale { NumberAnimation { duration: bridge.animations ? 100 : 0; easing.type: Easing.OutCubic } }
+    Behavior on scale {
+        NumberAnimation {
+            duration: bridge.animations ? 100 : 0
+            easing.type: Easing.OutCubic
+        }
+    }
     background: Rectangle {
         radius: 8
         color: control.primary ? (control.hovered ? bridge.palette.accent_hover : bridge.palette.accent) : (control.hovered ? bridge.palette.hover : bridge.palette.surface)
-        border.width:control.activeFocus ? 2 : 1
+        border.width: control.activeFocus ? 2 : 1
         border.color: control.activeFocus ? (control.primary ? bridge.palette.accent_text : bridge.palette.accent) : control.primary ? "transparent" : bridge.palette.line
-        Behavior on color { ColorAnimation { duration: bridge.animations ? 120 : 0 } }
+        Behavior on color {
+            ColorAnimation {
+                duration: bridge.animations ? 120 : 0
+            }
+        }
     }
     contentItem: Text {
         id: label
         text: (control.symbol ? control.symbol + "  " : "") + control.text
         color: control.primary ? bridge.palette.accent_text : bridge.palette.text
-        font.family: control.font.family; font.pixelSize: Math.round((control.compact ? 12 : 14)*bridge.fontScale); font.weight: control.primary ? Font.DemiBold : Font.Medium
-        horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
+        font.family: control.font.family
+        font.pixelSize: Math.round((control.compact ? 12 : 14) * bridge.fontScale)
+        font.weight: control.primary ? Font.DemiBold : Font.Medium
+        horizontalAlignment: Text.AlignHCenter
+        verticalAlignment: Text.AlignVCenter
     }
 }

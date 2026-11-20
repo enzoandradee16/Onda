@@ -21,9 +21,11 @@ class BackgroundRemovalTests(unittest.TestCase):
         ).tobytes()
 
     def test_jpg_request_uses_png_and_preserves_existing_alpha(self):
-        with tempfile.TemporaryDirectory() as folder, patch(
-            'image_background.model_path', return_value=Path('model.onnx')
-        ), patch('image_background._native_predict', self.predict):
+        with (
+            tempfile.TemporaryDirectory() as folder,
+            patch('image_background.model_path', return_value=Path('model.onnx')),
+            patch('image_background._native_predict', self.predict),
+        ):
             source = Path(folder) / 'picture.png'
             Image.new('RGBA', (320, 320), (200, 30, 20, 128)).save(source)
             result = transform_image(
@@ -53,9 +55,10 @@ class BackgroundRemovalTests(unittest.TestCase):
                 self.assertEqual(
                     transform_image(source, dict(format='Original')), source
                 )
-            with patch(
-                'image_background.model_path', return_value=Path('model.onnx')
-            ), patch('image_background._native_predict', self.predict):
+            with (
+                patch('image_background.model_path', return_value=Path('model.onnx')),
+                patch('image_background._native_predict', self.predict),
+            ):
                 result = transform_image(
                     source, dict(format='SVG', remove_background=True)
                 )

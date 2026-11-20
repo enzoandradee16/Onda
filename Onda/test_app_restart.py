@@ -114,6 +114,7 @@ class DesktopRestartTests(unittest.TestCase):
     def test_normal_reopen_applies_language_without_a_pending_restart(self):
         from qt_jukebox_ui import JukeboxBridge
         from qt_workspace_ui import DesktopWorkspace
+
         selected = 'en' if self.ws.settings['language'] != 'en' else 'es'
         self.ws.setSetting('language', selected)
         self.assertTrue(self.ws.languageRestartRequired)

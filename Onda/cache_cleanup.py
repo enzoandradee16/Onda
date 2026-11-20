@@ -84,15 +84,26 @@ def cache_info(root=None):
 def clear_cache(root=None, *, protected=()):
     root = Path(root) if root is not None else root_path()
     protected = {Path(path).resolve() for path in protected}
-    from playback_cache_budget import recent_paths,_entries
-    entries=list(_entries(root/'jukebox'))
-    protected.update(path.resolve() for path in recent_paths(root/'jukebox',entries=entries))
+    from playback_cache_budget import recent_paths, _entries
+
+    entries = list(_entries(root / 'jukebox'))
+    protected.update(
+        path.resolve() for path in recent_paths(root / 'jukebox', entries=entries)
+    )
     import time
-    protected.update(path.resolve() for _,modified,_,_,path in entries if time.time()-modified<120)
+
+    protected.update(
+        path.resolve()
+        for _, modified, _, _, path in entries
+        if time.time() - modified < 120
+    )
     before = cache_info(root)['bytes']
     failed = 0
     for path in cache_files(root):
-        if any(path.resolve()==keep or path.resolve().is_relative_to(keep) for keep in protected):
+        if any(
+            path.resolve() == keep or path.resolve().is_relative_to(keep)
+            for keep in protected
+        ):
             continue
         try:
             path.unlink()

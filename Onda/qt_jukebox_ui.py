@@ -648,9 +648,15 @@ class JukeboxBridge(QObject):
 
             models = list(self._prepared.values()) + [self.model]
             models += [value[1] for value in self._switch_models.values()]
-            models += [row.get('prepared_cache', {}) for row in
-                       self.playlist[max(0, current - 3):current + ahead + 1]]
-            schedule(models,max_bytes=int(self.preferences.get('playback_cache_limit_mb','1024'))*1048576)
+            models += [
+                row.get('prepared_cache', {})
+                for row in self.playlist[max(0, current - 3) : current + ahead + 1]
+            ]
+            schedule(
+                models,
+                max_bytes=int(self.preferences.get('playback_cache_limit_mb', '1024'))
+                * 1048576,
+            )
         # A persisted/transient status is not proof that a worker still exists.
         for row in self.playlist:
             if row['id'] not in wanted:
@@ -749,7 +755,8 @@ class JukeboxBridge(QObject):
                         if effects.get('enabled'):
                             try:
                                 error = prepare_effects(
-                                    model['cache'], effects,
+                                    model['cache'],
+                                    effects,
                                     lambda: cancel.is_set() or effects != self._effects,
                                 )
                             except Cancelled:
@@ -765,7 +772,12 @@ class JukeboxBridge(QObject):
                 self.emit(
                     0,
                     'queue_prepared',
-                    {'id': identity, 'owner': cancel, 'model': model, 'effects': effects},
+                    {
+                        'id': identity,
+                        'owner': cancel,
+                        'model': model,
+                        'effects': effects,
+                    },
                 )
             except Exception as error:
                 self.emit(
@@ -863,12 +875,20 @@ class JukeboxBridge(QObject):
 
     @Slot('QVariantList')
     def removeQueuedGroup(self, indices):
-        indices = sorted({index for index in indices if 0 <= index < len(self.playlist)})
+        indices = sorted(
+            {index for index in indices if 0 <= index < len(self.playlist)}
+        )
         if not indices:
             return
-        if self.queue_index in indices and self._state['busy'] and self.autoplay_revision is not None:
+        if (
+            self.queue_index in indices
+            and self._state['busy']
+            and self.autoplay_revision is not None
+        ):
             self.cancelOperation()
-        self._removed_queue_entry = [(index, dict(self.playlist[index])) for index in indices]
+        self._removed_queue_entry = [
+            (index, dict(self.playlist[index])) for index in indices
+        ]
         self._queue_undo_timer.start()
         for index in reversed(indices):
             removed = self.playlist.pop(index)
@@ -932,13 +952,19 @@ class JukeboxBridge(QObject):
     @Slot('QVariantList', int, bool)
     def moveQueuedGroup(self, indices, target, after):
         first = self.queue_index + 1
-        indices = sorted({index for index in indices if first <= index < len(self.playlist)})
+        indices = sorted(
+            {index for index in indices if first <= index < len(self.playlist)}
+        )
         if not indices:
             return
         boundary = max(first, min(len(self.playlist), target + int(after)))
         selected = [self.playlist[index] for index in indices]
         selected_indices = set(indices)
-        remaining = [row for index, row in enumerate(self.playlist) if index not in selected_indices]
+        remaining = [
+            row
+            for index, row in enumerate(self.playlist)
+            if index not in selected_indices
+        ]
         insertion = boundary - sum(index < boundary for index in indices)
         remaining[insertion:insertion] = selected
         if remaining == self.playlist:
@@ -1893,9 +1919,13 @@ class JukeboxBridge(QObject):
                 (row for row in self.playlist if row['id'] == value['id']), None
             )
             model = value.get('model')
-            if entry is not None and model is not None and (
-                (model.get('_stream') and not self.can_stream())
-                or ('effects' in value and value['effects'] != self._effects)
+            if (
+                entry is not None
+                and model is not None
+                and (
+                    (model.get('_stream') and not self.can_stream())
+                    or ('effects' in value and value['effects'] != self._effects)
+                )
             ):
                 from playback_session import prepared_reference
 

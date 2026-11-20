@@ -18,25 +18,28 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class TrackCardLayoutTest {
-    @get:Rule val compose=createComposeRule()
+    @get:Rule val compose = createComposeRule()
+
     @Test fun downloadAndOverflowFitAndKeepOtherActionsAccessible() {
-        val context=InstrumentationRegistry.getInstrumentation().targetContext
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
         OndaStore.initialize(context)
-        val vm=OndaViewModel(androidx.test.core.app.ApplicationProvider.getApplicationContext())
-        var downloads=0
-        compose.setContent {MaterialTheme {
-            Box(Modifier.width(340.dp).testTag("track-width")) {
-                TrackCard(JSONObject().put("title","Around the World"),vm,{downloads++})
+        val vm = OndaViewModel(androidx.test.core.app.ApplicationProvider.getApplicationContext())
+        var downloads = 0
+        compose.setContent {
+            MaterialTheme {
+                Box(Modifier.width(340.dp).testTag("track-width")) {
+                    TrackCard(JSONObject().put("title", "Around the World"), vm, { downloads++ })
+                }
             }
-        }}
-        val bounds=compose.onNodeWithTag("track-width").fetchSemanticsNode().boundsInRoot
-        val download=compose.onNodeWithContentDescription("Baixar agora")
+        }
+        val bounds = compose.onNodeWithTag("track-width").fetchSemanticsNode().boundsInRoot
+        val download = compose.onNodeWithContentDescription("Baixar agora")
         download.assertIsDisplayed()
-        assertTrue(download.fetchSemanticsNode().boundsInRoot.right<=bounds.right)
+        assertTrue(download.fetchSemanticsNode().boundsInRoot.right <= bounds.right)
         compose.onNodeWithContentDescription("Mais ações").performClick()
         compose.onNodeWithText("Adicionar à fila").assertIsDisplayed()
         compose.onNodeWithText("Ouvir prévia").assertExists()
         compose.onNodeWithText("Baixar agora").performClick()
-        compose.runOnIdle {assertEquals(1,downloads)}
+        compose.runOnIdle { assertEquals(1, downloads) }
     }
 }

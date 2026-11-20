@@ -25,8 +25,13 @@ def fingerprint_tool():
     if installed:
         return installed
     if os.name != 'nt':
-        raise RuntimeError('Instale o Chromaprint (fpcalc) para identificar pelo áudio.')
-    folder = Path(os.environ.get('LOCALAPPDATA', Path.home())) / 'Onda/tools/chromaprint/1.6.2'
+        raise RuntimeError(
+            'Instale o Chromaprint (fpcalc) para identificar pelo áudio.'
+        )
+    folder = (
+        Path(os.environ.get('LOCALAPPDATA', Path.home()))
+        / 'Onda/tools/chromaprint/1.6.2'
+    )
     executable = folder / 'fpcalc.exe'
     if executable.is_file():
         return executable
@@ -52,6 +57,7 @@ def fingerprint_tool():
 def identify_audio(source, cancel):
     if os.environ.get('ONDA_CHROMAPRINT'):
         from android_fingerprint import fingerprint
+
         value = fingerprint(source, cancel)
         return lookup_fingerprint(value, cancel)
     tool = fingerprint_tool()
@@ -68,7 +74,9 @@ def identify_audio(source, cancel):
     try:
         fingerprint = json.loads(result.stdout)
     except (ValueError, TypeError) as error:
-        raise RuntimeError('Não foi possível gerar a impressão digital do áudio.') from error
+        raise RuntimeError(
+            'Não foi possível gerar a impressão digital do áudio.'
+        ) from error
     return lookup_fingerprint(fingerprint, cancel)
 
 
@@ -79,36 +87,53 @@ def lookup_fingerprint(fingerprint, cancel):
         duration = round(float(fingerprint['duration']))
         fingerprint = fingerprint['fingerprint']
     except (ValueError, KeyError, TypeError) as error:
-        raise RuntimeError('Não foi possível gerar a impressão digital do áudio.') from error
+        raise RuntimeError(
+            'Não foi possível gerar a impressão digital do áudio.'
+        ) from error
     if duration <= 0 or not fingerprint:
         return {}
-    data = urlencode({
-        'client': CLIENT,
-        'duration': duration,
-        'fingerprint': fingerprint,
-        'meta': 'recordings releasegroups',
-        'format': 'json',
-    }).encode('ascii')
+    data = urlencode(
+        {
+            'client': CLIENT,
+            'duration': duration,
+            'fingerprint': fingerprint,
+            'meta': 'recordings releasegroups',
+            'format': 'json',
+        }
+    ).encode('ascii')
     request = Request(
-        'https://api.acoustid.org/v2/lookup', data=data,
-        headers={'User-Agent': f'ONDA/{VERSION} (https://github.com/enzoandradee16/Onda)'},
+        'https://api.acoustid.org/v2/lookup',
+        data=data,
+        headers={
+            'User-Agent': f'ONDA/{VERSION} (https://github.com/enzoandradee16/Onda)'
+        },
     )
     with urlopen(request, timeout=15) as response:
         result = json.load(response)
     if result.get('status') != 'ok':
         raise RuntimeError('O AcoustID não conseguiu consultar a gravação.')
-    for match in sorted(result.get('results', []), key=lambda item: item['score'], reverse=True):
+    for match in sorted(
+        result.get('results', []), key=lambda item: item['score'], reverse=True
+    ):
         if match['score'] < 0.8:
             break
         recordings = [
-            row for row in match.get('recordings', [])
+            row
+            for row in match.get('recordings', [])
             if row.get('title') and row.get('artists')
         ]
         if not recordings:
             continue
-        recording = min(recordings, key=lambda row: abs((row.get('duration') or duration) - duration))
-        fields = dict(title=recording['title'], artists=[artist['name'] for artist in recording['artists']],
-                      _recording_id=recording.get('id'), duration_ms=duration * 1000)
+        recording = min(
+            recordings,
+            key=lambda row: abs((row.get('duration') or duration) - duration),
+        )
+        fields = dict(
+            title=recording['title'],
+            artists=[artist['name'] for artist in recording['artists']],
+            _recording_id=recording.get('id'),
+            duration_ms=duration * 1000,
+        )
         return enrich_recording(recording.get('id'), fields, cancel)
     return {}
 
@@ -127,7 +152,11 @@ def enrich_recording(identity, fields, cancel):
         codes = set(recording.get('isrcs', []))
         if len(codes) == 1:
             fields['isrc'] = codes.pop()
-        editions = [row for row in recording.get('releases', []) if row.get('status') == 'Official']
+        editions = [
+            row
+            for row in recording.get('releases', [])
+            if row.get('status') == 'Official'
+        ]
         if not editions or cancel.is_set():
             return fields
         edition = min(editions, key=lambda row: (row.get('date') or '9999', row['id']))
@@ -137,8 +166,14 @@ def enrich_recording(identity, fields, cancel):
         if release.get('date'):
             fields['release_date'] = release['date']
         for medium in release.get('media', []):
-            track = next((track for track in medium.get('tracks', [])
-                          if track.get('recording', {}).get('id') == identity), None)
+            track = next(
+                (
+                    track
+                    for track in medium.get('tracks', [])
+                    if track.get('recording', {}).get('id') == identity
+                ),
+                None,
+            )
             if track:
                 fields['track_number'] = str(track['position'])
                 fields['disc_number'] = str(medium['position'])
@@ -148,7 +183,9 @@ def enrich_recording(identity, fields, cancel):
             with urlopen(url, timeout=10) as response:
                 cover = response.read(5 * 1024 * 1024 + 1)
             if len(cover) <= 5 * 1024 * 1024 and cover.startswith(b"\xff\xd8\xff"):
-                fields['cover'] = 'data:image/jpeg;base64,' + base64.b64encode(cover).decode('ascii')
+                fields['cover'] = 'data:image/jpeg;base64,' + base64.b64encode(
+                    cover
+                ).decode('ascii')
     except (OSError, ValueError, LookupUnavailable, requests.RequestException):
         pass
     return fields

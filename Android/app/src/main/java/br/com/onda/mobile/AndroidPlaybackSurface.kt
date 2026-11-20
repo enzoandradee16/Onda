@@ -23,9 +23,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 
 /** One compact player across navigation; expanding never transfers audio between tabs. */
-@Composable internal fun AndroidPlaybackSurface(vm:OndaViewModel,queueIsVisible:Boolean=false) {
+@Composable internal fun AndroidPlaybackSurface(vm: OndaViewModel, queueIsVisible: Boolean = false) {
     val remote by RemotePlaybackRuntime.presentationState.collectAsStateWithLifecycle()
-    if(remote.connected){RemotePlaybackSurface(remote,vm,queueIsVisible);return}
+    if (remote.connected) {
+        RemotePlaybackSurface(remote, vm, queueIsVisible)
+        return
+    }
     val mode by vm.playbackMode.collectAsStateWithLifecycle()
     val fxSource by vm.effectsSource.collectAsStateWithLifecycle()
     val infos by vm.effectsInfo.collectAsStateWithLifecycle()
@@ -37,161 +40,388 @@ import coil.compose.AsyncImage
     val juke by vm.jukebox.presentationState.collectAsStateWithLifecycle()
     val jukeQueue by vm.jukebox.playbackQueue.collectAsStateWithLifecycle()
     val audioReady by vm.jukebox.audioReady.collectAsStateWithLifecycle()
-    var expanded by rememberSaveable {mutableStateOf(false)}
-    var expandedQueue by rememberSaveable {mutableStateOf(false)}
-    var devices by remember {mutableStateOf(false)}
-    LaunchedEffect(expanded){if(!expanded)expandedQueue=false}
-    var expandedJukebox by rememberSaveable {mutableStateOf(false)}
-    var lastJukebox by rememberSaveable(mode,fxSource,juke.model?.optString("source")) {mutableStateOf(mode==1&&juke.model!=null)}
-    LaunchedEffect(juke.playing,juke.paused,fxMedia?.playing,fxPreparing) {
-        if(juke.playing&&!juke.paused)lastJukebox=true
-        else if(fxMedia?.playing==true||fxPreparing)lastJukebox=false
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    var expandedQueue by rememberSaveable { mutableStateOf(false) }
+    var devices by remember { mutableStateOf(false) }
+    LaunchedEffect(expanded) { if (!expanded) expandedQueue = false }
+    var expandedJukebox by rememberSaveable { mutableStateOf(false) }
+    var lastJukebox by rememberSaveable(mode, fxSource, juke.model?.optString("source")) {
+        mutableStateOf(mode == 1 && juke.model != null)
     }
-    val useJukebox=true
+    LaunchedEffect(juke.playing, juke.paused, fxMedia?.playing, fxPreparing) {
+        if (juke.playing && !juke.paused) lastJukebox = true
+        else if (fxMedia?.playing == true || fxPreparing) lastJukebox = false
+    }
+    val useJukebox = true
     val currentId by vm.jukebox.currentQueueId.collectAsStateWithLifecycle()
-    val restoredRow=remember(jukeQueue,currentId){jukeQueue.firstOrNull {it.optString("_queue_id")==currentId}}
-    val model=juke.model
-    val source=if(useJukebox)model?.optString("source")?.takeIf {it.isNotBlank()} ?: restoredRow?.cleanString("_local_source")?.takeIf {it.isNotBlank()} ?: restoredRow?.cleanString("source_url").orEmpty() else fxSource
-    SideEffect {vm.compactPlaybackMode.value=if(source.isBlank())null else if(useJukebox)1 else 0}
-    DisposableEffect(vm){onDispose {vm.compactPlaybackMode.value=null}}
-    if(source.isBlank())return
+    val restoredRow =
+        remember(jukeQueue, currentId) { jukeQueue.firstOrNull { it.optString("_queue_id") == currentId } }
+    val model = juke.model
+    val source = if (useJukebox) model?.optString("source")?.takeIf { it.isNotBlank() }
+        ?: restoredRow?.cleanString("_local_source")?.takeIf { it.isNotBlank() }
+        ?: restoredRow?.cleanString("source_url").orEmpty() else fxSource
+    SideEffect { vm.compactPlaybackMode.value = if (source.isBlank()) null else if (useJukebox) 1 else 0 }
+    DisposableEffect(vm) { onDispose { vm.compactPlaybackMode.value = null } }
+    if (source.isBlank()) return
     val localExpandedRequested by RemotePlaybackRuntime.localExpandedRequested.collectAsStateWithLifecycle()
     LaunchedEffect(localExpandedRequested) {
-        if(localExpandedRequested){expanded=true;RemotePlaybackRuntime.localExpandedRequested.value=false}
+        if (localExpandedRequested) {
+            expanded = true
+            RemotePlaybackRuntime.localExpandedRequested.value = false
+        }
     }
-    val info=infos[fxSource]
-    val record=info?.optJSONObject("record")
-    val title=if(useJukebox)juke.title else record?.optString("title")?.ifBlank {importedAudioName(source)} ?: importedAudioName(source)
-    val artist=if(useJukebox)model?.optString("media_artist") ?: restoredRow?.stringList("artists").orEmpty() else record?.stringList("artists").orEmpty()
-    val encoded=if(useJukebox)model?.optString("media_cover") ?: restoredRow?.cleanString("_cover").orEmpty() else info?.optString("cover").orEmpty()
-    val coverUrl=if(useJukebox)model?.optString("cover_url") ?: restoredRow?.cleanString("cover_url") else info?.optJSONObject("record")?.optString("cover_url")
-    val artwork=remember(encoded,coverUrl,useJukebox) {
-        if(encoded.isNotBlank())runCatching {Base64.decode(encoded,Base64.DEFAULT)}.getOrNull()
-        else coverUrl?.takeIf {it.isNotBlank()}
+    val info = infos[fxSource]
+    val record = info?.optJSONObject("record")
+    val title = if (useJukebox) juke.title else record?.optString("title")?.ifBlank { importedAudioName(source) }
+        ?: importedAudioName(source)
+    val artist = if (useJukebox) model?.optString(
+        "media_artist"
+    ) ?: restoredRow?.stringList("artists").orEmpty() else record?.stringList("artists").orEmpty()
+    val encoded = if (useJukebox) model?.optString(
+        "media_cover"
+    ) ?: restoredRow?.cleanString("_cover").orEmpty() else info?.optString("cover").orEmpty()
+    val coverUrl = if (useJukebox) model?.optString(
+        "cover_url"
+    ) ?: restoredRow?.cleanString("cover_url") else info?.optJSONObject("record")?.optString("cover_url")
+    val artwork = remember(encoded, coverUrl, useJukebox) {
+        if (encoded.isNotBlank()) runCatching { Base64.decode(encoded, Base64.DEFAULT) }.getOrNull()
+        else coverUrl?.takeIf { it.isNotBlank() }
     }
-    val beats=model?.optJSONArray("beats")
-    fun livePosition():Double {
-        val current=vm.jukebox.state.value
-        return if(current.model==null)restoredRow?.optDouble("_restore_seconds",0.0) ?: 0.0 else vm.jukebox.sessionSeconds(current.model,current.index,current.phase.toDouble())
+    val beats = model?.optJSONArray("beats")
+    fun livePosition(): Double {
+        val current = vm.jukebox.state.value
+        return if (current.model ==
+            null
+        ) restoredRow?.optDouble(
+            "_restore_seconds",
+            0.0
+        ) ?: 0.0 else vm.jukebox.sessionSeconds(current.model, current.index, current.phase.toDouble())
     }
-    val duration=(if(useJukebox)model?.optDouble("duration",0.0) ?: ((restoredRow?.optDouble("duration_ms",0.0) ?: 0.0)/1000.0) else info?.optDouble("duration",0.0) ?: fxMedia?.duration ?: 0.0).coerceAtLeast(0.0)
-    val preparing=if(useJukebox)juke.busy || (juke.playing && !juke.paused && model?.has("_stream")==true && !audioReady) else fxPreparing
-    val playing=if(useJukebox)juke.playing&&!juke.paused else fxEnabled
+    val duration = (
+        if (useJukebox) model?.optDouble("duration", 0.0)
+            ?: ((restoredRow?.optDouble("duration_ms", 0.0) ?: 0.0) / 1000.0) else info?.optDouble("duration", 0.0)
+            ?: fxMedia?.duration
+            ?: 0.0
+        ).coerceAtLeast(0.0)
+    val preparing = if (useJukebox) juke.busy ||
+        (juke.playing && !juke.paused && model?.has("_stream") == true && !audioReady) else fxPreparing
+    val playing = if (useJukebox) juke.playing && !juke.paused else fxEnabled
     val fxRepeat by vm.effectsRepeat.collectAsStateWithLifecycle()
     val fxShuffle by vm.effectsShuffle.collectAsStateWithLifecycle()
     val jukeRepeat by vm.jukebox.queueRepeat.collectAsStateWithLifecycle()
     val jukeShuffle by vm.jukebox.queueShuffle.collectAsStateWithLifecycle()
-    val hasNext=if(useJukebox)(vm.jukebox.nextQueueIndex<jukeQueue.size || jukeRepeat=="Todas" && jukeQueue.isNotEmpty()) else (vm.effectsQueueIndex(source)+1<fxQueue.size || fxRepeat=="Todas" && fxQueue.isNotEmpty())
-    var menu by remember {mutableStateOf(false)}
-    var timer by remember {mutableStateOf(false)}
-    var equalizer by remember {mutableStateOf(false)}
-    fun toggle(){if(useJukebox)vm.jukebox.playPause() else vm.mediaToggleEffects()}
-    fun previous(){if(useJukebox)vm.jukebox.previousTrack() else vm.mediaPreviousEffects()}
-    fun next(){if(useJukebox)vm.jukebox.nextTrack() else vm.mediaNextEffects()}
-    fun seek(seconds:Double){
-        if(useJukebox)vm.jukebox.seekSeconds(seconds)
+    val hasNext = if (useJukebox) (
+        vm.jukebox.nextQueueIndex < jukeQueue.size ||
+            jukeRepeat == "Todas" && jukeQueue.isNotEmpty()
+        ) else (
+        vm.effectsQueueIndex(source) +
+            1 <
+            fxQueue.size ||
+            fxRepeat == "Todas" && fxQueue.isNotEmpty()
+        )
+    var menu by remember { mutableStateOf(false) }
+    var timer by remember { mutableStateOf(false) }
+    var equalizer by remember { mutableStateOf(false) }
+    fun toggle() {
+        if (useJukebox) vm.jukebox.playPause() else vm.mediaToggleEffects()
+    }
+    fun previous() {
+        if (useJukebox) vm.jukebox.previousTrack() else vm.mediaPreviousEffects()
+    }
+    fun next() {
+        if (useJukebox) vm.jukebox.nextTrack() else vm.mediaNextEffects()
+    }
+    fun seek(seconds: Double) {
+        if (useJukebox) vm.jukebox.seekSeconds(seconds)
         else vm.mediaSeekEffects(seconds)
     }
-    fun openQueue(){
-        if(useJukebox) {
-            if(expanded)expandedQueue=!expandedQueue
-            else if(queueIsVisible)vm.playbackQueueOpen.value=false
+    fun openQueue() {
+        if (useJukebox) {
+            if (expanded) expandedQueue = !expandedQueue
+            else if (queueIsVisible) vm.playbackQueueOpen.value = false
             else vm.openPlaybackQueue()
-        } else vm.effectsQueueOpen.value=true
+        } else vm.effectsQueueOpen.value = true
     }
-    @Composable fun cover(modifier:Modifier){
-        Surface(modifier.clip(RoundedCornerShape(12.dp)),color=MaterialTheme.colorScheme.surfaceContainerHighest) {
-            if(artwork!=null)AsyncImage(artwork,translateUi("Capa do álbum"),Modifier.fillMaxSize(),contentScale=ContentScale.Fit)
-            else Box(contentAlignment=Alignment.Center){OndaIcon("album",modifier=Modifier.size(48.dp))}
+
+    @Composable fun cover(modifier: Modifier) {
+        Surface(modifier.clip(RoundedCornerShape(12.dp)), color = MaterialTheme.colorScheme.surfaceContainerHighest) {
+            if (artwork !=
+                null
+            ) AsyncImage(artwork, translateUi("Capa do álbum"), Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+            else Box(contentAlignment = Alignment.Center) { OndaIcon("album", modifier = Modifier.size(48.dp)) }
         }
     }
-    AlbumGlass(artwork,Modifier.fillMaxWidth().padding(horizontal=8.dp,vertical=4.dp).testTag("android-compact-player")) {glass->
+    AlbumGlass(
+        artwork,
+        Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp).testTag("android-compact-player")
+    ) { glass ->
         Column {
-            Row(Modifier.fillMaxWidth().clickable {expandedJukebox=useJukebox;expanded=true}.testTag("compact-player-expand").padding(6.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+            Row(
+                Modifier.fillMaxWidth().clickable {
+                    expandedJukebox = useJukebox
+                    expanded = true
+                }.testTag("compact-player-expand").padding(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 cover(Modifier.size(48.dp))
                 Column(Modifier.weight(1f)) {
-                    Text(title,maxLines=1,overflow=TextOverflow.Ellipsis,style=MaterialTheme.typography.labelLarge)
-                    Text(artist,maxLines=1,overflow=TextOverflow.Ellipsis,style=MaterialTheme.typography.bodySmall,color=glass.secondary)
+                    Text(
+                        title,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        style = MaterialTheme.typography.labelLarge
+                    )
+                    Text(
+                        artist,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = glass.secondary
+                    )
                 }
-                LyricsButton(vm,source,{livePosition()},duration,::seek,::toggle,isPlaying={playing},title=title,artist=artist)
-                IconButton(onClick=::openQueue,modifier=Modifier.testTag("compact-player-queue"),colors=IconButtonDefaults.iconButtonColors(contentColor=if(queueIsVisible)MaterialTheme.colorScheme.primary else glass.ink)){OndaIcon("queue",if(queueIsVisible)"Fechar fila" else "Fila",Modifier.size(24.dp))}
-                OutlinedIconButton(onClick=::toggle,enabled=duration>0,modifier=Modifier.testTag("compact-player-toggle"),border=BorderStroke(1.dp,MaterialTheme.colorScheme.primary),colors=IconButtonDefaults.outlinedIconButtonColors(contentColor=glass.ink,disabledContentColor=glass.ink.copy(alpha=if(glass.highContrast)1f else .38f))) {
-                    if(preparing)CircularProgressIndicator(Modifier.size(23.dp),strokeWidth=2.dp,color=glass.ink)
-                    else OndaIcon(if(playing)"pause" else "play",if(playing)"Pausar" else "Reproduzir",Modifier.size(26.dp))
+                LyricsButton(vm, source, {
+                    livePosition()
+                }, duration, ::seek, ::toggle, isPlaying = { playing }, title = title, artist = artist)
+                IconButton(
+                    onClick = ::openQueue,
+                    modifier = Modifier.testTag("compact-player-queue"),
+                    colors = IconButtonDefaults.iconButtonColors(
+                        contentColor = if (queueIsVisible) MaterialTheme.colorScheme.primary else glass.ink
+                    )
+                ) {
+                    OndaIcon("queue", if (queueIsVisible) "Fechar fila" else "Fila", Modifier.size(24.dp))
+                }
+                OutlinedIconButton(
+                    onClick = ::toggle,
+                    enabled = duration > 0,
+                    modifier = Modifier.testTag("compact-player-toggle"),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
+                    colors = IconButtonDefaults.outlinedIconButtonColors(
+                        contentColor = glass.ink,
+                        disabledContentColor = glass.ink.copy(alpha = if (glass.highContrast) 1f else .38f)
+                    )
+                ) {
+                    if (preparing) CircularProgressIndicator(
+                        Modifier.size(23.dp),
+                        strokeWidth = 2.dp,
+                        color = glass.ink
+                    )
+                    else OndaIcon(
+                        if (playing) "pause" else "play",
+                        if (playing) "Pausar" else "Reproduzir",
+                        Modifier.size(26.dp)
+                    )
                 }
             }
-            PlaybackClock(vm.jukebox) {position ->
-            val buffered by vm.jukebox.streamBuffer.collectAsStateWithLifecycle()
-            Row(Modifier.fillMaxWidth().padding(horizontal=10.dp,vertical=3.dp).testTag("compact-player-times"),horizontalArrangement=Arrangement.SpaceBetween) {
-                Text(mediaClock(position.toLong()),style=MaterialTheme.typography.labelSmall,color=glass.secondary)
-                Text(mediaClock(duration.toLong()),style=MaterialTheme.typography.labelSmall,color=glass.secondary)
-            }
-            Box(Modifier.fillMaxWidth().height(if(glass.highContrast)3.dp else 2.dp)) {
-                LinearProgressIndicator(progress={if(duration>0)((if(model?.has("_stream")==true)buffered.second else duration)/duration).toFloat().coerceIn(0f,1f) else 0f},modifier=Modifier.fillMaxSize(),color=MaterialTheme.colorScheme.primary.copy(alpha=.35f),trackColor=glass.ink.copy(alpha=if(glass.highContrast).4f else .18f))
-                LinearProgressIndicator(progress={if(duration>0)(position/duration).toFloat().coerceIn(0f,1f) else 0f},modifier=Modifier.fillMaxSize().testTag("compact-player-progress"),color=MaterialTheme.colorScheme.primary,trackColor=androidx.compose.ui.graphics.Color.Transparent)
-            }
+            PlaybackClock(vm.jukebox) { position ->
+                val buffered by vm.jukebox.streamBuffer.collectAsStateWithLifecycle()
+                Row(
+                    Modifier.fillMaxWidth().padding(
+                        horizontal = 10.dp,
+                        vertical = 3.dp
+                    ).testTag("compact-player-times"),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        mediaClock(position.toLong()),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = glass.secondary
+                    )
+                    Text(
+                        mediaClock(duration.toLong()),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = glass.secondary
+                    )
+                }
+                Box(Modifier.fillMaxWidth().height(if (glass.highContrast) 3.dp else 2.dp)) {
+                    LinearProgressIndicator(
+                        progress = {
+                            if (duration >
+                                0
+                            ) (
+                                (
+                                    if (model?.has("_stream") ==
+                                        true
+                                    ) buffered.second else duration
+                                    ) / duration
+                                ).toFloat().coerceIn(0f, 1f) else 0f
+                        },
+                        modifier = Modifier.fillMaxSize(),
+                        color = MaterialTheme.colorScheme.primary.copy(
+                            alpha = .35f
+                        ),
+                        trackColor = glass.ink.copy(alpha = if (glass.highContrast) .4f else .18f)
+                    )
+                    LinearProgressIndicator(
+                        progress = {
+                            if (duration >
+                                0
+                            ) (position / duration).toFloat().coerceIn(0f, 1f) else 0f
+                        },
+                        modifier = Modifier.fillMaxSize().testTag(
+                            "compact-player-progress"
+                        ),
+                        color = MaterialTheme.colorScheme.primary,
+                        trackColor = androidx.compose.ui.graphics.Color.Transparent
+                    )
+                }
             }
         }
     }
-    if(expanded)Dialog(onDismissRequest={expanded=false},properties=DialogProperties(usePlatformDefaultWidth=false)) {
-        Surface(Modifier.fillMaxSize().testTag("android-expanded-player"),color=MaterialTheme.colorScheme.surface) {
+    if (expanded) Dialog(onDismissRequest = {
+        expanded = false
+    }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Surface(Modifier.fillMaxSize().testTag("android-expanded-player"), color = MaterialTheme.colorScheme.surface) {
             BoxWithConstraints(Modifier.fillMaxSize()) {
-                val artworkSize=minOf(maxWidth-48.dp,maxHeight*.46f).coerceAtLeast(100.dp)
-                Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),verticalArrangement=Arrangement.spacedBy(16.dp)) {
-                    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
-                        IconButton(onClick={expanded=false}){OndaIcon("down","Recolher reprodução",Modifier.size(26.dp))}
+                val artworkSize = minOf(maxWidth - 48.dp, maxHeight * .46f).coerceAtLeast(100.dp)
+                Column(
+                    Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = {
+                            expanded = false
+                        }) { OndaIcon("down", "Recolher reprodução", Modifier.size(26.dp)) }
                         Spacer(Modifier.weight(1f))
-                        ShufflePlaybackButton(if(useJukebox)jukeShuffle else fxShuffle,{if(useJukebox)vm.jukebox.setQueueShuffle(it) else vm.effectsShuffle.value=it})
-                        RepeatPlaybackButton(jukeRepeat,{vm.jukebox.queueRepeat.value=it})
+                        ShufflePlaybackButton(if (useJukebox) jukeShuffle else fxShuffle, {
+                            if (useJukebox) vm.jukebox.setQueueShuffle(it) else vm.effectsShuffle.value =
+                                it
+                        })
+                        RepeatPlaybackButton(jukeRepeat, { vm.jukebox.queueRepeat.value = it })
                         Box {
-                            IconButton(onClick={menu=true}){OndaIcon("more-vertical","Mais",Modifier.size(24.dp))}
-                            DropdownMenu(menu,{menu=false}) {
-                                DropdownMenuItem(text={UiText("Parar")},onClick={menu=false;if(useJukebox)vm.jukebox.stop() else vm.stopEffectsPlayback()})
-                                DropdownMenuItem(text={UiText("Ajustes de reprodução")},onClick={menu=false;expanded=false;vm.playbackMode.value=if(useJukebox)1 else 0;vm.effectsNavigation.value=true})
-                                if(useJukebox){
-                                    DropdownMenuItem(text={UiText("Timer")},onClick={menu=false;timer=true})
-                                    DropdownMenuItem(text={UiText("Equalizador")},onClick={menu=false;equalizer=true})
+                            IconButton(onClick = {
+                                menu = true
+                            }) { OndaIcon("more-vertical", "Mais", Modifier.size(24.dp)) }
+                            DropdownMenu(menu, { menu = false }) {
+                                DropdownMenuItem(text = { UiText("Parar") }, onClick = {
+                                    menu = false
+                                    if (useJukebox) vm.jukebox.stop() else vm.stopEffectsPlayback()
+                                })
+                                DropdownMenuItem(text = { UiText("Ajustes de reprodução") }, onClick = {
+                                    menu = false
+                                    expanded =
+                                        false
+                                    vm.playbackMode.value = if (useJukebox) 1 else 0
+                                    vm.effectsNavigation.value = true
+                                })
+                                if (useJukebox) {
+                                    DropdownMenuItem(text = { UiText("Timer") }, onClick = {
+                                        menu = false
+                                        timer = true
+                                    })
+                                    DropdownMenuItem(text = { UiText("Equalizador") }, onClick = {
+                                        menu = false
+                                        equalizer = true
+                                    })
                                 }
                             }
                         }
                     }
-                    cover(Modifier.size(artworkSize).align(Alignment.CenterHorizontally).testTag("expanded-album-cover"))
-                    Column {Text(title,style=MaterialTheme.typography.headlineSmall);Text(artist,style=MaterialTheme.typography.bodyLarge,color=MaterialTheme.colorScheme.onSurfaceVariant)}
-                    PlaybackClock(vm.jukebox) {position ->
-                    val buffered by vm.jukebox.streamBuffer.collectAsStateWithLifecycle()
-                    var dragged by remember(source) {mutableStateOf<Float?>(null)}
+                    cover(
+                        Modifier.size(artworkSize).align(Alignment.CenterHorizontally).testTag("expanded-album-cover")
+                    )
                     Column {
-                        RoundSlider(dragged ?: position.toFloat().coerceIn(0f,duration.toFloat().coerceAtLeast(1f)),{dragged=it},valueRange=0f..duration.toFloat().coerceAtLeast(1f),enabled=duration>0,onValueChangeFinished={dragged?.let {seek(it.toDouble())};dragged=null},modifier=Modifier.fillMaxWidth().testTag("expanded-player-timeline").a11yLabel("Posição na música"),slim=true,bufferedRange=if(model?.has("_stream")==true)buffered.first.toFloat()..buffered.second.toFloat() else 0f..duration.toFloat())
-                        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){UiText(mediaClock((dragged?.toDouble() ?: position).toLong()),style=MaterialTheme.typography.labelSmall);UiText(mediaClock(duration.toLong()),style=MaterialTheme.typography.labelSmall)}
+                        Text(title, style = MaterialTheme.typography.headlineSmall)
+                        Text(
+                            artist,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
-                    }
-                    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceEvenly) {
-                        LyricsButton(vm,source,{livePosition()},duration,::seek,::toggle,isPlaying={playing},title=title,artist=artist)
-                        IconButton(onClick=::previous){OndaIcon("previous","Retroceder",Modifier.size(32.dp))}
-                        FilledIconButton(onClick=::toggle,enabled=duration>0,modifier=Modifier.size(72.dp).testTag("expanded-player-toggle")) {
-                            if(preparing)CircularProgressIndicator(Modifier.size(30.dp),strokeWidth=3.dp,color=MaterialTheme.colorScheme.onPrimary)
-                            else OndaIcon(if(playing)"pause" else "play",if(playing)"Pausar" else "Reproduzir",Modifier.size(36.dp))
+                    PlaybackClock(vm.jukebox) { position ->
+                        val buffered by vm.jukebox.streamBuffer.collectAsStateWithLifecycle()
+                        var dragged by remember(source) { mutableStateOf<Float?>(null) }
+                        Column {
+                            RoundSlider(
+                                dragged ?: position.toFloat().coerceIn(0f, duration.toFloat().coerceAtLeast(1f)),
+                                {
+                                    dragged =
+                                        it
+                                },
+                                valueRange = 0f..duration.toFloat().coerceAtLeast(1f),
+                                enabled = duration > 0,
+                                onValueChangeFinished = {
+                                    dragged?.let { seek(it.toDouble()) }
+                                    dragged =
+                                        null
+                                },
+                                modifier = Modifier.fillMaxWidth().testTag(
+                                    "expanded-player-timeline"
+                                ).a11yLabel("Posição na música"),
+                                slim = true,
+                                bufferedRange = if (model?.has("_stream") ==
+                                    true
+                                ) buffered.first.toFloat()..buffered.second.toFloat() else 0f..duration.toFloat()
+                            )
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                UiText(
+                                    mediaClock(
+                                        (
+                                            dragged?.toDouble()
+                                                ?: position
+                                            ).toLong()
+                                    ),
+                                    style = MaterialTheme.typography.labelSmall
+                                )
+                                UiText(mediaClock(duration.toLong()), style = MaterialTheme.typography.labelSmall)
+                            }
                         }
-                        IconButton(onClick=::next,enabled=hasNext,modifier=Modifier.testTag("expanded-player-next")){OndaIcon("next","Avançar",Modifier.size(32.dp))}
-                        IconButton(onClick=::openQueue,modifier=Modifier.testTag("expanded-player-queue")){OndaIcon("queue","Fila",Modifier.size(26.dp))}
                     }
-                    PlaybackDeviceButton(onClick={devices=true})
-                    PlaybackClock(vm.jukebox) {position -> LyricsPreviewCard(vm,source,title,artist,position,duration,playing,::seek,::toggle)}
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        LyricsButton(vm, source, {
+                            livePosition()
+                        }, duration, ::seek, ::toggle, isPlaying = { playing }, title = title, artist = artist)
+                        IconButton(onClick = ::previous) { OndaIcon("previous", "Retroceder", Modifier.size(32.dp)) }
+                        FilledIconButton(
+                            onClick = ::toggle,
+                            enabled = duration > 0,
+                            modifier = Modifier.size(72.dp).testTag("expanded-player-toggle")
+                        ) {
+                            if (preparing) CircularProgressIndicator(
+                                Modifier.size(30.dp),
+                                strokeWidth = 3.dp,
+                                color = MaterialTheme.colorScheme.onPrimary
+                            )
+                            else OndaIcon(
+                                if (playing) "pause" else "play",
+                                if (playing) "Pausar" else "Reproduzir",
+                                Modifier.size(36.dp)
+                            )
+                        }
+                        IconButton(
+                            onClick = ::next,
+                            enabled = hasNext,
+                            modifier = Modifier.testTag("expanded-player-next")
+                        ) {
+                            OndaIcon("next", "Avançar", Modifier.size(32.dp))
+                        }
+                        IconButton(onClick = ::openQueue, modifier = Modifier.testTag("expanded-player-queue")) {
+                            OndaIcon("queue", "Fila", Modifier.size(26.dp))
+                        }
+                    }
+                    PlaybackDeviceButton(onClick = { devices = true })
+                    PlaybackClock(vm.jukebox) { position ->
+                        LyricsPreviewCard(vm, source, title, artist, position, duration, playing, ::seek, ::toggle)
+                    }
                 }
             }
         }
         // The sheet belongs to this dialog so it stays above the expanded player.
-        if(useJukebox && expandedQueue)PlaybackQueueSheet(vm){expandedQueue=false}
-        if(devices)PlaybackDevicesSheet {devices=false}
-        if(!useJukebox)EffectsQueueDrawer(vm)
+        if (useJukebox && expandedQueue) PlaybackQueueSheet(vm) { expandedQueue = false }
+        if (devices) PlaybackDevicesSheet { devices = false }
+        if (!useJukebox) EffectsQueueDrawer(vm)
     }
-    if(!expanded || useJukebox)EffectsQueueDrawer(vm)
-    if(timer)JukeboxTimerDialog(vm.jukebox){timer=false}
-    if(equalizer)JukeboxEqualizerDialog {equalizer=false}
+    if (!expanded || useJukebox) EffectsQueueDrawer(vm)
+    if (timer) JukeboxTimerDialog(vm.jukebox) { timer = false }
+    if (equalizer) JukeboxEqualizerDialog { equalizer = false }
 }
 
-
-@Composable private fun PlaybackClock(controller:JukeboxController,content:@Composable (Double)->Unit) {
+@Composable private fun PlaybackClock(controller: JukeboxController, content: @Composable (Double) -> Unit) {
     val clock by controller.state.collectAsStateWithLifecycle()
-    content(controller.sessionSeconds(clock.model,clock.index,clock.phase.toDouble()))
+    content(controller.sessionSeconds(clock.model, clock.index, clock.phase.toDouble()))
 }

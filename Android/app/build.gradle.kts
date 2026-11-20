@@ -7,8 +7,12 @@ plugins {
     id("com.chaquo.python")
 }
 // Phone builds carry one architecture; emulator builds opt in explicitly.
-val targetAbis=providers.gradleProperty("onda.abis").getOrElse("arm64-v8a").split(",").map {it.trim()}.distinct()
-require(targetAbis.isNotEmpty() && targetAbis.all {it in setOf("arm64-v8a","x86_64")}) {"onda.abis: use arm64-v8a e/ou x86_64"}
+val targetAbis = providers.gradleProperty("onda.abis").getOrElse("arm64-v8a").split(",").map { it.trim() }.distinct()
+require(
+    targetAbis.isNotEmpty() && targetAbis.all {
+        it in setOf("arm64-v8a", "x86_64")
+    }
+) { "onda.abis: use arm64-v8a e/ou x86_64" }
 // Build native tools from the locked sources in nativebuild; no opaque Maven runtime.
 val nativeSource = rootProject.file("native-tools")
 val nativeHashes = rootProject.file("nativebuild/SHA256SUMS.txt")
@@ -16,7 +20,9 @@ val prepareNativeTools by tasks.registering(Sync::class) {
     inputs.file(nativeHashes)
     inputs.property("targetAbis", targetAbis)
     from(nativeSource) {
-        targetAbis.forEach { abi -> include("$abi/libffmpeg.so", "$abi/libffprobe.so", "$abi/libqjs.so", "$abi/libchromaprint.so") }
+        targetAbis.forEach { abi ->
+            include("$abi/libffmpeg.so", "$abi/libffprobe.so", "$abi/libqjs.so", "$abi/libchromaprint.so")
+        }
     }
     into(layout.buildDirectory.dir("generated/nativeTools"))
     doFirst {
@@ -31,7 +37,9 @@ val prepareNativeTools by tasks.registering(Sync::class) {
                 check(file.isFile) { "Ferramenta ausente: $relative. Siga Android/nativebuild/README.md." }
                 val actual = MessageDigest.getInstance("SHA-256").digest(file.readBytes())
                     .joinToString("") { "%02x".format(it.toInt() and 255) }
-                check(actual == expected[relative]) { "Hash nativo inválido: $relative. Confira os fontes, a construção e nativebuild/SHA256SUMS.txt." }
+                check(actual == expected[relative]) {
+                    "Hash nativo inválido: $relative. Confira os fontes, a construção e nativebuild/SHA256SUMS.txt."
+                }
             }
         }
     }
@@ -40,10 +48,12 @@ val pythonSources = layout.buildDirectory.dir("generated/pythonSources")
 val syncSharedEngine by tasks.registering(Sync::class) {
     from("../../Onda") {
         include("*.py")
-        exclude("test_*", "*_ui.py", "queue_cards.py", "queue_artwork.py", "app.py", "ui.py", "desktop_entry.py", "app_restart.py", "ffmpeg_runtime.py",
+        exclude(
+            "test_*", "*_ui.py", "queue_cards.py", "queue_artwork.py", "app.py", "ui.py", "desktop_entry.py", "app_restart.py", "ffmpeg_runtime.py",
             "failure_ui.py", "keyboard_shortcuts.py", "jukebox_ui.py", "jukebox_audio.py", "windows_media.py", "slider_style.py", "playback_ui.py", "interface_spacing.py", "failure_report.py", "list_context.py", "i18n.py", "i18n_tk.py", "credentials.py", "preferences.py", "first_run.py", "single_instance.py", "window_*.py", "tab_order.py", "settings_scroll.py",
             "instagram_session.py", "appearance.py", "brand_mark.py", "interface_fonts.py", "library.py", "reset_settings.py",
-            "flac_browser_ui.py", "catalog_picker.py", "media_picker.py", "version_picker.py", "parallel_queue.py", "lazy_ui.py")
+            "flac_browser_ui.py", "catalog_picker.py", "media_picker.py", "version_picker.py", "parallel_queue.py", "lazy_ui.py"
+        )
     }
     from("src/main/python") { include("*.py") }
     into(pythonSources)
@@ -58,26 +68,39 @@ android {
         minSdk = 26
         targetSdk = 35
         buildConfigField("String", "ONDA_ABIS", "\"${targetAbis.joinToString(",")}\"")
-        versionCode = 38
-        versionName = "1.3.0"
+        versionCode = 39
+        versionName = "1.3.1"
         ndk { abiFilters += targetAbis }
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     buildTypes.getByName("debug").resValue("string", "app_name", "ONDA Testes")
     // UI verification installs beside the normal app and preserves its data.
     if (providers.gradleProperty("onda.isolatedUiTest").orNull == "true") {
-        val suffix=providers.gradleProperty("onda.isolatedUiTestSuffix").getOrElse(".uitest")
-        require(Regex("\\.[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*").matches(suffix)) {"Sufixo de aplicação de testes inválido"}
+        val suffix = providers.gradleProperty("onda.isolatedUiTestSuffix").getOrElse(".uitest")
+        require(Regex("\\.[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*").matches(suffix)) {
+            "Sufixo de aplicação de testes inválido"
+        }
         buildTypes.getByName("debug").applicationIdSuffix = suffix
     }
-    buildFeatures { compose = true; buildConfig = true; resValues = true }
+    buildFeatures {
+        compose = true
+        buildConfig = true
+        resValues = true
+    }
     sourceSets["main"].assets.srcDir("../../Onda/locales")
     sourceSets["main"].assets.srcDir("../../Onda/assets/background-licenses")
     sourceSets["main"].assets.srcDir("../../Onda/settings_schema")
     sourceSets["main"].assets.srcDir("../../Onda/assets/tool-icons")
-    compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
     sourceSets["main"].jniLibs.srcDir(layout.buildDirectory.dir("generated/nativeTools").get().asFile)
-    packaging { jniLibs.useLegacyPackaging = true; resources.excludes += listOf("META-INF/DEPENDENCIES", "META-INF/LICENSE*", "META-INF/NOTICE*") }
+    packaging {
+        jniLibs.useLegacyPackaging = true
+        resources.excludes +=
+            listOf("META-INF/DEPENDENCIES", "META-INF/LICENSE*", "META-INF/NOTICE*")
+    }
 }
 kotlin { compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) } }
 

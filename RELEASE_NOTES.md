@@ -1,6 +1,10 @@
-# ONDA 1.3.0
+# ONDA 1.3.1
 
-Disponível para Windows x64 e Android ARM64 e x86_64.
+Versão de manutenção para Windows x64 e Android ARM64 e x86_64. Mantém os recursos da versão 1.3.0 descritos abaixo.
+
+## Aviso de atualização
+
+Ao atualizar de uma versão anterior à 1.3.0, desinstale a versão antiga antes de instalar a 1.3.1. Instalar por cima pode causar erro no runtime do Python. Antes de desinstalar, faça backup das configurações e dos dados locais que deseja manter.
 
 ## Windows e Android
 

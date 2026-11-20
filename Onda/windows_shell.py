@@ -36,8 +36,12 @@ class IconData(c.Structure):
 
 class ThumbnailButton(c.Structure):
     _fields_ = [
-        ('mask', w.DWORD), ('identity', w.UINT), ('bitmap', w.UINT),
-        ('icon', w.HICON), ('tip', w.WCHAR * 260), ('flags', w.DWORD),
+        ('mask', w.DWORD),
+        ('identity', w.UINT),
+        ('bitmap', w.UINT),
+        ('icon', w.HICON),
+        ('tip', w.WCHAR * 260),
+        ('flags', w.DWORD),
     ]
 
 
@@ -270,7 +274,15 @@ class WindowsShell:
         from PIL import Image, ImageDraw
 
         create = self.user.CreateIconFromResourceEx
-        create.argtypes = [c.POINTER(c.c_ubyte), w.DWORD, w.BOOL, w.DWORD, c.c_int, c.c_int, w.UINT]
+        create.argtypes = [
+            c.POINTER(c.c_ubyte),
+            w.DWORD,
+            w.BOOL,
+            w.DWORD,
+            c.c_int,
+            c.c_int,
+            w.UINT,
+        ]
         create.restype = w.HICON
         try:
             for name in ('previous', 'play', 'pause', 'next'):
@@ -290,10 +302,14 @@ class WindowsShell:
                 image.save(stream, format='ICO', sizes=[(32, 32)], bitmap_format='bmp')
                 data = stream.getvalue()
                 length, offset = struct.unpack_from('<II', data, 14)
-                resource = (c.c_ubyte * length).from_buffer_copy(data[offset:offset + length])
+                resource = (c.c_ubyte * length).from_buffer_copy(
+                    data[offset : offset + length]
+                )
                 icon = create(resource, length, True, 0x30000, 32, 32, 0)
                 if not icon:
-                    raise OSError('Não foi possível criar os controles da barra de tarefas.')
+                    raise OSError(
+                        'Não foi possível criar os controles da barra de tarefas.'
+                    )
                 self._thumbnail_icons[name] = icon
         except Exception:
             for icon in self._thumbnail_icons.values():
@@ -309,7 +325,11 @@ class WindowsShell:
             return True
         from i18n import tr
 
-        labels = (tr('Anterior'), tr('Pausar' if playing else 'Reproduzir'), tr('Próxima'))
+        labels = (
+            tr('Anterior'),
+            tr('Pausar' if playing else 'Reproduzir'),
+            tr('Próxima'),
+        )
         signature = (bool(opened), bool(playing), bool(previous), bool(next), labels)
         if signature == self._thumbnail_signature:
             return True
@@ -323,11 +343,15 @@ class WindowsShell:
             button.mask, button.identity = 0xE, identity  # ICON | TOOLTIP | FLAGS
             button.icon, button.tip = self._thumbnail_icons[name], label[:259]
             button.flags = 0 if opened and enabled else 1 if opened else 0x9
-        result = self.com(16 if self._thumbnail_added else 15,
-                          [w.HWND, w.UINT, c.POINTER(ThumbnailButton)])(self.hwnd, 3, buttons)
+        result = self.com(
+            16 if self._thumbnail_added else 15,
+            [w.HWND, w.UINT, c.POINTER(ThumbnailButton)],
+        )(self.hwnd, 3, buttons)
         if result < 0 and not self._thumbnail_added:
             # A taskbar button may have survived a transient failed update.
-            result = self.com(16, [w.HWND, w.UINT, c.POINTER(ThumbnailButton)])(self.hwnd, 3, buttons)
+            result = self.com(16, [w.HWND, w.UINT, c.POINTER(ThumbnailButton)])(
+                self.hwnd, 3, buttons
+            )
         if result >= 0:
             self._thumbnail_added = True
             self._thumbnail_signature = signature

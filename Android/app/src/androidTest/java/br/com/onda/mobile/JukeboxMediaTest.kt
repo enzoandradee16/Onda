@@ -19,114 +19,202 @@ import java.nio.ByteOrder
 @RunWith(AndroidJUnit4::class)
 class JukeboxMediaTest {
     @Test fun directSelectionsKeepEarlierTracksInQueue() {
-        val instrumentation=InstrumentationRegistry.getInstrumentation()
-        val context=instrumentation.targetContext
-        val scope=kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob()+kotlinx.coroutines.Dispatchers.Main.immediate)
-        lateinit var controller:JukeboxController
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val context = instrumentation.targetContext
+        val scope = kotlinx.coroutines.CoroutineScope(
+            kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Main.immediate
+        )
+        lateinit var controller: JukeboxController
         try {
             instrumentation.runOnMainSync {
                 OndaStore.initialize(context)
-                controller=JukeboxController(context,scope,{}) {_,config,_->
-                    JSONObject().put("media_title",config.getJSONObject("record").getString("title")).put("media_artist","Artist").put("duration",120).put("source","audio.wav").put("cache","unused-test-cache")
+                controller = JukeboxController(context, scope, {}) { _, config, _ ->
+                    JSONObject().put(
+                        "media_title",
+                        config.getJSONObject("record").getString("title")
+                    ).put(
+                        "media_artist",
+                        "Artist"
+                    ).put("duration", 120).put("source", "audio.wav").put("cache", "unused-test-cache")
                 }
-                controller.stop();controller.clearPlaybackQueue()
-                controller.prepare(record=JSONObject().put("title","First"))
-                controller.prepare(record=JSONObject().put("title","Second"))
-                assertEquals(listOf("First","Second"),controller.playbackQueue.value.map {it.getString("title")})
-                assertEquals(2,controller.nextQueueIndex)
-                assertEquals(controller.playbackQueue.value[1].getString("_queue_id"),controller.currentQueueId.value)
-                assertTrue(controller.playbackQueue.value.all {it.getString("_analysis")=="Pronta"})
+                controller.stop()
+                controller.clearPlaybackQueue()
+                controller.prepare(record = JSONObject().put("title", "First"))
+                controller.prepare(record = JSONObject().put("title", "Second"))
+                assertEquals(listOf("First", "Second"), controller.playbackQueue.value.map { it.getString("title") })
+                assertEquals(2, controller.nextQueueIndex)
+                assertEquals(controller.playbackQueue.value[1].getString("_queue_id"), controller.currentQueueId.value)
+                assertTrue(controller.playbackQueue.value.all { it.getString("_analysis") == "Pronta" })
             }
-        } finally {instrumentation.runOnMainSync {controller.close();scope.coroutineContext[kotlinx.coroutines.Job]?.cancel()}}
-    }
-    @Test fun graphShowsAllConnectionsBeforePlayback() {
-        val rows=JSONArray().apply {repeat(64){put(JSONArray().put((it+12)%64))}}
-        val model=JSONObject().put("neighbors",rows)
-        assertEquals((0 until 64).map {it to (it+12)%64},jukeboxVisibleLinks(model,false))
-        assertTrue(jukeboxVisibleLinks(model,true).isEmpty())
-        assertTrue(jukeboxVisibleLinks(null,false).isEmpty())
-    }
-    @Test fun denseGraphIsBoundedWithoutChangingPlaybackConnections() {
-        val rows=JSONArray().apply {repeat(2000){put(JSONArray().apply {repeat(80){put(it)}})}}
-        val model=JSONObject().put("neighbors",rows)
-        val visible=jukeboxVisibleLinks(model,false,100f)
-        assertTrue(visible.isNotEmpty());assertTrue(visible.size<=1800)
-        assertEquals(160000,(0 until rows.length()).sumOf {rows.getJSONArray(it).length()})
-        assertTrue(visible.all {(i,j)->(0 until rows.getJSONArray(i).length()).any {rows.getJSONArray(i).getInt(it)==j}})
-    }
-    @Test fun mediaNotificationControlsKeepInfiniteAudioInBackground() {
-        val instrumentation=InstrumentationRegistry.getInstrumentation()
-        val context=instrumentation.targetContext
-        val scenario=ActivityScenario.launch(MainActivity::class.java)
-        val before=JSONObject(OndaStore.settings.value.toString())
-        val controller=JukeboxRuntime.get(context)
-        val originalStopOtherAudio=controller.stopOtherAudio
-        val handoffs=java.util.concurrent.atomic.AtomicInteger()
-        val source=java.io.File(context.cacheDir,"jukebox-media-silence.wav")
-        fun await(check:()->Boolean) {val end=System.currentTimeMillis()+10000;while(!check() && System.currentTimeMillis()<end)Thread.sleep(50);assertTrue("Playback: ${controller.state.value.message}, playing=${controller.state.value.playing}, queued=${controller.playbackQueue.value.size}",check())}
-        try {
-            val data=ByteArray(44100*4*4)
-            val header=ByteBuffer.allocate(44).order(ByteOrder.LITTLE_ENDIAN).put("RIFF".toByteArray()).putInt(36+data.size).put("WAVEfmt ".toByteArray()).putInt(16).putShort(1).putShort(2).putInt(44100).putInt(176400).putShort(4).putShort(16).put("data".toByteArray()).putInt(data.size).array()
-            source.outputStream().use {it.write(header);it.write(data)}
-            val model=MobileEngine.call(context,"jukebox-media-test","jukebox_prepare",OndaStore.config().put("source",source.absolutePath),EventCallback {})
-            assertFalse(model.toString(),model.has("error"))
-            model.put("media_title","Silent test").put("media_artist","ONDA")
-            scenario.onActivity {
-                controller.stop();controller.clearPlaybackQueue()
-                controller.stopOtherAudio={handoffs.incrementAndGet();originalStopOtherAudio()}
-                OndaStore.saveSettings(JSONObject(before.toString()).put("jukebox_background",true))
-                controller.state.value=JukeboxState(title="",model=model)
-                controller.playPause()
-            }
-            await {controller.state.value.elapsed>.1}
-            val manager=context.getSystemService(NotificationManager::class.java)
-            await {manager.activeNotifications.any {it.id==13}}
-            val notification=manager.activeNotifications.first {it.id==13}.notification
-            @Suppress("DEPRECATION") val token=notification.extras.getParcelable<MediaSession.Token>(Notification.EXTRA_MEDIA_SESSION)
-            assertNotNull(token)
-            val media=MediaController(context,token!!)
-            assertEquals("Silent test",media.metadata?.getString(MediaMetadata.METADATA_KEY_TITLE))
-            assertEquals("ONDA",media.metadata?.getString(MediaMetadata.METADATA_KEY_ARTIST))
-            instrumentation.uiAutomation.executeShellCommand("input keyevent KEYCODE_HOME").close()
-            await {controller.state.value.elapsed>.4}
-            assertTrue(controller.state.value.playing);assertFalse(controller.state.value.paused)
-            media.transportControls.pause();await {controller.state.value.paused}
-            val handoffsBeforeResume=handoffs.get()
-            media.transportControls.play();await {!controller.state.value.paused}
-            assertTrue("Retomar Jukebox também deve pausar a outra reprodução",handoffs.get()>handoffsBeforeResume)
-            media.transportControls.stop();await {!controller.state.value.playing}
-            await {manager.activeNotifications.none {it.id==13}}
-            instrumentation.runOnMainSync {
-                repeat(2){controller.enqueue(JSONObject().put("title","Queued test").put("_local_source",source.absolutePath))}
-            }
-            await {controller.playbackQueue.value.size==2 && controller.playbackQueue.value.all {it.optString("_analysis")=="Pronta"}}
-            instrumentation.runOnMainSync {controller.setTimer(30);controller.setTimer(5,true);controller.playQueued(0)}
-            await {controller.state.value.elapsed>.1}
-            assertEquals(30,controller.timerMinutes.value);assertEquals(5,controller.switchMinutes.value)
-            val trackField=JukeboxController::class.java.getDeclaredField("track").apply {isAccessible=true}
-            val outputBefore=trackField.get(controller)
-            val secondId=controller.playbackQueue.value[1].optString("_queue_id")
-            instrumentation.runOnMainSync {controller.nextTrack()}
-            await {controller.currentQueueId.value==secondId && controller.state.value.elapsed>.1}
-            assertSame("Crossfade must reuse the same AudioTrack",outputBefore,trackField.get(controller))
-            assertEquals(2,controller.playbackQueue.value.size)
-            val firstId=controller.playbackQueue.value[0].optString("_queue_id")
-            instrumentation.runOnMainSync {controller.previousTrack()}
-            await {controller.currentQueueId.value==firstId}
-            instrumentation.runOnMainSync {controller.moveQueued(0,1)}
-            assertEquals(firstId,controller.currentQueueId.value)
-            instrumentation.runOnMainSync {controller.clearPlaybackQueue()}
-            assertTrue(controller.playbackQueue.value.isEmpty())
-            assertTrue(controller.state.value.playing)
-            assertEquals(30,controller.timerMinutes.value);assertEquals(5,controller.switchMinutes.value)
-            instrumentation.runOnMainSync {controller.stop()}
-            await {manager.activeNotifications.none {it.id==13}}
-
         } finally {
-            instrumentation.runOnMainSync {controller.stop();controller.clearPlaybackQueue();controller.stopOtherAudio=originalStopOtherAudio;OndaStore.saveSettings(before)}
-            scenario.close();source.delete()
+            instrumentation.runOnMainSync {
+                controller.close()
+                scope.coroutineContext[kotlinx.coroutines.Job]?.cancel()
+            }
         }
     }
+
+    @Test fun graphShowsAllConnectionsBeforePlayback() {
+        val rows = JSONArray().apply { repeat(64) { put(JSONArray().put((it + 12) % 64)) } }
+        val model = JSONObject().put("neighbors", rows)
+        assertEquals((0 until 64).map { it to (it + 12) % 64 }, jukeboxVisibleLinks(model, false))
+        assertTrue(jukeboxVisibleLinks(model, true).isEmpty())
+        assertTrue(jukeboxVisibleLinks(null, false).isEmpty())
+    }
+
+    @Test fun denseGraphIsBoundedWithoutChangingPlaybackConnections() {
+        val rows = JSONArray().apply { repeat(2000) { put(JSONArray().apply { repeat(80) { put(it) } }) } }
+        val model = JSONObject().put("neighbors", rows)
+        val visible = jukeboxVisibleLinks(model, false, 100f)
+        assertTrue(visible.isNotEmpty())
+        assertTrue(visible.size <= 1800)
+        assertEquals(160000, (0 until rows.length()).sumOf { rows.getJSONArray(it).length() })
+        assertTrue(
+            visible.all { (i, j) ->
+                (0 until rows.getJSONArray(i).length()).any { rows.getJSONArray(i).getInt(it) == j }
+            }
+        )
+    }
+
+    @Test fun mediaNotificationControlsKeepInfiniteAudioInBackground() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val context = instrumentation.targetContext
+        val scenario = ActivityScenario.launch(MainActivity::class.java)
+        val before = JSONObject(OndaStore.settings.value.toString())
+        val controller = JukeboxRuntime.get(context)
+        val originalStopOtherAudio = controller.stopOtherAudio
+        val handoffs = java.util.concurrent.atomic.AtomicInteger()
+        val source = java.io.File(context.cacheDir, "jukebox-media-silence.wav")
+        fun await(check: () -> Boolean) {
+            val end =
+                System.currentTimeMillis() + 10000
+            while (!check() &&
+                System.currentTimeMillis() < end
+                )Thread.sleep(50)
+            assertTrue(
+                "Playback: ${controller.state.value.message}, playing=${controller.state.value.playing}, queued=${controller.playbackQueue.value.size}",
+                check()
+            )
+        }
+        try {
+            val data = ByteArray(44100 * 4 * 4)
+            val header = ByteBuffer.allocate(
+                44
+            ).order(
+                ByteOrder.LITTLE_ENDIAN
+            ).put(
+                "RIFF".toByteArray()
+            ).putInt(
+                36 + data.size
+            ).put(
+                "WAVEfmt ".toByteArray()
+            ).putInt(
+                16
+            ).putShort(
+                1
+            ).putShort(
+                2
+            ).putInt(44100).putInt(176400).putShort(4).putShort(16).put("data".toByteArray()).putInt(data.size).array()
+            source.outputStream().use {
+                it.write(header)
+                it.write(data)
+            }
+            val model = MobileEngine.call(
+                context,
+                "jukebox-media-test",
+                "jukebox_prepare",
+                OndaStore.config().put("source", source.absolutePath),
+                EventCallback {
+                }
+            )
+            assertFalse(model.toString(), model.has("error"))
+            model.put("media_title", "Silent test").put("media_artist", "ONDA")
+            scenario.onActivity {
+                controller.stop()
+                controller.clearPlaybackQueue()
+                controller.stopOtherAudio = {
+                    handoffs.incrementAndGet()
+                    originalStopOtherAudio()
+                }
+                OndaStore.saveSettings(JSONObject(before.toString()).put("jukebox_background", true))
+                controller.state.value = JukeboxState(title = "", model = model)
+                controller.playPause()
+            }
+            await { controller.state.value.elapsed > .1 }
+            val manager = context.getSystemService(NotificationManager::class.java)
+            await { manager.activeNotifications.any { it.id == 13 } }
+            val notification = manager.activeNotifications.first { it.id == 13 }.notification
+
+            @Suppress("DEPRECATION")
+            val token = notification.extras.getParcelable<MediaSession.Token>(Notification.EXTRA_MEDIA_SESSION)
+            assertNotNull(token)
+            val media = MediaController(context, token!!)
+            assertEquals("Silent test", media.metadata?.getString(MediaMetadata.METADATA_KEY_TITLE))
+            assertEquals("ONDA", media.metadata?.getString(MediaMetadata.METADATA_KEY_ARTIST))
+            instrumentation.uiAutomation.executeShellCommand("input keyevent KEYCODE_HOME").close()
+            await { controller.state.value.elapsed > .4 }
+            assertTrue(controller.state.value.playing)
+            assertFalse(controller.state.value.paused)
+            media.transportControls.pause()
+            await { controller.state.value.paused }
+            val handoffsBeforeResume = handoffs.get()
+            media.transportControls.play()
+            await { !controller.state.value.paused }
+            assertTrue("Retomar Jukebox também deve pausar a outra reprodução", handoffs.get() > handoffsBeforeResume)
+            media.transportControls.stop()
+            await { !controller.state.value.playing }
+            await { manager.activeNotifications.none { it.id == 13 } }
+            instrumentation.runOnMainSync {
+                repeat(2) {
+                    controller.enqueue(
+                        JSONObject().put("title", "Queued test").put("_local_source", source.absolutePath)
+                    )
+                }
+            }
+            await {
+                controller.playbackQueue.value.size == 2 &&
+                    controller.playbackQueue.value.all { it.optString("_analysis") == "Pronta" }
+            }
+            instrumentation.runOnMainSync {
+                controller.setTimer(30)
+                controller.setTimer(5, true)
+                controller.playQueued(0)
+            }
+            await { controller.state.value.elapsed > .1 }
+            assertEquals(30, controller.timerMinutes.value)
+            assertEquals(5, controller.switchMinutes.value)
+            val trackField = JukeboxController::class.java.getDeclaredField("track").apply { isAccessible = true }
+            val outputBefore = trackField.get(controller)
+            val secondId = controller.playbackQueue.value[1].optString("_queue_id")
+            instrumentation.runOnMainSync { controller.nextTrack() }
+            await { controller.currentQueueId.value == secondId && controller.state.value.elapsed > .1 }
+            assertSame("Crossfade must reuse the same AudioTrack", outputBefore, trackField.get(controller))
+            assertEquals(2, controller.playbackQueue.value.size)
+            val firstId = controller.playbackQueue.value[0].optString("_queue_id")
+            instrumentation.runOnMainSync { controller.previousTrack() }
+            await { controller.currentQueueId.value == firstId }
+            instrumentation.runOnMainSync { controller.moveQueued(0, 1) }
+            assertEquals(firstId, controller.currentQueueId.value)
+            instrumentation.runOnMainSync { controller.clearPlaybackQueue() }
+            assertTrue(controller.playbackQueue.value.isEmpty())
+            assertTrue(controller.state.value.playing)
+            assertEquals(30, controller.timerMinutes.value)
+            assertEquals(5, controller.switchMinutes.value)
+            instrumentation.runOnMainSync { controller.stop() }
+            await { manager.activeNotifications.none { it.id == 13 } }
+        } finally {
+            instrumentation.runOnMainSync {
+                controller.stop()
+                controller.clearPlaybackQueue()
+                controller.stopOtherAudio =
+                    originalStopOtherAudio
+                OndaStore.saveSettings(before)
+            }
+            scenario.close()
+            source.delete()
+        }
+    }
+
     @Test fun backgroundIsExplicitAndPersistent() {
         assertTrue(OndaStore.defaults().optBoolean("jukebox_background"))
         assertFalse(categories.getValue("Áudio").contains("jukebox_background"))

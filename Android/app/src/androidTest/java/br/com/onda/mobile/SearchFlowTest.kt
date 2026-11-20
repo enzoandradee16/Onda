@@ -9,18 +9,28 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class SearchFlowTest {
-    @get:Rule(order=0) val permissions=object:org.junit.rules.ExternalResource() {
+    @get:Rule(order = 0)
+    val permissions = object : org.junit.rules.ExternalResource() {
         override fun before() {
-            if(android.os.Build.VERSION.SDK_INT>=33) {
-                val instrumentation=androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
-                instrumentation.uiAutomation.grantRuntimePermission(instrumentation.targetContext.packageName,android.Manifest.permission.POST_NOTIFICATIONS)
+            if (android.os.Build.VERSION.SDK_INT >= 33) {
+                val instrumentation = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
+                instrumentation.uiAutomation.grantRuntimePermission(
+                    instrumentation.targetContext.packageName,
+                    android.Manifest.permission.POST_NOTIFICATIONS
+                )
             }
         }
     }
-    @get:Rule(order=1) val compose=createAndroidComposeRule<MainActivity>()
+
+    @get:Rule(order = 1)
+    val compose = createAndroidComposeRule<MainActivity>()
+
     @Test fun filtersAreReachableWithoutStartingNetworkSearch() {
         compose.waitForIdle()
-        if(compose.onAllNodesWithText("Agora não").fetchSemanticsNodes().isNotEmpty())compose.onNodeWithText("Agora não").performClick()
+        if (compose.onAllNodesWithText(
+                "Agora não"
+            ).fetchSemanticsNodes().isNotEmpty()
+        ) compose.onNodeWithText("Agora não").performClick()
         compose.onNodeWithTag("nav-Pesquisar").performClick()
         compose.onNodeWithContentDescription("Opções da pesquisa").performClick()
         compose.onNodeWithText("Filtros").performClick()

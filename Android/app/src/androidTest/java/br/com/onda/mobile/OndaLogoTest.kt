@@ -16,19 +16,22 @@ import org.junit.Rule
 import org.junit.Test
 
 class OndaLogoTest {
-    @get:Rule val compose=createComposeRule()
+    @get:Rule val compose = createComposeRule()
+
     @Test fun logoPixelsFollowAccentChangesImmediately() {
-        val accent=mutableStateOf(Color.Red)
-        compose.setContent {MaterialTheme(colorScheme=darkColorScheme(primary=accent.value)) {
-            OndaLogo(Modifier.size(48.dp).testTag("logo"),"Ícone ONDA")
-        }}
-        fun center():Color {
-            val pixels=compose.onNodeWithTag("logo").captureToImage().toPixelMap()
-            return pixels[pixels.width/2,pixels.height/2]
+        val accent = mutableStateOf(Color.Red)
+        compose.setContent {
+            MaterialTheme(colorScheme = darkColorScheme(primary = accent.value)) {
+                OndaLogo(Modifier.size(48.dp).testTag("logo"), "Ícone ONDA")
+            }
         }
-        assertEquals(Color.Red,center())
-        compose.runOnIdle {accent.value=Color.Blue}
+        fun center(): Color {
+            val pixels = compose.onNodeWithTag("logo").captureToImage().toPixelMap()
+            return pixels[pixels.width / 2, pixels.height / 2]
+        }
+        assertEquals(Color.Red, center())
+        compose.runOnIdle { accent.value = Color.Blue }
         compose.waitForIdle()
-        assertEquals(Color.Blue,center())
+        assertEquals(Color.Blue, center())
     }
 }

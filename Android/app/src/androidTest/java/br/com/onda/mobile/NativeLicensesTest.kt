@@ -9,16 +9,22 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class NativeLicensesTest {
-    @get:Rule(order=0) val permissions = object : org.junit.rules.ExternalResource() {
+    @get:Rule(order = 0)
+    val permissions = object : org.junit.rules.ExternalResource() {
         override fun before() {
             if (android.os.Build.VERSION.SDK_INT >= 33) {
                 val instrumentation = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
-                instrumentation.uiAutomation.grantRuntimePermission(instrumentation.targetContext.packageName,
-                    android.Manifest.permission.POST_NOTIFICATIONS)
+                instrumentation.uiAutomation.grantRuntimePermission(
+                    instrumentation.targetContext.packageName,
+                    android.Manifest.permission.POST_NOTIFICATIONS
+                )
             }
         }
     }
-    @get:Rule(order=1) val compose = createAndroidComposeRule<MainActivity>()
+
+    @get:Rule(order = 1)
+    val compose = createAndroidComposeRule<MainActivity>()
+
     @Test fun licensesAreReadableByComponent() {
         compose.waitForIdle()
         if (compose.onAllNodesWithText("Agora não").fetchSemanticsNodes().isNotEmpty())
@@ -28,10 +34,14 @@ class NativeLicensesTest {
         compose.onNodeWithText("Licenças e fontes").performScrollTo().performClick()
         compose.onNodeWithTag("license-list").performScrollToNode(hasText("ffmpeg-9.0.2 / LICENSE.md"))
         compose.onNodeWithText("ffmpeg-9.0.2 / LICENSE.md").performScrollTo().performClick()
-        compose.onNodeWithTag("license-details").performScrollToNode(hasText("Most files in FFmpeg", substring=true))
-        compose.onNodeWithText("Most files in FFmpeg", substring=true).assertIsDisplayed()
+        compose.onNodeWithTag("license-details").performScrollToNode(hasText("Most files in FFmpeg", substring = true))
+        compose.onNodeWithText("Most files in FFmpeg", substring = true).assertIsDisplayed()
         compose.onNodeWithText("Voltar").performClick()
-        for(name in listOf("gallery_dl-1.32.20.dist-info/licenses/LICENSE","yt_dlp-2026.10.26.dist-info/licenses/LICENSE","certifi-2026.10.23.dist-info/licenses/LICENSE")) {
+        for (name in listOf(
+            "gallery_dl-1.32.20.dist-info/licenses/LICENSE",
+            "yt_dlp-2026.10.26.dist-info/licenses/LICENSE",
+            "certifi-2026.10.23.dist-info/licenses/LICENSE"
+        )) {
             compose.onNodeWithTag("license-list").performScrollToNode(hasText(name))
             compose.onNodeWithText(name).assertIsDisplayed()
         }

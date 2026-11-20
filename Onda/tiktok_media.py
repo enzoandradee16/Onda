@@ -146,10 +146,14 @@ def mobile_post(source, session, url):
     from social_recovery import public_html, script_json
 
     def page(target):
-        return public_html(session, target, headers={
-            'User-Agent': MOBILE_USER_AGENT,
-            'Accept-Encoding': 'gzip, deflate',
-        })
+        return public_html(
+            session,
+            target,
+            headers={
+                'User-Agent': MOBILE_USER_AGENT,
+                'Accept-Encoding': 'gzip, deflate',
+            },
+        )
 
     html = page(url)
     state = source._get_universal_data(html, post_id) or {}
@@ -172,8 +176,13 @@ def mobile_post(source, session, url):
     post = info.get('itemStruct') if isinstance(info, dict) else None
     post = post if isinstance(post, dict) else {}
     if detail.get('statusCode') not in (None, 0) or (
-        post and (str(post.get('id') or '') != post_id
-                  or post.get('secret') or post.get('forFriend') or post.get('privateItem'))
+        post
+        and (
+            str(post.get('id') or '') != post_id
+            or post.get('secret')
+            or post.get('forFriend')
+            or post.get('privateItem')
+        )
     ):
         raise ExtractorError(
             'O TikTok não disponibilizou esta publicação na página móvel.',
@@ -216,6 +225,7 @@ def tiktok_items(url, session, cookies="", logger=None):
         source = TikTokMediaIE(downloader)
         try:
             from social_recovery import retry_metadata
+
             retry_metadata(lambda: source.extract(canonical))
         except ExtractorError as error:
             message = str(error).lower()

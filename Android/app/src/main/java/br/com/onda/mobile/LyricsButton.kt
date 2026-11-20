@@ -28,104 +28,306 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
 import org.json.JSONObject
 
-@Composable internal fun LyricsButton(vm:OndaViewModel,source:String,position:()->Double,duration:Double,seek:(Double)->Unit,toggle:()->Unit,
-    isPlaying:()->Boolean={vm.previewActive.value},previous:()->Unit={seek(0.0)},next:(()->Unit)?=null,
-    title:String="",artist:String="",showButton:Boolean=true,openRequest:Int=0,providedLines:List<Pair<Double,String>>?=null,controlsEnabled:Boolean=true) {
+@Composable internal fun LyricsButton(
+    vm: OndaViewModel,
+    source: String,
+    position: () -> Double,
+    duration: Double,
+    seek: (Double) -> Unit,
+    toggle: () -> Unit,
+    isPlaying: () -> Boolean = { vm.previewActive.value },
+    previous: () -> Unit = { seek(0.0) },
+    next: (() -> Unit)? = null,
+    title: String = "",
+    artist: String = "",
+    showButton: Boolean = true,
+    openRequest: Int = 0,
+    providedLines: List<Pair<Double, String>>? = null,
+    controlsEnabled: Boolean = true
+) {
     val latestSource by rememberUpdatedState(source)
     val latestPosition by rememberUpdatedState(position)
-    var open by remember {mutableStateOf(false)}
-    var menu by remember {mutableStateOf(false)}
-    val context=LocalContext.current
-    LaunchedEffect(openRequest){if(openRequest>0)open=true}
-    var seconds by remember(source) {mutableDoubleStateOf(0.0)}
-    var dragged by remember(source) {mutableStateOf<Float?>(null)}
-    val (lyricsBackground,lyricsInk)=rememberLyricsColors(vm,source)
+    var open by remember { mutableStateOf(false) }
+    var menu by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    LaunchedEffect(openRequest) { if (openRequest > 0) open = true }
+    var seconds by remember(source) { mutableDoubleStateOf(0.0) }
+    var dragged by remember(source) { mutableStateOf<Float?>(null) }
+    val (lyricsBackground, lyricsInk) = rememberLyricsColors(vm, source)
     val cache by vm.lyricsCache.collectAsStateWithLifecycle()
-    val lines=providedLines ?: cache[source].orEmpty()
-    val timeline=remember(lines){LyricTimeline(lines)}
+    val lines = providedLines ?: cache[source].orEmpty()
+    val timeline = remember(lines) { LyricTimeline(lines) }
     val settings by OndaStore.settings.collectAsStateWithLifecycle()
-    var alternatives by remember(source) {mutableStateOf<List<JSONObject>>(emptyList())}
-    var searching by remember(source) {mutableStateOf(false)}
-    fun applyLyrics(result:JSONObject) {
-        result.optJSONArray("lines")?.let {rows->vm.storeLyrics(source,(0 until rows.length()).map {i->rows.getJSONArray(i).let {it.getDouble(0) to it.getString(1)}})}
+    var alternatives by remember(source) { mutableStateOf<List<JSONObject>>(emptyList()) }
+    var searching by remember(source) { mutableStateOf(false) }
+    fun applyLyrics(result: JSONObject) {
+        result.optJSONArray("lines")?.let { rows ->
+            vm.storeLyrics(
+                source,
+                (0 until rows.length()).map { i ->
+                    rows.getJSONArray(i).let {
+                        it.getDouble(0) to
+                            it.getString(1)
+                    }
+                }
+            )
+        }
     }
-    LaunchedEffect(source,providedLines!=null) {if(providedLines==null)vm.lookupLyrics(source)}
-    val picker=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) {uri->if(uri!=null) {
-        val requestedSource=source
-        vm.importLocal(uri,"lyrics",dialog=true) {file->vm.operation("lyrics_read",JSONObject().put("source",file.absolutePath),dialog=true) {result->
-            if(requestedSource==latestSource)applyLyrics(result)
-            file.delete()
-        }}
-    }}
-    if(showButton)IconButton(onClick={open=true},modifier=Modifier.testTag("lyrics-button")){OndaIcon("microphone","Letra",Modifier.size(24.dp))}
-    if(open)Dialog(onDismissRequest={open=false},properties=DialogProperties(usePlatformDefaultWidth=false)) {
-        val listState=rememberLazyListState()
-        val active=timeline.activeIndex(seconds)
-        val animation=settings.optString("lyrics_animation","Suave")
-        LaunchedEffect(source) {listState.scrollToItem(0);while(true){if(dragged==null)seconds=latestPosition();delay(80)}}
-        LaunchedEffect(active) {if(active>=0) {if(animation=="Desativada")listState.scrollToItem(active) else listState.animateScrollToItem(active)}}
-        Surface(Modifier.fillMaxSize().testTag("lyrics-fullscreen"),color=lyricsBackground,contentColor=lyricsInk) {
-            Column(Modifier.fillMaxSize().padding(24.dp),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.controls)) {
-                Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
-                    IconButton(onClick={open=false}){OndaIcon("down","Recolher letra",Modifier.size(26.dp))}
-                    Column(Modifier.weight(1f),horizontalAlignment=Alignment.CenterHorizontally) {
-                        Text(title.ifBlank {importedAudioName(source)},maxLines=1,overflow=TextOverflow.Ellipsis,style=MaterialTheme.typography.titleSmall,fontWeight=FontWeight.Bold)
-                        Text(artist,maxLines=1,overflow=TextOverflow.Ellipsis,style=MaterialTheme.typography.bodySmall)
+    LaunchedEffect(source, providedLines != null) { if (providedLines == null) vm.lookupLyrics(source) }
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            val requestedSource = source
+            vm.importLocal(uri, "lyrics", dialog = true) { file ->
+                vm.operation("lyrics_read", JSONObject().put("source", file.absolutePath), dialog = true) { result ->
+                    if (requestedSource == latestSource) applyLyrics(result)
+                    file.delete()
+                }
+            }
+        }
+    }
+    if (showButton) IconButton(onClick = {
+        open = true
+    }, modifier = Modifier.testTag("lyrics-button")) { OndaIcon("microphone", "Letra", Modifier.size(24.dp)) }
+    if (open) Dialog(onDismissRequest = {
+        open = false
+    }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        val listState = rememberLazyListState()
+        val active = timeline.activeIndex(seconds)
+        val animation = settings.optString("lyrics_animation", "Suave")
+        LaunchedEffect(source) {
+            listState.scrollToItem(0)
+            while (true) {
+                if (dragged ==
+                    null
+                ) seconds = latestPosition()
+                delay(80)
+            }
+        }
+        LaunchedEffect(active) {
+            if (active >=
+                0
+            ) {
+                if (animation == "Desativada") listState.scrollToItem(active) else listState.animateScrollToItem(active)
+            }
+        }
+        Surface(
+            Modifier.fillMaxSize().testTag("lyrics-fullscreen"),
+            color = lyricsBackground,
+            contentColor = lyricsInk
+        ) {
+            Column(
+                Modifier.fillMaxSize().padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(LayoutSpacing.controls)
+            ) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = { open = false }) { OndaIcon("down", "Recolher letra", Modifier.size(26.dp)) }
+                    Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            title.ifBlank {
+                                importedAudioName(source)
+                            },
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            artist,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            style = MaterialTheme.typography.bodySmall
+                        )
                     }
                     Spacer(Modifier.width(48.dp))
                 }
-                LazyColumn(Modifier.weight(1f).fillMaxWidth().testTag("lyrics-lines"),state=listState,verticalArrangement=Arrangement.spacedBy(LayoutSpacing.section),contentPadding=PaddingValues(vertical=24.dp)) {
-                    if(lines.isEmpty())item {UiText("Letra não encontrada para esta gravação.",Modifier.fillMaxWidth(),style=MaterialTheme.typography.bodyMedium)}
-                    itemsIndexed(lines) {index,line->
-                        val selected=index==active
-                        val ink=lyricsInk
-                        val normal=lyricsInk.copy(alpha=.72f)
-                        val verse=timeline.verses[index]
-                        val text=buildAnnotatedString {
-                            if(!selected||verse.words.isEmpty())append(verse.plain)
+                LazyColumn(
+                    Modifier.weight(1f).fillMaxWidth().testTag("lyrics-lines"),
+                    state = listState,
+                    verticalArrangement = Arrangement.spacedBy(LayoutSpacing.section),
+                    contentPadding = PaddingValues(vertical = 24.dp)
+                ) {
+                    if (lines.isEmpty()) item {
+                        UiText(
+                            "Letra não encontrada para esta gravação.",
+                            Modifier.fillMaxWidth(),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                    itemsIndexed(lines) { index, line ->
+                        val selected = index == active
+                        val ink = lyricsInk
+                        val normal = lyricsInk.copy(alpha = .72f)
+                        val verse = timeline.verses[index]
+                        val text = buildAnnotatedString {
+                            if (!selected || verse.words.isEmpty()) append(verse.plain)
                             else {
                                 append(verse.prefix)
-                                verse.words.forEach {word->
-                                    withStyle(SpanStyle(color=if(seconds>=word.seconds)ink else normal,fontWeight=if(seconds>=word.seconds)FontWeight.Bold else FontWeight.Normal)){append(word.text)}
+                                verse.words.forEach { word ->
+                                    withStyle(
+                                        SpanStyle(
+                                            color = if (seconds >=
+                                                word.seconds
+                                            ) ink else normal,
+                                            fontWeight = if (seconds >=
+                                                word.seconds
+                                            ) FontWeight.Bold else FontWeight.Normal
+                                        )
+                                    ) { append(word.text) }
                                 }
                             }
                         }
-                        Text(text,Modifier.fillMaxWidth().lyricAnimation(index to selected,animation,emphasized=selected,muted=active>=0&&!selected).clickable(enabled=timeline.synced&&controlsEnabled){seconds=line.first;seek(line.first)}.testTag("lyric-line-$index"),color=if(selected)ink else normal,style=MaterialTheme.typography.headlineSmall,textAlign=TextAlign.Start,fontWeight=FontWeight.Bold)
+                        Text(
+                            text,
+                            Modifier.fillMaxWidth().lyricAnimation(
+                                index to selected,
+                                animation,
+                                emphasized = selected,
+                                muted =
+                                active >= 0 && !selected
+                            ).clickable(enabled = timeline.synced && controlsEnabled) {
+                                seconds = line.first
+                                seek(line.first)
+                            }.testTag("lyric-line-$index"),
+                            color = if (selected) ink else normal,
+                            style = MaterialTheme.typography.headlineSmall,
+                            textAlign = TextAlign.Start,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
-                Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) {
-                    IconButton(onClick={
-                        val text=listOf(title,artist,timeline.verses.joinToString("\n"){it.plain}).filter {it.isNotBlank()}.joinToString("\n\n")
-                        context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT,text),translateUi("Compartilhar letra")))
-                    },enabled=lines.isNotEmpty()){OndaIcon("share","Compartilhar letra",Modifier.size(25.dp))}
-                    if(providedLines==null)Box {
-                        IconButton(onClick={menu=true}){OndaIcon("more-vertical","Mais",Modifier.size(25.dp))}
-                        DropdownMenu(menu,{menu=false}) {
-                            DropdownMenuItem(text={UiText(if(searching)"Pesquisando…" else "Buscar letra online")},enabled=!searching&&source.isNotBlank(),onClick={
-                                menu=false;searching=true;val requestedSource=source
-                                vm.lookupLyrics(source,alternatives=true,refresh=true){result->if(latestSource==requestedSource){searching=false;if(result.has("error"))vm.showNotice("Buscar letra online",result.optString("error"),error=true);alternatives=result.optJSONArray("candidates")?.let {rows->(0 until rows.length()).map {rows.getJSONObject(it)}}.orEmpty();if(result.has("candidates")&&alternatives.isEmpty())vm.showNotice("Buscar letra online","Letra não encontrada para esta gravação.")}}
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    IconButton(onClick = {
+                        val text = listOf(
+                            title,
+                            artist,
+                            timeline.verses.joinToString("\n") {
+                                it.plain
+                            }
+                        ).filter { it.isNotBlank() }.joinToString("\n\n")
+                        context.startActivity(
+                            Intent.createChooser(
+                                Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text),
+                                translateUi("Compartilhar letra")
+                            )
+                        )
+                    }, enabled = lines.isNotEmpty()) { OndaIcon("share", "Compartilhar letra", Modifier.size(25.dp)) }
+                    if (providedLines == null) Box {
+                        IconButton(onClick = {
+                            menu = true
+                        }) { OndaIcon("more-vertical", "Mais", Modifier.size(25.dp)) }
+                        DropdownMenu(menu, { menu = false }) {
+                            DropdownMenuItem(
+                                text = {
+                                    UiText(if (searching) "Pesquisando…" else "Buscar letra online")
+                                },
+                                enabled =
+                                !searching && source.isNotBlank(),
+                                onClick = {
+                                    menu = false
+                                    searching = true
+                                    val requestedSource = source
+                                    vm.lookupLyrics(source, alternatives = true, refresh = true) { result ->
+                                        if (latestSource ==
+                                            requestedSource
+                                        ) {
+                                            searching = false
+                                            if (result.has(
+                                                    "error"
+                                                )
+                                            ) vm.showNotice(
+                                                "Buscar letra online",
+                                                result.optString("error"),
+                                                error = true
+                                            )
+                                            alternatives =
+                                                result.optJSONArray("candidates")?.let { rows ->
+                                                    (0 until rows.length()).map { rows.getJSONObject(it) }
+                                                }.orEmpty()
+                                            if (result.has("candidates") &&
+                                                alternatives.isEmpty()
+                                            ) vm.showNotice(
+                                                "Buscar letra online",
+                                                "Letra não encontrada para esta gravação."
+                                            )
+                                        }
+                                    }
+                                }
+                            )
+                            DropdownMenuItem(text = {
+                                UiText("Escolher letra")
+                            }, enabled = source.isNotBlank(), onClick = {
+                                menu =
+                                    false
+                                picker.launch(arrayOf("*/*"))
                             })
-                            DropdownMenuItem(text={UiText("Escolher letra")},enabled=source.isNotBlank(),onClick={menu=false;picker.launch(arrayOf("*/*"))})
                         }
                     }
                 }
                 Column(Modifier.fillMaxWidth()) {
-                    RoundSlider(dragged ?: seconds.toFloat().coerceIn(0f,duration.toFloat().coerceAtLeast(1f)),{dragged=it},valueRange=0f..duration.toFloat().coerceAtLeast(1f),onValueChangeFinished={dragged?.let {seconds=it.toDouble();seek(seconds)};dragged=null},enabled=duration>0&&controlsEnabled,slim=true,modifier=Modifier.fillMaxWidth().a11yLabel("Posição na música"))
-                    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) {
-                        UiText(mediaClock((dragged?.toDouble() ?: seconds).toLong()),style=MaterialTheme.typography.labelSmall)
-                        UiText(mediaClock(duration.toLong()),style=MaterialTheme.typography.labelSmall)
+                    RoundSlider(
+                        dragged ?: seconds.toFloat().coerceIn(0f, duration.toFloat().coerceAtLeast(1f)),
+                        {
+                            dragged =
+                                it
+                        },
+                        valueRange = 0f..duration.toFloat().coerceAtLeast(1f),
+                        onValueChangeFinished = {
+                            dragged?.let {
+                                seconds =
+                                    it.toDouble()
+                                seek(seconds)
+                            }
+                            dragged = null
+                        },
+                        enabled = duration > 0 && controlsEnabled,
+                        slim = true,
+                        modifier = Modifier.fillMaxWidth().a11yLabel(
+                            "Posição na música"
+                        )
+                    )
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        UiText(
+                            mediaClock((dragged?.toDouble() ?: seconds).toLong()),
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                        UiText(mediaClock(duration.toLong()), style = MaterialTheme.typography.labelSmall)
                     }
                 }
-                Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.Center) {
-                    FilledIconButton(onClick=toggle,enabled=source.isNotBlank()&&controlsEnabled,modifier=Modifier.size(80.dp).testTag("lyrics-play-pause"),shape=CircleShape) {
-                        OndaIcon(if(isPlaying())"pause" else "play",if(isPlaying())"Pausar" else "Reproduzir",Modifier.size(38.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                    FilledIconButton(
+                        onClick = toggle,
+                        enabled = source.isNotBlank() && controlsEnabled,
+                        modifier = Modifier.size(80.dp).testTag("lyrics-play-pause"),
+                        shape = CircleShape
+                    ) {
+                        OndaIcon(
+                            if (isPlaying()) "pause" else "play",
+                            if (isPlaying()) "Pausar" else "Reproduzir",
+                            Modifier.size(38.dp)
+                        )
                     }
                 }
             }
         }
     }
-    if(alternatives.isNotEmpty())AlertDialog(onDismissRequest={alternatives=emptyList()},title={UiText("Buscar letra online")},text={
-        LazyColumn {items(alternatives.size) {i->val item=alternatives[i];TextButton(onClick={applyLyrics(item);alternatives=emptyList()}){Text(listOf(item.optString("title"),item.optString("artist"),item.optString("album")).filter {it.isNotBlank()}.joinToString(" · "))}}}
-    },confirmButton={TextButton(onClick={alternatives=emptyList()}){UiText("Cancelar")}})
-
+    if (alternatives.isNotEmpty()) AlertDialog(onDismissRequest = {
+        alternatives = emptyList()
+    }, title = { UiText("Buscar letra online") }, text = {
+        LazyColumn {
+            items(alternatives.size) { i ->
+                val item = alternatives[i]
+                TextButton(onClick = {
+                    applyLyrics(item)
+                    alternatives =
+                        emptyList()
+                }) {
+                    Text(
+                        listOf(item.optString("title"), item.optString("artist"), item.optString("album")).filter {
+                            it.isNotBlank()
+                        }.joinToString(" · ")
+                    )
+                }
+            }
+        }
+    }, confirmButton = { TextButton(onClick = { alternatives = emptyList() }) { UiText("Cancelar") } })
 }

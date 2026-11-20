@@ -1,181 +1,803 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+
 ColumnLayout {
     id: page
     property bool queuePage: workspace.currentPage === "queue"
     readonly property string cardSize: workspace.preferences.queue_card_size || "Grande"
     readonly property bool tinyCards: cardSize === "Muito pequeno"
     readonly property bool smallCards: tinyCards || cardSize === "Pequeno"
-    spacing: Math.round(14*bridge.spacing)
+    spacing: Math.round(14 * bridge.spacing)
     OndaMenu {
         id: queueContext
         property string targetId: ""
         property bool targetChecked: false
         readonly property string actionId: targetChecked ? "" : targetId
         objectName: "queueContextMenu"
-        width: Math.round(260*bridge.fontScale)
+        width: Math.round(260 * bridge.fontScale)
 
-        OndaMenuItem { text: bridge.translate("Pausar"); enabled: workspace.activityValue(workspace.statusRevision,"total")>0 && queueContext.targetId!=="" && workspace.queueActionEnabled("pause",queueContext.actionId); onTriggered: workspace.invoke("queue_action",{id:queueContext.actionId,name:"pause"}) }
-        OndaMenuItem { text: bridge.translate("Retomar"); enabled: workspace.activityValue(workspace.statusRevision,"total")>0 && queueContext.targetId!=="" && workspace.queueActionEnabled("resume",queueContext.actionId); onTriggered: workspace.invoke("queue_action",{id:queueContext.actionId,name:"resume"}) }
-        OndaMenuItem { text: bridge.translate("Tentar novamente"); enabled: workspace.activityValue(workspace.statusRevision,"total")>0 && queueContext.targetId!=="" && workspace.queueActionEnabled("retry",queueContext.actionId); onTriggered: workspace.invoke("queue_action",{id:queueContext.actionId,name:"retry"}) }
-        OndaMenuItem { text: bridge.translate("Editar metadados"); enabled: queueContext.targetId !== ""; onTriggered: workspace.invoke("queue_edit",{id:queueContext.actionId}) }
-        OndaMenuItem { objectName: "queueContextPlayback"; text: bridge.translate("Usar em reprodução"); enabled: queueContext.targetId !== "" && workspace.queuePlaybackEnabled(queueContext.targetId); onTriggered: workspace.invoke("queue_playback",{id:queueContext.targetId}) }
+        OndaMenuItem {
+            text: bridge.translate("Pausar")
+            enabled: workspace.activityValue(workspace.statusRevision, "total") > 0 && queueContext.targetId !== "" && workspace.queueActionEnabled("pause", queueContext.actionId)
+            onTriggered: workspace.invoke("queue_action", {
+                id: queueContext.actionId,
+                name: "pause"
+            })
+        }
+        OndaMenuItem {
+            text: bridge.translate("Retomar")
+            enabled: workspace.activityValue(workspace.statusRevision, "total") > 0 && queueContext.targetId !== "" && workspace.queueActionEnabled("resume", queueContext.actionId)
+            onTriggered: workspace.invoke("queue_action", {
+                id: queueContext.actionId,
+                name: "resume"
+            })
+        }
+        OndaMenuItem {
+            text: bridge.translate("Tentar novamente")
+            enabled: workspace.activityValue(workspace.statusRevision, "total") > 0 && queueContext.targetId !== "" && workspace.queueActionEnabled("retry", queueContext.actionId)
+            onTriggered: workspace.invoke("queue_action", {
+                id: queueContext.actionId,
+                name: "retry"
+            })
+        }
+        OndaMenuItem {
+            text: bridge.translate("Editar metadados")
+            enabled: queueContext.targetId !== ""
+            onTriggered: workspace.invoke("queue_edit", {
+                id: queueContext.actionId
+            })
+        }
+        OndaMenuItem {
+            objectName: "queueContextPlayback"
+            text: bridge.translate("Usar em reprodução")
+            enabled: queueContext.targetId !== "" && workspace.queuePlaybackEnabled(queueContext.targetId)
+            onTriggered: workspace.invoke("queue_playback", {
+                id: queueContext.targetId
+            })
+        }
         OndaMenuSeparator {}
-        OndaMenuItem { text: bridge.translate("Mover para cima"); enabled: queueContext.targetId !== ""; onTriggered: workspace.invoke("queue_action",{id:queueContext.actionId,name:"up"}) }
-        OndaMenuItem { text: bridge.translate("Mover para baixo"); enabled: queueContext.targetId !== ""; onTriggered: workspace.invoke("queue_action",{id:queueContext.actionId,name:"down"}) }
-        OndaMenuItem { text: bridge.translate("Priorizar selecionados"); enabled: queueContext.targetId !== ""; onTriggered: workspace.invoke("queue_action",{id:queueContext.actionId,name:"priority"}) }
+        OndaMenuItem {
+            text: bridge.translate("Mover para cima")
+            enabled: queueContext.targetId !== ""
+            onTriggered: workspace.invoke("queue_action", {
+                id: queueContext.actionId,
+                name: "up"
+            })
+        }
+        OndaMenuItem {
+            text: bridge.translate("Mover para baixo")
+            enabled: queueContext.targetId !== ""
+            onTriggered: workspace.invoke("queue_action", {
+                id: queueContext.actionId,
+                name: "down"
+            })
+        }
+        OndaMenuItem {
+            text: bridge.translate("Priorizar selecionados")
+            enabled: queueContext.targetId !== ""
+            onTriggered: workspace.invoke("queue_action", {
+                id: queueContext.actionId,
+                name: "priority"
+            })
+        }
         OndaMenuSeparator {}
-        OndaMenuItem { objectName: "queueContextCopyLinks"; text: bridge.translate("Copiar link"); enabled: queueContext.targetId !== ""; onTriggered: workspace.invoke("queue_copy_links",{id:queueContext.actionId}) }
-        OndaMenuItem { text: bridge.translate("Abrir pasta"); onTriggered: workspace.invoke("queue_open_folder",{}) }
-        OndaMenuItem { text: bridge.translate("Ver detalhes"); onTriggered: workspace.invoke("logs",{}) }
+        OndaMenuItem {
+            objectName: "queueContextCopyLinks"
+            text: bridge.translate("Copiar link")
+            enabled: queueContext.targetId !== ""
+            onTriggered: workspace.invoke("queue_copy_links", {
+                id: queueContext.actionId
+            })
+        }
+        OndaMenuItem {
+            text: bridge.translate("Abrir pasta")
+            onTriggered: workspace.invoke("queue_open_folder", {})
+        }
+        OndaMenuItem {
+            text: bridge.translate("Ver detalhes")
+            onTriggered: workspace.invoke("logs", {})
+        }
         OndaMenuSeparator {}
-        OndaMenuItem { text: bridge.translate("Cancelar selecionados"); enabled: queueContext.targetId !== ""; onTriggered: workspace.invoke("queue_action",{id:queueContext.actionId,name:"cancel"}) }
-        OndaMenuItem { text: bridge.translate("Remover"); enabled: queueContext.targetId !== ""; onTriggered: workspace.invoke("queue_action",{id:queueContext.actionId,name:"remove"}) }
-        OndaMenuItem { text: bridge.translate("Desfazer"); enabled: workspace.activityValue(workspace.statusRevision,"undoCount")>0; onTriggered: workspace.invoke("undo_queue",{}) }
+        OndaMenuItem {
+            text: bridge.translate("Cancelar selecionados")
+            enabled: queueContext.targetId !== ""
+            onTriggered: workspace.invoke("queue_action", {
+                id: queueContext.actionId,
+                name: "cancel"
+            })
+        }
+        OndaMenuItem {
+            text: bridge.translate("Remover")
+            enabled: queueContext.targetId !== ""
+            onTriggered: workspace.invoke("queue_action", {
+                id: queueContext.actionId,
+                name: "remove"
+            })
+        }
+        OndaMenuItem {
+            text: bridge.translate("Desfazer")
+            enabled: workspace.activityValue(workspace.statusRevision, "undoCount") > 0
+            onTriggered: workspace.invoke("undo_queue", {})
+        }
         OndaMenuSeparator {}
-        OndaMenuItem { text: bridge.translate("Selecionar todas"); enabled: workspace.queueModel.count>0; onTriggered: workspace.invoke("check_all",{model:"queue",checked:true}) }
-        OndaMenuItem { text: bridge.translate("Limpar seleção"); enabled: workspace.activityValue(workspace.statusRevision,"selected")>0; onTriggered: workspace.invoke("check_all",{model:"queue",checked:false}) }
-        OndaMenuItem { text: bridge.translate("Limpar downloads"); enabled: workspace.activityValue(workspace.statusRevision,"total")>0; onTriggered: workspace.invoke("queue_action",{name:"clear"}) }
+        OndaMenuItem {
+            text: bridge.translate("Selecionar todas")
+            enabled: workspace.queueModel.count > 0
+            onTriggered: workspace.invoke("check_all", {
+                model: "queue",
+                checked: true
+            })
+        }
+        OndaMenuItem {
+            text: bridge.translate("Limpar seleção")
+            enabled: workspace.activityValue(workspace.statusRevision, "selected") > 0
+            onTriggered: workspace.invoke("check_all", {
+                model: "queue",
+                checked: false
+            })
+        }
+        OndaMenuItem {
+            text: bridge.translate("Limpar downloads")
+            enabled: workspace.activityValue(workspace.statusRevision, "total") > 0
+            onTriggered: workspace.invoke("queue_action", {
+                name: "clear"
+            })
+        }
     }
     Card {
-        visible: !page.queuePage; Layout.fillWidth: true; implicitHeight: addControls.implicitHeight+32
-        ColumnLayout { id: addControls; anchors.fill: parent; anchors.margins: 16; spacing: Math.round(14*bridge.spacing)
-            Label { text: bridge.translate("Cole links para baixar vídeos, músicas e fotos."); font.pixelSize: Math.round(18*bridge.fontScale); color: bridge.palette.text }
-            OndaScrollView { Layout.fillWidth: true; implicitHeight: 108
-                OndaTextArea { text: workspace.optionValue(workspace.optionsRevision,"links"); placeholderText: bridge.translate("Um link por linha"); onTextChanged: if (activeFocus) workspace.setOption("links",text); wrapMode: Text.Wrap; selectByMouse: true; color: bridge.palette.text }
+        visible: !page.queuePage
+        Layout.fillWidth: true
+        implicitHeight: addControls.implicitHeight + 32
+        ColumnLayout {
+            id: addControls
+            anchors.fill: parent
+            anchors.margins: 16
+            spacing: Math.round(14 * bridge.spacing)
+            Label {
+                text: bridge.translate("Cole links para baixar vídeos, músicas e fotos.")
+                font.pixelSize: Math.round(18 * bridge.fontScale)
+                color: bridge.palette.text
             }
-            GridLayout { visible: !workspace.preferences.simple_download_ui; Layout.fillWidth: true; columns: width > 850 ? 3 : 2; columnSpacing: 12; rowSpacing: 12
-                OptionField { visible: !workspace.preferences.simple_download_ui; Layout.fillWidth: true; settings: true; field: ({key:"mode",label:"Formato",kind:"select",choices:["Vídeo · melhor qualidade (MKV)","Vídeo · MP4","Áudio · original, sem recodificar","Áudio · MP3 (320 kbps)","Áudio · M4A (AAC)","Áudio · FLAC","Fotos · todas do carrossel","Publicação · fotos e vídeos originais"]}) }
-                OptionField { visible: workspace.preferences.mode.indexOf("Vídeo") === 0; Layout.fillWidth: true; settings: true; field: ({key:"height",label:"Resolução máxima",kind:"select",choices:["Melhor disponível","2160p / 4K","1440p","1080p","720p","480p"]}) }
-                OptionField { visible: workspace.preferences.mode.indexOf("Vídeo") === 0; Layout.fillWidth: true; settings: true; field: ({key:"fps",label:"FPS máximo",kind:"select",choices:["Original","24 fps","30 fps","60 fps","120 fps"]}) }
-                OptionField { visible: workspace.preferences.mode.indexOf("MP3") >= 0; Layout.fillWidth: true; settings: true; field: ({key:"mp3_quality",label:"Qualidade MP3",kind:"select",choices:["320 kbps","256 kbps","192 kbps","128 kbps","96 kbps"]}) }
-                OptionField { visible: workspace.preferences.mode.indexOf("M4A") >= 0; Layout.fillWidth: true; settings: true; field: ({key:"m4a_quality",label:"Qualidade M4A",kind:"select",choices:["256 kbps","192 kbps","128 kbps","96 kbps"]}) }
+            OndaScrollView {
+                Layout.fillWidth: true
+                implicitHeight: 108
+                OndaTextArea {
+                    text: workspace.optionValue(workspace.optionsRevision, "links")
+                    placeholderText: bridge.translate("Um link por linha")
+                    onTextChanged: if (activeFocus)
+                        workspace.setOption("links", text)
+                    wrapMode: Text.Wrap
+                    selectByMouse: true
+                    color: bridge.palette.text
+                }
             }
-            RowLayout { Layout.fillWidth: true
-                Item { Layout.fillWidth: true }
-                TaskButton {objectName:"previewLinksImages";visible:workspace.canPreviewImages(workspace.optionValue(workspace.optionsRevision,"links"),workspace.preferences.mode || "");idleText:bridge.translate("Prévia de imagens");operation:"preview_images";taskNames:workspace.optionValue(workspace.optionsRevision,"imageGalleryPendingSource")===workspace.optionValue(workspace.optionsRevision,"links") ? ["image_gallery_manifest"] : [];enabled:taskRunning || !!workspace.optionValue(workspace.optionsRevision,"links").trim()}
-                ActionButton { objectName: "addLinksButton"; enabled: workspace.optionValue(workspace.optionsRevision,"links").trim().length > 0; text: bridge.translate("Adicionar aos downloads"); onClicked: workspace.invoke("add_links",{}) }
-                ActionButton { objectName: "downloadLinksNowButton"; primary: true; enabled: workspace.optionValue(workspace.optionsRevision,"links").trim().length > 0; text: bridge.translate("Baixar agora"); onClicked: workspace.invoke("add_links",{start:true}) }
+            GridLayout {
+                visible: !workspace.preferences.simple_download_ui
+                Layout.fillWidth: true
+                columns: width > 850 ? 3 : 2
+                columnSpacing: 12
+                rowSpacing: 12
+                OptionField {
+                    visible: !workspace.preferences.simple_download_ui
+                    Layout.fillWidth: true
+                    settings: true
+                    field: ({
+                            key: "mode",
+                            label: "Formato",
+                            kind: "select",
+                            choices: ["Vídeo · melhor qualidade (MKV)", "Vídeo · MP4", "Áudio · original, sem recodificar", "Áudio · MP3 (320 kbps)", "Áudio · M4A (AAC)", "Áudio · FLAC", "Fotos · todas do carrossel", "Publicação · fotos e vídeos originais"]
+                        })
+                }
+                OptionField {
+                    visible: workspace.preferences.mode.indexOf("Vídeo") === 0
+                    Layout.fillWidth: true
+                    settings: true
+                    field: ({
+                            key: "height",
+                            label: "Resolução máxima",
+                            kind: "select",
+                            choices: ["Melhor disponível", "2160p / 4K", "1440p", "1080p", "720p", "480p"]
+                        })
+                }
+                OptionField {
+                    visible: workspace.preferences.mode.indexOf("Vídeo") === 0
+                    Layout.fillWidth: true
+                    settings: true
+                    field: ({
+                            key: "fps",
+                            label: "FPS máximo",
+                            kind: "select",
+                            choices: ["Original", "24 fps", "30 fps", "60 fps", "120 fps"]
+                        })
+                }
+                OptionField {
+                    visible: workspace.preferences.mode.indexOf("MP3") >= 0
+                    Layout.fillWidth: true
+                    settings: true
+                    field: ({
+                            key: "mp3_quality",
+                            label: "Qualidade MP3",
+                            kind: "select",
+                            choices: ["320 kbps", "256 kbps", "192 kbps", "128 kbps", "96 kbps"]
+                        })
+                }
+                OptionField {
+                    visible: workspace.preferences.mode.indexOf("M4A") >= 0
+                    Layout.fillWidth: true
+                    settings: true
+                    field: ({
+                            key: "m4a_quality",
+                            label: "Qualidade M4A",
+                            kind: "select",
+                            choices: ["256 kbps", "192 kbps", "128 kbps", "96 kbps"]
+                        })
+                }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                Item {
+                    Layout.fillWidth: true
+                }
+                TaskButton {
+                    objectName: "previewLinksImages"
+                    visible: workspace.canPreviewImages(workspace.optionValue(workspace.optionsRevision, "links"), workspace.preferences.mode || "")
+                    idleText: bridge.translate("Prévia de imagens")
+                    operation: "preview_images"
+                    taskNames: workspace.optionValue(workspace.optionsRevision, "imageGalleryPendingSource") === workspace.optionValue(workspace.optionsRevision, "links") ? ["image_gallery_manifest"] : []
+                    enabled: taskRunning || !!workspace.optionValue(workspace.optionsRevision, "links").trim()
+                }
+                ActionButton {
+                    objectName: "addLinksButton"
+                    enabled: workspace.optionValue(workspace.optionsRevision, "links").trim().length > 0
+                    text: bridge.translate("Adicionar aos downloads")
+                    onClicked: workspace.invoke("add_links", {})
+                }
+                ActionButton {
+                    objectName: "downloadLinksNowButton"
+                    primary: true
+                    enabled: workspace.optionValue(workspace.optionsRevision, "links").trim().length > 0
+                    text: bridge.translate("Baixar agora")
+                    onClicked: workspace.invoke("add_links", {
+                        start: true
+                    })
+                }
             }
         }
     }
     Card {
         objectName: "linksQueueNotice"
-        visible: !page.queuePage && workspace.linksModel.count===0 && !!workspace.optionValue(workspace.optionsRevision,"linksNotice")
-        Layout.fillWidth: true; implicitHeight: linksNoticeRow.implicitHeight+24
-        RowLayout { id: linksNoticeRow; anchors.fill: parent; anchors.margins: 12; spacing: 16
-            Label { text: workspace.optionValue(workspace.optionsRevision,"linksNotice") || ""; Layout.fillWidth: true; wrapMode: Text.Wrap; color: bridge.palette.text }
-            ActionButton { objectName: "viewDownloadQueueButton"; text: bridge.translate("Ver downloads"); onClicked: workspace.selectPage("queue") }
+        visible: !page.queuePage && workspace.linksModel.count === 0 && !!workspace.optionValue(workspace.optionsRevision, "linksNotice")
+        Layout.fillWidth: true
+        implicitHeight: linksNoticeRow.implicitHeight + 24
+        RowLayout {
+            id: linksNoticeRow
+            anchors.fill: parent
+            anchors.margins: 12
+            spacing: 16
+            Label {
+                text: workspace.optionValue(workspace.optionsRevision, "linksNotice") || ""
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+                color: bridge.palette.text
+            }
+            ActionButton {
+                objectName: "viewDownloadQueueButton"
+                text: bridge.translate("Ver downloads")
+                onClicked: workspace.selectPage("queue")
+            }
         }
     }
     Item {
-        visible: !page.queuePage && workspace.linksModel.count===0; Layout.fillWidth: true; Layout.fillHeight: true
+        visible: !page.queuePage && workspace.linksModel.count === 0
+        Layout.fillWidth: true
+        Layout.fillHeight: true
         ColumnLayout {
             objectName: "linksEmptyState"
-            visible: !workspace.optionValue(workspace.optionsRevision,"links").trim() && !workspace.optionValue(workspace.optionsRevision,"linksNotice")
-            anchors.centerIn: parent; width: Math.max(0,parent.width-32); spacing: 8
-            Label { text: bridge.translate("Cole um link para começar"); color: bridge.palette.text; font.pixelSize: Math.round(20*bridge.fontScale); font.bold: true; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.Wrap }
-            Label { text: bridge.translate("Baixe vídeos, músicas e fotos. Cole um link por linha e escolha Baixar agora ou Adicionar aos downloads."); color: bridge.palette.muted; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.Wrap }
+            visible: !workspace.optionValue(workspace.optionsRevision, "links").trim() && !workspace.optionValue(workspace.optionsRevision, "linksNotice")
+            anchors.centerIn: parent
+            width: Math.max(0, parent.width - 32)
+            spacing: 8
+            Label {
+                text: bridge.translate("Cole um link para começar")
+                color: bridge.palette.text
+                font.pixelSize: Math.round(20 * bridge.fontScale)
+                font.bold: true
+                Layout.fillWidth: true
+                horizontalAlignment: Text.AlignHCenter
+                wrapMode: Text.Wrap
+            }
+            Label {
+                text: bridge.translate("Baixe vídeos, músicas e fotos. Cole um link por linha e escolha Baixar agora ou Adicionar aos downloads.")
+                color: bridge.palette.muted
+                Layout.fillWidth: true
+                horizontalAlignment: Text.AlignHCenter
+                wrapMode: Text.Wrap
+            }
         }
     }
-    RowLayout {visible:page.queuePage && workspace.activityValue(workspace.statusRevision,"interrupted")>0;Layout.fillWidth:true
-        Label {Layout.fillWidth:true;text:bridge.translate("Há downloads interrompidos. Retome de onde pararam quando a plataforma permitir.");wrapMode:Text.Wrap;color:bridge.palette.muted}
-        ActionButton {text:bridge.translate("Retomar interrompidos");onClicked:workspace.invoke("resume_interrupted",{})}
+    RowLayout {
+        visible: page.queuePage && workspace.activityValue(workspace.statusRevision, "interrupted") > 0
+        Layout.fillWidth: true
+        Label {
+            Layout.fillWidth: true
+            text: bridge.translate("Há downloads interrompidos. Retome de onde pararam quando a plataforma permitir.")
+            wrapMode: Text.Wrap
+            color: bridge.palette.muted
+        }
+        ActionButton {
+            text: bridge.translate("Retomar interrompidos")
+            onClicked: workspace.invoke("resume_interrupted", {})
+        }
     }
-    RowLayout { objectName: "downloadQueueFilters"; visible: page.queuePage; Layout.fillWidth: true
-        OndaTextField { Layout.fillWidth: true; placeholderText: bridge.translate("Buscar downloads"); text: workspace.optionValue(workspace.optionsRevision,"queueQuery"); onTextEdited: workspace.setOption("queueQuery",text) }
-        ChoiceBox {model:["Todos","Pendentes","Em andamento","Pausados","Concluídos","Com falha","Cancelados"];onActivated:workspace.setOption("queueState",["Todos","Na fila","Em andamento","Pausado","Concluído","Falhou","Cancelado"][currentIndex])}
-        ActionButton { primary: true; text: bridge.translate(workspace.activityValue(workspace.statusRevision,"running") ? "Cancelar" : "Baixar pendentes"); onClicked: workspace.invoke(workspace.activityValue(workspace.statusRevision,"running") ? "stop_queue" : "start_queue",{}) }
+    RowLayout {
+        objectName: "downloadQueueFilters"
+        visible: page.queuePage
+        Layout.fillWidth: true
+        OndaTextField {
+            Layout.fillWidth: true
+            placeholderText: bridge.translate("Buscar downloads")
+            text: workspace.optionValue(workspace.optionsRevision, "queueQuery")
+            onTextEdited: workspace.setOption("queueQuery", text)
+        }
+        ChoiceBox {
+            model: ["Todos", "Pendentes", "Em andamento", "Pausados", "Concluídos", "Com falha", "Cancelados"]
+            onActivated: workspace.setOption("queueState", ["Todos", "Na fila", "Em andamento", "Pausado", "Concluído", "Falhou", "Cancelado"][currentIndex])
+        }
+        ActionButton {
+            primary: true
+            text: bridge.translate(workspace.activityValue(workspace.statusRevision, "running") ? "Cancelar" : "Baixar pendentes")
+            onClicked: workspace.invoke(workspace.activityValue(workspace.statusRevision, "running") ? "stop_queue" : "start_queue", {})
+        }
     }
-    Card { objectName: "downloadQueueTools"; visible: page.queuePage; Layout.fillWidth: true; implicitHeight: queueTools.implicitHeight+24
-        Flow { id: queueTools; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 12; spacing: 8
-            ActionButton { text: bridge.translate(workspace.queueModel.count>0 && workspace.activityValue(workspace.statusRevision,"visibleSelected") === workspace.queueModel.count ? "Desmarcar todas" : "Selecionar todas"); enabled: workspace.queueModel.count>0; onClicked: workspace.invoke("check_all",{model:"queue",checked:workspace.activityValue(workspace.statusRevision,"visibleSelected") !== workspace.queueModel.count}) }
-            CardSizeControl { settingKey: "queue_card_size" }
-            Label { text: bridge.translate("Selecionados")+": "+workspace.activityValue(workspace.statusRevision,"selected"); color: bridge.palette.muted; padding: 12 }
-            ActionButton { text: bridge.translate("Editar metadados"); enabled: workspace.activityValue(workspace.statusRevision,"selected")>0; onClicked: workspace.invoke("queue_edit",{}) }
-            ActionButton { text: bridge.translate("Pausar"); enabled: workspace.activityValue(workspace.statusRevision,"selected")>0 && workspace.queueActionEnabled("pause",""); onClicked: workspace.invoke("queue_action",{name:"pause"}) }
-            ActionButton { text: bridge.translate("Retomar"); enabled: workspace.activityValue(workspace.statusRevision,"selected")>0 && workspace.queueActionEnabled("resume",""); onClicked: workspace.invoke("queue_action",{name:"resume"}) }
-            ActionButton { text: bridge.translate("Remover"); enabled: workspace.activityValue(workspace.statusRevision,"selected")>0; onClicked: workspace.invoke("queue_action",{name:"remove"}) }
-            ActionButton { text: bridge.translate("Desfazer"); enabled: workspace.activityValue(workspace.statusRevision,"undoCount")>0; onClicked: workspace.invoke("undo_queue",{}) }
-            ChoiceBox { implicitWidth: 200; model: ["Ordem original","Título","Menor duração","Maior duração","Menor tamanho estimado"]; onActivated: workspace.invoke("queue_action",{name:"sort:"+currentText}); Accessible.name: bridge.translate("Ordenar downloads") }
-            ActionButton { id:queueMoreActionsButton;text: bridge.translate("Mais ações"); onClicked: moreActions.popup(queueMoreActionsButton,0,queueMoreActionsButton.height+6)
-                OndaMenu { id: moreActions; width: Math.round(260*bridge.fontScale);
-                    OndaMenuItem { text: bridge.translate("Subir selecionados"); enabled: workspace.activityValue(workspace.statusRevision,"selected")>0; onTriggered: workspace.invoke("queue_action",{name:"up"}) }
-                    OndaMenuItem { text: bridge.translate("Descer selecionados"); enabled: workspace.activityValue(workspace.statusRevision,"selected")>0; onTriggered: workspace.invoke("queue_action",{name:"down"}) }
-                    OndaMenuItem { text: bridge.translate("Priorizar selecionados"); enabled: workspace.activityValue(workspace.statusRevision,"selected")>0; onTriggered: workspace.invoke("queue_action",{name:"priority"}) }
-                    OndaMenuItem { text: bridge.translate("Tentar novamente"); enabled: workspace.activityValue(workspace.statusRevision,"selected")>0 && workspace.queueActionEnabled("retry",""); onTriggered: workspace.invoke("queue_action",{name:"retry"}) }
+    Card {
+        objectName: "downloadQueueTools"
+        visible: page.queuePage
+        Layout.fillWidth: true
+        implicitHeight: queueTools.implicitHeight + 24
+        Flow {
+            id: queueTools
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.margins: 12
+            spacing: 8
+            ActionButton {
+                text: bridge.translate(workspace.queueModel.count > 0 && workspace.activityValue(workspace.statusRevision, "visibleSelected") === workspace.queueModel.count ? "Desmarcar todas" : "Selecionar todas")
+                enabled: workspace.queueModel.count > 0
+                onClicked: workspace.invoke("check_all", {
+                    model: "queue",
+                    checked: workspace.activityValue(workspace.statusRevision, "visibleSelected") !== workspace.queueModel.count
+                })
+            }
+            CardSizeControl {
+                settingKey: "queue_card_size"
+            }
+            Label {
+                text: bridge.translate("Selecionados") + ": " + workspace.activityValue(workspace.statusRevision, "selected")
+                color: bridge.palette.muted
+                padding: 12
+            }
+            ActionButton {
+                text: bridge.translate("Editar metadados")
+                enabled: workspace.activityValue(workspace.statusRevision, "selected") > 0
+                onClicked: workspace.invoke("queue_edit", {})
+            }
+            ActionButton {
+                text: bridge.translate("Pausar")
+                enabled: workspace.activityValue(workspace.statusRevision, "selected") > 0 && workspace.queueActionEnabled("pause", "")
+                onClicked: workspace.invoke("queue_action", {
+                    name: "pause"
+                })
+            }
+            ActionButton {
+                text: bridge.translate("Retomar")
+                enabled: workspace.activityValue(workspace.statusRevision, "selected") > 0 && workspace.queueActionEnabled("resume", "")
+                onClicked: workspace.invoke("queue_action", {
+                    name: "resume"
+                })
+            }
+            ActionButton {
+                text: bridge.translate("Remover")
+                enabled: workspace.activityValue(workspace.statusRevision, "selected") > 0
+                onClicked: workspace.invoke("queue_action", {
+                    name: "remove"
+                })
+            }
+            ActionButton {
+                text: bridge.translate("Desfazer")
+                enabled: workspace.activityValue(workspace.statusRevision, "undoCount") > 0
+                onClicked: workspace.invoke("undo_queue", {})
+            }
+            ChoiceBox {
+                implicitWidth: 200
+                model: ["Ordem original", "Título", "Menor duração", "Maior duração", "Menor tamanho estimado"]
+                onActivated: workspace.invoke("queue_action", {
+                    name: "sort:" + currentText
+                })
+                Accessible.name: bridge.translate("Ordenar downloads")
+            }
+            ActionButton {
+                id: queueMoreActionsButton
+                text: bridge.translate("Mais ações")
+                onClicked: moreActions.popup(queueMoreActionsButton, 0, queueMoreActionsButton.height + 6)
+                OndaMenu {
+                    id: moreActions
+                    width: Math.round(260 * bridge.fontScale)
+                    OndaMenuItem {
+                        text: bridge.translate("Subir selecionados")
+                        enabled: workspace.activityValue(workspace.statusRevision, "selected") > 0
+                        onTriggered: workspace.invoke("queue_action", {
+                            name: "up"
+                        })
+                    }
+                    OndaMenuItem {
+                        text: bridge.translate("Descer selecionados")
+                        enabled: workspace.activityValue(workspace.statusRevision, "selected") > 0
+                        onTriggered: workspace.invoke("queue_action", {
+                            name: "down"
+                        })
+                    }
+                    OndaMenuItem {
+                        text: bridge.translate("Priorizar selecionados")
+                        enabled: workspace.activityValue(workspace.statusRevision, "selected") > 0
+                        onTriggered: workspace.invoke("queue_action", {
+                            name: "priority"
+                        })
+                    }
+                    OndaMenuItem {
+                        text: bridge.translate("Tentar novamente")
+                        enabled: workspace.activityValue(workspace.statusRevision, "selected") > 0 && workspace.queueActionEnabled("retry", "")
+                        onTriggered: workspace.invoke("queue_action", {
+                            name: "retry"
+                        })
+                    }
                     OndaMenuSeparator {}
-                    OndaMenuItem { text: bridge.translate("Cancelar todas"); enabled: workspace.activityValue(workspace.statusRevision,"total")>0; onTriggered: workspace.invoke("queue_action",{name:"cancel_all"}) }
-                    OndaMenuItem { text: bridge.translate("Limpar downloads"); enabled: workspace.activityValue(workspace.statusRevision,"total")>0; onTriggered: workspace.invoke("queue_action",{name:"clear"}) }
+                    OndaMenuItem {
+                        text: bridge.translate("Cancelar todas")
+                        enabled: workspace.activityValue(workspace.statusRevision, "total") > 0
+                        onTriggered: workspace.invoke("queue_action", {
+                            name: "cancel_all"
+                        })
+                    }
+                    OndaMenuItem {
+                        text: bridge.translate("Limpar downloads")
+                        enabled: workspace.activityValue(workspace.statusRevision, "total") > 0
+                        onTriggered: workspace.invoke("queue_action", {
+                            name: "clear"
+                        })
+                    }
                     OndaMenuSeparator {}
-                    OndaMenuItem { text: bridge.translate("Ver falhas"); onTriggered: workspace.invoke("failures",{}) }
-                    OndaMenuItem { text: bridge.translate("Ver detalhes"); onTriggered: workspace.invoke("logs",{}) }
+                    OndaMenuItem {
+                        text: bridge.translate("Ver falhas")
+                        onTriggered: workspace.invoke("failures", {})
+                    }
+                    OndaMenuItem {
+                        text: bridge.translate("Ver detalhes")
+                        onTriggered: workspace.invoke("logs", {})
+                    }
                 }
             }
         }
     }
-    RowLayout { visible: page.queuePage; Layout.fillWidth: true; Label { Layout.fillWidth: true; text: workspace.queueModel.count+" · "+(workspace.optionValue(workspace.optionsRevision,"queueStorage") || ""); color: bridge.palette.muted; wrapMode: Text.Wrap } Label { text: bridge.translate("Tempo decorrido")+": "+workspace.clock(workspace.activityValue(workspace.statusRevision,"elapsed")); color: bridge.palette.muted } }
-    RowLayout {visible:!page.queuePage && workspace.linksModel.count>0;Layout.fillWidth:true
-        Label {text:bridge.translate("Downloads");color:bridge.palette.text;Layout.fillWidth:true;font.bold:true}
-        ActionButton {objectName:"linksInlineQueueButton";text:bridge.translate("Ver downloads");onClicked:workspace.selectPage("queue")}
+    RowLayout {
+        visible: page.queuePage
+        Layout.fillWidth: true
+        Label {
+            Layout.fillWidth: true
+            text: workspace.queueModel.count + " · " + (workspace.optionValue(workspace.optionsRevision, "queueStorage") || "")
+            color: bridge.palette.muted
+            wrapMode: Text.Wrap
+        }
+        Label {
+            text: bridge.translate("Tempo decorrido") + ": " + workspace.clock(workspace.activityValue(workspace.statusRevision, "elapsed"))
+            color: bridge.palette.muted
+        }
     }
-    OndaListView { id:downloadList; property var activeDrag:null; objectName: "downloadQueueList"; visible: page.queuePage || workspace.linksModel.count>0; Layout.fillWidth: true; Layout.fillHeight: true; clip: true; spacing: Math.round(8*bridge.spacing); model: page.queuePage ? workspace.queueModel : workspace.linksModel; reuseItems: true
+    RowLayout {
+        visible: !page.queuePage && workspace.linksModel.count > 0
+        Layout.fillWidth: true
+        Label {
+            text: bridge.translate("Downloads")
+            color: bridge.palette.text
+            Layout.fillWidth: true
+            font.bold: true
+        }
+        ActionButton {
+            objectName: "linksInlineQueueButton"
+            text: bridge.translate("Ver downloads")
+            onClicked: workspace.selectPage("queue")
+        }
+    }
+    OndaListView {
+        id: downloadList
+        property var activeDrag: null
+        objectName: "downloadQueueList"
+        visible: page.queuePage || workspace.linksModel.count > 0
+        Layout.fillWidth: true
+        Layout.fillHeight: true
+        clip: true
+        spacing: Math.round(8 * bridge.spacing)
+        model: page.queuePage ? workspace.queueModel : workspace.linksModel
+        reuseItems: true
 
-        ScrollToTop { target: downloadList; viewport: downloadList }
-        delegate: Card { id: card; z:downloadDrag.dragging ? 20 : 0; transform:Translate {y:downloadDrag.cardOffset;Behavior on y {enabled:downloadList.activeDrag!==null && !downloadDrag.dragging;NumberAnimation {duration:140;easing.type:Easing.OutCubic}}} objectName: "downloadQueueCard"; required property var entry; required property int index; width: ListView.view.contentAreaWidth; height: Math.max(page.tinyCards ? 64 : page.smallCards ? 88 : page.cardSize === "Médio" ? 128 : 176,queueDetails.implicitHeight+(page.tinyCards ? 16 : 24))
+        ScrollToTop {
+            target: downloadList
+            viewport: downloadList
+        }
+        delegate: Card {
+            id: card
+            z: downloadDrag.dragging ? 20 : 0
+            transform: Translate {
+                y: downloadDrag.cardOffset
+                Behavior on y {
+                    enabled: downloadList.activeDrag !== null && !downloadDrag.dragging
+                    NumberAnimation {
+                        duration: 140
+                        easing.type: Easing.OutCubic
+                    }
+                }
+            }
+            objectName: "downloadQueueCard"
+            required property var entry
+            required property int index
+            width: ListView.view.contentAreaWidth
+            height: Math.max(page.tinyCards ? 64 : page.smallCards ? 88 : page.cardSize === "Médio" ? 128 : 176, queueDetails.implicitHeight + (page.tinyCards ? 16 : 24))
             color: card.modifierSelected ? bridge.palette.selected : page.tinyCards ? "transparent" : bridge.palette.surface
             border.width: page.tinyCards ? 0 : (bridge.palette.flat_black ? 0 : 1)
             readonly property string selectionModel: page.queuePage ? "queue" : "links"
-            readonly property bool modifierSelected: !!card.entry && workspace.musicRowSelected(workspace.musicSelectionRevision,selectionModel,card.index)
+            readonly property bool modifierSelected: !!card.entry && workspace.musicRowSelected(workspace.musicSelectionRevision, selectionModel, card.index)
             function openContext() {
-                queueContext.targetId = card.entry.id
-                queueContext.targetChecked = page.queuePage && !!card.entry.checked
-                card.forceActiveFocus()
-                queueContext.popup()
+                queueContext.targetId = card.entry.id;
+                queueContext.targetChecked = page.queuePage && !!card.entry.checked;
+                card.forceActiveFocus();
+                queueContext.popup();
             }
-            MouseArea { anchors.fill: parent; z: 10; acceptedButtons: Qt.RightButton; onClicked: card.openContext() }
-            Keys.onPressed: function(event) {
-                if (event.key === Qt.Key_Menu || (event.key === Qt.Key_F10 && (event.modifiers & Qt.ShiftModifier))) {
-                    card.openContext(); event.accepted = true
-                }
-            }
-            MouseArea {objectName:"openDownloadImages";anchors.fill:parent;acceptedButtons:Qt.LeftButton;enabled:!!card.entry.has_images;cursorShape:enabled ? Qt.PointingHandCursor : Qt.ArrowCursor;onClicked:workspace.invoke("download_preview",{id:card.entry.id})}
             MouseArea {
-                anchors.fill: parent; acceptedButtons: Qt.LeftButton
-                onPressed: function(mouse) {mouse.accepted=!!(mouse.modifiers & (Qt.ControlModifier | Qt.ShiftModifier))}
-                onClicked: function(mouse) {workspace.selectMusicRows(card.selectionModel,card.index,mouse.modifiers)}
+                anchors.fill: parent
+                z: 10
+                acceptedButtons: Qt.RightButton
+                onClicked: card.openContext()
             }
-            RowLayout { z:1; anchors.fill: parent; anchors.margins: page.tinyCards ? 8 : 12
-                QueueDragHandle {id:downloadDrag;dragItem:card;onClickedWithModifiers:function(modifiers){if(modifiers & (Qt.ControlModifier | Qt.ShiftModifier))workspace.selectMusicRows(card.selectionModel,card.index,modifiers);else if(card.entry.has_images)workspace.invoke("download_preview",{id:card.entry.id})};objectName:"downloadQueueDrag";visible:page.queuePage;enabled:card.entry.state==="Na fila";listView:downloadList;rowIndex:card.index;itemCount:downloadList.count;onMoved:function(target){workspace.invoke("queue_reorder",{id:card.entry.id,target:downloadList.model.get(target).id})}}
-                CheckBox { id: queueCheck; checked: card.entry.checked || false; onToggled: workspace.invoke("check",{model:card.selectionModel,index:card.index,checked:checked}); Accessible.name: bridge.translate("Selecionar")+" "+card.entry.track_title
-                    indicator: Rectangle { implicitWidth: 20; implicitHeight: 20; x: queueCheck.leftPadding; y: (queueCheck.height-height)/2; radius: 4; color: queueCheck.checked ? bridge.palette.accent : bridge.palette.input; border.color: queueCheck.checked || queueCheck.activeFocus ? bridge.palette.accent : bridge.palette.muted; Label { anchors.centerIn: parent; text: "✓"; visible: queueCheck.checked; color: bridge.palette.accent_text } }
+            Keys.onPressed: function (event) {
+                if (event.key === Qt.Key_Menu || (event.key === Qt.Key_F10 && (event.modifiers & Qt.ShiftModifier))) {
+                    card.openContext();
+                    event.accepted = true;
                 }
-                Rectangle { Layout.preferredWidth: Math.min(page.tinyCards ? 40 : page.smallCards ? 56 : page.cardSize === "Médio" ? 96 : 132,card.height-24); Layout.preferredHeight: Layout.preferredWidth; radius: 8; color: bridge.palette.input
-                    RoundedArtwork { id: queueCover; objectName: "downloadQueueArtwork"; anchors.fill: parent; source: card.entry.track_cover || ""; sourceSize.width: 264; sourceSize.height: 264; fillMode: Image.PreserveAspectFit; asynchronous: true }
-                    LineIcon {anchors.centerIn:parent;visible:queueCover.status!==Image.Ready && !!card.entry.is_image;glyph:"images";width:30;height:30;ink:bridge.palette.muted}
-                    Label { anchors.centerIn: parent; visible: queueCover.status !== Image.Ready && !card.entry.is_image; text: "♪"; color: bridge.palette.muted; font.pixelSize: 30 }
+            }
+            MouseArea {
+                objectName: "openDownloadImages"
+                anchors.fill: parent
+                acceptedButtons: Qt.LeftButton
+                enabled: !!card.entry.has_images
+                cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                onClicked: workspace.invoke("download_preview", {
+                    id: card.entry.id
+                })
+            }
+            MouseArea {
+                anchors.fill: parent
+                acceptedButtons: Qt.LeftButton
+                onPressed: function (mouse) {
+                    mouse.accepted = !!(mouse.modifiers & (Qt.ControlModifier | Qt.ShiftModifier));
                 }
-                ColumnLayout { id: queueDetails; Layout.fillWidth: true; Layout.minimumWidth: 0; spacing: page.smallCards ? 3 : 5
-                    Label { text: card.entry.track_title; font.pixelSize: Math.round((page.smallCards ? 13 : page.cardSize === "Médio" ? 14 : 16)*bridge.fontScale); color: bridge.palette.text; font.weight: Font.DemiBold; Layout.fillWidth: true; elide: Text.ElideRight }
-                    Label { visible: !!card.entry.track_artist; text: card.entry.track_artist; color: bridge.palette.muted; Layout.fillWidth: true; elide: Text.ElideRight }
-                    Label { visible: !page.tinyCards && ((!page.smallCards && !!card.entry.track_album) || !!card.entry.track_release_date); text: [page.smallCards ? "" : (card.entry.track_album || ""),card.entry.track_release_date || ""].filter(Boolean).join(" · "); color: bridge.palette.muted; Layout.fillWidth: true; elide: Text.ElideRight }
-                    Label { visible: !page.smallCards && card.entry.track_duration > 0; text: workspace.clock(card.entry.track_duration); color: bridge.palette.muted }
-                    TaskButton {objectName:"previewPendingImages";compact:true;visible:!card.entry.has_images && !!card.entry.can_preview_images;idleText:bridge.translate("Prévia de imagens");operation:"preview_images";parameters:({url:card.entry.url});taskNames:workspace.optionValue(workspace.optionsRevision,"imageGalleryPendingSource")===card.entry.url ? ["image_gallery_manifest"] : []}
-                    ActionButton {objectName:"downloadImagePreview";compact:true;visible:!!card.entry.has_images;text:bridge.translate("Ver imagens");onClicked:workspace.invoke("download_preview",{id:card.entry.id})}
-                    PlatformBadge {visible:!page.tinyCards;imageMedia:!!card.entry.is_image;platformKey:card.entry.platform_key || "";label:card.entry.platform || ""}
-                    Label { visible:!page.tinyCards; text: workspace.workflowLabel(card.entry.state)+" · "+String(card.entry.mode).toUpperCase(); color: bridge.palette.muted }
-                    Label {visible:card.entry.state==="Em andamento";text:bridge.translate(card.entry.download_detail || "Consultando");color:bridge.palette.muted;Layout.fillWidth:true;wrapMode:Text.Wrap}
-                    Label {visible:card.entry.state==="Falhou";text:bridge.translate(card.entry.failure_cause || "");color:bridge.palette.error;Layout.fillWidth:true;wrapMode:Text.Wrap}
-                    ActionButton {visible:card.entry.state==="Falhou";text:bridge.translate(card.entry.failure_action || "Tentar novamente");onClicked:workspace.invoke("failure_action",{id:card.entry.id})}
-                    OndaProgressBar { Layout.fillWidth: true; from: 0; to: 100; value: card.entry.percent || 0; indeterminate: !(card.entry.download_detail || "").startsWith("Baixando") || !card.entry.percent; visible: card.entry.state === "Em andamento" }
-                    Label { visible: !page.tinyCards && workspace.preferences.queue_view === "Completa"; text: card.entry.last_error ? bridge.translateError(card.entry.last_error) : card.entry.url; color: card.entry.last_error ? bridge.palette.error : bridge.palette.muted; wrapMode: Text.Wrap; Layout.fillWidth: true; maximumLineCount: 2 }
+                onClicked: function (mouse) {
+                    workspace.selectMusicRows(card.selectionModel, card.index, mouse.modifiers);
                 }
-                ActionButton {visible:!page.queuePage && card.entry.state!=="Concluído";text:bridge.translate(card.entry.state==="Em andamento" ? "Pausar" : ["Falhou","Cancelado"].indexOf(card.entry.state)>=0 ? "Tentar novamente" : card.entry.state==="Pausado" ? "Retomar" : "Baixar agora");onClicked:workspace.invoke(["Falhou","Cancelado"].indexOf(card.entry.state)>=0 ? "queue_retry_now" : "queue_action",{name:card.entry.state==="Em andamento" ? "pause" : "resume",id:card.entry.id})}
-                Label {visible:page.tinyCards;text:workspace.workflowLabel(card.entry.state);color:bridge.palette.muted}
-                PlaybackButton { glyph: "close"; Accessible.name: bridge.translate("Remover"); onClicked: workspace.invoke("queue_action",{name:"remove",id:card.entry.id}) }
+            }
+            RowLayout {
+                z: 1
+                anchors.fill: parent
+                anchors.margins: page.tinyCards ? 8 : 12
+                QueueDragHandle {
+                    id: downloadDrag
+                    dragItem: card
+                    onClickedWithModifiers: function (modifiers) {
+                        if (modifiers & (Qt.ControlModifier | Qt.ShiftModifier))
+                            workspace.selectMusicRows(card.selectionModel, card.index, modifiers);
+                        else if (card.entry.has_images)
+                            workspace.invoke("download_preview", {
+                                id: card.entry.id
+                            });
+                    }
+                    objectName: "downloadQueueDrag"
+                    visible: page.queuePage
+                    enabled: card.entry.state === "Na fila"
+                    listView: downloadList
+                    rowIndex: card.index
+                    itemCount: downloadList.count
+                    onMoved: function (target) {
+                        workspace.invoke("queue_reorder", {
+                            id: card.entry.id,
+                            target: downloadList.model.get(target).id
+                        });
+                    }
+                }
+                CheckBox {
+                    id: queueCheck
+                    checked: card.entry.checked || false
+                    onToggled: workspace.invoke("check", {
+                        model: card.selectionModel,
+                        index: card.index,
+                        checked: checked
+                    })
+                    Accessible.name: bridge.translate("Selecionar") + " " + card.entry.track_title
+                    indicator: Rectangle {
+                        implicitWidth: 20
+                        implicitHeight: 20
+                        x: queueCheck.leftPadding
+                        y: (queueCheck.height - height) / 2
+                        radius: 4
+                        color: queueCheck.checked ? bridge.palette.accent : bridge.palette.input
+                        border.color: queueCheck.checked || queueCheck.activeFocus ? bridge.palette.accent : bridge.palette.muted
+                        Label {
+                            anchors.centerIn: parent
+                            text: "✓"
+                            visible: queueCheck.checked
+                            color: bridge.palette.accent_text
+                        }
+                    }
+                }
+                Rectangle {
+                    Layout.preferredWidth: Math.min(page.tinyCards ? 40 : page.smallCards ? 56 : page.cardSize === "Médio" ? 96 : 132, card.height - 24)
+                    Layout.preferredHeight: Layout.preferredWidth
+                    radius: 8
+                    color: bridge.palette.input
+                    RoundedArtwork {
+                        id: queueCover
+                        objectName: "downloadQueueArtwork"
+                        anchors.fill: parent
+                        source: card.entry.track_cover || ""
+                        sourceSize.width: 264
+                        sourceSize.height: 264
+                        fillMode: Image.PreserveAspectFit
+                        asynchronous: true
+                    }
+                    LineIcon {
+                        anchors.centerIn: parent
+                        visible: queueCover.status !== Image.Ready && !!card.entry.is_image
+                        glyph: "images"
+                        width: 30
+                        height: 30
+                        ink: bridge.palette.muted
+                    }
+                    Label {
+                        anchors.centerIn: parent
+                        visible: queueCover.status !== Image.Ready && !card.entry.is_image
+                        text: "♪"
+                        color: bridge.palette.muted
+                        font.pixelSize: 30
+                    }
+                }
+                ColumnLayout {
+                    id: queueDetails
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    spacing: page.smallCards ? 3 : 5
+                    Label {
+                        text: card.entry.track_title
+                        font.pixelSize: Math.round((page.smallCards ? 13 : page.cardSize === "Médio" ? 14 : 16) * bridge.fontScale)
+                        color: bridge.palette.text
+                        font.weight: Font.DemiBold
+                        Layout.fillWidth: true
+                        elide: Text.ElideRight
+                    }
+                    Label {
+                        visible: !!card.entry.track_artist
+                        text: card.entry.track_artist
+                        color: bridge.palette.muted
+                        Layout.fillWidth: true
+                        elide: Text.ElideRight
+                    }
+                    Label {
+                        visible: !page.tinyCards && ((!page.smallCards && !!card.entry.track_album) || !!card.entry.track_release_date)
+                        text: [page.smallCards ? "" : (card.entry.track_album || ""), card.entry.track_release_date || ""].filter(Boolean).join(" · ")
+                        color: bridge.palette.muted
+                        Layout.fillWidth: true
+                        elide: Text.ElideRight
+                    }
+                    Label {
+                        visible: !page.smallCards && card.entry.track_duration > 0
+                        text: workspace.clock(card.entry.track_duration)
+                        color: bridge.palette.muted
+                    }
+                    TaskButton {
+                        objectName: "previewPendingImages"
+                        compact: true
+                        visible: !card.entry.has_images && !!card.entry.can_preview_images
+                        idleText: bridge.translate("Prévia de imagens")
+                        operation: "preview_images"
+                        parameters: ({
+                                url: card.entry.url
+                            })
+                        taskNames: workspace.optionValue(workspace.optionsRevision, "imageGalleryPendingSource") === card.entry.url ? ["image_gallery_manifest"] : []
+                    }
+                    ActionButton {
+                        objectName: "downloadImagePreview"
+                        compact: true
+                        visible: !!card.entry.has_images
+                        text: bridge.translate("Ver imagens")
+                        onClicked: workspace.invoke("download_preview", {
+                            id: card.entry.id
+                        })
+                    }
+                    PlatformBadge {
+                        visible: !page.tinyCards
+                        imageMedia: !!card.entry.is_image
+                        platformKey: card.entry.platform_key || ""
+                        label: card.entry.platform || ""
+                    }
+                    Label {
+                        visible: !page.tinyCards
+                        text: workspace.workflowLabel(card.entry.state) + " · " + String(card.entry.mode).toUpperCase()
+                        color: bridge.palette.muted
+                    }
+                    Label {
+                        visible: card.entry.state === "Em andamento"
+                        text: bridge.translate(card.entry.download_detail || "Consultando")
+                        color: bridge.palette.muted
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                    }
+                    Label {
+                        visible: card.entry.state === "Falhou"
+                        text: bridge.translate(card.entry.failure_cause || "")
+                        color: bridge.palette.error
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                    }
+                    ActionButton {
+                        visible: card.entry.state === "Falhou"
+                        text: bridge.translate(card.entry.failure_action || "Tentar novamente")
+                        onClicked: workspace.invoke("failure_action", {
+                            id: card.entry.id
+                        })
+                    }
+                    OndaProgressBar {
+                        Layout.fillWidth: true
+                        from: 0
+                        to: 100
+                        value: card.entry.percent || 0
+                        indeterminate: !(card.entry.download_detail || "").startsWith("Baixando") || !card.entry.percent
+                        visible: card.entry.state === "Em andamento"
+                    }
+                    Label {
+                        visible: !page.tinyCards && workspace.preferences.queue_view === "Completa"
+                        text: card.entry.last_error ? bridge.translateError(card.entry.last_error) : card.entry.url
+                        color: card.entry.last_error ? bridge.palette.error : bridge.palette.muted
+                        wrapMode: Text.Wrap
+                        Layout.fillWidth: true
+                        maximumLineCount: 2
+                    }
+                }
+                ActionButton {
+                    visible: !page.queuePage && card.entry.state !== "Concluído"
+                    text: bridge.translate(card.entry.state === "Em andamento" ? "Pausar" : ["Falhou", "Cancelado"].indexOf(card.entry.state) >= 0 ? "Tentar novamente" : card.entry.state === "Pausado" ? "Retomar" : "Baixar agora")
+                    onClicked: workspace.invoke(["Falhou", "Cancelado"].indexOf(card.entry.state) >= 0 ? "queue_retry_now" : "queue_action", {
+                        name: card.entry.state === "Em andamento" ? "pause" : "resume",
+                        id: card.entry.id
+                    })
+                }
+                Label {
+                    visible: page.tinyCards
+                    text: workspace.workflowLabel(card.entry.state)
+                    color: bridge.palette.muted
+                }
+                PlaybackButton {
+                    glyph: "close"
+                    Accessible.name: bridge.translate("Remover")
+                    onClicked: workspace.invoke("queue_action", {
+                        name: "remove",
+                        id: card.entry.id
+                    })
+                }
             }
         }
-        EmptyState { anchors.fill: parent; visible:page.queuePage && workspace.queueModel.count === 0; heading: bridge.translate("Nenhum download"); description: bridge.translate(workspace.optionValue(workspace.optionsRevision,"queueQuery") || workspace.optionValue(workspace.optionsRevision,"queueState") !== "Todos" ? "Nenhum item corresponde à busca ou ao filtro selecionado." : "Adicione links ou músicas para organizar seus próximos downloads.") }
+        EmptyState {
+            anchors.fill: parent
+            visible: page.queuePage && workspace.queueModel.count === 0
+            heading: bridge.translate("Nenhum download")
+            description: bridge.translate(workspace.optionValue(workspace.optionsRevision, "queueQuery") || workspace.optionValue(workspace.optionsRevision, "queueState") !== "Todos" ? "Nenhum item corresponde à busca ou ao filtro selecionado." : "Adicione links ou músicas para organizar seus próximos downloads.")
+        }
     }
 }

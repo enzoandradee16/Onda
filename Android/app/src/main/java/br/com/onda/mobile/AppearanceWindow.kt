@@ -15,18 +15,52 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.json.JSONObject
 
 /** Quick appearance controls share the same settings as the full settings page. */
-@Composable internal fun AppearanceWindow(close:()->Unit) {
+@Composable internal fun AppearanceWindow(close: () -> Unit) {
     val settings by OndaStore.settings.collectAsStateWithLifecycle()
-    fun put(key:String,value:Any) {OndaStore.saveSettings(JSONObject(OndaStore.settings.value.toString()).put(key,value))}
-    Dialog(onDismissRequest=close) {
-        Surface(Modifier.widthIn(max=420.dp).fillMaxWidth().testTag("appearance-dialog"),shape=RoundedCornerShape(24.dp),color=ondaDialogContainerColor()) {
-            Column(Modifier.heightIn(max=640.dp).verticalScroll(rememberScrollState()).padding(LayoutSpacing.inset),verticalArrangement=Arrangement.spacedBy(LayoutSpacing.section)) {
-                UiText("Aparência",style=MaterialTheme.typography.headlineSmall)
-                Select("Modo de aparência",settings.optString("theme","Preto puro"),appearanceModes,Modifier.testTag("appearance-theme")){put("theme",it)}
-                AccentPreference(settings.optString("accent","Verde-Água"),Modifier.testTag("appearance-accent")){put("accent",it)}
-                if(settings.optString("theme")=="Preto puro")Toggle("Mostrar bordas e separações no Preto puro",settings.optBoolean("pure_black_separators",false)){put("pure_black_separators",it)}
-                if(settings.optString("theme")=="Claro puro")Toggle("Mostrar bordas no modo Claro Puro",settings.optBoolean("pure_light_borders",true)){put("pure_light_borders",it)}
-                FilledTonalButton(onClick=close,modifier=Modifier.align(Alignment.End).testTag("appearance-done")){UiText("Pronto")}
+    fun put(key: String, value: Any) {
+        OndaStore.saveSettings(JSONObject(OndaStore.settings.value.toString()).put(key, value))
+    }
+    Dialog(onDismissRequest = close) {
+        Surface(
+            Modifier.widthIn(max = 420.dp).fillMaxWidth().testTag("appearance-dialog"),
+            shape = RoundedCornerShape(24.dp),
+            color = ondaDialogContainerColor()
+        ) {
+            Column(
+                Modifier.heightIn(max = 640.dp).verticalScroll(rememberScrollState()).padding(LayoutSpacing.inset),
+                verticalArrangement = Arrangement.spacedBy(LayoutSpacing.section)
+            ) {
+                UiText("Aparência", style = MaterialTheme.typography.headlineSmall)
+                Select(
+                    "Modo de aparência",
+                    settings.optString("theme", "Preto puro"),
+                    appearanceModes,
+                    Modifier.testTag("appearance-theme")
+                ) {
+                    put("theme", it)
+                }
+                AccentPreference(settings.optString("accent", "Verde-Água"), Modifier.testTag("appearance-accent")) {
+                    put("accent", it)
+                }
+                if (settings.optString("theme") ==
+                    "Preto puro"
+                ) Toggle(
+                    "Mostrar bordas e separações no Preto puro",
+                    settings.optBoolean("pure_black_separators", false)
+                ) {
+                    put("pure_black_separators", it)
+                }
+                if (settings.optString("theme") ==
+                    "Claro puro"
+                ) Toggle("Mostrar bordas no modo Claro Puro", settings.optBoolean("pure_light_borders", true)) {
+                    put("pure_light_borders", it)
+                }
+                FilledTonalButton(
+                    onClick = close,
+                    modifier = Modifier.align(Alignment.End).testTag("appearance-done")
+                ) {
+                    UiText("Pronto")
+                }
             }
         }
     }

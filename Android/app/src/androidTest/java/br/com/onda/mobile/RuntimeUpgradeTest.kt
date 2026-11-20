@@ -16,11 +16,13 @@ import java.util.concurrent.TimeUnit
 @RunWith(AndroidJUnit4::class)
 class RuntimeUpgradeTest {
     @Test fun formatsEffectsFingerprintAndVideoUseUpdatedNativeTools() {
-        val context=InstrumentationRegistry.getInstrumentation().targetContext
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
         MobileEngine.initialize(context)
-        val scope=Python.getInstance().getModule("builtins").callAttr("dict")
-        scope.callAttr("__setitem__","folder",context.cacheDir.absolutePath)
-        Python.getInstance().getModule("builtins").callAttr("exec","""
+        val scope = Python.getInstance().getModule("builtins").callAttr("dict")
+        scope.callAttr("__setitem__", "folder", context.cacheDir.absolutePath)
+        Python.getInstance().getModule("builtins").callAttr(
+            "exec",
+            """
 import sys, json, subprocess, tempfile, hashlib, threading, ssl, sqlite3
 from pathlib import Path
 from PIL import Image
@@ -67,40 +69,59 @@ with tempfile.TemporaryDirectory(dir=folder) as work:
         assert probe_video(target)['has_audio']
     assert hashlib.sha256(source.read_bytes()).hexdigest()==original
 report=json.dumps({'python':sys.version.split()[0],'openssl':ssl.OPENSSL_VERSION,'sqlite':sqlite3.sqlite_version,'ffmpeg':version,'audio_formats':5,'video_formats':3,'effects':2,'fingerprint':True})
-""".trimIndent(),scope)
-        android.util.Log.i("ONDA-Runtime",scope.callAttr("__getitem__","report").toString())
+""".trimIndent(),
+            scope
+        )
+        android.util.Log.i("ONDA-Runtime", scope.callAttr("__getitem__", "report").toString())
     }
 
     @Test fun mediaPlayerPlaysAndSeeksAudioPreparedByFfmpeg() {
-        val instrumentation=InstrumentationRegistry.getInstrumentation()
-        val context=instrumentation.targetContext
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val context = instrumentation.targetContext
         MobileEngine.initialize(context)
-        val file=File(context.cacheDir,"runtime-playback.wav")
-        val scope=Python.getInstance().getModule("builtins").callAttr("dict")
-        scope.callAttr("__setitem__","output",file.absolutePath)
-        Python.getInstance().getModule("builtins").callAttr("exec","""
+        val file = File(context.cacheDir, "runtime-playback.wav")
+        val scope = Python.getInstance().getModule("builtins").callAttr("dict")
+        scope.callAttr("__setitem__", "output", file.absolutePath)
+        Python.getInstance().getModule("builtins").callAttr(
+            "exec",
+            """
 import subprocess
 from mobile_backend import _native
 subprocess.run([str(_native/'libffmpeg.so'),'-v','error','-y','-f','lavfi','-i','sine=duration=4',output],check=True,timeout=30)
-""".trimIndent(),scope)
-        val ready=CountDownLatch(1)
-        var player:ExoPlayer?=null
+""".trimIndent(),
+            scope
+        )
+        val ready = CountDownLatch(1)
+        var player: ExoPlayer? = null
         try {
             instrumentation.runOnMainSync {
-                player=ExoPlayer.Builder(context).build().apply {
-                    volume=0f
-                    addListener(object:Player.Listener {override fun onPlaybackStateChanged(state:Int){if(state==Player.STATE_READY)ready.countDown()}})
+                player = ExoPlayer.Builder(context).build().apply {
+                    volume = 0f
+                    addListener(object : Player.Listener {
+                        override fun onPlaybackStateChanged(state: Int) {
+                            if (state ==
+                                Player.STATE_READY
+                            ) ready.countDown()
+                        }
+                    })
                     setMediaItem(MediaItem.fromUri(android.net.Uri.fromFile(file)))
-                    prepare();play()
+                    prepare()
+                    play()
                 }
             }
-            assertTrue("O áudio não ficou pronto",ready.await(15,TimeUnit.SECONDS))
+            assertTrue("O áudio não ficou pronto", ready.await(15, TimeUnit.SECONDS))
             Thread.sleep(700)
-            instrumentation.runOnMainSync {assertTrue(player!!.currentPosition>0);player!!.seekTo(2000)}
+            instrumentation.runOnMainSync {
+                assertTrue(player!!.currentPosition > 0)
+                player!!.seekTo(2000)
+            }
             Thread.sleep(400)
-            instrumentation.runOnMainSync {assertTrue(player!!.currentPosition>=1900);player!!.pause()}
+            instrumentation.runOnMainSync {
+                assertTrue(player!!.currentPosition >= 1900)
+                player!!.pause()
+            }
         } finally {
-            instrumentation.runOnMainSync {player?.release()}
+            instrumentation.runOnMainSync { player?.release() }
             file.delete()
         }
     }

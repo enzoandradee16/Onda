@@ -55,12 +55,15 @@ class NativeCancellationTests(unittest.TestCase):
 class AndroidSessionTests(unittest.TestCase):
     def test_instagram_uses_own_session_for_source_and_url(self):
         for key in ('url', 'source'):
-            options = backend.session_options({}, {
-                key: 'https://www.instagram.com/reel/example/',
-                'cookies_file': 'social.txt',
-                'youtube_cookies_file': 'youtube.txt',
-                'instagram_cookies_file': 'instagram.txt',
-            })
+            options = backend.session_options(
+                {},
+                {
+                    key: 'https://www.instagram.com/reel/example/',
+                    'cookies_file': 'social.txt',
+                    'youtube_cookies_file': 'youtube.txt',
+                    'instagram_cookies_file': 'instagram.txt',
+                },
+            )
             self.assertEqual(options['cookiefile'], 'instagram.txt')
             self.assertNotIn('http_headers', options)
 
@@ -109,7 +112,9 @@ class AndroidSessionTests(unittest.TestCase):
             result = backend.perform('update', {})
             progress = [call.kwargs for call in emit.call_args_list]
             self.assertTrue(any(row.get('done', 0) > 0 for row in progress))
-            self.assertEqual(progress[-1]['message'], 'Verificando atualização das ferramentas…')
+            self.assertEqual(
+                progress[-1]['message'], 'Verificando atualização das ferramentas…'
+            )
             self.assertTrue((Path(temporary) / 'tools/python-updates/active').is_file())
             self.assertEqual(set(result['versions']), set(mobile_tool_updates.PACKAGES))
 

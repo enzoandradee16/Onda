@@ -1,7 +1,7 @@
-# Pacotes do ONDA 1.3.0
+# Pacotes do ONDA 1.3.1
 
 - Windows x64: portátil e instalador.
-- Android: APKs ARM64 e x86_64, versão 1.3.0, código 38.
+- Android: APKs ARM64 e x86_64, versão 1.3.1, código 39.
 - Código-fonte do aplicativo e fontes de terceiros.
 
 Extraia todo o ZIP portátil antes de abrir Onda.exe. Para instalação no Windows, execute o instalador. No Android, escolha o APK compatível com o aparelho.

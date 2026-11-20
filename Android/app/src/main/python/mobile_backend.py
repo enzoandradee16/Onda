@@ -25,7 +25,13 @@ class Cancelled(ValueError):
 def session_options(params, config):
     params = dict(params or {})
     from download_defaults import download_cookies
-    cookies = download_cookies(config.get('url') or config.get('source', ''), config.get('cookies_file', ''), config.get('youtube_cookies_file', ''), config.get('instagram_cookies_file', ''))
+
+    cookies = download_cookies(
+        config.get('url') or config.get('source', ''),
+        config.get('cookies_file', ''),
+        config.get('youtube_cookies_file', ''),
+        config.get('instagram_cookies_file', ''),
+    )
     from social_media import is_social
 
     if not is_social(config.get('url') or config.get('source', '')):
@@ -37,6 +43,7 @@ def session_options(params, config):
             )
     if cookies:
         from session_cookies import cookie_source
+
         params['cookiefile'] = cookie_source(cookies)
     else:
         params.pop('cookiefile', None)
@@ -764,17 +771,32 @@ def perform(action, config):
     if action == 'playback_cache_trim':
         from playback_cache_budget import prune, model_paths
 
-        return prune(_root / 'jukebox', max_bytes=max(256,min(4096,int(config.get('playback_cache_limit_mb',384))))*1048576,
-                     protected=model_paths(config.get('models', [])) +
-                     config.get('_stream_cache_protected', []))
+        return prune(
+            _root / 'jukebox',
+            max_bytes=max(
+                256, min(4096, int(config.get('playback_cache_limit_mb', 384)))
+            )
+            * 1048576,
+            protected=model_paths(config.get('models', []))
+            + config.get('_stream_cache_protected', []),
+        )
     if action == 'cache_auto':
         from cache_cleanup import automatic_cleanup
 
         return automatic_cleanup(_root)
-    if action in ('cache_report','cache_remove'):
-        from cache_report import report,remove
-        return (remove(_root,config['cache_id'],config.get('_stream_cache_protected',[])) if action=='cache_remove'
-                else report(_root,config.get('_stream_cache_protected',[]),int(config.get('playback_cache_limit_mb',384)),config.get('_cache_models',[])))
+    if action in ('cache_report', 'cache_remove'):
+        from cache_report import report, remove
+
+        return (
+            remove(_root, config['cache_id'], config.get('_stream_cache_protected', []))
+            if action == 'cache_remove'
+            else report(
+                _root,
+                config.get('_stream_cache_protected', []),
+                int(config.get('playback_cache_limit_mb', 384)),
+                config.get('_cache_models', []),
+            )
+        )
     if action in ('cache_info', 'cache_clear'):
         from cache_cleanup import cache_info, clear_cache
 
@@ -821,22 +843,33 @@ def perform(action, config):
         return {'message': 'Vídeo convertido e salvo.'}
     if action == 'audio_tags_copy':
         from tag_transfer import copy_snapshot, encode
+
         source = Path(config['source'])
         try:
             transfer = copy_snapshot(config)
-            Path(config['clipboard_path']).write_text(encode(transfer), encoding='utf-8')
+            Path(config['clipboard_path']).write_text(
+                encode(transfer), encoding='utf-8'
+            )
             return {'clipboard_path': config['clipboard_path']}
         finally:
-            if config.get('temporary_source') and source.name.startswith('tag-copy-') and source.parent.resolve() == (_root / 'imports').resolve():
+            if (
+                config.get('temporary_source')
+                and source.name.startswith('tag-copy-')
+                and source.parent.resolve() == (_root / 'imports').resolve()
+            ):
                 source.unlink(missing_ok=True)
     if action == 'audio_tags_paste':
         from tag_transfer import decode, cover_file, LIMIT
+
         path = Path(config['clipboard_path'])
         if path.stat().st_size > LIMIT:
             raise ValueError('As tags excedem o limite de tamanho.')
         transfer = decode(path.read_text(encoding='utf-8'))
-        return {'record': transfer['tags'], 'tag_transfer_path': str(path),
-                'cover_path': cover_file(transfer, path.parent)}
+        return {
+            'record': transfer['tags'],
+            'tag_transfer_path': str(path),
+            'cover_path': cover_file(transfer, path.parent),
+        }
     if action == 'audio_name_lookup':
         from filename_metadata import identify_entries
 
@@ -848,19 +881,34 @@ def perform(action, config):
         fields = identify_audio(config['source'], _local.state['cancel'])
         if not fields:
             return {'matches': []}
-        candidate = dict(fields, platform='AcoustID / MusicBrainz',
-                         source_url='acoustid:' + str(fields.get('_recording_id') or 'recording'),
-                         cover_url=fields.get('cover') or fields.get('cover_url') or '')
+        candidate = dict(
+            fields,
+            platform='AcoustID / MusicBrainz',
+            source_url='acoustid:' + str(fields.get('_recording_id') or 'recording'),
+            cover_url=fields.get('cover') or fields.get('cover_url') or '',
+        )
         ask_catalog(config.get('record') or fields, [candidate])
-        return {'matches': [dict(identity='single', changes={k: v for k, v in fields.items() if k in FIELDS},
-                                 cover_url=candidate['cover_url'])]}
+        return {
+            'matches': [
+                dict(
+                    identity='single',
+                    changes={k: v for k, v in fields.items() if k in FIELDS},
+                    cover_url=candidate['cover_url'],
+                )
+            ]
+        }
     if action == 'audio_batch_edit':
         from batch_metadata import edit_batch
-        from metadata_editing import preview,select
-        report=preview(config,_local.state['cancel'].is_set)
-        config=select(config,report,ask('review_metadata_changes',**report))
-        if not config['sources']:return {'cancelled':True,'message':'Nenhuma alteração selecionada.'}
-        config.update(_metadata_transaction=str(__import__('uuid').uuid4()),_android_metadata=True)
+        from metadata_editing import preview, select
+
+        report = preview(config, _local.state['cancel'].is_set)
+        config = select(config, report, ask('review_metadata_changes', **report))
+        if not config['sources']:
+            return {'cancelled': True, 'message': 'Nenhuma alteração selecionada.'}
+        config.update(
+            _metadata_transaction=str(__import__('uuid').uuid4()),
+            _android_metadata=True,
+        )
 
         return edit_batch(
             dict(config, _android_batch=True),
@@ -884,11 +932,17 @@ def perform(action, config):
                 )
             }
         # Android edits an imported staging file; the original is its content URI.
-        from metadata_editing import preview,select
-        report=preview(config,_local.state['cancel'].is_set)
-        chosen=select(config,report,ask('review_metadata_changes',**report))
-        if not chosen['sources']:return {'cancelled':True,'message':'Nenhuma alteração selecionada.'}
-        config=dict(chosen,_metadata_transaction=str(__import__('uuid').uuid4()),_android_metadata=True)
+        from metadata_editing import preview, select
+
+        report = preview(config, _local.state['cancel'].is_set)
+        chosen = select(config, report, ask('review_metadata_changes', **report))
+        if not chosen['sources']:
+            return {'cancelled': True, 'message': 'Nenhuma alteração selecionada.'}
+        config = dict(
+            chosen,
+            _metadata_transaction=str(__import__('uuid').uuid4()),
+            _android_metadata=True,
+        )
         result = edit_copy(
             dict(config, overwrite_original=False),
             emit,
@@ -1340,8 +1394,14 @@ def run(identity, action, payload, callback, raw_pcm=False):
     try:
         state['config'] = json.loads(payload)
         from download_defaults import download_cookies
+
         config = state['config']
-        config['cookies_file'] = download_cookies(config.get('url') or config.get('source', ''), config.get('cookies_file', ''), config.get('youtube_cookies_file', ''), config.get('instagram_cookies_file', ''))
+        config['cookies_file'] = download_cookies(
+            config.get('url') or config.get('source', ''),
+            config.get('cookies_file', ''),
+            config.get('youtube_cookies_file', ''),
+            config.get('instagram_cookies_file', ''),
+        )
         _local.raw_pcm = raw_pcm
         result = perform(action, state['config'])
         if raw_pcm:
@@ -1349,8 +1409,11 @@ def run(identity, action, payload, callback, raw_pcm=False):
             return json.dumps(result, ensure_ascii=False), pcm
         return json.dumps(result, ensure_ascii=False)
     except Exception as exc:
-        if action in ('audio_edit','audio_batch_edit') and isinstance(exc,Cancelled):
-            return json.dumps({'cancelled':True,'message':'Alterações canceladas.'},ensure_ascii=False)
+        if action in ('audio_edit', 'audio_batch_edit') and isinstance(exc, Cancelled):
+            return json.dumps(
+                {'cancelled': True, 'message': 'Alterações canceladas.'},
+                ensure_ascii=False,
+            )
         if action == 'update':
             from tool_status import updated
 

@@ -129,7 +129,10 @@ def main():
             else []
         )
         lines = [
-            line for line in lines if line.split()[-1] not in {
+            line
+            for line in lines
+            if line.split()[-1]
+            not in {
                 args.abi + '/' + name
                 for name in ('libffmpeg.so', 'libffprobe.so', 'libqjs.so')
             }

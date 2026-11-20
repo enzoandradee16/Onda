@@ -1,5 +1,10 @@
 # Histórico de versões
 
+## 1.3.1 — 2026-11-19
+
+- Versão de manutenção, mantendo os recursos da versão 1.3.0.
+- Windows 1.3.1.0; Android 1.3.1, código 39.
+
 ## 1.3.0 — 2026-11-16
 
 - Reconhecimento de metadados pelo nome do arquivo e edição individual e em lote.

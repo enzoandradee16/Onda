@@ -13,12 +13,22 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class SpanishDialogTest {
-    @get:Rule val compose=createComposeRule()
+    @get:Rule val compose = createComposeRule()
+
     @Test fun spanishPopupPreservesOriginalSongData() {
         OndaStore.initialize(InstrumentationRegistry.getInstrumentation().targetContext)
         compose.setContent {
-            LocalizedTheme("es",darkColorScheme(),MaterialTheme.typography) {
-                TrackDownloadDialog(JSONObject().put("title","Configurações").put("artists",org.json.JSONArray(listOf("Original"))),JSONObject(),{}, {_,_->})
+            LocalizedTheme("es", darkColorScheme(), MaterialTheme.typography) {
+                TrackDownloadDialog(
+                    JSONObject().put(
+                        "title",
+                        "Configurações"
+                    ).put("artists", org.json.JSONArray(listOf("Original"))),
+                    JSONObject(),
+                    {
+                    },
+                    { _, _ -> }
+                )
             }
         }
         compose.onNodeWithText("Elige el formato").assertIsDisplayed()

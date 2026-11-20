@@ -13,67 +13,88 @@ import org.junit.Rule
 import org.junit.Test
 
 class OperationFeedbackTest {
-    @get:Rule val compose=createComposeRule()
+    @get:Rule val compose = createComposeRule()
 
     @Test fun catalogSearchButtonAndImeRenderResultsWithoutCrash() {
-        val context=InstrumentationRegistry.getInstrumentation().targetContext
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
         OndaStore.initialize(context)
         MobileEngine.initialize(context)
-        val store=ViewModelStore()
-        lateinit var vm:OndaViewModel
+        val store = ViewModelStore()
+        lateinit var vm: OndaViewModel
         compose.runOnUiThread {
-            vm=ViewModelProvider(store,ViewModelProvider.AndroidViewModelFactory.getInstance(ApplicationProvider.getApplicationContext()))[OndaViewModel::class.java]
+            vm =
+                ViewModelProvider(
+                    store,
+                    ViewModelProvider.AndroidViewModelFactory.getInstance(ApplicationProvider.getApplicationContext())
+                )[OndaViewModel::class.java]
         }
-        val fixture=com.chaquo.python.Python.getInstance().getModule("mobile_smoke")
+        val fixture = com.chaquo.python.Python.getInstance().getModule("mobile_smoke")
         fixture.callAttr("start_enter_search_fixture")
         try {
-            compose.setContent {MaterialTheme {SearchPage(vm,{})}}
+            compose.setContent { MaterialTheme { SearchPage(vm, {}) } }
             compose.onNodeWithTag("music-query").performTextInput("Primeira música")
             compose.onNodeWithContentDescription("Pesquisar").performClick()
-            compose.waitUntil(15000) {!vm.busy.value && vm.searchResults.value.any {it.optString("title")=="Resultado: Primeira música"}}
+            compose.waitUntil(15000) {
+                !vm.busy.value &&
+                    vm.searchResults.value.any { it.optString("title") == "Resultado: Primeira música" }
+            }
             compose.onNodeWithText("Resultado: Primeira música").assertExists()
             compose.onNodeWithTag("music-query").performTextClearance()
             compose.onNodeWithTag("music-query").performTextInput("Segunda música")
             compose.onNodeWithTag("music-query").performImeAction()
-            compose.waitUntil(15000) {!vm.busy.value && vm.searchResults.value.any {it.optString("title")=="Resultado: Segunda música"}}
+            compose.waitUntil(15000) {
+                !vm.busy.value &&
+                    vm.searchResults.value.any { it.optString("title") == "Resultado: Segunda música" }
+            }
             compose.waitForIdle()
-            compose.onNode(hasScrollAction() and hasAnyDescendant(hasTestTag("music-query"))).performScrollToNode(hasText("Resultado: Segunda música"))
+            compose.onNode(
+                hasScrollAction() and hasAnyDescendant(hasTestTag("music-query"))
+            ).performScrollToNode(hasText("Resultado: Segunda música"))
             compose.onNodeWithText("Resultado: Segunda música").assertExists()
         } finally {
             fixture.callAttr("stop_enter_search_fixture")
-            compose.runOnUiThread {store.clear()}
+            compose.runOnUiThread { store.clear() }
         }
     }
 
     @Test fun structuredResultsAreReadableIncludingCacheFailures() {
-        val message=operationResultMessage(JSONObject().put("bytes",16384).put("removed",1048576).put("failed",1))
+        val message = operationResultMessage(JSONObject().put("bytes", 16384).put("removed", 1048576).put("failed", 1))
         assertTrue(message.contains("MB"))
         assertTrue(message.contains("não puderam ser removidos"))
         assertFalse(message.contains("\"removed\""))
-        assertEquals("Concluído",operationResultMessage(JSONObject().put("message",JSONObject().put("internal",true))))
-        assertEquals("Concluído",operationResultMessage(JSONObject()))
+        assertEquals(
+            "Concluído",
+            operationResultMessage(JSONObject().put("message", JSONObject().put("internal", true)))
+        )
+        assertEquals("Concluído", operationResultMessage(JSONObject()))
     }
 
     @Test fun emptyCatalogAndPlaybackSearchWarnBeforeStartingRequests() {
-        val context=InstrumentationRegistry.getInstrumentation().targetContext
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
         OndaStore.initialize(context)
-        val store=ViewModelStore()
-        lateinit var vm:OndaViewModel
+        val store = ViewModelStore()
+        lateinit var vm: OndaViewModel
         compose.runOnUiThread {
-            vm=ViewModelProvider(store,ViewModelProvider.AndroidViewModelFactory.getInstance(ApplicationProvider.getApplicationContext()))[OndaViewModel::class.java]
+            vm =
+                ViewModelProvider(
+                    store,
+                    ViewModelProvider.AndroidViewModelFactory.getInstance(ApplicationProvider.getApplicationContext())
+                )[OndaViewModel::class.java]
             vm.jukebox.stop()
-            vm.search("   ","Spotify")
-            assertEquals(EMPTY_MUSIC_SEARCH,vm.dialogNotice.value?.message)
+            vm.search("   ", "Spotify")
+            assertEquals(EMPTY_MUSIC_SEARCH, vm.dialogNotice.value?.message)
             assertFalse(vm.busy.value)
             vm.dismissNotice()
         }
         try {
-            compose.setContent {MaterialTheme {PlaybackPage(vm)}}
+            compose.setContent { MaterialTheme { PlaybackPage(vm) } }
             compose.onNodeWithTag("playback-search-submit").assertIsEnabled().performClick()
             compose.runOnIdle {
-                assertEquals(EMPTY_MUSIC_SEARCH,vm.dialogNotice.value?.message)
+                assertEquals(EMPTY_MUSIC_SEARCH, vm.dialogNotice.value?.message)
                 assertFalse(vm.jukebox.searching.value)
             }
-        } finally {compose.runOnUiThread {store.clear()}}
+        } finally {
+            compose.runOnUiThread { store.clear() }
+        }
     }
 }

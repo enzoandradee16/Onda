@@ -10,9 +10,11 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class StorageRegressionTest {
     @Test fun lyricsCollisionsAndFailedCollectionItems() {
-        val context=InstrumentationRegistry.getInstrumentation().targetContext
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
         MobileEngine.initialize(context)
-        assertTrue(Python.getInstance().getModule("mobile_advanced_smoke")
-            .callAttr("verify_storage",context.cacheDir.absolutePath).toBoolean())
+        assertTrue(
+            Python.getInstance().getModule("mobile_advanced_smoke")
+                .callAttr("verify_storage", context.cacheDir.absolutePath).toBoolean()
+        )
     }
 }

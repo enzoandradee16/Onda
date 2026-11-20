@@ -101,15 +101,30 @@ class PlaybackRegressionTests(unittest.TestCase):
             Path(folder, 'analysis.json').touch()
             model = {'cache': folder}
             bridge = SimpleNamespace(
-                closed=False, _queue_preparing=False, _queue_timeout_timer=Mock(),
-                preferences={}, queue_index=-1,
-                playlist=[dict(id='next', kind='file', source='next.wav', analysis='pending')],
-                _prepared={}, _queue_cancel={}, _autoplay_entry=None,
-                _switch_pending=None, _switch_after=None, _switch_models={},
-                normal_next_index=lambda: 0, config=lambda: {}, can_stream=lambda: False,
-                _state={'playing': True}, _effects={'enabled': True},
-                queueChanged=Mock(), preparationChanged=Mock(), emit=Mock(),
-                start_worker=lambda worker: worker(), prepare_local=Mock(return_value=model),
+                closed=False,
+                _queue_preparing=False,
+                _queue_timeout_timer=Mock(),
+                preferences={},
+                queue_index=-1,
+                playlist=[
+                    dict(id='next', kind='file', source='next.wav', analysis='pending')
+                ],
+                _prepared={},
+                _queue_cancel={},
+                _autoplay_entry=None,
+                _switch_pending=None,
+                _switch_after=None,
+                _switch_models={},
+                normal_next_index=lambda: 0,
+                config=lambda: {},
+                can_stream=lambda: False,
+                _state={'playing': True},
+                _effects={'enabled': True},
+                queueChanged=Mock(),
+                preparationChanged=Mock(),
+                emit=Mock(),
+                start_worker=lambda worker: worker(),
+                prepare_local=Mock(return_value=model),
                 _queue_slots=Mock(),
             )
 

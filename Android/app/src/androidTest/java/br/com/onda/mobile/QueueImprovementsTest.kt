@@ -22,132 +22,191 @@ import org.junit.Rule
 import org.junit.Test
 
 class QueueImprovementsTest {
-    @get:Rule val compose=createComposeRule()
-    @Test fun movingToFirstVisibleSlotKeepsScrollIndexAndOffset() {
-        var rows by mutableStateOf((0 until 30).map {"Track $it"})
-        lateinit var state:androidx.compose.foundation.lazy.LazyListState
-        var anchor:Pair<Int,Int>?=null
-        var moved=false
-        compose.setContent {MaterialTheme {
-            state=rememberLazyListState(initialFirstVisibleItemIndex=8,initialFirstVisibleItemScrollOffset=13)
-            LazyColumn(state=state,modifier=Modifier.height(360.dp)) {
-                itemsIndexed(rows,key={_,row->row}) {index,row->
-                    DraggableQueueCard(state,index,rows.size,move={from,to->
-                        anchor=state.firstVisibleItemIndex to state.firstVisibleItemScrollOffset
-                        rows=rows.toMutableList().apply {add(to,removeAt(from))}
-                        moved=true
-                    }) {
-                        Box(Modifier.fillMaxWidth().height(80.dp).testTag("scroll-drag-$row")){Text(row)}
-                    }
-                }
-            }
-        }}
-        compose.onNodeWithTag("scroll-drag-Track 11").performTouchInput {down(center)}
-        compose.mainClock.advanceTimeBy(750)
-        Thread.sleep(650)
-        compose.onNodeWithTag("scroll-drag-Track 11").performTouchInput {moveBy(Offset(0f,-height*3f),300);up()}
-        compose.waitForIdle()
-        compose.runOnIdle {
-            assertTrue("A música deve mudar de posição",moved)
-            assertEquals("A fila não deve seguir a música que mudou de índice",anchor!!.first,state.firstVisibleItemIndex)
-            assertEquals(anchor!!.second,state.firstVisibleItemScrollOffset)
-        }
-    }
+    @get:Rule val compose = createComposeRule()
 
-    @Test fun longPressDragReordersAndOffersAccessibleMoveActions() {
-        var rows by mutableStateOf(listOf("First","Second","Third"))
-        compose.setContent {MaterialTheme {
-            val state=rememberLazyListState()
-            LazyColumn(state=state,modifier=Modifier.height(360.dp)) {
-                itemsIndexed(rows,key={_,row->row}) {index,row->
-                    DraggableQueueCard(state,index,rows.size,move={from,to->rows=rows.toMutableList().apply {add(to,removeAt(from))}}) {
-                    Row(Modifier.fillMaxWidth().height(80.dp),verticalAlignment=Alignment.CenterVertically) {
-                        QueueDragHandle(state,index,rows.size){from,to->rows=rows.toMutableList().apply {add(to,removeAt(from))}}
-                        Text(row)
-                    }
-                    }
-                }
-            }
-        }}
-        val handle=compose.onAllNodesWithContentDescription("Arrastar para reorganizar")[0]
-        val actions=handle.fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsActions.CustomActions]
-        assertEquals(2,actions.size)
-        val secondTop=compose.onNodeWithText("Second").fetchSemanticsNode().boundsInRoot.top
-        val initialTop=compose.onNodeWithText("First").fetchSemanticsNode().boundsInRoot.top
-        compose.onNodeWithText("First").performTouchInput {down(center);advanceEventTime(700);moveBy(Offset(0f,150.dp.toPx()),400)}
-        assertTrue(compose.onNodeWithText("First").fetchSemanticsNode().boundsInRoot.top>initialTop+80)
-        assertTrue(compose.onNodeWithText("Second").fetchSemanticsNode().boundsInRoot.top<secondTop-20)
-        compose.onNodeWithText("First").performTouchInput {up()}
-        compose.runOnIdle {assertEquals(listOf("Second","Third","First"),rows)}
-        compose.runOnIdle {assertTrue(actions[1].label.isNotBlank())}
-    }
-    @Test fun compactOverlayDoesNotTakeWidthFromPlaybackCard() {
-        val record=JSONObject().put("title","Test song").put("artists",org.json.JSONArray().put("Artist"))
-        compose.setContent {MaterialTheme {
-            val state=rememberLazyListState()
-            Column(Modifier.width(300.dp)) {
-                PlaybackQueueRow(record,"",120,false,false,{},{},{},{},false,true)
-                PlaybackQueueRow(record,"",120,false,false,{},{},{},{},false,true,drag={QueueDragHandle(state,0,2){_,_->}})
-            }
-        }}
-        val titles=compose.onAllNodesWithText("Test song").fetchSemanticsNodes()
-        assertEquals(2,titles.size)
-        assertEquals(titles[0].boundsInRoot.left,titles[1].boundsInRoot.left,1f)
-        assertEquals(titles[0].boundsInRoot.width,titles[1].boundsInRoot.width,1f)
-        val icon=compose.onNodeWithContentDescription("Arrastar para reorganizar").fetchSemanticsNode()
-        assertTrue(icon.boundsInRoot.width<=with(compose.density){24.dp.toPx()}+1f)
-    }
-    @Test fun interruptedQueueRestoresCheckpointWithoutStartingService() {
-        val context=InstrumentationRegistry.getInstrumentation().targetContext
-        OndaStore.initialize(context)
-        val id=OndaStore.enqueue("https://example.com/recovery-"+java.util.UUID.randomUUID()+".mp4",options=JSONObject(OndaStore.settings.value.toString()).put("detect_duplicates",false))
-        try {
-            OndaStore.update(id,"Baixando",43f)
-            OndaStore.items.value=emptyList()
-            OndaStore.initialize(context)
-            val restored=OndaStore.items.value.first {it.id==id}
-            assertEquals("Pendente",restored.state);assertEquals(43f,restored.progress,0f)
-            assertTrue(restored.config.optBoolean("_interrupted"));assertFalse(DownloadRuntime.running.get())
-        } finally {OndaStore.remove(setOf(id))}
-    }
-    @Test fun identityDragStaysAtDropPositionAndNeverRemovesDuringUpdates() {
-        var rows by mutableStateOf(listOf("First","Second","Third"))
-        var revision by mutableIntStateOf(0)
-        var removed=0
-        var dragWasActive=false
-        var dropped=""
-        compose.setContent {MaterialTheme {
-            val state=rememberLazyListState()
-            val active=queueDragActive(state)
-            SideEffect {if(active)dragWasActive=true}
-            LaunchedEffect(Unit){repeat(100){kotlinx.coroutines.delay(25);revision++}}
-            LazyColumn(state=state,modifier=Modifier.height(360.dp)) {
-                itemsIndexed(rows,key={_,row->row}) {index,row->
-                    DraggableQueueCard(state,index,rows.size,move={from,to->rows=rows.toMutableList().apply {add(to,removeAt(from))}},moveToIdentity={target->
-                        dropped=target
-                        val from=rows.indexOf(row);val to=rows.indexOf(target)
-                        if(from>=0&&to>=0)rows=rows.toMutableList().apply {add(to,removeAt(from))}
-                    }) {
-                        SwipeRemoveQueueTrack(row,enabled=!queueDragActive(state),onRemove={removed++;rows=rows.filterNot {it==row}}) {
-                            Box(Modifier.fillMaxWidth().height(80.dp).testTag("stable-drag-$row")){Text("$row $revision")}
+    @Test fun movingToFirstVisibleSlotKeepsScrollIndexAndOffset() {
+        var rows by mutableStateOf((0 until 30).map { "Track $it" })
+        lateinit var state: androidx.compose.foundation.lazy.LazyListState
+        var anchor: Pair<Int, Int>? = null
+        var moved = false
+        compose.setContent {
+            MaterialTheme {
+                state =
+                    rememberLazyListState(initialFirstVisibleItemIndex = 8, initialFirstVisibleItemScrollOffset = 13)
+                LazyColumn(state = state, modifier = Modifier.height(360.dp)) {
+                    itemsIndexed(rows, key = { _, row -> row }) { index, row ->
+                        DraggableQueueCard(state, index, rows.size, move = { from, to ->
+                            anchor = state.firstVisibleItemIndex to state.firstVisibleItemScrollOffset
+                            rows = rows.toMutableList().apply { add(to, removeAt(from)) }
+                            moved = true
+                        }) {
+                            Box(Modifier.fillMaxWidth().height(80.dp).testTag("scroll-drag-$row")) { Text(row) }
                         }
                     }
                 }
             }
-        }}
-        compose.onNodeWithTag("stable-drag-First").performTouchInput {down(center)}
+        }
+        compose.onNodeWithTag("scroll-drag-Track 11").performTouchInput { down(center) }
         compose.mainClock.advanceTimeBy(750)
         Thread.sleep(650)
-        compose.onNodeWithTag("stable-drag-First").performTouchInput {moveBy(Offset(-width*.15f,height*1.7f),600)}
+        compose.onNodeWithTag("scroll-drag-Track 11").performTouchInput {
+            moveBy(Offset(0f, -height * 3f), 300)
+            up()
+        }
         compose.waitForIdle()
-        compose.onNodeWithTag("stable-drag-First").performTouchInput {up()}
-        compose.waitForIdle()
-        assertEquals("active=$dragWasActive dropped=$dropped removed=$removed",listOf("Second","Third","First"),rows)
-        assertEquals(0,removed)
-        compose.mainClock.advanceTimeBy(300);Thread.sleep(200)
-        compose.onNodeWithTag("stable-drag-Second").performTouchInput {swipeLeft()}
-        compose.waitUntil(5000){removed==1}
-        assertEquals(listOf("Third","First"),rows)
+        compose.runOnIdle {
+            assertTrue("A música deve mudar de posição", moved)
+            assertEquals(
+                "A fila não deve seguir a música que mudou de índice",
+                anchor!!.first,
+                state.firstVisibleItemIndex
+            )
+            assertEquals(anchor!!.second, state.firstVisibleItemScrollOffset)
+        }
     }
 
+    @Test fun longPressDragReordersAndOffersAccessibleMoveActions() {
+        var rows by mutableStateOf(listOf("First", "Second", "Third"))
+        compose.setContent {
+            MaterialTheme {
+                val state = rememberLazyListState()
+                LazyColumn(state = state, modifier = Modifier.height(360.dp)) {
+                    itemsIndexed(rows, key = { _, row -> row }) { index, row ->
+                        DraggableQueueCard(state, index, rows.size, move = { from, to ->
+                            rows =
+                                rows.toMutableList().apply { add(to, removeAt(from)) }
+                        }) {
+                            Row(Modifier.fillMaxWidth().height(80.dp), verticalAlignment = Alignment.CenterVertically) {
+                                QueueDragHandle(state, index, rows.size) { from, to ->
+                                    rows =
+                                        rows.toMutableList().apply { add(to, removeAt(from)) }
+                                }
+                                Text(row)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        val handle = compose.onAllNodesWithContentDescription("Arrastar para reorganizar")[0]
+        val actions = handle.fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsActions.CustomActions]
+        assertEquals(2, actions.size)
+        val secondTop = compose.onNodeWithText("Second").fetchSemanticsNode().boundsInRoot.top
+        val initialTop = compose.onNodeWithText("First").fetchSemanticsNode().boundsInRoot.top
+        compose.onNodeWithText("First").performTouchInput {
+            down(center)
+            advanceEventTime(700)
+            moveBy(Offset(0f, 150.dp.toPx()), 400)
+        }
+        assertTrue(compose.onNodeWithText("First").fetchSemanticsNode().boundsInRoot.top > initialTop + 80)
+        assertTrue(compose.onNodeWithText("Second").fetchSemanticsNode().boundsInRoot.top < secondTop - 20)
+        compose.onNodeWithText("First").performTouchInput { up() }
+        compose.runOnIdle { assertEquals(listOf("Second", "Third", "First"), rows) }
+        compose.runOnIdle { assertTrue(actions[1].label.isNotBlank()) }
+    }
+
+    @Test fun compactOverlayDoesNotTakeWidthFromPlaybackCard() {
+        val record = JSONObject().put("title", "Test song").put("artists", org.json.JSONArray().put("Artist"))
+        compose.setContent {
+            MaterialTheme {
+                val state = rememberLazyListState()
+                Column(Modifier.width(300.dp)) {
+                    PlaybackQueueRow(record, "", 120, false, false, {}, {}, {}, {}, false, true)
+                    PlaybackQueueRow(record, "", 120, false, false, {
+                    }, {}, {}, {}, false, true, drag = { QueueDragHandle(state, 0, 2) { _, _ -> } })
+                }
+            }
+        }
+        val titles = compose.onAllNodesWithText("Test song").fetchSemanticsNodes()
+        assertEquals(2, titles.size)
+        assertEquals(titles[0].boundsInRoot.left, titles[1].boundsInRoot.left, 1f)
+        assertEquals(titles[0].boundsInRoot.width, titles[1].boundsInRoot.width, 1f)
+        val icon = compose.onNodeWithContentDescription("Arrastar para reorganizar").fetchSemanticsNode()
+        assertTrue(icon.boundsInRoot.width <= with(compose.density) { 24.dp.toPx() } + 1f)
+    }
+
+    @Test fun interruptedQueueRestoresCheckpointWithoutStartingService() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        OndaStore.initialize(context)
+        val id = OndaStore.enqueue(
+            "https://example.com/recovery-" + java.util.UUID.randomUUID() + ".mp4",
+            options = JSONObject(OndaStore.settings.value.toString()).put("detect_duplicates", false)
+        )
+        try {
+            OndaStore.update(id, "Baixando", 43f)
+            OndaStore.items.value = emptyList()
+            OndaStore.initialize(context)
+            val restored = OndaStore.items.value.first { it.id == id }
+            assertEquals("Pendente", restored.state)
+            assertEquals(43f, restored.progress, 0f)
+            assertTrue(restored.config.optBoolean("_interrupted"))
+            assertFalse(DownloadRuntime.running.get())
+        } finally {
+            OndaStore.remove(setOf(id))
+        }
+    }
+
+    @Test fun identityDragStaysAtDropPositionAndNeverRemovesDuringUpdates() {
+        var rows by mutableStateOf(listOf("First", "Second", "Third"))
+        var revision by mutableIntStateOf(0)
+        var removed = 0
+        var dragWasActive = false
+        var dropped = ""
+        compose.setContent {
+            MaterialTheme {
+                val state = rememberLazyListState()
+                val active = queueDragActive(state)
+                SideEffect { if (active) dragWasActive = true }
+                LaunchedEffect(Unit) {
+                    repeat(100) {
+                        kotlinx.coroutines.delay(25)
+                        revision++
+                    }
+                }
+                LazyColumn(state = state, modifier = Modifier.height(360.dp)) {
+                    itemsIndexed(rows, key = { _, row -> row }) { index, row ->
+                        DraggableQueueCard(state, index, rows.size, move = { from, to ->
+                            rows =
+                                rows.toMutableList().apply { add(to, removeAt(from)) }
+                        }, moveToIdentity = { target ->
+                            dropped = target
+                            val from = rows.indexOf(row)
+                            val to = rows.indexOf(target)
+                            if (from >= 0 && to >= 0) rows = rows.toMutableList().apply { add(to, removeAt(from)) }
+                        }) {
+                            SwipeRemoveQueueTrack(row, enabled = !queueDragActive(state), onRemove = {
+                                removed++
+                                rows =
+                                    rows.filterNot { it == row }
+                            }) {
+                                Box(Modifier.fillMaxWidth().height(80.dp).testTag("stable-drag-$row")) {
+                                    Text("$row $revision")
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        compose.onNodeWithTag("stable-drag-First").performTouchInput { down(center) }
+        compose.mainClock.advanceTimeBy(750)
+        Thread.sleep(650)
+        compose.onNodeWithTag("stable-drag-First").performTouchInput {
+            moveBy(Offset(-width * .15f, height * 1.7f), 600)
+        }
+        compose.waitForIdle()
+        compose.onNodeWithTag("stable-drag-First").performTouchInput { up() }
+        compose.waitForIdle()
+        assertEquals(
+            "active=$dragWasActive dropped=$dropped removed=$removed",
+            listOf("Second", "Third", "First"),
+            rows
+        )
+        assertEquals(0, removed)
+        compose.mainClock.advanceTimeBy(300)
+        Thread.sleep(200)
+        compose.onNodeWithTag("stable-drag-Second").performTouchInput { swipeLeft() }
+        compose.waitUntil(5000) { removed == 1 }
+        assertEquals(listOf("Third", "First"), rows)
+    }
 }
