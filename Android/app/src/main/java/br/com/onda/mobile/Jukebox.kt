@@ -70,6 +70,17 @@ internal data class JukeboxState(
     val playbackError: String = ""
 )
 
+internal fun playbackEffectsActive(value: JSONObject): Boolean =
+    value.optInt("pitch_shift", 0) != 0 ||
+        value.optBoolean("enabled") && (value.optInt("speed", 85) != 100 || value.optInt("reverb", 25) != 0)
+
+internal fun playbackArtworkSide(size: String, narrow: Boolean): Int = when (size) {
+    "Muito pequeno" -> if (narrow) 36 else 40
+    "Pequeno" -> if (narrow) 48 else 56
+    "Grande" -> if (narrow) 112 else 144
+    else -> if (narrow) 72 else 88
+}
+
 internal class JukeboxController(
     private val context: Context,
     private val scope: CoroutineScope,
@@ -182,6 +193,7 @@ internal class JukeboxController(
     private val seekEpoch = AtomicInteger(0)
     private fun canStream(): Boolean {
         val fx = effects.value
+        // Native streaming can transpose pitch while keeping playback speed at 1x.
         val changesAudio = fx.optBoolean("enabled") && (fx.optInt("speed", 85) != 100 || fx.optInt("reverb", 25) != 0)
         return normal && !changesAudio &&
             !OndaStore.settings.value.optJSONObject("jukebox_equalizer").let { it?.optBoolean("enabled") == true }
@@ -571,7 +583,7 @@ internal class JukeboxController(
                         while (isActive) {
                             val currentEffects = effects.value
                             val snapshot = copyJsonObject(currentEffects)
-                            if (snapshot.optBoolean("enabled")) {
+                            if (playbackEffectsActive(snapshot)) {
                                 val effectsId = "jukebox-queue-effects-${UUID.randomUUID()}"
                                 queueEffectsId = effectsId
                                 try {
@@ -852,12 +864,14 @@ internal class JukeboxController(
     @Volatile var smooth = 35f
     val normalPlayback = MutableStateFlow(true)
     val effects =
-        MutableStateFlow(JSONObject().put("enabled", false).put("speed", 85).put("reverb", 25).put("keep_pitch", false))
+        MutableStateFlow(JSONObject().put("enabled", false).put("speed", 85).put("reverb", 25).put("keep_pitch", false).put("pitch_shift", 0))
     private var effectPreparation: Job? = null
     private var effectPreparationId = ""
     fun setEffects(key: String, value: Any) {
-        if (effects.value.opt(key) == value) return
-        effects.value = JSONObject(effects.value.toString()).put(key, value)
+        val adjusted = if (key == "pitch_shift") (value as? Number)?.toInt()?.coerceIn(-12, 12) ?: return else value
+        if (effects.value.opt(key) == adjusted) return
+        effects.value = JSONObject(effects.value.toString()).put(key, adjusted)
+        if (key == "pitch_shift") streaming?.pitch(effects.value.optInt("pitch_shift"))
         prewarmEffects()
         val obsolete = preparedModels.keys.filter { it != currentQueueId.value }
         obsolete.forEach {
@@ -905,7 +919,7 @@ internal class JukeboxController(
             try {
                 val model = if (wantStream) call("jukebox_stream_resolve", OndaStore.config().put("record", row), id)
                 else call("jukebox_transfer_prepare", OndaStore.config().put("model", original), id)
-                if (!wantStream && effects.value.optBoolean("enabled")) {
+                if (!wantStream && playbackEffectsActive(effects.value)) {
                     val prepared =
                         call(
                             "jukebox_effects",
@@ -1123,6 +1137,7 @@ internal class JukeboxController(
                     }
                 }
             )
+            streaming?.pitch(effects.value.optInt("pitch_shift"))
             applyGain()
         } catch (
             error: Exception
@@ -1150,7 +1165,7 @@ internal class JukeboxController(
         val preparationRevision = revision
         effectPreparation = scope.launch {
             delay(400)
-            if (!effects.value.optBoolean("enabled")) return@launch
+            if (!playbackEffectsActive(effects.value)) return@launch
             val settings = JSONObject(effects.value.toString())
             val models = listOfNotNull(state.value.model).filter { !it.has("_stream") }
             for (model in models) {
@@ -2262,6 +2277,8 @@ internal class JukeboxController(
 }
 
 @Composable private fun JukeboxPage(vm: OndaViewModel) {
+    val settings by OndaStore.settings.collectAsStateWithLifecycle()
+    val cardSize = settings.optString("playback_card_size", "Padrão")
     val controller = vm.jukebox
     val state by controller.presentationState.collectAsStateWithLifecycle()
     val searching by controller.searching.collectAsStateWithLifecycle()
@@ -2381,36 +2398,44 @@ internal class JukeboxController(
                 model.optString("release_date").takeIf { it.isNotBlank() }?.let { record.put("release_date", it) }
             }
             val info = JSONObject().put("record", record).put("cover", model?.optString("media_cover").orEmpty())
-            PlaybackCard(Modifier.testTag("effects-track-information")) {
-                BoxWithConstraints {
-                    val coverSize = if (maxWidth < 300.dp) 72.dp else 88.dp
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(14.dp)
-                    ) {
-                        EffectsArtwork(info, Modifier.size(coverSize))
-                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text(
-                                record.optString("title"),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
-                                maxLines = 2,
-                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                            )
-                            Text(
-                                record.stringList("artists"),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                            )
-                            AlbumDateLabel(record)
-                            if (model ==
-                                null
-                            ) TextButton(onClick = {
-                                controller.playQueued(queuedTracks.indexOf(current))
-                            }) { UiText("Reproduzir") }
+            val tinyCard = cardSize == "Muito pequeno"
+            val density = androidx.compose.ui.platform.LocalDensity.current
+            CompositionLocalProvider(
+                androidx.compose.ui.platform.LocalDensity provides androidx.compose.ui.unit.Density(
+                    density.density, density.fontScale * if (tinyCard) .7f else 1f
+                )
+            ) {
+                PlaybackCard(Modifier.testTag("effects-track-information"), contentPadding = if (tinyCard) 5.dp else 16.dp) {
+                    BoxWithConstraints {
+                        val coverSize = playbackArtworkSide(cardSize, maxWidth < 300.dp).dp
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(if (tinyCard) 5.dp else 14.dp)
+                        ) {
+                            EffectsArtwork(info, Modifier.size(coverSize))
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(if (tinyCard) 1.dp else 6.dp)) {
+                                Text(
+                                    record.optString("title"),
+                                    style = if (tinyCard) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.titleMedium,
+                                    fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+                                    maxLines = 2,
+                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    record.stringList("artists"),
+                                    style = if (tinyCard) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                )
+                                AlbumDateLabel(record)
+                                if (model ==
+                                    null
+                                ) TextButton(onClick = {
+                                    controller.playQueued(queuedTracks.indexOf(current))
+                                }) { UiText("Reproduzir") }
+                            }
                         }
                     }
                 }
@@ -2419,6 +2444,7 @@ internal class JukeboxController(
         var adjustmentsExpanded by rememberSaveable { mutableStateOf(true) }
         Row(Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
             UiText("Ajustes de reprodução", Modifier.weight(1f), style = MaterialTheme.typography.titleSmall)
+            PlaybackMainCardSizeControl(settings)
             TextButton(onClick = {
                 adjustmentsExpanded = !adjustmentsExpanded
             }, modifier = Modifier.testTag("playback-adjustments-toggle")) {

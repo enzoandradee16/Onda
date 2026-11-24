@@ -260,6 +260,7 @@ class DesktopWorkspace(QObject):
             'speed': 85,
             'reverb': 25,
             'keep_pitch': self.settings.get('effects_keep_pitch', False),
+            'pitch_shift': 0,
             'effectFormat': 'MP3',
             'position': 0,
             'duration': 0,
@@ -825,6 +826,10 @@ class DesktopWorkspace(QObject):
 
     @Slot(str, 'QVariant')
     def setOption(self, key, value):
+        if key == 'pitch_shift':
+            from playback_effects import clean
+
+            value = clean({'pitch_shift': value})['pitch_shift']
         original_key = key
         if key == 'effectsQueueOpen':
             key = 'jukeboxQueueOpen'
@@ -833,7 +838,7 @@ class DesktopWorkspace(QObject):
         if key != original_key:
             self.options[original_key] = value
         self.options[key] = value
-        if key in ('speed', 'reverb', 'keep_pitch', 'effectsEnabled'):
+        if key in ('speed', 'reverb', 'keep_pitch', 'effectsEnabled', 'pitch_shift'):
             self.sync_unified_effects()
         if key == 'imageUrl':
             self.schedule_image_preview()
@@ -862,7 +867,15 @@ class DesktopWorkspace(QObject):
         if key.startswith('filter'):
             self.filter_catalog()
         if (
-            key in ('speed', 'reverb', 'keep_pitch', 'position', 'effectsVolume')
+            key
+            in (
+                'speed',
+                'reverb',
+                'keep_pitch',
+                'pitch_shift',
+                'position',
+                'effectsVolume',
+            )
             and self.player.active
             and self.preview_kind == 'effects'
         ):
@@ -875,6 +888,7 @@ class DesktopWorkspace(QObject):
                 speed=self.options['speed'],
                 reverb=self.options['reverb'],
                 keep_pitch=self.options['keep_pitch'],
+                pitch_shift=self.options['pitch_shift'],
             )
         )
 
@@ -1812,6 +1826,30 @@ class DesktopWorkspace(QObject):
                 record.setdefault('title', job.get('display_name') or job['url'])
                 self.bridge.openRecord(record)
                 self.selectPage('jukebox')
+        elif action == 'music_batch':
+            model = p.get('model')
+            if model not in ('catalog', 'playlists', 'history'):
+                return
+            rows = self.models[model].rows
+            indices = [i for i, row in enumerate(rows) if row.get('checked')]
+            command = p.get('command')
+            if command == 'clear':
+                for i in indices:
+                    self.toggle_row(model, i, False, notify=False)
+                self.clear_music_selection(model)
+                self.statusChanged.emit()
+            elif model != 'history':
+                candidates = (
+                    self.collection_filter.visible_rows() if model == 'playlists' else rows
+                )
+                records = [
+                    dict(row) for row in candidates
+                    if row.get('checked') and row.get('source_url')
+                ]
+                if records and command == 'queue':
+                    self.bridge.enqueueRecords(records)
+                elif records and command == 'download':
+                    self.enqueue_tracks(records, start=True)
         elif action == 'catalog_playback':
             model = p.get('model', 'catalog')
             index = int(p.get('index', -1))
@@ -1933,10 +1971,14 @@ class DesktopWorkspace(QObject):
                     [record['source_url']], overrides=self.music_overrides(record)
                 )
         elif action == 'jukebox_add':
-            record = self.models['catalog'].rows[
-                int(p.get('index', self.options['selectedCatalog']))
-            ]
-            self.bridge.enqueueRecord(record)
+            model = p.get('model', 'catalog')
+            index = int(p.get('index', self.options['selectedCatalog']))
+            if model not in ('catalog', 'playlists'):
+                return
+            rows = self.models[model].rows
+            if not 0 <= index < len(rows):
+                return
+            self.bridge.enqueueRecord(dict(rows[index]))
             self.notify('Música adicionada à fila de reprodução do Jukebox.')
         elif action == 'compare_results':
             self.comparisonRequested.emit(int(p.get('index', 0)))
@@ -3212,6 +3254,15 @@ class DesktopWorkspace(QObject):
             and self.music_row_key(rows[index], index, model)
             in self._music_selections.get(model, set())
         )
+
+    @Slot(int, str, result=int)
+    def checkedMusicCount(self, revision, model):
+        rows = (
+            self.collection_filter.visible_rows()
+            if model == 'playlists'
+            else self.models[model].rows
+        )
+        return sum(bool(row.get('checked')) for row in rows)
 
     @Slot(str, int, int)
     def selectMusicRows(self, model, index, modifiers):
@@ -4853,7 +4904,10 @@ class DesktopWorkspace(QObject):
                 source,
                 self.options['effectsRecord'],
                 cover_data=self.options['effectsCover'],
-                **{key: self.options[key] for key in ('speed', 'reverb', 'keep_pitch')},
+                **{
+                    key: self.options[key]
+                    for key in ('speed', 'reverb', 'keep_pitch', 'pitch_shift')
+                },
             )
         if self.options.get('exportSegment'):
             from effects_export import segment_times
@@ -5976,6 +6030,7 @@ class DesktopWorkspace(QObject):
             volume=self.options['effectsVolume'],
             fade_in=getattr(self, 'effects_fade_in', 0),
             fade_out=self.effects_transition_seconds() if transport else 0,
+            pitch_shift=self.options['pitch_shift'] if processed else 0,
         )
 
     @Slot('QVariantMap')

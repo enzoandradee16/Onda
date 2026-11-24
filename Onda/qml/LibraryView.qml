@@ -565,6 +565,40 @@ ColumnLayout {
         Layout.alignment: Qt.AlignRight
         settingKey: page.cardSizeKey
     }
+    Flow {
+        id: batchActions
+        readonly property string selectionModel: page.history ? "history" : page.catalog ? "catalog" : "playlists"
+        property int selectionRevision: 0
+        readonly property int selectedCount: workspace.checkedMusicCount(selectionRevision, selectionModel)
+        Connections {
+            target: page.history ? workspace.historyModel : page.catalog ? workspace.catalogModel : workspace.collectionFilterModel
+            function onDataChanged() { batchActions.selectionRevision++; }
+            function onModelReset() { batchActions.selectionRevision++; }
+            function onRowsInserted() { batchActions.selectionRevision++; }
+            function onRowsRemoved() { batchActions.selectionRevision++; }
+        }
+        visible: !page.spotifyBrowsing && selectedCount > 0
+        Layout.fillWidth: true
+        spacing: 6
+        Label {
+            text: bridge.translate("Selecionados") + " " + parent.selectedCount
+            color: bridge.palette.text
+        }
+        ActionButton {
+            visible: !page.history
+            text: bridge.translate("Adicionar à fila")
+            onClicked: workspace.invoke("music_batch", {model: parent.selectionModel, command: "queue"})
+        }
+        ActionButton {
+            visible: !page.history
+            text: bridge.translate("Baixar agora")
+            onClicked: workspace.invoke("music_batch", {model: parent.selectionModel, command: "download"})
+        }
+        ActionButton {
+            text: bridge.translate("Limpar seleção")
+            onClicked: workspace.invoke("music_batch", {model: parent.selectionModel, command: "clear"})
+        }
+    }
     OndaListView {
         id: libraryList
         visible: !page.spotifyBrowsing
@@ -628,6 +662,22 @@ ColumnLayout {
                 objectName: "libraryCardActions"
                 OndaMenuItem {
                     visible: !page.history
+                    text: bridge.translate("Reproduzir")
+                    onTriggered: workspace.invoke("catalog_playback", {
+                        model: page.catalog ? "catalog" : "playlists",
+                        index: rowCard.actionIndex
+                    })
+                }
+                OndaMenuItem {
+                    visible: !page.history
+                    text: bridge.translate("Adicionar à fila")
+                    onTriggered: workspace.invoke("jukebox_add", {
+                        model: rowCard.selectionModel,
+                        index: rowCard.actionIndex
+                    })
+                }
+                OndaMenuItem {
+                    visible: !page.history
                     text: bridge.translate("Baixar agora")
                     onTriggered: workspace.invoke("catalog_download", {
                         model: page.catalog ? "catalog" : "playlists",
@@ -638,14 +688,6 @@ ColumnLayout {
                     visible: !page.history
                     text: bridge.translate("Adicionar aos downloads")
                     onTriggered: workspace.invoke("catalog_add", {
-                        model: page.catalog ? "catalog" : "playlists",
-                        index: rowCard.actionIndex
-                    })
-                }
-                OndaMenuItem {
-                    visible: !page.history
-                    text: bridge.translate("Usar em reprodução")
-                    onTriggered: workspace.invoke("catalog_playback", {
                         model: page.catalog ? "catalog" : "playlists",
                         index: rowCard.actionIndex
                     })

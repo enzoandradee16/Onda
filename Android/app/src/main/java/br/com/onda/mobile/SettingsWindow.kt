@@ -68,7 +68,9 @@ val categories = linkedMapOf(
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var searchTarget by remember { mutableStateOf("") }
     androidx.activity.compose.BackHandler {
-        if (!overview) {
+        if (searchQuery.isNotBlank()) {
+            searchQuery = ""
+        } else if (!overview) {
             overview = true
             searchTarget = ""
         } else close()

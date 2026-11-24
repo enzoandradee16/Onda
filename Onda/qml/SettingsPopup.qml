@@ -18,6 +18,18 @@ Popup {
         workspace.invoke("cache_report", {})
     readonly property int actionColumns: settingsScroll.availableWidth >= 560 * bridge.fontScale ? 2 : 1
     readonly property bool searching: search.text.trim().length > 0
+    readonly property bool cacheResult: searching && workspace.settingsSearchMatches(search.text, {
+        key: "cache", label: "Arquivos temporários e cache", category: "Desempenho"
+    })
+    function showSetting(target) {
+        Qt.callLater(function () {
+            const flick = settingsScroll.contentItem;
+            if (target.visible && flick) {
+                const position = target.mapToItem(flick.contentItem, 0, 0);
+                flick.contentY = Math.max(flick.originY, Math.min(flick.originY + position.y, flick.originY + flick.contentHeight - flick.height));
+            }
+        });
+    }
     readonly property int resultCount: workspace.settingsFields.filter(function (field) {
         return (field.key !== "pure_black_separators" || workspace.preferences.theme_mode === "Preto puro") && (field.key !== "pure_light_borders" || workspace.preferences.theme_mode === "Claro puro") && workspace.settingsSearchMatches(search.text, field);
     }).length
@@ -111,15 +123,25 @@ Popup {
                     spacing: Math.round(18 * bridge.spacing)
                     Label {
                         objectName: "settingsSearchEmpty"
-                        visible: popup.searching && popup.resultCount === 0
+                        visible: popup.searching && popup.resultCount === 0 && !popup.cacheResult
                         text: bridge.translate("Nenhuma configuração encontrada.")
                         color: bridge.palette.muted
                         wrapMode: Text.Wrap
                         Layout.fillWidth: true
                     }
+                    ActionButton {
+                        visible: popup.cacheResult
+                        text: bridge.translate("Arquivos temporários e cache")
+                        onClicked: {
+                            popup.category = "Desempenho";
+                            search.clear();
+                            popup.showSetting(cacheSection);
+                        }
+                    }
                     Repeater {
                         model: workspace.settingsFields
                         OptionField {
+                            id: settingsField
                             required property var modelData
                             Layout.fillWidth: true
                             Layout.minimumWidth: 0
@@ -130,6 +152,7 @@ Popup {
                             onCategoryRequested: function (category) {
                                 popup.category = category;
                                 search.clear();
+                                popup.showSetting(settingsField);
                             }
                             visible: (modelData.key !== "pure_black_separators" || workspace.preferences.theme_mode === "Preto puro") && (modelData.key !== "pure_light_borders" || workspace.preferences.theme_mode === "Claro puro") && (popup.searching ? workspace.settingsSearchMatches(search.text, modelData) : modelData.category === popup.category)
                         }
@@ -489,6 +512,7 @@ Popup {
                         }
                     }
                     ColumnLayout {
+                        id: cacheSection
                         visible: popup.category === "Desempenho" && !popup.searching
                         Layout.fillWidth: true
                         spacing: 8

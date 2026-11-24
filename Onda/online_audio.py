@@ -150,7 +150,7 @@ class NetworkAudio:
     """FFmpeg is backpressured by a pipe; neither source nor PCM is saved to disk."""
 
     def __init__(self, stream, folder='', start=0):
-        from audio_tools import executable
+        from audio_tools import executable, network_input_options
 
         if urlsplit(stream.get('url', '')).scheme not in ('http', 'https'):
             raise ValueError('A fonte não disponibilizou um fluxo de áudio compatível.')
@@ -178,7 +178,7 @@ class NetworkAudio:
         # Input seeking can use HTTP ranges instead of decoding from the start.
         if start:
             command += ['-ss', str(max(0, float(start)))]
-        command += ['-i', stream['url']]
+        command += network_input_options(stream['url']) + ['-i', stream['url']]
         command += [
             '-vn',
             '-ac',
@@ -443,6 +443,12 @@ def prepare_stream(model, config, cancelled=lambda: False, progress=lambda _: No
     from stream_file_cache import lookup
 
     cached_file = lookup(model)
+    import sys
+
+    if cached_file is None and hasattr(sys, 'getandroidapilevel'):
+        from stream_file_cache import prepare as cache_stream
+
+        cached_file = cache_stream(model, config, cancelled)
     if cached_file:
         try:
             prepared = prepare(

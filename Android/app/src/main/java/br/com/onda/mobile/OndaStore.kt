@@ -155,7 +155,7 @@ object OndaStore {
         database.writableDatabase.execSQL("UPDATE queue SET state='Erro' WHERE state='Duplicata'")
         refresh()
     }
-    fun defaults() = JSONObject().put(
+    fun defaults() = JSONObject().put("playback_card_size", "Padrão").put(
         "wifi_only",
         false
     ).put(
@@ -367,7 +367,7 @@ object OndaStore {
         aliases[value.optString("accent")]?.let { value.put("accent", it) }
         if (value.optString("theme") == "Sistema") value.put("theme", "Seguir o sistema")
     }
-    private val displayFields = listOf("queue_card_size", "history_view", "history_card_size", "catalog_card_size")
+    private val displayFields = listOf("queue_card_size", "history_view", "history_card_size", "catalog_card_size", "playback_card_size")
 
     @Synchronized fun saveSettings(value: JSONObject) {
         normalizeAppearance(value)

@@ -2532,5 +2532,10 @@
   "O nome do arquivo não informa uma música. Preencha título ou artista para pesquisar.": "The filename does not identify a song. Enter a title or artist to search.",
   "Não foi possível consultar os catálogos. Tente novamente.": "Could not query the catalogs. Try again.",
   "Consulta dos metadados selecionados": "Loading selected metadata",
-  "Obtendo a capa selecionada…": "Fetching selected artwork…"
+  "Obtendo a capa selecionada…": "Fetching selected artwork…",
+  "Tamanho do card principal": "Main card size",
+  "Restaurar tom": "Reset pitch",
+  "Altera o tom sem mudar a velocidade.": "Changes pitch without changing speed.",
+  "Tom": "Pitch",
+  "O tom deve ficar entre -12 e +12 semitons.": "Pitch must be between -12 and +12 semitones."
 }

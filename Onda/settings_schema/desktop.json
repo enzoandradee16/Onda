@@ -5,6 +5,7 @@
     "queue_card_size": "Grande",
     "catalog_card_size": "Grande",
     "playlist_card_size": "Grande",
+    "playback_card_size": "Padrão",
     "queue_view": "Compacto",
     "history_card_size": "Grande",
     "pure_black_separators": false,

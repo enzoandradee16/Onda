@@ -13,9 +13,10 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 
 /** Playback surfaces share desktop hierarchy while following the chosen Android theme. */
-@Composable internal fun PlaybackCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+@Composable internal fun PlaybackCard(modifier: Modifier = Modifier, contentPadding: Dp = 16.dp, content: @Composable ColumnScope.() -> Unit) {
     val colors = MaterialTheme.colorScheme
     Surface(
         modifier.fillMaxWidth(),
@@ -23,7 +24,7 @@ import androidx.compose.ui.unit.dp
         color = colors.surfaceContainerLow,
         border = BorderStroke(1.dp, colors.outlineVariant)
     ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp), content = content)
+        Column(Modifier.padding(contentPadding), verticalArrangement = Arrangement.spacedBy(8.dp), content = content)
     }
 }
 

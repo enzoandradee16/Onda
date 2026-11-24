@@ -77,7 +77,7 @@ Pane {
                     Label { visible: workspace.activityValue(workspace.statusRevision,"tools").total > 0; color: bridge.palette.muted; text: Math.min(100,Math.round(100*(workspace.activityValue(workspace.statusRevision,"tools").done || 0)/Math.max(1,workspace.activityValue(workspace.statusRevision,"tools").total || 0)))+"%" }
                 }
             }
-            WorkspaceView { objectName: "workspaceArea"; visible: workspace.currentPage !== "jukebox"; active: visible; Layout.fillWidth: true; Layout.fillHeight: true; Layout.leftMargin: 24; Layout.rightMargin: 24; Layout.bottomMargin: 16 }
+            WorkspaceView { objectName: "workspaceArea"; visible: workspace.currentPage !== "jukebox"; Layout.fillWidth: true; Layout.fillHeight: true; Layout.leftMargin: 24; Layout.rightMargin: 24; Layout.bottomMargin: 16 }
             JukeboxView { id: jukebox; visible: workspace.currentPage === "jukebox"; Layout.fillWidth: true; Layout.fillHeight: true; Layout.leftMargin: 24; Layout.rightMargin: 24 }
             Card {
                 objectName: "jukeboxMiniPlayer"

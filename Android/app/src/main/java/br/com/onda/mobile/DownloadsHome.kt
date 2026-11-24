@@ -278,7 +278,7 @@ internal fun DownloadsHome(vm: OndaViewModel) {
                     selectionMode =
                         false
                     selected = emptySet()
-                }) { UiText("Pronto") }
+                }) { UiText("Limpar seleção") }
             }
             Row(Modifier.horizontalScroll(rememberScrollState())) {
                 TextButton(enabled = selected.isNotEmpty(), onClick = {
@@ -610,10 +610,10 @@ private fun DownloadsOrganization(
                         "Erro"
                     ) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                if (activity.isNotBlank() &&
-                    item.state in listOf("Baixando", "Pausado", "Aguardando escolha")
+                if (item.state == "Baixando" || activity.isNotBlank() &&
+                    item.state in listOf("Pausado", "Aguardando escolha")
                 ) UiText(
-                    activity,
+                    activity.ifBlank { "Buscando fonte…" },
                     style = MaterialTheme.typography.bodySmall,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis

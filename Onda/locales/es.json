@@ -2532,5 +2532,10 @@
   "O nome do arquivo não informa uma música. Preencha título ou artista para pesquisar.": "El nombre del archivo no identifica una canción. Introduce título o artista para buscar.",
   "Não foi possível consultar os catálogos. Tente novamente.": "No se pudieron consultar los catálogos. Inténtalo de nuevo.",
   "Consulta dos metadados selecionados": "Consulta de los metadatos seleccionados",
-  "Obtendo a capa selecionada…": "Obteniendo la portada seleccionada…"
+  "Obtendo a capa selecionada…": "Obteniendo la portada seleccionada…",
+  "Tamanho do card principal": "Tamaño de la tarjeta principal",
+  "Restaurar tom": "Restablecer tono",
+  "Altera o tom sem mudar a velocidade.": "Cambia el tono sin cambiar la velocidad.",
+  "Tom": "Tono",
+  "O tom deve ficar entre -12 e +12 semitons.": "El tono debe estar entre -12 y +12 semitonos."
 }

@@ -7,9 +7,24 @@ import queue
 import re
 import shutil
 import subprocess
+import sys
 import threading
 
 MIN_SPEED, MAX_SPEED = 50, 150
+
+
+def network_input_options(url):
+    """Give Android's native FFmpeg its bundled trust store for HTTPS inputs."""
+    from urllib.parse import urlsplit
+
+    if not hasattr(sys, 'getandroidapilevel') or urlsplit(url).scheme not in (
+        'http',
+        'https',
+    ):
+        return []
+    import certifi
+
+    return ['-ca_file', certifi.where(), '-tls_verify', '1']
 
 
 def executable(name, folder=""):
@@ -28,10 +43,10 @@ def process_options():
     )
 
 
-def effects_filter(speed=100, reverb=0, keep_pitch=False):
+def effects_filter(speed=100, reverb=0, keep_pitch=False, pitch_shift=0):
     if type(keep_pitch) is not bool:
         raise ValueError('Manter tom deve estar ativado ou desativado.')
-    speed, reverb = float(speed), float(reverb)
+    speed, reverb, pitch_shift = float(speed), float(reverb), float(pitch_shift)
     if (
         not math.isfinite(speed)
         or not MIN_SPEED <= speed <= MAX_SPEED
@@ -42,6 +57,8 @@ def effects_filter(speed=100, reverb=0, keep_pitch=False):
             "Velocidade deve ficar entre 50 e 150%; reverb entre 0 e 100%."
         )
     filters = []
+    if not math.isfinite(pitch_shift) or not -12 <= pitch_shift <= 12:
+        raise ValueError('O tom deve ficar entre -12 e +12 semitons.')
     if speed != 100:
         if keep_pitch:
             filters.append(f'atempo={speed / 100:g}')
@@ -51,6 +68,14 @@ def effects_filter(speed=100, reverb=0, keep_pitch=False):
                 f"asetrate={round(48000 * speed / 100)}",
                 "aresample=48000",
             ]
+    if pitch_shift:
+        rate = round(48000 * 2 ** (pitch_shift / 12))
+        filters += [
+            'aresample=48000',
+            f'asetrate={rate}',
+            'aresample=48000',
+            f'atempo={48000 / rate:.12g}',
+        ]
     if reverb:
         wet = reverb / 100
         # Diffuse the wet signal through unequal reflection stages. Keep the
@@ -81,10 +106,14 @@ def effects_filter(speed=100, reverb=0, keep_pitch=False):
     return ",".join(filters) or "anull"
 
 
-def effect_name(speed=100, reverb=0):
+def effect_name(speed=100, reverb=0, pitch_shift=0):
     speed, wet = float(speed), float(reverb) > 0
     name = "Slowed" if speed < 100 else "Sped Up" if speed > 100 else ""
-    return name + " + Reverb" if name and wet else name or ("Reverb" if wet else "")
+    name = name + " + Reverb" if name and wet else name or ("Reverb" if wet else "")
+    if pitch_shift:
+        tone = f'Tom {float(pitch_shift):+g} st'
+        name = name + ' + ' + tone if name else tone
+    return name
 
 
 def source_position(line, speed=100):
@@ -143,6 +172,7 @@ class PreviewPlayer:
         volume=100,
         fade_in=0,
         fade_out=0,
+        pitch_shift=0,
     ):
         duration = float(duration)
         if not math.isfinite(duration) or not (
@@ -160,7 +190,7 @@ class PreviewPlayer:
             try:
                 ffplay = executable("ffplay", folder)
                 filters = "asetpts=PTS-STARTPTS," + effects_filter(
-                    speed, reverb, keep_pitch
+                    speed, reverb, keep_pitch, pitch_shift
                 )
                 if fade_in:
                     filters += f",afade=t=in:st=0:d={min(float(fade_in),duration):g}"

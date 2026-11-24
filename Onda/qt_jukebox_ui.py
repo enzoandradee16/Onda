@@ -19,6 +19,7 @@ from jukebox_equalizer import clean, presets, preset_name, resize, BAND_LAYOUTS
 from preferences import PreferenceStore
 from i18n import tr, set_language
 from error_localization import error_text
+from playback_effects import active as effects_active
 
 
 class JukeboxBridge(QObject):
@@ -752,7 +753,7 @@ class JukeboxBridge(QObject):
 
                     while not cancel.is_set():
                         effects = dict(self._effects)
-                        if effects.get('enabled'):
+                        if effects_active(effects):
                             try:
                                 error = prepare_effects(
                                     model['cache'],
@@ -1599,7 +1600,7 @@ class JukeboxBridge(QObject):
         # Queue preparation can restart prewarming without a slider change.
         self._effect_prepare_cancel.set()
         if (
-            not self._effects.get('enabled')
+            not effects_active(self._effects)
             or self.closed
             or (self.model or {}).get('_stream')
         ):
@@ -1819,13 +1820,7 @@ class JukeboxBridge(QObject):
         self.enqueueRecords([record], play_now=True)
 
     def can_stream(self):
-        return self._params[3] and not (
-            self._effects.get('enabled')
-            and (
-                self._effects.get('speed', 100) != 100
-                or self._effects.get('reverb', 0) != 0
-            )
-        )
+        return self._params[3] and not effects_active(self._effects)
 
     def prepare_stream_effects(self):
         job = getattr(self, '_stream_preparation', None)

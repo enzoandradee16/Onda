@@ -98,6 +98,7 @@ def render(config):
             config.get("speed", 100),
             config.get("reverb", 0),
             config.get("keep_pitch", False),
+            config.get("pitch_shift", 0),
         )
         ffmpeg, ffprobe = (
             executable(name, config.get("ffmpeg", "")) for name in ("ffmpeg", "ffprobe")
@@ -218,7 +219,11 @@ def render(config):
         preserve_tags(
             source,
             temporary,
-            effect_name(config.get("speed", 100), config.get("reverb", 0)),
+            effect_name(
+                config.get("speed", 100),
+                config.get("reverb", 0),
+                config.get("pitch_shift", 0),
+            ),
         )
         if config.get('record') or config.get('cover_data') or config.get('cover_url'):
             from effects_export import apply_export_metadata

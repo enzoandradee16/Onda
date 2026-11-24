@@ -734,7 +734,7 @@ ColumnLayout {
                     }
                     Label {
                         visible: card.entry.state === "Em andamento"
-                        text: bridge.translate(card.entry.download_detail || "Consultando")
+                        text: bridge.translate(card.entry.download_detail || "Buscando fonte…")
                         color: bridge.palette.muted
                         Layout.fillWidth: true
                         wrapMode: Text.Wrap
@@ -771,7 +771,7 @@ ColumnLayout {
                     }
                 }
                 ActionButton {
-                    visible: !page.queuePage && card.entry.state !== "Concluído"
+                    visible: !page.queuePage && card.entry.state !== "Concluído" && card.entry.state !== "Falhou"
                     text: bridge.translate(card.entry.state === "Em andamento" ? "Pausar" : ["Falhou", "Cancelado"].indexOf(card.entry.state) >= 0 ? "Tentar novamente" : card.entry.state === "Pausado" ? "Retomar" : "Baixar agora")
                     onClicked: workspace.invoke(["Falhou", "Cancelado"].indexOf(card.entry.state) >= 0 ? "queue_retry_now" : "queue_action", {
                         name: card.entry.state === "Em andamento" ? "pause" : "resume",

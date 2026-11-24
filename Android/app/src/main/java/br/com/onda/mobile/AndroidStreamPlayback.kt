@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
+import androidx.media3.common.PlaybackParameters
+import kotlin.math.pow
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.DefaultLoadControl
@@ -219,6 +221,9 @@ internal class AndroidStreamPlayback(
         origin = seconds
         player.seekTo((seconds.coerceAtLeast(0.0) * 1000).toLong())
         publish()
+    }
+    fun pitch(semitones: Int) {
+        player.playbackParameters = PlaybackParameters(1f, 2.0.pow(semitones.coerceIn(-12, 12) / 12.0).toFloat())
     }
     fun volume(value: Float) {
         player.volume = value.coerceIn(0f, 1f)

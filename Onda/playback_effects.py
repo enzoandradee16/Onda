@@ -38,6 +38,16 @@ def clean(value=None):
         speed=number('speed', 85, 50, 150),
         reverb=number('reverb', 25, 0, 100),
         keep_pitch=bool(value.get('keep_pitch', False)),
+        pitch_shift=number('pitch_shift', 0, -12, 12),
+    )
+
+
+def active(value):
+    value = clean(value)
+    return bool(
+        value['pitch_shift']
+        or value['enabled']
+        and (value['speed'] != 100 or value['reverb'] != 0)
     )
 
 
@@ -73,11 +83,15 @@ class PreparedEffects:
 
     def configure(self, value):
         value = clean(value)
-        key = (
-            (value['speed'], value['reverb'], value['keep_pitch'])
-            if value['enabled'] and (value['speed'] != 100 or value['reverb'] != 0)
-            else None
-        )
+        key = None
+        if active(value):
+            key = (
+                value['speed'] if value['enabled'] else 100,
+                value['reverb'] if value['enabled'] else 0,
+                value['keep_pitch'] if value['enabled'] else False,
+            )
+            if value['pitch_shift']:
+                key += (value['pitch_shift'],)
         with self.lock:
             if key != self.request:
                 self.request = key
@@ -96,7 +110,7 @@ class PreparedEffects:
 
     def path(self, key):
         return (
-            self.base / ('effects-%s-%s-%s.wav' % key)
+            self.base / ('effects-' + '-'.join(map(str, key)) + '.wav')
             if key is not None
             else self.base / 'audio.wav'
         )

@@ -56,6 +56,7 @@ def export_config(
     speed=100,
     reverb=0,
     keep_pitch=False,
+    pitch_shift=0,
     enabled=True,
     cover_data='',
     segment_start='',
@@ -131,7 +132,7 @@ def export_config(
     }
     speed = float(speed) if enabled else 100
     reverb = float(reverb) if enabled else 0
-    effect = effect_name(speed, reverb)
+    effect = effect_name(speed, reverb, pitch_shift)
     name = ' - '.join(
         filter(
             None, [', '.join(metadata.get('artists', [])), metadata['title'], effect]
@@ -148,6 +149,7 @@ def export_config(
         speed=speed,
         reverb=reverb,
         keep_pitch=bool(keep_pitch),
+        pitch_shift=pitch_shift,
         record=metadata,
         cover_data=cover_data,
         cover_url=record.get('cover_url') or '',
@@ -163,7 +165,9 @@ def apply_export_metadata(output, config):
     from PIL import Image
 
     metadata = dict(config.get('record') or {})
-    effect = effect_name(config.get('speed', 100), config.get('reverb', 0))
+    effect = effect_name(
+        config.get('speed', 100), config.get('reverb', 0), config.get('pitch_shift', 0)
+    )
     if metadata.get('title') and effect:
         metadata['title'] += ' - ' + effect
     audio = File(output)

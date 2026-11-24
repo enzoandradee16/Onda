@@ -12,6 +12,9 @@ OndaScrollView {
         viewport: page
     }
     objectName: "jukeboxView"
+    readonly property string trackCardSize: workspace.preferences.playback_card_size || "Padrão"
+    readonly property int trackArtworkSize: trackCardSize === "Muito pequeno" ? (availableWidth < 600 ? 40 : 48) : trackCardSize === "Pequeno" ? (availableWidth < 600 ? 64 : 80) : trackCardSize === "Grande" ? (availableWidth < 600 ? 128 : 220) : (availableWidth < 600 ? 96 : 146)
+    readonly property int trackColumns: availableWidth < (trackCardSize === "Grande" ? 1000 : 850) ? 2 : 3
     contentWidth: availableWidth
     clip: true
     OndaMenu {
@@ -275,19 +278,20 @@ OndaScrollView {
         Card {
             objectName: "playbackTrackCard"
             Layout.fillWidth: true
-            implicitHeight: trackLayout.implicitHeight + 20
+            implicitHeight: trackLayout.implicitHeight + (page.trackCardSize === "Muito pequeno" ? 8 : 20)
             clip: true
             GridLayout {
                 id: trackLayout
-                columns: page.availableWidth < 850 ? 2 : 3
+                columns: page.trackColumns
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.top: parent.top
-                anchors.margins: 10
-                columnSpacing: Math.round(16 * bridge.spacing)
-                rowSpacing: 12
+                anchors.margins: page.trackCardSize === "Muito pequeno" ? 4 : 10
+                columnSpacing: Math.round((page.trackCardSize === "Muito pequeno" ? 6 : 16) * bridge.spacing)
+                rowSpacing: page.trackCardSize === "Muito pequeno" ? 2 : 12
                 Rectangle {
-                    Layout.preferredWidth: page.availableWidth < 600 ? 96 : 146
+                    Layout.preferredWidth: page.trackArtworkSize
+                    objectName: "playbackMainArtwork"
                     Layout.preferredHeight: Layout.preferredWidth
                     radius: 8
                     color: bridge.palette.input
@@ -313,13 +317,13 @@ OndaScrollView {
                 }
                 ColumnLayout {
                     Layout.fillWidth: true
-                    spacing: Math.round(5 * bridge.spacing)
+                    spacing: Math.round((page.trackCardSize === "Muito pequeno" ? 1 : 5) * bridge.spacing)
                     Text {
                         Layout.fillWidth: true
                         text: bridge.stateValue(bridge.stateRevision, "title")
                         wrapMode: Text.Wrap
                         color: bridge.palette.text
-                        font.pixelSize: Math.round(23 * bridge.fontScale)
+                        font.pixelSize: Math.round((page.trackCardSize === "Muito pequeno" ? 11 : page.trackCardSize === "Pequeno" ? 19 : page.trackCardSize === "Grande" ? 28 : 23) * bridge.fontScale)
                         font.weight: Font.DemiBold
                     }
                     Text {
@@ -328,7 +332,7 @@ OndaScrollView {
                         visible: text.length > 0
                         wrapMode: Text.Wrap
                         color: bridge.palette.text
-                        font.pixelSize: Math.round(17 * bridge.fontScale)
+                        font.pixelSize: Math.round((page.trackCardSize === "Muito pequeno" ? 9 : page.trackCardSize === "Pequeno" ? 14 : page.trackCardSize === "Grande" ? 20 : 17) * bridge.fontScale)
                     }
                     Text {
                         Layout.fillWidth: true
@@ -336,21 +340,22 @@ OndaScrollView {
                         visible: text.length > 0
                         wrapMode: Text.Wrap
                         color: bridge.palette.muted
-                        font.pixelSize: Math.round(16 * bridge.fontScale)
+                        font.pixelSize: Math.round((page.trackCardSize === "Muito pequeno" ? 9 : page.trackCardSize === "Pequeno" ? 9 : page.trackCardSize === "Grande" ? 18 : 16) * bridge.fontScale)
                     }
                     Text {
                         Layout.fillWidth: true
                         text: bridge.stateValue(bridge.stateRevision, "paused") ? bridge.translate("Pausado.") : bridge.stateValue(bridge.stateRevision, "status")
                         wrapMode: Text.Wrap
                         color: bridge.stateValue(bridge.stateRevision, "playing") ? bridge.palette.accent : bridge.palette.muted
-                        font.pixelSize: Math.round(14 * bridge.fontScale)
+                        font.pixelSize: Math.round((page.trackCardSize === "Muito pequeno" ? 9 : 14) * bridge.fontScale)
                     }
                 }
                 AnimatedLyric {
-                    Layout.columnSpan: page.availableWidth < 850 ? 2 : 1
+                    Layout.columnSpan: page.trackColumns === 2 ? 2 : 1
                     Layout.fillWidth: true
                     Layout.preferredWidth: 300
-                    Layout.maximumHeight: 100
+                    Layout.maximumHeight: page.trackCardSize === "Muito pequeno" ? 40 : 100
+                    font.pixelSize: Math.round((page.trackCardSize === "Muito pequeno" ? 10 : 20) * bridge.fontScale)
                     Layout.alignment: Qt.AlignVCenter
                     maximumLineCount: 3
                     elide: Text.ElideRight
@@ -367,6 +372,8 @@ OndaScrollView {
             Label {
                 Layout.fillWidth: true
                 text: bridge.translate("Ajustes de reprodução")
+                Layout.minimumWidth: 0
+                wrapMode: Text.Wrap
                 color: bridge.palette.text
                 font.weight: Font.DemiBold
             }
@@ -374,6 +381,16 @@ OndaScrollView {
                 objectName: "playbackAdjustmentsToggle"
                 text: bridge.translate(page.adjustmentsExpanded ? "Ocultar ajustes" : "Mostrar ajustes")
                 onClicked: page.adjustmentsExpanded = !page.adjustmentsExpanded
+            }
+            ChoiceBox {
+                objectName: "playbackTrackCardSize"
+                Layout.preferredWidth: 140
+                model: ["Muito pequeno", "Pequeno", "Padrão", "Grande"]
+                currentIndex: Math.max(0, model.indexOf(page.trackCardSize))
+                onActivated: workspace.setSetting("playback_card_size", currentText)
+                Accessible.name: bridge.translate("Tamanho do card principal")
+                ToolTip.visible: hovered
+                ToolTip.text: bridge.translate("Tamanho do card principal")
             }
         }
         GridLayout {

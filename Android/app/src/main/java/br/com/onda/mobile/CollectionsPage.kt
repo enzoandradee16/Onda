@@ -214,6 +214,12 @@ import org.json.JSONObject
         )
     }
     val collectionActions: @Composable () -> Unit = {
+        if (chosenTracks.isNotEmpty()) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                UiText("${chosenTracks.size} selecionados", Modifier.weight(1f))
+                TextButton(onClick = { selected = emptySet() }) { UiText("Limpar seleção") }
+            }
+        }
         Row(Modifier.horizontalScroll(rememberScrollState())) {
             Button(onClick = { enqueue(true) }, enabled = chosen().isNotEmpty() && !adding) { UiText("Baixar agora") }
             TextButton(onClick = {
@@ -823,7 +829,15 @@ import org.json.JSONObject
                                 actions = true
                             }) { OndaIcon("more-vertical", "Mais ações", Modifier.size(22.dp)) }
                             DropdownMenu(actions, { actions = false }) {
-                                DropdownMenuItem(text = { UiText("Baixar agora") }, onClick = {
+                                    DropdownMenuItem(text = { UiText("Reproduzir") }, onClick = {
+                                    actions = false
+                                    vm.useInPlayback(record)
+                                })
+                                DropdownMenuItem(text = { UiText("Adicionar à fila") }, onClick = {
+                                    actions = false
+                                    vm.jukebox.enqueue(record)
+                                })
+                            DropdownMenuItem(text = { UiText("Baixar agora") }, onClick = {
                                     actions = false
                                     vm.queueCollection(
                                         listOf(record),
@@ -840,10 +854,6 @@ import org.json.JSONObject
                                         collection.optString("title", "Playlist"),
                                         false
                                     )
-                                })
-                                DropdownMenuItem(text = { UiText("Usar em reprodução") }, onClick = {
-                                    actions = false
-                                    vm.collectionToPlayback(listOf(record))
                                 })
                                 DropdownMenuItem(text = { UiText("Ver no catálogo") }, onClick = {
                                     actions = false

@@ -57,6 +57,7 @@ class PreferenceStore:
         "history_card_size",
         "catalog_card_size",
         "playlist_card_size",
+        "playback_card_size",
     )
 
     def load_display(self):
@@ -154,6 +155,13 @@ class PreferenceStore:
         for name in ("pure_black_separators", "pure_light_borders"):
             if type(data.get(name)) is bool:
                 result[name] = data[name]
+        if data.get('playback_card_size') in (
+            'Muito pequeno',
+            'Pequeno',
+            'Padrão',
+            'Grande',
+        ):
+            result['playback_card_size'] = data['playback_card_size']
         for name in ("catalog_card_size", "playlist_card_size"):
             if data.get(name) in ("Muito pequeno", "Pequeno", "Médio", "Grande"):
                 result[name] = data[name]

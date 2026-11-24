@@ -272,6 +272,7 @@ fun OndaApp(vm: OndaViewModel) {
     SideEffect { activityWindow?.let { applyNavigationBarTheme(it, scheme.background, dark) } }
     val homeTab = "Pesquisar"
     var tab by rememberSaveable { mutableStateOf(homeTab) }
+    var playbackReturnTab by rememberSaveable { mutableStateOf(homeTab) }
     LaunchedEffect(tab, tabs.toString()) {
         if (tab != "Mais" &&
             (0 until tabs.length()).none { tabs.getString(it) == tab }
@@ -303,6 +304,7 @@ fun OndaApp(vm: OndaViewModel) {
     LaunchedEffect(effectsRequested) {
         if (effectsRequested) {
             vm.playbackQueueOpen.value = false
+            if (tab != "Efeitos") playbackReturnTab = tab
             tab = "Efeitos"
             showSettings =
                 false
@@ -327,7 +329,7 @@ fun OndaApp(vm: OndaViewModel) {
             notice == null
     ) {
         if (showLinks) showLinks = false else if (playbackQueueOpen) vm.playbackQueueOpen.value = false else tab =
-            if (tab in
+            if (tab == "Efeitos") playbackReturnTab else if (tab in
                 listOf("Imagens", "Conversor de vídeos", "Playlists / Álbuns", "Histórico", "Metadados")
             ) "Mais" else homeTab
     }
@@ -1139,6 +1141,14 @@ internal fun displayReleaseDate(value: String): String {
                             actions = true
                         }) { OndaIcon("more-vertical", "Mais ações", Modifier.size(20.dp)) }
                         DropdownMenu(expanded = actions, onDismissRequest = { actions = false }) {
+                            DropdownMenuItem(text = { UiText("Reproduzir") }, onClick = {
+                                actions = false
+                                vm.useInPlayback(record)
+                            })
+                            DropdownMenuItem(text = { UiText("Adicionar à fila") }, onClick = {
+                                actions = false
+                                vm.jukebox.enqueue(record)
+                            })
                             DropdownMenuItem(text = { UiText("Baixar agora") }, onClick = {
                                 actions = false
                                 onDownload()
@@ -1146,10 +1156,6 @@ internal fun displayReleaseDate(value: String): String {
                             DropdownMenuItem(text = { UiText("Adicionar aos downloads") }, onClick = {
                                 actions = false
                                 vm.queueTrack(record, origin = "search")
-                            })
-                            DropdownMenuItem(text = { UiText("Usar em reprodução") }, onClick = {
-                                actions = false
-                                vm.useInPlayback(record)
                             })
                             DropdownMenuItem(
                                 text = { UiText(if (thisPlaying) "Parar prévia" else "Ouvir prévia") },

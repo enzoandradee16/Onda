@@ -11,6 +11,57 @@ from urllib.parse import urlsplit
 LIMIT = 256 * 1024 * 1024
 
 
+def _download_android_hls(stream, target, limit, cancelled):
+    """Use the existing verified Python HTTPS transport for HLS segments."""
+    from yt_dlp import YoutubeDL
+    from yt_dlp.downloader.hls import HlsFD
+    from jukebox import check
+
+    def progress(value):
+        check(cancelled)
+        if value.get('downloaded_bytes', 0) > limit:
+            raise ValueError('O áudio excedeu o limite do cache de streaming.')
+
+    class Log:
+        def debug(self, message):
+            pass
+
+        warning = debug
+
+        def error(self, message):
+            pass
+
+    options = dict(
+        quiet=True,
+        no_warnings=True,
+        noprogress=True,
+        cachedir=False,
+        socket_timeout=15,
+        retries=1,
+        fragment_retries=1,
+        concurrent_fragment_downloads=1,
+        skip_unavailable_fragments=False,
+        max_filesize=limit,
+        logger=Log(),
+    )
+    with YoutubeDL(options) as downloader:
+        native = HlsFD(downloader, options)
+        native.add_progress_hook(progress)
+        result = native.download(
+            str(target),
+            dict(
+                id=hashlib.sha256(stream['url'].encode()).hexdigest()[:16],
+                url=stream['url'],
+                protocol='m3u8_native',
+                ext='m4a',
+                http_headers=stream.get('headers') or {},
+            ),
+        )
+        check(cancelled)
+        if not result[0]:
+            raise ValueError('Não foi possível obter o áudio para o cache.')
+
+
 def lookup(model, limit=LIMIT):
     from jukebox import cache_root
     from cache_cleanup import linked
@@ -33,7 +84,7 @@ def lookup(model, limit=LIMIT):
 
 
 def prepare(model, config, cancelled=lambda: False):
-    from audio_tools import executable
+    from audio_tools import executable, network_input_options
     from jukebox import cache_root, check, _run
     from cache_cleanup import linked
 
@@ -98,6 +149,20 @@ def prepare(model, config, cancelled=lambda: False):
             '15000000',
         ]
         headers = stream.get('headers') or {}
+        import sys
+
+        hls = (
+            stream.get('protocol', '').startswith('m3u8')
+            or '/hls_playlist/' in stream['url']
+            or urlsplit(stream['url']).path.endswith('.m3u8')
+        )
+        local = None
+        if hasattr(sys, 'getandroidapilevel') and hls:
+            local = Path(temporary) / 'source.media'
+            _download_android_hls(stream, local, limit, cancelled)
+            # Only local remuxing uses FFmpeg: HLS subrequests otherwise lose
+            # its CA-file option on the current native build.
+            headers = {}
         if headers:
             command += [
                 '-headers',
@@ -107,9 +172,10 @@ def prepare(model, config, cancelled=lambda: False):
                     if not any(c in str(k) + str(v) for c in '\r\n')
                 ),
             ]
+        command += network_input_options(stream['url']) if local is None else []
         command += [
             '-i',
-            stream['url'],
+            str(local) if local is not None else stream['url'],
             '-map',
             '0:a:0',
             '-vn',

@@ -15,6 +15,7 @@ FIELDS = (
     'speed',
     'reverb',
     'keep_pitch',
+    'pitch_shift',
     'effectsVolume',
     'effectsRepeat',
     'effectsShuffle',
@@ -374,6 +375,9 @@ def restore(workspace):
                 paused=False,
             )
         workspace.options['effectsEnabled'] = data.get('effectsEnabled', False) is True
+        from playback_effects import clean
+
+        workspace.options['pitch_shift'] = clean(effects)['pitch_shift']
         if not data.get('unified'):
             import uuid
 

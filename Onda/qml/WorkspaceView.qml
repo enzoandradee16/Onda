@@ -4,11 +4,14 @@ import QtQuick.Layouts
 
 Loader {
     id: page
-    sourceComponent: workspace.currentPage === "catalog" || workspace.currentPage === "playlists" || workspace.currentPage === "history" ? library : workspace.currentPage === "downloads" || workspace.currentPage === "queue" ? downloads : tools
+    property string lastWorkspacePage: "catalog"
+    readonly property string current: workspace.currentPage
+    onCurrentChanged: if (current !== "jukebox") lastWorkspacePage = current
+    sourceComponent: ["catalog", "playlists", "history"].includes(lastWorkspacePage) ? library : ["downloads", "queue"].includes(lastWorkspacePage) ? downloads : tools
     asynchronous: false
     Component {
         id: library
-        LibraryView {}
+        LibraryView { mode: page.lastWorkspacePage }
     }
     Component {
         id: downloads
