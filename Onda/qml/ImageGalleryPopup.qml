@@ -12,7 +12,8 @@ Popup {
     modal: true
     focus: true
     padding: 20
-    background: Rectangle {
+    background: Card {
+        tintPopup: true
         radius: 14
         color: bridge.palette.surface
         border.color: bridge.palette.line

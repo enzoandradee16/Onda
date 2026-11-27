@@ -29,11 +29,14 @@ internal fun pureBlackSurfaces(base: ColorScheme, separators: Boolean): ColorSch
     )
 }
 
-// Dialogs remain black even when borders and separators are enabled.
+internal val LocalPlaybackDialogColor = androidx.compose.runtime.compositionLocalOf<Color?> { null }
+
+// Without a playback tint, dialogs remain black when borders and separators are enabled.
 @androidx.compose.runtime.Composable
 internal fun ondaDialogContainerColor(): Color =
-    if (androidx.compose.material3.MaterialTheme.colorScheme.background == Color.Black) Color.Black
-    else androidx.compose.material3.AlertDialogDefaults.containerColor
+    LocalPlaybackDialogColor.current
+        ?: if (androidx.compose.material3.MaterialTheme.colorScheme.background == Color.Black) Color.Black
+        else androidx.compose.material3.AlertDialogDefaults.containerColor
 
 // Explicit foreground/container pairs keep text, selection and outlines legible.
 internal fun highContrastScheme(): ColorScheme = androidx.compose.material3.darkColorScheme(

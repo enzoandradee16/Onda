@@ -13,7 +13,7 @@ Popup {
     focus: true
     padding: 24
     property var selected: []
-    background: Card {}
+    background: Card { tintPopup: true }
     contentItem: ColumnLayout {
         spacing: Math.round(14 * bridge.spacing)
         Label {

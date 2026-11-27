@@ -9,6 +9,21 @@ from unittest.mock import patch
 
 @unittest.skipUnless(os.environ.get('ONDA_QT_TESTS'), 'Optional Qt desktop tests')
 class PlaybackQueueDrawerTests(unittest.TestCase):
+    def test_main_playback_view_is_created_on_demand_and_then_retained(self):
+        from PySide6.QtCore import QObject
+
+        self.assertEqual(self.ws.currentPage, 'catalog')
+        self.assertIsNone(self.window.findChild(QObject, 'jukeboxView'))
+        self.ws.selectPage('jukebox')
+        self.settle()
+        view = self.window.findChild(QObject, 'jukeboxView')
+        self.assertIsNotNone(view)
+        self.ws.selectPage('catalog')
+        self.settle()
+        self.ws.selectPage('jukebox')
+        self.settle()
+        self.assertIs(self.window.findChild(QObject, 'jukeboxView'), view)
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.env = patch.dict(
@@ -504,13 +519,16 @@ class PlaybackQueueDrawerTests(unittest.TestCase):
         self.seed()
         from PySide6.QtCore import QObject, QMetaObject
 
+        current = self.bridge.playlist[self.bridge.queue_index]
         button = self.drawer(False).findChild(QObject, 'clearPlaybackQueue')
         self.assertTrue(button.property('enabled'))
         self.assertTrue(QMetaObject.invokeMethod(button, 'triggered'))
         self.settle()
-        self.assertEqual(len(self.bridge.playlist), 0)
-        self.assertEqual(self.bridge.queue_index, -1)
-        self.assertEqual(len(self.drawer(False).property('tracks')), 0)
+        self.assertEqual(self.bridge.playlist, [current])
+        self.assertEqual(self.bridge.queue_index, 0)
+        self.assertEqual(
+            [row['id'] for row in self.drawer(False).property('tracks')], [current['id']]
+        )
         self.assertEqual(len(self.ws.values['effectsQueue']), 3)
 
     def test_repeat_does_not_change_other_transport(self):

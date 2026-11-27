@@ -35,6 +35,30 @@ def song(path, seconds=8, silent=False):
 
 
 class JukeboxTests(unittest.TestCase):
+    def test_marked_section_clips_pcm_and_wraps_in_both_playback_modes(self):
+        from jukebox_stream import Stream
+
+        for normal in (True, False):
+            with self.subTest(normal=normal):
+                stream = Stream(self.base)
+                try:
+                    stream.seek(20)
+                    parts = [
+                        stream.chunk(normal=normal, repeat_range=(1.125, 1.375))
+                        for _ in range(4)
+                    ]
+                    self.assertEqual([part['index'] for part in parts], [4, 5, 4, 5])
+                    self.assertEqual([part['next'] for part in parts], [5, 4, 5, 4])
+                    self.assertTrue(all(not part['finished'] for part in parts))
+                    self.assertAlmostEqual(parts[0]['phase_start'], .5)
+                    self.assertAlmostEqual(parts[1]['phase_end'], .5)
+                    frames = sum(len(part['pcm']) // 4 for part in parts[:2])
+                    self.assertEqual(
+                        frames, round(1.375 * jukebox.RATE) - round(1.125 * jukebox.RATE)
+                    )
+                finally:
+                    stream.close()
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.env = patch.dict(os.environ, {'ONDA_ALIAS_CACHE_ROOT': self.temp.name})

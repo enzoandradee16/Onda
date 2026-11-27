@@ -38,7 +38,7 @@ Drawer {
     interactive: !resizeMouse.pressed
     modal: true
     dim: true
-    background: Rectangle {radius:10;color:bridge.palette.surface;border.color:bridge.palette.line;border.width:bridge.palette.flat_black?0:1}
+    background: Card { radius: 10; tintPopup: true }
     MouseArea {
         id:resizeMouse;objectName:"playbackQueueResizeHandle"
         anchors.left:parent.left;anchors.top:parent.top;anchors.bottom:parent.bottom

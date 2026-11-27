@@ -32,7 +32,7 @@ Popup {
         font: decisionHeading.font
         text: decisionHeading.text
     }
-    background: Card {}
+    background: Card { tintPopup: true }
     Connections {
         target: workspace
         function onChoiceChanged() {

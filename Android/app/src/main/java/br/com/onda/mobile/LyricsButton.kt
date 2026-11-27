@@ -53,7 +53,6 @@ import org.json.JSONObject
     LaunchedEffect(openRequest) { if (openRequest > 0) open = true }
     var seconds by remember(source) { mutableDoubleStateOf(0.0) }
     var dragged by remember(source) { mutableStateOf<Float?>(null) }
-    val (lyricsBackground, lyricsInk) = rememberLyricsColors(vm, source)
     val cache by vm.lyricsCache.collectAsStateWithLifecycle()
     val lines = providedLines ?: cache[source].orEmpty()
     val timeline = remember(lines) { LyricTimeline(lines) }
@@ -86,7 +85,7 @@ import org.json.JSONObject
         }
     }
     if (showButton) IconButton(onClick = {
-        open = true
+        open = !open
     }, modifier = Modifier.testTag("lyrics-button")) { OndaIcon("microphone", "Letra", Modifier.size(24.dp)) }
     if (open) Dialog(onDismissRequest = {
         open = false
@@ -110,6 +109,8 @@ import org.json.JSONObject
                 if (animation == "Desativada") listState.scrollToItem(active) else listState.animateScrollToItem(active)
             }
         }
+        val lyricsBackground = MaterialTheme.colorScheme.surface
+        val lyricsInk = MaterialTheme.colorScheme.onSurface
         Surface(
             Modifier.fillMaxSize().testTag("lyrics-fullscreen"),
             color = lyricsBackground,
@@ -120,7 +121,9 @@ import org.json.JSONObject
                 verticalArrangement = Arrangement.spacedBy(LayoutSpacing.controls)
             ) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = { open = false }) { OndaIcon("down", "Recolher letra", Modifier.size(26.dp)) }
+                    IconButton(onClick = { open = false }) {
+                        OndaIcon(if (showButton) "microphone" else "down", "Recolher letra", Modifier.size(26.dp))
+                    }
                     Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
                             title.ifBlank {

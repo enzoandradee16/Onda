@@ -1,4 +1,8 @@
 {
+  "Usar a cor do álbum no fundo e no destaque": "Usar el color del álbum para el fondo y el acento",
+  "O destaque acompanha a cor do álbum.": "El acento sigue el color del álbum.",
+  "Cor de fundo": "Color de fondo",
+  "Escolher cor": "Elegir color",
   "Efeitos translúcidos e liquid glass": "Efectos translúcidos y liquid glass",
   "Operação em andamento": "Operación en curso",
   "Ordem das categorias": "Orden de las categorías",
@@ -2535,6 +2539,14 @@
   "Obtendo a capa selecionada…": "Obteniendo la portada seleccionada…",
   "Tamanho do card principal": "Tamaño de la tarjeta principal",
   "Restaurar tom": "Restablecer tono",
+  "Ajustar tom": "Ajustar tono",
+  "Repetir trecho": "Repetir fragmento",
+  "Marcar início": "Marcar inicio",
+  "Marcar fim": "Marcar fin",
+  "Limpar fim": "Quitar fin",
+  "Limpar início": "Quitar inicio",
+  "Usar a cor do álbum no fundo": "Usar el color del álbum en el fondo",
+  "Limpar trecho": "Quitar fragmento",
   "Altera o tom sem mudar a velocidade.": "Cambia el tono sin cambiar la velocidad.",
   "Tom": "Tono",
   "O tom deve ficar entre -12 e +12 semitons.": "El tono debe estar entre -12 y +12 semitonos."

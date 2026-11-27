@@ -1,4 +1,8 @@
 {
+  "Usar a cor do álbum no fundo e no destaque": "Use album color for the background and accent",
+  "O destaque acompanha a cor do álbum.": "The accent follows the album color.",
+  "Cor de fundo": "Background color",
+  "Escolher cor": "Choose color",
   "Efeitos translúcidos e liquid glass": "Translucent effects and liquid glass",
   "Operação em andamento": "Operation in progress",
   "Ordem das categorias": "Category order",
@@ -2535,6 +2539,14 @@
   "Obtendo a capa selecionada…": "Fetching selected artwork…",
   "Tamanho do card principal": "Main card size",
   "Restaurar tom": "Reset pitch",
+  "Ajustar tom": "Adjust pitch",
+  "Repetir trecho": "Repeat section",
+  "Marcar início": "Mark start",
+  "Marcar fim": "Mark end",
+  "Limpar fim": "Clear end",
+  "Limpar início": "Clear start",
+  "Usar a cor do álbum no fundo": "Use album color in the background",
+  "Limpar trecho": "Clear section",
   "Altera o tom sem mudar a velocidade.": "Changes pitch without changing speed.",
   "Tom": "Pitch",
   "O tom deve ficar entre -12 e +12 semitons.": "Pitch must be between -12 and +12 semitones."

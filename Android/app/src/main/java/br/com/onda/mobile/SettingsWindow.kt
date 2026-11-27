@@ -135,7 +135,11 @@ val categories = linkedMapOf(
         }
     }
 
-    Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+    Surface(
+        Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground
+    ) {
         Column(
             Modifier.fillMaxSize().imePadding().padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -354,7 +358,19 @@ val categories = linkedMapOf(
                                     Select("Modo de aparência", settings.optString("theme"), appearanceModes) {
                                         put("theme", it)
                                     }
-                                    AccentPreference(settings.optString("accent")) { put("accent", it) }
+                                    if (settings.optBoolean("album_player_background", true)) {
+                                        UiText("O destaque acompanha a cor do álbum.")
+                                    } else {
+                                        AccentPreference(settings.optString("accent")) { put("accent", it) }
+                                    }
+                                    BackgroundPreference(settings.optString("theme_background")) { color ->
+                                        val updated = JSONObject(OndaStore.settings.value.toString()).put("theme_background", color)
+                                        if (color.isNotEmpty()) updated.put("album_player_background", false)
+                                        OndaStore.saveSettings(updated)
+                                    }
+                                    Toggle("Usar a cor do álbum no fundo e no destaque", settings.optBoolean("album_player_background", true)) {
+                                        put("album_player_background", it)
+                                    }
                                     SettingsDivider()
                                     if (settings.optString("theme") ==
                                         "Preto puro"

@@ -4,6 +4,7 @@ An independent implementation, not the Eternal Jukebox algorithm or service.
 """
 
 from array import array
+from bisect import bisect_right
 from collections import Counter
 from pathlib import Path
 import cmath, hashlib, json, math, os, random, subprocess, threading, time, uuid, wave
@@ -761,6 +762,7 @@ class Session:
         normal=False,
         equalizer=None,
         effects=None,
+        repeat_range=None,
     ):
         if self.closed:
             raise ValueError('Reprodução encerrada.')
@@ -781,15 +783,29 @@ class Session:
         variation = max(0, min(100, float(variation)))
         smooth = max(0, min(100, float(smooth)))
         volume = max(0, min(100, float(volume)))
-        i = self.index
         beats = self.model['beats']
         n = len(beats) - 1
+        region = None
+        if repeat_range and len(repeat_range) == 2:
+            a, b = repeat_range
+            b = min(b, self.original_beats[-1])
+            if 0 <= a < b:
+                scale = 100 / self.effect_key[0] if self.effect_key else 1
+                region = a * scale, b * scale
+        first = bisect_right(beats, region[0]) - 1 if region else 0
+        if region and not (first <= self.index < n and beats[self.index] < region[1]):
+            self.seek(first)
+        i = self.index
         next_index = (i + 1) % n
         if getattr(self, '_variation', None) != variation:
             self._variation = variation
             self._eligible = variation_neighbors(self.model['neighbors'], variation)
             self.loop_end = loop_boundary(self._eligible)
         options = self._eligible[i]
+        if region:
+            options = [
+                j for j in options if region[0] <= beats[j] < region[1]
+            ]
         if not normal:
             # A musical return is a reprise, not a permanent boundary: after two
             # returns let the original timeline reach the remaining sections.
@@ -852,6 +868,9 @@ class Session:
                     next_index = self.random.choice(
                         [j for j in candidates if costs[j] <= best + 0.35]
                     )
+        wraps_region = bool(region and beats[i + 1] >= region[1])
+        if wraps_region:
+            next_index = first
         self.visits[i] += 1
         jumped = next_index != (i + 1) % n
         if not normal:
@@ -868,10 +887,13 @@ class Session:
                 self.story_returns = 0
         if jumped:
             self.recent = (self.recent + [next_index])[-8:]
-        start, end = round(beats[i] * RATE), round(beats[i + 1] * RATE)
+        lower, upper = beats[i], beats[i + 1]
+        if region:
+            lower, upper = max(lower, region[0]), min(upper, region[1])
+        start, end = round(lower * RATE), round(upper * RATE)
         raw = self._read(start, end - start)
         processing = bool(
-            self.fade_in or volume != 100 or smooth and (next_index == 0 or jumped)
+            self.fade_in or volume != 100 or smooth and (next_index == 0 or jumped or wraps_region)
         )
         if processing:
             data = array('h')
@@ -888,7 +910,7 @@ class Session:
                     data[k] = round(data[k] * (frame + 1) / count)
             self.fade_in = 0
         fade = 0
-        if next_index == 0 and smooth:
+        if (next_index == 0 or wraps_region) and smooth:
             count = min(int(RATE * 0.08 * smooth / 100), len(data) // CHANNELS)
             for frame in range(count):
                 for channel in range(CHANNELS):
@@ -906,6 +928,7 @@ class Session:
                 len(data) // (CHANNELS * 2),
                 round((beats[next_index + 1] - beats[next_index]) * RATE / 2),
                 round(beats[next_index] * RATE),
+                round((beats[next_index] - region[0]) * RATE) if region else RATE,
             )
             if fade:
                 incoming = array('h')
@@ -944,7 +967,11 @@ class Session:
             and key != self.effect_key
             and not self.effects.error,
             'effects_error': self.effects.error,
-            'finished': bool(normal and i == n - 1),
+            'finished': bool(normal and i == n - 1 and not region),
+            'clip_phase': (
+                (lower - beats[i]) / (beats[i + 1] - beats[i]),
+                (upper - beats[i]) / (beats[i + 1] - beats[i]),
+            ) if region else (0.0, 1.0),
             'normal': bool(normal),
         }
 

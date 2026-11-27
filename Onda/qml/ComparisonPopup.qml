@@ -14,7 +14,7 @@ Popup {
     padding: 24
     property int left: 0
     property int right: 1
-    background: Card {}
+    background: Card { tintPopup: true }
     Connections {
         target: workspace
         function onComparisonRequested(index) {

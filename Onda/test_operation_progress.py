@@ -10,6 +10,35 @@ class OperationProgressTests(unittest.TestCase):
     tearDown = fixtures.PlaybackQueueDrawerTests.tearDown
     settle = fixtures.PlaybackQueueDrawerTests.settle
 
+    def test_settings_refresh_does_not_show_progress_over_playback(self):
+        from PySide6.QtCore import QMetaObject, QObject
+        from PySide6.QtTest import QTest
+        from unittest.mock import patch
+
+        self.ws.selectPage('jukebox')
+        popup = self.window.findChild(QObject, 'settingsPopup')
+        progress = self.window.findChild(QObject, 'globalOperationProgress')
+        release = threading.Event()
+
+        def perform(*args):
+            release.wait(5)
+            return {}
+
+        with patch('qt_operations_ui.perform', side_effect=perform):
+            try:
+                QMetaObject.invokeMethod(popup, 'open')
+                QTest.qWait(300)
+                self.assertIn('tools_status', self.ws.tasks)
+                popup.setProperty('category', 'Desempenho')
+                self.settle()
+                self.assertIn('cache_report', self.ws.tasks)
+                QMetaObject.invokeMethod(popup, 'close')
+                self.settle()
+                self.assertFalse(progress.property('visible'))
+            finally:
+                release.set()
+                self.settle()
+
     def test_progress_covers_generic_tasks_without_duplicating_existing_progress(self):
         from PySide6.QtCore import QObject
 

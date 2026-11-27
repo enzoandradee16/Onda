@@ -5,8 +5,8 @@ import tkinter as tk
 from tkinter import ttk
 
 DEFAULT_ORDER = (
-    'effects',
     'catalog',
+    'effects',
     'playlists',
     'queue',
     'downloads',

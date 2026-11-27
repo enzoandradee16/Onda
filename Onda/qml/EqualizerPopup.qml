@@ -24,7 +24,7 @@ Popup {
             popup.selectedBand = Math.max(0, Math.min(popup.selectedBand, bridge.equalizer.bands.length - 1));
         }
     }
-    background: Card {}
+    background: Card { tintPopup: true }
     enter: Transition {
         NumberAnimation {
             property: "opacity"

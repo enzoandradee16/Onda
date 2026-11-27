@@ -25,18 +25,39 @@ def contrast(first, second):
     return (high + 0.05) / (low + 0.05)
 
 
-def readable_accent(value, dark):
+def backdrop_opacity(rgb, dark):
+    if not dark:
+        return .38
+    base = (16, 20, 25)
+    low, high = 0.0, .56
+    for _ in range(10):
+        weight = (low + high) / 2
+        composite = '#' + ''.join(
+            f'{round(start * (1 - weight) + end * weight):02x}'
+            for start, end in zip(base, rgb)
+        )
+        if luminance(composite) <= .17:
+            low = weight
+        else:
+            high = weight
+    return low
+
+
+def readable_accent(value, dark, background=None):
     color = normalize_color(value)
     if not color:
         return ''
     surface = '#2b3744' if dark else '#e7edf4'
     target = 255 if dark else 0
     for _ in range(64):
-        if contrast(color, surface) >= 4.5:
+        if contrast(color, surface) >= 4.5 and (
+            not background or contrast(color, background) >= 4.5
+        ):
             break
-        rgb = [
-            round(int(color[i : i + 2], 16) * 0.94 + target * 0.06) for i in (1, 3, 5)
-        ]
+        channels = [int(color[i : i + 2], 16) for i in (1, 3, 5)]
+        rgb = [round(channel * .94 + target * .06) for channel in channels]
+        if background and rgb == channels:
+            rgb = [channel + (target > channel) - (target < channel) for channel in channels]
         color = '#' + ''.join(f'{v:02X}' for v in rgb)
     return color
 

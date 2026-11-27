@@ -12,7 +12,7 @@ Popup {
     padding: 22
     modal: true
     focus: true
-    background: Card {}
+    background: Card { tintPopup: true }
     contentItem: ColumnLayout {
         spacing: 14
         Label {

@@ -15,7 +15,7 @@ Popup {
     property real zoom: 1
     property real offsetX: 0
     property real offsetY: 0
-    background: Card {}
+    background: Card { tintPopup: true }
     Connections {
         target: workspace
         function onCropRequested() {

@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Window
 import QtQuick.Controls
 
 ComboBox {
@@ -6,7 +7,7 @@ ComboBox {
     displayText: bridge.translate(currentText)
     background: Rectangle {
         radius: 14
-        color: bridge.palette.input
+        color: Qt.alpha(bridge.palette.input, 1 - .36 * (control.Window.window?.controlTintLevel ?? 0))
         border.color: control.activeFocus ? bridge.palette.accent : bridge.palette.line
         implicitWidth: 140
         implicitHeight: 40

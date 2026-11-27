@@ -62,6 +62,8 @@ internal fun settingsSearchEntries(): List<SettingsSearchEntry> {
             listOf(
                 SettingsSearchEntry("Aparência", "Mostrar bordas no modo Claro Puro", "branco separações linhas"),
                 SettingsSearchEntry("Aparência", "Cor personalizada", "hex RGB matiz saturação"),
+                SettingsSearchEntry("Aparência", "Cor de fundo", "personalizar fundo RGB hexadecimal"),
+                SettingsSearchEntry("Aparência", "Usar a cor do álbum no fundo e no destaque", "degradê capa player"),
                 SettingsSearchEntry("Aparência", "Tamanho dos cards da pesquisa", "capas resultados músicas"),
                 SettingsSearchEntry(
                     "Aparência",

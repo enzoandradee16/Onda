@@ -1,10 +1,14 @@
 import QtQuick
+import QtQuick.Window
 import QtQuick.Controls
 import QtQuick.Layouts
 Rectangle {
     id: side
     objectName: "sidebar"
     signal settingsRequested()
+    property bool albumTinted: false
+    readonly property color secondaryInk: albumTinted ? bridge.palette.text : bridge.palette.muted
+    readonly property color activeInk: albumTinted ? bridge.palette.text : bridge.palette.accent
     property bool collapsed: false
     property bool resizing: false
     property real resizeWidth: 220
@@ -18,10 +22,10 @@ Rectangle {
     ColumnLayout {
         anchors.fill: parent; anchors.margins: 8; spacing: Math.round(12*bridge.spacing)
         RowLayout {
-            Layout.fillWidth: true; Layout.preferredHeight: 62; spacing: 8
-            BrandMark { Layout.preferredWidth: side.collapsed ? 48 : Math.min(76,side.width*0.28); Layout.preferredHeight: side.collapsed ? 38 : 50 }
-            Text { text: "ONDA"; color: bridge.palette.accent; font.family: "Century Gothic"; font.pixelSize: Math.min(34,Math.max(22,(side.width-72)*0.23)); font.weight: Font.Bold; font.letterSpacing: -1; opacity: side.collapsed ? 0 : 1; visible: opacity > 0; Behavior on opacity { NumberAnimation { duration: bridge.animations ? 120 : 0 } } }
-            Item { Layout.fillWidth: true }
+            objectName: "sidebarBrand"
+            Layout.alignment: Qt.AlignHCenter; Layout.preferredHeight: 62; spacing: 8
+            BrandMark { ink: side.activeInk; Layout.preferredWidth: side.collapsed ? 48 : Math.min(76,side.width*0.28); Layout.preferredHeight: side.collapsed ? 38 : 50 }
+            Text { text: "ONDA"; color: side.activeInk; font.family: "Century Gothic"; font.pixelSize: Math.min(34,Math.max(22,(side.width-72)*0.23)); font.weight: Font.Bold; font.letterSpacing: -1; opacity: side.collapsed ? 0 : 1; visible: opacity > 0; Behavior on opacity { NumberAnimation { duration: bridge.animations ? 120 : 0 } } }
         }
         PlaybackButton {
             objectName: "sidebarToggle"
@@ -32,7 +36,8 @@ Rectangle {
             ToolTip.visible: hovered; ToolTip.text: Accessible.name
         }
         OndaScrollView {
-            id: navScroll; rightPadding: 12; contentHeight: navColumn.implicitHeight
+            id: navScroll; rightPadding: 0; contentHeight: navColumn.implicitHeight
+            ScrollBar.vertical.policy: ScrollBar.AlwaysOff
             Layout.fillWidth: true; Layout.fillHeight: true; contentWidth: availableWidth; clip: true
         Column {
             id: navColumn; height: implicitHeight; width: navScroll.availableWidth; spacing: Math.round(3*bridge.spacing)
@@ -44,18 +49,18 @@ Rectangle {
                     readonly property bool active: modelData.key === workspace.currentPage || (modelData.key === "effects" && workspace.currentPage === "jukebox")
                     visible: !modelData.key || workspace.hiddenTabs.indexOf(modelData.key) < 0
                     width: parent.width; height: !visible ? 0 : modelData.group ? (modelData.canMoveUp ? 48 : 30) : Math.max(43,navLabel.implicitHeight+16); radius: 8
-                    clip: true; color: nav.active ? bridge.palette.selected : "transparent"
+                    clip: true; color: nav.active ? Qt.alpha(bridge.palette.selected, 1 - .36 * (side.Window.window?.controlTintLevel ?? 0)) : "transparent"
                     Rectangle { visible: nav.active; width: 3; height: 24; radius: 2; color: bridge.palette.accent; anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter }
                     Rectangle { visible: !!nav.modelData.group && !!nav.modelData.canMoveUp; width: parent.width-20; height: 1; anchors.top: parent.top; anchors.topMargin: 8; anchors.horizontalCenter: parent.horizontalCenter; color: bridge.palette.line }
                     Text {
                         visible: !!nav.modelData.group && !side.collapsed; text: bridge.translate(nav.modelData.group || "")
                         anchors.left: parent.left; anchors.leftMargin: 10; anchors.verticalCenter: parent.verticalCenter
-                        color: bridge.palette.muted; font.pixelSize: Math.round(10*bridge.fontScale); font.weight: Font.Medium; font.letterSpacing: 1
+                        color: side.secondaryInk; font.pixelSize: Math.round(10*bridge.fontScale); font.weight: Font.Medium; font.letterSpacing: 1
                     }
                     Row {
                         visible: !nav.modelData.group; anchors.left: parent.left; anchors.leftMargin: side.collapsed ? 15 : 8; width: parent.width-(side.collapsed ? 30 : 16); height: parent.height; spacing: Math.round(8*bridge.spacing)
-                        LineIcon { glyph: nav.modelData.key || ""; width: Math.round(20*bridge.fontScale); height: width; anchors.verticalCenter: parent.verticalCenter; ink: nav.active ? bridge.palette.accent : bridge.palette.muted }
-                        Text { id: navLabel; text: bridge.translate(nav.modelData.name || ""); width: Math.max(0,parent.width-28*bridge.fontScale); wrapMode: Text.Wrap; visible: !side.collapsed; font.pixelSize: Math.round(13*bridge.fontScale); font.weight: nav.active ? Font.Bold : Font.DemiBold; anchors.verticalCenter: parent.verticalCenter; color: nav.active ? bridge.palette.accent : bridge.palette.muted }
+                        LineIcon { glyph: nav.modelData.key || ""; width: Math.round(20*bridge.fontScale); height: width; anchors.verticalCenter: parent.verticalCenter; ink: nav.active ? side.activeInk : side.secondaryInk }
+                        Text { id: navLabel; text: bridge.translate(nav.modelData.name || ""); width: Math.max(0,parent.width-28*bridge.fontScale); wrapMode: Text.Wrap; visible: !side.collapsed; font.pixelSize: Math.round(13*bridge.fontScale); font.weight: nav.active ? Font.Bold : Font.DemiBold; anchors.verticalCenter: parent.verticalCenter; color: nav.active ? side.activeInk : side.secondaryInk }
                     }
                     MouseArea { id: navMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: nav.modelData.key ? Qt.PointingHandCursor : Qt.ArrowCursor; onClicked: if (nav.modelData.key) workspace.selectNavigationPage(nav.modelData.key) }
                     ToolTip.visible: navMouse.containsMouse && side.collapsed && !nav.modelData.group

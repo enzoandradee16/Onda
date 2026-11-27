@@ -241,6 +241,7 @@ internal class JukeboxController(
         return next.takeIf { it in playbackQueue.value.indices }
     }
     private fun normalTransition() {
+        if (activeSection().size == 2) return
         if (outgoingStream != null || outgoingPcm != null || streamFade != null) return
         if (!normal || !gradual() || !state.value.playing || state.value.paused) return
         val target = normalNextIndex()
@@ -255,6 +256,61 @@ internal class JukeboxController(
         if (!preparedModels.containsKey(playbackQueue.value[target].optString("_queue_id"))) return
         if (queueRepeat.value == "Uma") playQueued(target) else nextTrack()
     }
+    val sectionMarks = MutableStateFlow<List<Double>>(emptyList())
+    private var sectionTrack = ""
+    private fun activeSection(): List<Double> {
+        val marks = sectionMarks.value
+        val model = state.value.model ?: return emptyList()
+        return if (marks.isNotEmpty() && sectionTrack == currentQueueId.value) {
+            val start = marks[0].coerceAtLeast(0.0)
+            val end = marks[1].takeIf { it >= 0 } ?: model.optDouble("duration", 0.0)
+            if (end - start >= .1) listOf(start, end) else emptyList()
+        } else emptyList()
+    }
+
+    fun markSectionStart() {
+        val current = state.value
+        val model = current.model ?: return
+        val at = sessionSeconds(model, current.index, current.phase.toDouble())
+        val end = sectionMarks.value.getOrNull(1)?.takeIf { sectionTrack == currentQueueId.value } ?: -1.0
+        sectionTrack = currentQueueId.value
+        sectionMarks.value = listOf(at, end.takeIf { it - at >= .1 } ?: -1.0)
+    }
+
+    fun markSectionEnd() {
+        val start = sectionMarks.value.firstOrNull()?.takeIf { sectionTrack == currentQueueId.value } ?: -1.0
+        val current = state.value
+        val model = current.model ?: return
+        val at = sessionSeconds(model, current.index, current.phase.toDouble())
+        sectionTrack = currentQueueId.value
+        sectionMarks.value = listOf(start.takeIf { at - it >= .1 } ?: -1.0, at)
+        activeSection().firstOrNull()?.let(::seekSeconds)
+    }
+
+    fun clearSectionStart() {
+        val end = sectionMarks.value.getOrNull(1)?.takeIf { it >= 0 }
+        sectionMarks.value = if (end == null) emptyList() else listOf(-1.0, end)
+    }
+
+    fun moveSectionPoint(index: Int, seconds: Double) {
+        val marks = sectionMarks.value
+        val model = state.value.model ?: return
+        if (sectionTrack != currentQueueId.value || marks.getOrNull(index)?.let { it >= 0 } != true) return
+        val lower = if (index == 1) marks[0].coerceAtLeast(0.0) + .1 else 0.0
+        val upper = if (index == 0 && marks[1] >= 0) marks[1] - .1 else model.optDouble("duration", 0.0)
+        if (lower > upper) return
+        sectionMarks.value = marks.toMutableList().apply { this[index] = seconds.coerceIn(lower, upper) }
+    }
+
+    fun clearSectionEnd() {
+        val start = sectionMarks.value.firstOrNull()?.takeIf { it >= 0 }
+        sectionMarks.value = if (start == null) emptyList() else listOf(start, -1.0)
+    }
+
+    fun clearSection() {
+        sectionMarks.value = emptyList()
+    }
+
     val queueRepeat = MutableStateFlow("Desativada")
     val queueShuffle = MutableStateFlow(false)
     val currentQueueId = MutableStateFlow("")
@@ -308,7 +364,10 @@ internal class JukeboxController(
             movePlaybackEntry(rows, index, target - index)
         reprioritizeQueue()
     }
-    fun clearPlaybackQueue() {
+    fun clearPlaybackQueue(keepCurrent: Boolean = false) {
+        val current = playbackQueue.value.firstOrNull {
+            keepCurrent && it.optString("_queue_id") == currentQueueId.value
+        }
         cancelQueuePreparation()
         queueUndoJob?.cancel()
         removedQueueEntry = null
@@ -318,11 +377,11 @@ internal class JukeboxController(
         priorityQueueId = ""
         switchRequest.set(null)
         if (queuePreparationId.isNotBlank()) MobileEngine.cancel(queuePreparationId)
-        playbackQueue.value =
-            emptyList()
-        preparedModels.clear()
-        currentQueueId.value = ""
-        queueCursor = -1
+        playbackQueue.value = listOfNotNull(current)
+        val currentId = current?.optString("_queue_id").orEmpty()
+        preparedModels.keys.retainAll(setOf(currentId))
+        currentQueueId.value = currentId
+        queueCursor = if (current == null) -1 else 0
     }
     private fun gradual() = OndaStore.settings.value.optBoolean("jukebox_gradual_transition", true)
     fun setTimer(minutes: Int, nextSong: Boolean = false) {
@@ -354,6 +413,10 @@ internal class JukeboxController(
                     if (nextSong) current.model else this@JukeboxController
                 )
                 last = now
+                if (nextSong && activeSection().size == 2) {
+                    progress.restart()
+                    continue
+                }
                 if (nextSong) switchRemaining.value = ceil(remaining).toInt() else timerRemaining.value =
                     ceil(remaining).toInt()
                 val head = playbackQueue.value.getOrNull(
@@ -817,6 +880,7 @@ internal class JukeboxController(
         outgoingStream = previous
         val keep = previous != null || outgoingPcm != null
         stop(clearTimer = false, keepAudioFocus = keep, keepOverlap = keep)
+        if (currentQueueId.value != row.optString("_queue_id")) clearSection()
         currentQueueId.value = row.optString("_queue_id")
         queueCursor = index
         val beats = model.optJSONArray("beats")
@@ -1035,11 +1099,24 @@ internal class JukeboxController(
                 noisyRegistered =
                     true
             }
+            var sectionSeekPending = false
             streaming = AndroidStreamPlayback(
                 context, scope, model, seconds,
                 prefetchAllowed = { nextQueueIndex >= playbackQueue.value.size || queueRepeat.value == "Uma" },
                 onClock = { position, ready, bufferStart, bufferEnd ->
                     if (own == revision) {
+                        val section = activeSection()
+                        if (section.size == 2 && ready && position >= section[1]) {
+                            if (!sectionSeekPending) {
+                                sectionSeekPending = true
+                                scope.launch {
+                                    yield()
+                                    if (own == revision && activeSection() == section) streaming?.seek(section[0])
+                                    sectionSeekPending = false
+                                }
+                            }
+                            return@AndroidStreamPlayback
+                        }
                         streamBuffer.value = bufferStart to bufferEnd
                         audioReady.value = ready
                         if (ready && (outgoingStream != null || outgoingPcm != null) && streamFade == null) {
@@ -1087,7 +1164,11 @@ internal class JukeboxController(
                 },
                 onEnded = {
                     if (own == revision) {
-                        if (queueRepeat.value == "Uma") {
+                        val section = activeSection()
+                        if (section.size == 2) {
+                            seekSeconds(section[0])
+                            streaming?.resume()
+                        } else if (queueRepeat.value == "Uma") {
                             seekSeconds(0.0)
                             streaming?.resume()
                         } else if (nextQueueIndex < playbackQueue.value.size ||
@@ -1219,7 +1300,9 @@ internal class JukeboxController(
         val current = state.value
         val row = playbackQueue.value.firstOrNull { it.optString("_queue_id") == currentQueueId.value }
         val duration = current.model?.optDouble("duration", 0.0) ?: ((row?.optDouble("duration_ms", 0.0) ?: 0.0) / 1000)
-        val target = seconds.coerceIn(0.0, duration.coerceAtLeast(0.0))
+        val requested = seconds.coerceIn(0.0, duration.coerceAtLeast(0.0))
+        val section = activeSection()
+        val target = if (section.size == 2 && (requested < section[0] || requested >= section[1])) section[0] else requested
         finishStreamOverlap()
         if (current.model ==
             null
@@ -1347,6 +1430,7 @@ internal class JukeboxController(
         val id = row.getString("_queue_id")
         preparedModels[id] = model
         playbackQueue.value = playbackQueue.value + row
+        clearSection()
         currentQueueId.value = id
         queueCursor = playbackQueue.value.lastIndex
         val beats = model.optJSONArray("beats")
@@ -1425,6 +1509,7 @@ internal class JukeboxController(
                     preparedModels[row.getString("_queue_id")] = model
                     playbackQueue.value =
                         playbackQueue.value.toMutableList().apply { add(insertion.coerceAtMost(size), row) }
+                    clearSection()
                     currentQueueId.value = row.getString("_queue_id")
                     queueCursor = insertion
                     startQueuePreparation()
@@ -1931,6 +2016,7 @@ internal class JukeboxController(
                                 if (queued >=
                                     0
                                 ) {
+                                    clearSection()
                                     currentQueueId.value = request.row.optString("_queue_id")
                                     queueCursor = queued
                                     startQueuePreparation()
@@ -2046,6 +2132,11 @@ internal class JukeboxController(
                         "variation",
                         variation
                     ).put("smooth", smooth).put("volume", 100).put("normal", normal).put("effects", effects.value)
+                    val section = activeSection()
+                    if (section.size == 2 && switchModels.isEmpty()) {
+                        config.put("repeat_range", org.json.JSONArray(section))
+                        config.put("repeat_cache", state.value.model?.optString("cache").orEmpty())
+                    }
                     val seek = if (own == revision) pendingSeek.getAndSet(null) else null
                     if (seek !=
                         null

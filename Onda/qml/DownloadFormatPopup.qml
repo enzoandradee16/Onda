@@ -31,7 +31,7 @@ Popup {
             start: start
         });
     }
-    background: Card {}
+    background: Card { tintPopup: true }
     Connections {
         target: workspace
         function onChoiceChanged() {

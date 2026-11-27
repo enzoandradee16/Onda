@@ -64,6 +64,9 @@ class PlaybackCardToneTests(unittest.TestCase):
 
         window = self.case.window
         self.ws.setOption('effectsEnabled', False)
+        popup = window.findChild(QObject, 'playbackPitchPopup')
+        QMetaObject.invokeMethod(popup, 'open')
+        self.case.settle()
         tone = window.findChild(QObject, 'unifiedPitchSlider')
         speed = window.findChild(QObject, 'unifiedSpeedSlider')
         self.assertTrue(tone.property('enabled'))
@@ -77,3 +80,16 @@ class PlaybackCardToneTests(unittest.TestCase):
         self.case.settle()
         self.assertEqual(self.case.bridge._effects['pitch_shift'], 0)
         self.assertTrue(self.case.bridge.can_stream())
+
+    def test_second_lyrics_click_closes_the_window(self):
+        from PySide6.QtCore import QObject, QPointF, Qt
+        from PySide6.QtTest import QTest
+
+        window = self.case.window
+        button = window.findChild(QObject, 'playbackLyricsButton')
+        popup = window.findChild(QObject, 'lyricsWindow')
+        point = button.mapToScene(QPointF(button.width() / 2, button.height() / 2))
+        for visible in (True, False):
+            QTest.mouseClick(window, Qt.MouseButton.LeftButton, pos=point.toPoint())
+            self.case.settle()
+            self.assertEqual(popup.property('visible'), visible)

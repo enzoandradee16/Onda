@@ -120,11 +120,13 @@ internal fun translateError(
     colorScheme: ColorScheme,
     typography: Typography,
     spacing: String = "Padrão",
+    dialogColor: Color? = null,
     content: @Composable () -> Unit
 ) {
     CompositionLocalProvider(
         LocalUiLanguage provides normalizedLanguage(language),
-        LocalLayoutSpacing provides spacingValues(spacing)
+        LocalLayoutSpacing provides spacingValues(spacing),
+        LocalPlaybackDialogColor provides dialogColor
     ) {
         MaterialTheme(
             colorScheme = colorScheme,

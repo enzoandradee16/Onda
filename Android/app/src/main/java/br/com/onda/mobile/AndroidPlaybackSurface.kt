@@ -1,7 +1,9 @@
 package br.com.onda.mobile
 
-import android.util.Base64
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -13,7 +15,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -77,16 +84,7 @@ import coil.compose.AsyncImage
     val artist = if (useJukebox) model?.optString(
         "media_artist"
     ) ?: restoredRow?.stringList("artists").orEmpty() else record?.stringList("artists").orEmpty()
-    val encoded = if (useJukebox) model?.optString(
-        "media_cover"
-    ) ?: restoredRow?.cleanString("_cover").orEmpty() else info?.optString("cover").orEmpty()
-    val coverUrl = if (useJukebox) model?.optString(
-        "cover_url"
-    ) ?: restoredRow?.cleanString("cover_url") else info?.optJSONObject("record")?.optString("cover_url")
-    val artwork = remember(encoded, coverUrl, useJukebox) {
-        if (encoded.isNotBlank()) runCatching { Base64.decode(encoded, Base64.DEFAULT) }.getOrNull()
-        else coverUrl?.takeIf { it.isNotBlank() }
-    }
+    val artwork = rememberArtworkForSource(vm, source, restoredRow.takeIf { useJukebox })
     val beats = model?.optJSONArray("beats")
     fun livePosition(): Double {
         val current = vm.jukebox.state.value
@@ -120,6 +118,9 @@ import coil.compose.AsyncImage
             fxRepeat == "Todas" && fxQueue.isNotEmpty()
         )
     var menu by remember { mutableStateOf(false) }
+    var pitchDialog by remember { mutableStateOf(false) }
+    val effects by vm.jukebox.effects.collectAsStateWithLifecycle()
+    val pitch = effects.optInt("pitch_shift", 0)
     var timer by remember { mutableStateOf(false) }
     var equalizer by remember { mutableStateOf(false) }
     fun toggle() {
@@ -143,8 +144,11 @@ import coil.compose.AsyncImage
         } else vm.effectsQueueOpen.value = true
     }
 
-    @Composable fun cover(modifier: Modifier) {
-        Surface(modifier.clip(RoundedCornerShape(12.dp)), color = MaterialTheme.colorScheme.surfaceContainerHighest) {
+    @Composable fun cover(modifier: Modifier, showBackdrop: Boolean = false) {
+        val coverBackground = if (showBackdrop && artwork != null) {
+            androidx.compose.ui.graphics.Color.Transparent
+        } else MaterialTheme.colorScheme.surfaceContainerHighest
+        Surface(modifier.clip(RoundedCornerShape(12.dp)), color = coverBackground) {
             if (artwork !=
                 null
             ) AsyncImage(artwork, translateUi("Capa do álbum"), Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
@@ -269,15 +273,57 @@ import coil.compose.AsyncImage
             }
         }
     }
+    val surface = MaterialTheme.colorScheme.surface
+    val settings by OndaStore.settings.collectAsStateWithLifecycle()
+    val highContrast = settings.optString("theme") == "Alto contraste"
+    val accent = rememberPlaybackBackgroundAccent(artwork, settings)
+    val targetTop = remember(accent, surface, highContrast) {
+        val dark = surface.luminance() < .5f
+        val tint = accent ?: surface
+        val source = if (accent != null && dark && !highContrast) {
+            lerp(tint, androidx.compose.ui.graphics.Color.White, .24f)
+        } else tint
+        val strength = if (highContrast) .10f else if (dark) .85f else .34f
+        val top = lerp(surface, source, strength)
+        if (dark && top.luminance() > .16f) {
+            var shade = top
+            while (shade.luminance() > .16f) {
+                shade = lerp(shade, androidx.compose.ui.graphics.Color.Black, .08f)
+            }
+            shade
+        } else top
+    }
+    val readableTop by animateColorAsState(targetTop, tween(durationMillis = 700), label = "albumBackground")
     if (expanded) Dialog(onDismissRequest = {
         expanded = false
-    }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Surface(Modifier.fillMaxSize().testTag("android-expanded-player"), color = MaterialTheme.colorScheme.surface) {
-            BoxWithConstraints(Modifier.fillMaxSize()) {
-                val artworkSize = minOf(maxWidth - 48.dp, maxHeight * .46f).coerceAtLeast(100.dp)
+    }, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+        ApplyPlayerSystemBars(readableTop, surface)
+        val scroll = rememberScrollState()
+        var viewportHeight by remember { mutableIntStateOf(0) }
+        var viewportTop by remember { mutableFloatStateOf(0f) }
+        var lyricsTop by remember(source) { mutableFloatStateOf(0f) }
+        val lyricsStop = if (viewportHeight > 0 && lyricsTop > 0f) {
+            ((lyricsTop - viewportTop) / viewportHeight).coerceIn(.10f, .99f)
+        } else .80f
+        val background = remember(readableTop, surface, lyricsStop) {
+            Brush.verticalGradient(
+                0f to readableTop,
+                (lyricsStop * .90f) to lerp(surface, readableTop, .55f),
+                lyricsStop to surface,
+                1f to surface
+            )
+        }
+        Surface(Modifier.fillMaxSize().testTag("android-expanded-player"), color = surface) {
+            BoxWithConstraints(
+                Modifier.fillMaxSize().background(background).onGloballyPositioned {
+                    viewportHeight = it.size.height
+                    viewportTop = it.positionInRoot().y
+                }.windowInsetsPadding(WindowInsets.safeDrawing)
+            ) {
+                val artworkSize = (minOf(maxWidth * .89f, maxHeight * .46f) - 4.dp).coerceAtLeast(100.dp)
                 Column(
-                    Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                    Modifier.fillMaxSize().verticalScroll(scroll).padding(horizontal = 24.dp, vertical = 20.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         IconButton(onClick = {
@@ -306,6 +352,10 @@ import coil.compose.AsyncImage
                                     vm.effectsNavigation.value = true
                                 })
                                 if (useJukebox) {
+                                    DropdownMenuItem(text = { UiText("Ajustar tom") }, onClick = {
+                                        menu = false
+                                        pitchDialog = true
+                                    })
                                     DropdownMenuItem(text = { UiText("Timer") }, onClick = {
                                         menu = false
                                         timer = true
@@ -319,7 +369,8 @@ import coil.compose.AsyncImage
                         }
                     }
                     cover(
-                        Modifier.size(artworkSize).align(Alignment.CenterHorizontally).testTag("expanded-album-cover")
+                        Modifier.size(artworkSize).align(Alignment.CenterHorizontally).testTag("expanded-album-cover"),
+                        showBackdrop = true
                     )
                     Column {
                         Text(title, style = MaterialTheme.typography.headlineSmall)
@@ -331,6 +382,7 @@ import coil.compose.AsyncImage
                     }
                     PlaybackClock(vm.jukebox) { position ->
                         val buffered by vm.jukebox.streamBuffer.collectAsStateWithLifecycle()
+                        val marks by vm.jukebox.sectionMarks.collectAsStateWithLifecycle()
                         var dragged by remember(source) { mutableStateOf<Float?>(null) }
                         Column {
                             RoundSlider(
@@ -350,11 +402,18 @@ import coil.compose.AsyncImage
                                     "expanded-player-timeline"
                                 ).a11yLabel("Posição na música"),
                                 slim = true,
+                                markedPoints = marks,
+                                onMarkedPointMoved = vm.jukebox::moveSectionPoint,
+                                markedRange = if (marks.size == 2) {
+                                    val end = marks[1].takeIf { it >= 0 } ?: duration
+                                    val start = marks[0].coerceAtLeast(0.0)
+                                    if (end - start >= .1) start.toFloat()..end.toFloat() else null
+                                } else null,
                                 bufferedRange = if (model?.has("_stream") ==
                                     true
                                 ) buffered.first.toFloat()..buffered.second.toFloat() else 0f..duration.toFloat()
                             )
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                                 UiText(
                                     mediaClock(
                                         (
@@ -364,6 +423,37 @@ import coil.compose.AsyncImage
                                     ),
                                     style = MaterialTheme.typography.labelSmall
                                 )
+                                if (model != null) Row(verticalAlignment = Alignment.CenterVertically) {
+                                    for (index in 0..1) {
+                                        val marked = marks.getOrNull(index)?.let { it >= 0 } == true
+                                        val label = if (index == 0) {
+                                            if (marked) "Limpar início" else "Marcar início"
+                                        } else if (marked) "Limpar fim" else "Marcar fim"
+                                        IconButton(
+                                            onClick = {
+                                                if (index == 0) {
+                                                    if (marked) vm.jukebox.clearSectionStart() else vm.jukebox.markSectionStart()
+                                                } else {
+                                                    if (marked) vm.jukebox.clearSectionEnd() else vm.jukebox.markSectionEnd()
+                                                }
+                                            },
+                                            modifier = Modifier.size(40.dp).a11yLabel(label).testTag(
+                                                if (index == 0) "expanded-player-mark-start" else "expanded-player-mark-end"
+                                            )
+                                        ) {
+                                            Text(
+                                                if (index == 0) "[" else "]",
+                                                style = MaterialTheme.typography.titleLarge,
+                                                color = if (marked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                            )
+                                        }
+                                    }
+                                    IconButton(
+                                        enabled = marks.isNotEmpty(),
+                                        onClick = vm.jukebox::clearSection,
+                                        modifier = Modifier.size(40.dp)
+                                    ) { OndaIcon("close", "Limpar trecho", Modifier.size(20.dp)) }
+                                }
                                 UiText(mediaClock(duration.toLong()), style = MaterialTheme.typography.labelSmall)
                             }
                         }
@@ -380,7 +470,7 @@ import coil.compose.AsyncImage
                         FilledIconButton(
                             onClick = ::toggle,
                             enabled = duration > 0,
-                            modifier = Modifier.size(72.dp).testTag("expanded-player-toggle")
+                            modifier = Modifier.size(70.dp).testTag("expanded-player-toggle")
                         ) {
                             if (preparing) CircularProgressIndicator(
                                 Modifier.size(30.dp),
@@ -404,9 +494,22 @@ import coil.compose.AsyncImage
                             OndaIcon("queue", "Fila", Modifier.size(26.dp))
                         }
                     }
-                    PlaybackDeviceButton(onClick = { devices = true })
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        itemVerticalAlignment = Alignment.CenterVertically
+                    ) {
+                        PlaybackDeviceButton(onClick = { devices = true })
+                        if (pitch != 0) TextButton(onClick = { pitchDialog = true }) {
+                            val signed = if (pitch > 0) "+$pitch" else pitch.toString()
+                            Text(translateUi("Tom") + " $signed st")
+                        }
+                    }
                     PlaybackClock(vm.jukebox) { position ->
-                        LyricsPreviewCard(vm, source, title, artist, position, duration, playing, ::seek, ::toggle)
+                        LyricsPreviewCard(
+                            vm, source, title, artist, position, duration, playing, ::seek, ::toggle,
+                            modifier = Modifier.onGloballyPositioned { lyricsTop = it.positionInRoot().y }
+                        )
                     }
                 }
             }
@@ -414,6 +517,14 @@ import coil.compose.AsyncImage
         // The sheet belongs to this dialog so it stays above the expanded player.
         if (useJukebox && expandedQueue) PlaybackQueueSheet(vm) { expandedQueue = false }
         if (devices) PlaybackDevicesSheet { devices = false }
+        if (pitchDialog) AlertDialog(
+            onDismissRequest = { pitchDialog = false },
+            title = { UiText("Ajustar tom") },
+            text = { PlaybackToneControl(pitch) { vm.jukebox.setEffects("pitch_shift", it) } },
+            confirmButton = {
+                TextButton(onClick = { pitchDialog = false }) { UiText("Pronto") }
+            }
+        )
         if (!useJukebox) EffectsQueueDrawer(vm)
     }
     if (!expanded || useJukebox) EffectsQueueDrawer(vm)
@@ -421,7 +532,7 @@ import coil.compose.AsyncImage
     if (equalizer) JukeboxEqualizerDialog { equalizer = false }
 }
 
-@Composable private fun PlaybackClock(controller: JukeboxController, content: @Composable (Double) -> Unit) {
+@Composable internal fun PlaybackClock(controller: JukeboxController, content: @Composable (Double) -> Unit) {
     val clock by controller.state.collectAsStateWithLifecycle()
     content(controller.sessionSeconds(clock.model, clock.index, clock.phase.toDouble()))
 }

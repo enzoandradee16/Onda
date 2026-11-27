@@ -4,6 +4,8 @@ import QtQuick.Layouts
 
 Popup {
     id: popup
+    readonly property color secondaryText: Qt.tint(bridge.palette.muted, Qt.alpha(bridge.palette.text, .55))
+    property color backgroundColor: bridge.palette.surface
     objectName: "settingsPopup"
     parent: Overlay.overlay
     anchors.centerIn: parent
@@ -15,7 +17,7 @@ Popup {
     onOpened: workspace.invoke("tools_status", {})
     property string category: "Geral"
     onCategoryChanged: if (category === "Desempenho" && visible)
-        workspace.invoke("cache_report", {})
+        workspace.invoke("cache_report", {background: true})
     readonly property int actionColumns: settingsScroll.availableWidth >= 560 * bridge.fontScale ? 2 : 1
     readonly property bool searching: search.text.trim().length > 0
     readonly property bool cacheResult: searching && workspace.settingsSearchMatches(search.text, {
@@ -33,7 +35,7 @@ Popup {
     readonly property int resultCount: workspace.settingsFields.filter(function (field) {
         return (field.key !== "pure_black_separators" || workspace.preferences.theme_mode === "Preto puro") && (field.key !== "pure_light_borders" || workspace.preferences.theme_mode === "Claro puro") && workspace.settingsSearchMatches(search.text, field);
     }).length
-    background: Card {}
+    background: Card { tintPopup: true; color: popup.backgroundColor }
     enter: Transition {
         NumberAnimation {
             property: "opacity"
@@ -61,7 +63,7 @@ Popup {
                 Label {
                     objectName: "settingsAppVersion"
                     text: "ONDA " + workspace.appVersion
-                    color: bridge.palette.muted
+                    color: popup.secondaryText
                     font.pixelSize: Math.round(13 * bridge.fontScale)
                 }
             }
@@ -125,7 +127,7 @@ Popup {
                         objectName: "settingsSearchEmpty"
                         visible: popup.searching && popup.resultCount === 0 && !popup.cacheResult
                         text: bridge.translate("Nenhuma configuração encontrada.")
-                        color: bridge.palette.muted
+                        color: popup.secondaryText
                         wrapMode: Text.Wrap
                         Layout.fillWidth: true
                     }
@@ -147,6 +149,7 @@ Popup {
                             Layout.minimumWidth: 0
                             Layout.maximumWidth: parent.width
                             field: modelData
+                            secondaryText: popup.secondaryText
                             settings: true
                             showCategory: popup.searching
                             onCategoryRequested: function (category) {
@@ -168,7 +171,7 @@ Popup {
                         }
                         Label {
                             text: bridge.translate("Versão, atualizações e licenças")
-                            color: bridge.palette.muted
+                            color: popup.secondaryText
                             wrapMode: Text.Wrap
                             Layout.fillWidth: true
                         }
@@ -183,7 +186,7 @@ Popup {
                             }
                             Label {
                                 text: workspace.optionValue(workspace.optionsRevision, "appUpdate") ? workspace.optionValue(workspace.optionsRevision, "appUpdate").notes || "" : ""
-                                color: bridge.palette.muted
+                                color: popup.secondaryText
                                 wrapMode: Text.Wrap
                                 Layout.fillWidth: true
                                 maximumLineCount: 8
@@ -192,7 +195,7 @@ Popup {
                             Label {
                                 visible: !!workspace.optionValue(workspace.optionsRevision, "appUpdate") && workspace.optionValue(workspace.optionsRevision, "appUpdate").size > 0
                                 text: workspace.optionValue(workspace.optionsRevision, "appUpdate") ? (workspace.optionValue(workspace.optionsRevision, "appUpdate").size / 1048576).toFixed(1) + " MB" : ""
-                                color: bridge.palette.muted
+                                color: popup.secondaryText
                             }
                             TaskButton {
                                 idleText: bridge.translate("Baixar nova versão")
@@ -268,7 +271,7 @@ Popup {
                         }
                         Label {
                             text: bridge.translate("Escolha qual categoria aparece primeiro na barra lateral.")
-                            color: bridge.palette.muted
+                            color: popup.secondaryText
                             wrapMode: Text.Wrap
                             Layout.fillWidth: true
                         }
@@ -283,7 +286,7 @@ Popup {
                                 spacing: 10
                                 Label {
                                     text: (index + 1) + "."
-                                    color: bridge.palette.muted
+                                    color: popup.secondaryText
                                     Layout.preferredWidth: 22
                                 }
                                 Label {
@@ -345,7 +348,7 @@ Popup {
                                         objectName: "appearanceTabGroup"
                                         Layout.fillWidth: true
                                         text: modelData.group ? bridge.translate(modelData.groupKey === "library" ? "Biblioteca" : "Ferramentas") : ""
-                                        color: bridge.palette.muted
+                                        color: popup.secondaryText
                                         font.pixelSize: Math.round(13 * bridge.fontScale)
                                         font.weight: Font.DemiBold
                                     }
@@ -476,7 +479,7 @@ Popup {
                             Layout.fillWidth: true
                             wrapMode: Text.Wrap
                             text: bridge.translate("Atualizar ferramentas atualiza yt-dlp, gallery-dl, Pillow, Mutagen, Requests e PyYAML. Python e Node.js são atualizados junto com o ONDA.")
-                            color: bridge.palette.muted
+                            color: popup.secondaryText
                         }
                         GridLayout {
                             objectName: "settingsToolActions"
@@ -525,7 +528,7 @@ Popup {
                             Layout.fillWidth: true
                             wrapMode: Text.Wrap
                             text: bridge.translate("Os downloads salvos na pasta de destino não são removidos.")
-                            color: bridge.palette.muted
+                            color: popup.secondaryText
                         }
                         CacheDetails {
                             Layout.fillWidth: true

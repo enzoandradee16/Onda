@@ -51,6 +51,8 @@ class PreferenceStore:
             temporary.unlink(missing_ok=True)
 
     DISPLAY_FIELDS = (
+        "album_player_background",
+        "theme_background",
         "queue_view",
         "queue_card_size",
         "history_view",
@@ -152,9 +154,12 @@ class PreferenceStore:
                 result[name] = value
             elif name == 'theme_accent' and normalize_color(value):
                 result[name] = normalize_color(value)
-        for name in ("pure_black_separators", "pure_light_borders"):
+        for name in ("pure_black_separators", "pure_light_borders", "album_player_background"):
             if type(data.get(name)) is bool:
                 result[name] = data[name]
+        background = data.get("theme_background")
+        if background == "" or normalize_color(background):
+            result["theme_background"] = "" if data.get("album_player_background") is True else normalize_color(background)
         if data.get('playback_card_size') in (
             'Muito pequeno',
             'Pequeno',

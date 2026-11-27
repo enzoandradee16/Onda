@@ -27,7 +27,8 @@ Popup {
         pairingExpanded = false;
         manualExpanded = false;
     }
-    background: Rectangle {
+    background: Card {
+        tintPopup: true
         radius: 12
         color: popup.panelColor
         border.color: bridge.palette.line

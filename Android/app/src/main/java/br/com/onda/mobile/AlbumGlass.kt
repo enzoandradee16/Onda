@@ -67,6 +67,74 @@ internal fun albumGlassColors(accent: Color, dark: Boolean, highContrast: Boolea
     )
 }
 
+@Composable internal fun rememberPlaybackBackgroundAccent(artwork: Any?, settings: org.json.JSONObject): Color? =
+    if (settings.optBoolean("album_player_background", true)) {
+        rememberAlbumAccent(artwork, keepPreviousWhileLoading = true)
+    } else if (settings.optString("theme") != "Alto contraste") {
+        normalizeAccent(settings.optString("theme_background"))?.let { hex ->
+            Color(0xFF000000 or hex.removePrefix("#").toLong(16))
+        }
+    } else null
+
+@Composable internal fun rememberAnimatedPlaybackTint(accent: Color?): Color {
+    val target = accent ?: Color.Transparent
+    return androidx.compose.animation.animateColorAsState(
+        target, androidx.compose.animation.core.tween(durationMillis = 700), label = "playbackTint"
+    ).value
+}
+
+internal fun playbackTintedScheme(
+    base: androidx.compose.material3.ColorScheme,
+    accent: Color,
+    highContrast: Boolean,
+    followAlbumAccent: Boolean = false
+): androidx.compose.material3.ColorScheme {
+    if (accent.alpha == 0f) return base
+    val tint = accent.copy(alpha = 1f)
+    val strength = if (highContrast) .25f else 1f
+    fun readable(color: Color, amount: Float, ink: Color, secondary: Color = ink): Color {
+        var weight = amount * strength * accent.alpha
+        repeat(5) {
+            val result = lerp(color, tint, weight)
+            if (accentContrast(result, ink) >= 4.5f && accentContrast(result, secondary) >= 4.5f) return result
+            weight *= .5f
+        }
+        return color
+    }
+    fun surface(color: Color, amount: Float) =
+        readable(color, amount, base.onSurface, base.onSurfaceVariant)
+
+    val surfaces = base.copy(
+        background = readable(base.background, .36f, base.onBackground, base.onSurfaceVariant),
+        surface = surface(base.surface, .25f),
+        surfaceDim = surface(base.surfaceDim, .30f),
+        surfaceBright = surface(base.surfaceBright, .22f),
+        surfaceVariant = surface(base.surfaceVariant, .25f),
+        surfaceContainerLowest = surface(base.surfaceContainerLowest, .25f),
+        surfaceContainerLow = surface(base.surfaceContainerLow, .28f),
+        surfaceContainer = surface(base.surfaceContainer, .30f),
+        surfaceContainerHigh = surface(base.surfaceContainerHigh, .29f),
+        surfaceContainerHighest = surface(base.surfaceContainerHighest, .25f),
+        primaryContainer = readable(base.primaryContainer, .18f, base.onPrimaryContainer),
+        secondary = readable(base.secondary, .08f, base.onSecondary),
+        secondaryContainer = readable(base.secondaryContainer, .23f, base.onSecondaryContainer),
+        tertiary = readable(base.tertiary, .08f, base.onTertiary),
+        tertiaryContainer = readable(base.tertiaryContainer, .18f, base.onTertiaryContainer)
+    )
+    if (!followAlbumAccent || highContrast) return surfaces
+    val dark = base.background.luminance() < .5f
+    val endpoint = if (dark) Color.White else Color.Black
+    var primary = lerp(base.primary, tint, accent.alpha)
+    repeat(48) {
+        if (accentContrast(primary, surfaces.background) >= 4.5f &&
+            accentContrast(primary, surfaces.surface) >= 4.5f &&
+            accentContrast(primary, surfaces.surfaceContainer) >= 4.5f
+        ) return surfaces.copy(primary = primary, onPrimary = accentInk(primary))
+        primary = lerp(primary, endpoint, .12f)
+    }
+    return surfaces.copy(primary = endpoint, onPrimary = accentInk(endpoint))
+}
+
 /** Album-tinted glass: blurred artwork under a translucent lens and a specular rim. */
 @Composable internal fun AlbumGlass(artwork: Any?, modifier: Modifier = Modifier, content: @Composable (AlbumGlassColors) -> Unit) {
     val context = LocalContext.current
@@ -75,8 +143,9 @@ internal fun albumGlassColors(accent: Color, dark: Boolean, highContrast: Boolea
     val dark = scheme.surface.luminance() < .5f
     val highContrast = settings.optString("theme") == "Alto contraste"
     val fallback = Color(0xFF34404D)
-    val tint = rememberAlbumAccent(artwork)
-    val colors = remember(tint, fallback, dark, highContrast) { albumGlassColors(tint ?: fallback, dark, highContrast) }
+    val accent = rememberPlaybackBackgroundAccent(artwork, settings)
+    val tint = rememberAnimatedPlaybackTint(accent ?: fallback)
+    val colors = remember(tint, dark, highContrast) { albumGlassColors(tint, dark, highContrast) }
     val shape = RoundedCornerShape(16.dp)
     Surface(
         modifier,
@@ -148,10 +217,10 @@ internal fun albumGlassColors(accent: Color, dark: Boolean, highContrast: Boolea
     }
 }
 
-@Composable internal fun rememberAlbumAccent(artwork: Any?): Color? {
+@Composable internal fun rememberAlbumAccent(artwork: Any?, keepPreviousWhileLoading: Boolean = false): Color? {
     val context = LocalContext.current
-    val tint by produceState<Color?>(null, artwork) {
-        value = null
+    val tint by produceState<Color?>(null, artwork, keepPreviousWhileLoading) {
+        if (artwork == null || !keepPreviousWhileLoading) value = null
         if (artwork != null) {
             value = withContext(Dispatchers.IO) {
                 runCatching {
@@ -177,23 +246,25 @@ internal fun albumLyricsColors(accent: Color, highContrast: Boolean): Pair<Color
     return background to ink
 }
 
-@Composable internal fun rememberLyricsColors(vm: OndaViewModel, source: String): Pair<Color, Color> {
+@Composable internal fun rememberArtworkForSource(vm: OndaViewModel, source: String, restored: org.json.JSONObject? = null): Any? {
     val info by vm.effectsInfo.collectAsStateWithLifecycle()
     val juke by vm.jukebox.presentationState.collectAsStateWithLifecycle()
-    val settings by OndaStore.settings.collectAsStateWithLifecycle()
     val model = juke.model?.takeIf { it.optString("source") == source }
     val details = info[source]
-    val encoded = if (model != null) model.optString("media_cover") else details?.optString("cover").orEmpty()
-    val url = if (model !=
-        null
-    ) model.optString("cover_url") else details?.optJSONObject("record")?.optString("cover_url").orEmpty()
-    val artwork =
-        remember(encoded, url) {
-            if (encoded.isNotBlank()) runCatching {
-                android.util.Base64.decode(encoded, android.util.Base64.DEFAULT)
-            }.getOrNull() else url.takeIf { it.isNotBlank() }
-        }
-    val accent = rememberAlbumAccent(artwork)
+    val encoded = model?.optString("media_cover").orEmpty().ifBlank { details?.optString("cover").orEmpty() }.ifBlank { restored?.optString("_cover").orEmpty() }
+    val url = model?.optString("cover_url").orEmpty()
+        .ifBlank { details?.optJSONObject("record")?.optString("cover_url").orEmpty() }
+        .ifBlank { restored?.optString("cover_url").orEmpty() }
+    return remember(encoded, url) {
+        encoded.takeIf { it.isNotBlank() }?.let {
+            runCatching { android.util.Base64.decode(it, android.util.Base64.DEFAULT) }.getOrNull()
+        } ?: url.takeIf { it.isNotBlank() }
+    }
+}
+
+@Composable internal fun rememberLyricsColors(vm: OndaViewModel, source: String): Pair<Color, Color> {
+    val settings by OndaStore.settings.collectAsStateWithLifecycle()
+    val accent = rememberPlaybackBackgroundAccent(rememberArtworkForSource(vm, source), settings)
     val scheme = MaterialTheme.colorScheme
     return if (accent ==
         null

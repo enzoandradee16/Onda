@@ -76,7 +76,6 @@ internal val playbackEffectPresets = linkedMapOf(
         ToolSwitch("Manter tom", effects.optBoolean("keep_pitch"), enabled = enabled) {
             controller.setEffects("keep_pitch", it)
         }
-        PlaybackToneControl(effects.optInt("pitch_shift", 0)) { controller.setEffects("pitch_shift", it) }
         OutlinedButton(
             onClick = {
                 export = true

@@ -34,11 +34,15 @@ class JukeboxBridge(QObject):
     positionChanged = Signal()
     graphChanged = Signal()
     appearanceChanged = Signal()
+    albumAccentReady = Signal(str, str)
     equalizerChanged = Signal()
     _event = Signal(int, str, object)
 
     def __init__(self, store=None, parent=None):
         super().__init__(parent)
+        self._album_accent_source = ''
+        self._album_accents = {}
+        self.albumAccentReady.connect(self._remember_album_accent, Qt.ConnectionType.QueuedConnection)
         self._state_revision = 0
         self._transport_revision = 0
         self._seek_serial = 0
@@ -71,6 +75,7 @@ class JukeboxBridge(QObject):
         self.playlist = []
         self._visible_queue_cache = {}
         self.queueChanged.connect(self._invalidate_visible_queue)
+        self.queueChanged.connect(self._clear_previous_section)
         self.queue_index = -1
         self.track_minutes = 0
         self.autoplay_revision = None
@@ -431,6 +436,8 @@ class JukeboxBridge(QObject):
         return target if 0 <= target < len(self.playlist) else None
 
     def normal_transition(self):
+        if len(self.repeatSection) == 2:
+            return
         if getattr(getattr(self, 'online', None), 'outgoing', None) is not None:
             return
         if (
@@ -977,17 +984,26 @@ class JukeboxBridge(QObject):
 
     @Slot()
     def clearPlaybackQueue(self):
+        current = (
+            self.playlist[self.queue_index]
+            if 0 <= self.queue_index < len(self.playlist)
+            else None
+        )
+        identity = current['id'] if current is not None else None
         self._queue_undo_timer.stop()
         self._removed_queue_entry = None
         self._queue_history = []
         self._shuffle_order = []
-        if self._state['busy'] and self.autoplay_revision is not None:
+        if current is None and self._state['busy'] and self.autoplay_revision is not None:
             self.cancelOperation()
-        for cancel in self._queue_cancel.values():
-            cancel.set()
-        self._prepared.clear()
-        self.playlist = []
-        self.queue_index = -1
+        for key, cancel in self._queue_cancel.items():
+            if key != identity:
+                cancel.set()
+        self._prepared = {
+            key: model for key, model in self._prepared.items() if key == identity
+        }
+        self.playlist = [current] if current is not None else []
+        self.queue_index = 0 if current is not None else -1
         self._autoplay_entry = None
         self.queueChanged.emit()
         self.changed.emit()
@@ -1265,6 +1281,92 @@ class JukeboxBridge(QObject):
             )
         return float((self.model or {}).get('duration', 0))
 
+    def _repeat_identity(self):
+        if 0 <= self.queue_index < len(self.playlist):
+            return self.playlist[self.queue_index].get('id')
+        return id(self.model)
+
+    def _clear_previous_section(self):
+        identity, marks = getattr(self, '_section_marks', (None, []))
+        if marks and identity != self._repeat_identity():
+            self.clearSection()
+
+    @Property('QVariantList', notify=changed)
+    def repeatSectionMarks(self):
+        identity, marks = getattr(self, '_section_marks', (None, []))
+        return marks if self.model and identity == self._repeat_identity() else []
+
+    @Property('QVariantList', notify=changed)
+    def repeatSection(self):
+        marks = self.repeatSectionMarks
+        if not marks:
+            return []
+        start, end = marks
+        start = max(0.0, start)
+        end = self.sourceDuration if end < 0 else end
+        return [start, end] if end - start >= .1 else []
+
+    @Slot()
+    def markSectionStart(self):
+        _, end = self.repeatSectionMarks or (-1.0, -1.0)
+        if self.model:
+            position = self.sourcePosition
+            self._section_marks = (
+                self._repeat_identity(), [position, end if end - position >= .1 else -1.0]
+            )
+            self.changed.emit()
+
+    @Slot()
+    def markSectionEnd(self):
+        start, _ = self.repeatSectionMarks or (-1.0, -1.0)
+        if self.model:
+            position = self.sourcePosition
+            self._section_marks = (
+                self._repeat_identity(), [start if position - start >= .1 else -1.0, position]
+            )
+            section = self.repeatSection
+            if section:
+                self.seekSeconds(section[0])
+            self.changed.emit()
+
+    @Slot()
+    def clearSectionStart(self):
+        marks = self.repeatSectionMarks
+        if marks and marks[1] >= 0:
+            self._section_marks = (self._repeat_identity(), [-1.0, marks[1]])
+            self.changed.emit()
+        else:
+            self.clearSection()
+
+    @Slot(int, float)
+    def moveSectionPoint(self, index, seconds):
+        marks = self.repeatSectionMarks
+        if index not in (0, 1) or not marks or marks[index] < 0:
+            return
+        start, end = marks
+        lower = max(0.0, start) + .1 if index == 1 else 0.0
+        upper = end - .1 if index == 0 and end >= 0 else self.sourceDuration
+        if lower <= upper:
+            updated = list(marks)
+            updated[index] = min(upper, max(lower, seconds))
+            self._section_marks = (self._repeat_identity(), updated)
+            self.changed.emit()
+
+    @Slot()
+    def clearSectionEnd(self):
+        marks = self.repeatSectionMarks
+        if marks and marks[1] >= 0:
+            if marks[0] < 0:
+                self.clearSection()
+            else:
+                self._section_marks = (self._repeat_identity(), [marks[0], -1.0])
+                self.changed.emit()
+
+    @Slot()
+    def clearSection(self):
+        self._section_marks = (None, [])
+        self.changed.emit()
+
     @Property(float, notify=positionChanged)
     def sourceBufferedEnd(self):
         if (self.model or {}).get('_stream'):
@@ -1278,6 +1380,9 @@ class JukeboxBridge(QObject):
         if not math.isfinite(float(seconds)):
             return
         seconds = max(0, min(float(seconds), self.sourceDuration))
+        section = self.repeatSection
+        if len(section) == 2 and not section[0] <= seconds < section[1]:
+            seconds = section[0]
         self._transport_revision += 1
         if self.model is None and 0 <= self.queue_index < len(self.playlist):
             self.playlist[self.queue_index]['restore_seconds'] = seconds
@@ -1375,6 +1480,21 @@ class JukeboxBridge(QObject):
 
         return SVG_PATH
 
+    @Slot(str, str)
+    def _remember_album_accent(self, source, color):
+        self._album_accents.pop(source, None)
+        self._album_accents[source] = color
+        if len(self._album_accents) > 16:
+            del self._album_accents[next(iter(self._album_accents))]
+        if source == self._album_accent_source:
+            self.appearanceChanged.emit()
+
+    @Slot(str)
+    def setAlbumAccentSource(self, source):
+        if source != self._album_accent_source:
+            self._album_accent_source = source
+            self.appearanceChanged.emit()
+
     @Property('QVariantMap', notify=appearanceChanged)
     def palette(self):
         from appearance import palette
@@ -1384,6 +1504,8 @@ class JukeboxBridge(QObject):
             self.preferences.get('theme_accent', 'Verde-Água'),
             self.preferences.get('pure_black_separators', False),
             self.preferences.get('pure_light_borders', True),
+            album_accent=self._album_accents.get(self._album_accent_source, '')
+            if self.preferences.get('album_player_background', True) else '',
         )
 
     @Property(bool, notify=appearanceChanged)
@@ -2014,6 +2136,9 @@ class JukeboxBridge(QObject):
             self.online.position = min(float(value), self.sourceDuration)
             self._elapsed = self.online.position
             self.positionChanged.emit()
+            section = self.repeatSection
+            if len(section) == 2 and self.online.position >= section[1]:
+                self.seekSeconds(section[0])
             self.normal_transition()
         elif kind == 'progress':
             self.update_state(progress=value)
@@ -2192,7 +2317,7 @@ class JukeboxBridge(QObject):
                 self.update_graph()
             self.positionChanged.emit()
             self.normal_transition()
-            if self.track_minutes:
+            if self.track_minutes and len(self.repeatSection) != 2:
                 remaining = self.track_minutes * 60 - (
                     self._elapsed - self._track_started
                 )
@@ -2223,7 +2348,11 @@ class JukeboxBridge(QObject):
             if (self.model or {}).get('_stream'):
                 self.online.position = self.sourceDuration
             self.stop(reset_timer=False)
-            if self.queue_repeat == 'Uma':
+            section = self.repeatSection
+            if len(section) == 2:
+                self.seekSeconds(section[0])
+                self.playPause()
+            elif self.queue_repeat == 'Uma':
                 self.seek(0)
                 self.playPause()
             elif (
@@ -2466,6 +2595,8 @@ class JukeboxBridge(QObject):
                         params[3],
                         equalizer=self._equalizer,
                         effects=self._effects,
+                        repeat_range=self.repeatSection,
+                        repeat_cache=(self.model or {}).get('cache') or '',
                     )
                     if (
                         part['pcm']

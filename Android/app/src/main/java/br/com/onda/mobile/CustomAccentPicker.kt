@@ -53,6 +53,29 @@ import androidx.compose.ui.window.Dialog
     }
 }
 
+@Composable internal fun BackgroundPreference(value: String, changed: (String) -> Unit) {
+    var editing by remember { mutableStateOf(false) }
+    UiText("Cor de fundo", style = MaterialTheme.typography.bodyMedium)
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        TextButton(onClick = { editing = true }) {
+            UiText("Escolher cor")
+            if (value.isNotEmpty()) Text(" · " + value)
+        }
+        if (value.isNotEmpty()) {
+            TextButton(onClick = { changed("") }) { UiText("Restaurar padrão") }
+        }
+    }
+    if (editing) CustomAccentDialog(
+        initial = normalizeAccent(value) ?: MaterialTheme.colorScheme.background.hexRgb(),
+        dismiss = { editing = false },
+        themePreview = false,
+        title = "Cor de fundo"
+    ) {
+        changed(it)
+        editing = false
+    }
+}
+
 @Composable internal fun CustomAccentDialog(
     initial: String,
     dismiss: () -> Unit,

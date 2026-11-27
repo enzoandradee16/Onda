@@ -336,13 +336,11 @@ class DesktopWorkspace(QObject):
         self.title_lookup.spotify_account = self.account
         self.timing = QueueTiming()
         self.refresh_queue()
-        self.refresh_history()
         from playback_session import restore
 
         self.options['effectsEnabled'] = False
         restore(self)
         self.bridge.queueChanged.connect(self.invalidate_session_queue)
-        self._page = 'jukebox' if self._page in ('effects', 'jukebox') else self._page
         self.sync_unified_effects()
         self.media_owner = 'jukebox'
         self.bridge.media_state_provider = self.effects_media_state
@@ -928,6 +926,10 @@ class DesktopWorkspace(QObject):
             if key not in cleaned:
                 return
             self.settings[key] = cleaned[key]
+            if key == 'theme_background' and cleaned[key]:
+                self.settings['album_player_background'] = False
+            if key == 'album_player_background' and cleaned[key]:
+                self.settings['theme_background'] = ''
         if key in (
             'image_format',
             'image_size',
@@ -1120,6 +1122,8 @@ class DesktopWorkspace(QObject):
         self.selectPage('metadata')
 
     def run_task(self, action, overrides=None, callback=None, *, background=False):
+        if background and action in ('tools_status', 'cache_report') and action in self.tasks:
+            return
         if action in ('prepare_tools', 'update_tools') and any(
             name in self.tasks for name in ('prepare_tools', 'update_tools')
         ):
@@ -2688,6 +2692,8 @@ class DesktopWorkspace(QObject):
         elif action in ('cache_report', 'cache_remove'):
             from playback_cache_budget import model_paths
 
+            background = action == 'cache_report' and p.get('background') is True
+            overrides = {key: value for key, value in p.items() if key != 'background'}
             protected = model_paths(
                 list(self.bridge._prepared.values()) + [self.bridge.model]
             )
@@ -2707,8 +2713,9 @@ class DesktopWorkspace(QObject):
             ]
             self.run_task(
                 action,
-                dict(_protected_cache=protected, _cache_models=models, **p),
+                dict(_protected_cache=protected, _cache_models=models, **overrides),
                 cache_updated,
+                background=background,
             )
         elif action in (
             'cache_info',
@@ -2770,7 +2777,12 @@ class DesktopWorkspace(QObject):
             protected = model_paths(
                 list(self.bridge._prepared.values()) + [self.bridge.model]
             )
-            self.run_task(action, {'_protected_cache': protected}, completed)
+            self.run_task(
+                action,
+                {'_protected_cache': protected},
+                completed,
+                background=action == 'tools_status',
+            )
         else:
             raise ValueError('Ação desconhecida: ' + action)
 

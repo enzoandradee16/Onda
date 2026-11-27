@@ -23,7 +23,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
     seek: (Double) -> Unit,
     toggle: () -> Unit,
     providedLines: List<Pair<Double, String>>? = null,
-    controlsEnabled: Boolean = true
+    controlsEnabled: Boolean = true,
+    modifier: Modifier = Modifier
 ) {
     val (lyricsBackground, lyricsInk) = rememberLyricsColors(vm, source)
     val cache by vm.lyricsCache.collectAsStateWithLifecycle()
@@ -36,7 +37,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
     var openRequest by remember(source) { mutableIntStateOf(0) }
     LaunchedEffect(source, providedLines != null) { if (providedLines == null) vm.lookupLyrics(source) }
     Surface(
-        Modifier.fillMaxWidth().testTag("lyrics-preview-card").clickable {
+        modifier.fillMaxWidth().testTag("lyrics-preview-card").clickable {
             openRequest++
         },
         shape = RoundedCornerShape(20.dp),

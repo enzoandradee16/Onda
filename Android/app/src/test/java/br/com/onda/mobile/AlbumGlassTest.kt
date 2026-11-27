@@ -55,6 +55,48 @@ class AlbumGlassTest {
         }
     }
 
+    @Test fun playbackTintColorsCardsAndControlsWithReadableForegrounds() {
+        val schemes = listOf(
+            androidx.compose.material3.lightColorScheme(),
+            androidx.compose.material3.darkColorScheme()
+        )
+        for (scheme in schemes) {
+            assertSame(scheme, playbackTintedScheme(scheme, Color.Transparent, false))
+            val cyan = playbackTintedScheme(scheme, Color.Cyan, false)
+            assertNotEquals(scheme.background, cyan.background)
+            assertNotEquals(scheme.surface, cyan.surface)
+            assertNotEquals(scheme.surfaceContainerLow, cyan.surfaceContainerLow)
+            assertNotEquals(scheme.secondaryContainer, cyan.secondaryContainer)
+            for (color in listOf(Color.Black, Color.White, Color.Red, Color.Cyan, Color.Yellow)) {
+                val tinted = playbackTintedScheme(scheme, color, false)
+                assertTrue(contrast(tinted.background, tinted.onBackground) >= 4.5f)
+                assertTrue(contrast(tinted.surface, tinted.onSurface) >= 4.5f)
+                assertTrue(contrast(tinted.surfaceContainerLow, tinted.onSurfaceVariant) >= 4.5f)
+                assertTrue(contrast(tinted.primary, tinted.onPrimary) >= 4.5f)
+                assertTrue(contrast(tinted.secondaryContainer, tinted.onSecondaryContainer) >= 4.5f)
+            }
+        }
+    }
+
+    @Test fun albumAccentChangesOnlyWhenEnabledAndKeepsTextReadable() {
+        for (base in listOf(
+            androidx.compose.material3.lightColorScheme(),
+            androidx.compose.material3.darkColorScheme()
+        )) {
+            val manual = playbackTintedScheme(base, Color.Red, false)
+            assertEquals(base.primary, manual.primary)
+            val red = playbackTintedScheme(base, Color.Red, false, followAlbumAccent = true)
+            val cyan = playbackTintedScheme(base, Color.Cyan, false, followAlbumAccent = true)
+            assertNotEquals(red.primary, cyan.primary)
+            for (cover in listOf(Color.Red, Color.Cyan, Color.Yellow, Color.White, Color.Black)) {
+                val theme = playbackTintedScheme(base, cover, false, followAlbumAccent = true)
+                assertTrue(contrast(theme.primary, theme.background) >= 4.5f)
+                assertTrue(contrast(theme.primary, theme.surface) >= 4.5f)
+                assertTrue(contrast(theme.primary, theme.onPrimary) >= 4.5f)
+            }
+        }
+    }
+
     @Test fun lyricsUseCoverColorWithReadableText() {
         assertNotEquals(albumLyricsColors(Color.Blue, false).first, albumLyricsColors(Color.Red, false).first)
         for (hc in listOf(

@@ -3,6 +3,8 @@ import QtQuick.Controls
 import QtQuick.Window
 
 ApplicationWindow {
+    readonly property alias popupTintLayers: shell.popupTintLayers
+    readonly property alias controlTintLevel: shell.controlTintLevel
     width: Math.min(1360, Screen.desktopAvailableWidth)
     height: Math.min(900, Screen.desktopAvailableHeight)
     minimumWidth: Math.min(920, Screen.desktopAvailableWidth)
@@ -34,6 +36,7 @@ ApplicationWindow {
         }
     }
     Shell {
+        id: shell
         anchors.fill: parent
     }
 }

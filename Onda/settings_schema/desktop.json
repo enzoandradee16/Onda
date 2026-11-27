@@ -9,6 +9,8 @@
     "queue_view": "Compacto",
     "history_card_size": "Grande",
     "pure_black_separators": false,
+    "album_player_background": true,
+    "theme_background": "",
     "history_view": "Compacto",
     "theme_mode": "Preto puro",
     "theme_accent": "Verde-Água",
@@ -24,8 +26,8 @@
     "image_keep_ratio": true,
     "image_remove_background": false,
     "tab_order": [
-      "effects",
       "catalog",
+      "effects",
       "playlists",
       "queue",
       "downloads",
@@ -232,8 +234,22 @@
     },
     {
       "category": "Aparência",
+      "key": "theme_background",
+      "label": "Cor de fundo",
+      "kind": "color",
+      "choices": []
+    },
+    {
+      "category": "Aparência",
       "key": "pure_black_separators",
       "label": "Mostrar bordas e separações no Preto puro",
+      "kind": "bool",
+      "choices": []
+    },
+    {
+      "category": "Aparência",
+      "key": "album_player_background",
+      "label": "Usar a cor do álbum no fundo e no destaque",
       "kind": "bool",
       "choices": []
     },

@@ -255,7 +255,7 @@ fun OndaApp(vm: OndaViewModel) {
         surfaceContainerHigh = Color(0xFF101010), surfaceContainerHighest = Color(0xFF181818),
         surfaceVariant = Color(0xFF181818), outlineVariant = Color(0xFF303030)
     ) else baseScheme
-    val scheme = if (settings.optString("theme") ==
+    val themedScheme = if (settings.optString("theme") ==
         "Alto contraste"
     ) highContrastScheme() else if (pureBlack) pureBlackSurfaces(
         blackScheme,
@@ -269,7 +269,6 @@ fun OndaApp(vm: OndaViewModel) {
         iconActivity?.let { LauncherIcons.updateTaskIcon(it, settings, dark) }
     }
     val activityWindow = iconActivity?.window
-    SideEffect { activityWindow?.let { applyNavigationBarTheme(it, scheme.background, dark) } }
     val homeTab = "Pesquisar"
     var tab by rememberSaveable { mutableStateOf(homeTab) }
     var playbackReturnTab by rememberSaveable { mutableStateOf(homeTab) }
@@ -353,13 +352,32 @@ fun OndaApp(vm: OndaViewModel) {
             )
         }
     val keyboardVisible = rememberKeyboardVisible()
+    val playback by vm.jukebox.presentationState.collectAsStateWithLifecycle()
+    val currentQueueId by vm.jukebox.currentQueueId.collectAsStateWithLifecycle()
+    val playbackQueue by vm.jukebox.playbackQueue.collectAsStateWithLifecycle()
+    val restored = playbackQueue.firstOrNull { it.optString("_queue_id") == currentQueueId }
+    val source = playback.model?.cleanString("source")?.takeIf { it.isNotBlank() }
+        ?: restored?.cleanString("_local_source")?.takeIf { it.isNotBlank() }
+        ?: restored?.cleanString("source_url").orEmpty().ifBlank { effectsSource }
+    val artwork = rememberArtworkForSource(vm, source, restored)
+    val playbackAccent = rememberPlaybackBackgroundAccent(artwork, settings)
+    val animatedTint = rememberAnimatedPlaybackTint(playbackAccent)
+    val scheme = playbackTintedScheme(
+        themedScheme,
+        animatedTint,
+        highContrast = settings.optString("theme") == "Alto contraste",
+        followAlbumAccent = settings.optBoolean("album_player_background", true)
+    )
+    SideEffect { activityWindow?.let { applyNavigationBarTheme(it, scheme.background, dark) } }
     LocalizedTheme(
         language = settings.optString("language", "pt-BR"),
         colorScheme = scheme,
+        dialogColor = scheme.surfaceContainerHigh.takeIf { animatedTint.alpha > 0f },
         typography = typography,
         spacing = settings.optString("interface_spacing", "Padrão")
     ) {
         Scaffold(
+            containerColor = scheme.background,
             topBar = {
                 OndaAppBar(onAppearance = { showAppearance = true }, onSettings = {
                     vm.playbackQueueOpen.value = false

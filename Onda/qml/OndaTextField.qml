@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Window
 import QtQuick.Controls
 
 TextField {
@@ -10,10 +11,10 @@ TextField {
     bottomPadding: 8
     selectByMouse: true
     color: bridge.palette.text
-    placeholderTextColor: bridge.palette.muted
+    placeholderTextColor: Qt.tint(bridge.palette.muted, Qt.alpha(bridge.palette.text, .45 * (control.Window.window?.controlTintLevel ?? 0)))
     background: Rectangle {
         radius: 14
-        color: bridge.palette.input
+        color: Qt.alpha(bridge.palette.input, 1 - .36 * (control.Window.window?.controlTintLevel ?? 0))
         border.color: control.activeFocus ? bridge.palette.accent : bridge.palette.line
         border.width: control.activeFocus ? 2 : 1
     }

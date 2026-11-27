@@ -122,40 +122,47 @@ object OndaStore {
             }
         }
         normalizeAppearance(settings.value)
-        database.writableDatabase.rawQuery(
-            "SELECT id,config FROM queue WHERE state IN ('Baixando','Aguardando escolha')",
-            null
-        ).use { cursor ->
-            val recovered = mutableListOf<Pair<String, String>>()
-            while (cursor.moveToNext())recovered +=
-                cursor.getString(0) to JSONObject(cursor.getString(1)).put("_interrupted", true).toString()
-            recovered.forEach { (id, config) ->
-                database.writableDatabase.execSQL("UPDATE queue SET config=? WHERE id=?", arrayOf(config, id))
+        val db = database.writableDatabase
+        db.beginTransaction()
+        try {
+            db.rawQuery(
+                "SELECT id,config FROM queue WHERE state IN ('Baixando','Aguardando escolha')",
+                null
+            ).use { cursor ->
+                val recovered = mutableListOf<Pair<String, String>>()
+                while (cursor.moveToNext())recovered +=
+                    cursor.getString(0) to JSONObject(cursor.getString(1)).put("_interrupted", true).toString()
+                recovered.forEach { (id, config) ->
+                    db.execSQL("UPDATE queue SET config=? WHERE id=?", arrayOf(config, id))
+                }
             }
+            db.execSQL(
+                "UPDATE queue SET state='Pendente' WHERE state IN ('Baixando','Aguardando escolha')"
+            )
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS queue_order (id TEXT PRIMARY KEY, position INTEGER NOT NULL)"
+            )
+            db.execSQL("INSERT OR IGNORE INTO queue_order SELECT id,rowid FROM queue")
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS history_sources (history_id INTEGER PRIMARY KEY, source TEXT NOT NULL, mode TEXT NOT NULL)"
+            )
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS history_metadata_platform (history_id INTEGER PRIMARY KEY, platform TEXT NOT NULL)"
+            )
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS history_dates (history_id INTEGER PRIMARY KEY, completed_at INTEGER NOT NULL)"
+            )
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS history_source_index ON history_sources(source,mode)"
+            )
+            db.execSQL("UPDATE queue SET state='Erro' WHERE state='Duplicata'")
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
         }
-        database.writableDatabase.execSQL(
-            "UPDATE queue SET state='Pendente' WHERE state IN ('Baixando','Aguardando escolha')"
-        )
-        database.writableDatabase.execSQL(
-            "CREATE TABLE IF NOT EXISTS queue_order (id TEXT PRIMARY KEY, position INTEGER NOT NULL)"
-        )
-        database.writableDatabase.execSQL("INSERT OR IGNORE INTO queue_order SELECT id,rowid FROM queue")
-        database.writableDatabase.execSQL(
-            "CREATE TABLE IF NOT EXISTS history_sources (history_id INTEGER PRIMARY KEY, source TEXT NOT NULL, mode TEXT NOT NULL)"
-        )
-        database.writableDatabase.execSQL(
-            "CREATE TABLE IF NOT EXISTS history_metadata_platform (history_id INTEGER PRIMARY KEY, platform TEXT NOT NULL)"
-        )
-        database.writableDatabase.execSQL(
-            "CREATE TABLE IF NOT EXISTS history_dates (history_id INTEGER PRIMARY KEY, completed_at INTEGER NOT NULL)"
-        )
-        database.writableDatabase.execSQL(
-            "CREATE INDEX IF NOT EXISTS history_source_index ON history_sources(source,mode)"
-        )
-        database.writableDatabase.execSQL("UPDATE queue SET state='Erro' WHERE state='Duplicata'")
         refresh()
     }
-    fun defaults() = JSONObject().put("playback_card_size", "Padrão").put(
+    fun defaults() = JSONObject().put("album_player_background", true).put("playback_card_size", "Padrão").put(
         "wifi_only",
         false
     ).put(
@@ -316,6 +323,10 @@ object OndaStore {
             ""
         ).put("youtube_cookies_file", "").put("instagram_cookies_file", "").put("spotify_client_id", "")
     fun normalizeAppearance(value: JSONObject) {
+        val background = if (value.optBoolean("album_player_background", true)) {
+            ""
+        } else normalizeAccent(value.optString("theme_background")).orEmpty()
+        value.put("theme_background", background)
         value.put("playback_prepare_ahead", preparationAhead(value))
         value.put("jukebox_transition_seconds", value.optInt("jukebox_transition_seconds", 2).coerceIn(1, 10))
         if (value.optString("playback_tab_order") !in

@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Window
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Dialogs
@@ -6,6 +7,7 @@ import Onda 1.0
 
 OndaScrollView {
     id: page
+    property color adjustmentSurface: bridge.palette.surface
 
     property var scrollTopButton: ScrollToTop {
         target: page.contentItem
@@ -15,6 +17,22 @@ OndaScrollView {
     readonly property string trackCardSize: workspace.preferences.playback_card_size || "Padrão"
     readonly property int trackArtworkSize: trackCardSize === "Muito pequeno" ? (availableWidth < 600 ? 40 : 48) : trackCardSize === "Pequeno" ? (availableWidth < 600 ? 64 : 80) : trackCardSize === "Grande" ? (availableWidth < 600 ? 128 : 220) : (availableWidth < 600 ? 96 : 146)
     readonly property int trackColumns: availableWidth < (trackCardSize === "Grande" ? 1000 : 850) ? 2 : 3
+    readonly property bool canMarkStart: bridge.stateValue(bridge.stateRevision, "ready")
+    readonly property bool hasSectionStart: bridge.repeatSectionMarks.length > 0 && bridge.repeatSectionMarks[0] >= 0
+    readonly property bool canMarkEnd: bridge.stateValue(bridge.stateRevision, "ready")
+    readonly property bool hasSectionEnd: bridge.repeatSectionMarks.length > 0 && bridge.repeatSectionMarks[1] >= 0
+    function toggleSectionEnd() {
+        if (hasSectionEnd)
+            bridge.clearSectionEnd();
+        else
+            bridge.markSectionEnd();
+    }
+    function toggleSectionStart() {
+        if (hasSectionStart)
+            bridge.clearSectionStart();
+        else
+            bridge.markSectionStart();
+    }
     contentWidth: availableWidth
     clip: true
     OndaMenu {
@@ -39,6 +57,22 @@ OndaScrollView {
             onTriggered: workspace.invoke("lyrics_online", {
                 jukebox: true
             })
+        }
+        OndaMenuItem {
+            objectName: "markSectionStartMenuItem"
+            text: bridge.translate(page.hasSectionStart ? "Limpar início" : "Marcar início")
+            enabled: page.canMarkStart
+            onTriggered: page.toggleSectionStart()
+        }
+        OndaMenuItem {
+            objectName: "markSectionEndMenuItem"
+            text: bridge.translate(page.hasSectionEnd ? "Limpar fim" : "Marcar fim")
+            enabled: page.canMarkEnd
+            onTriggered: page.toggleSectionEnd()
+        }
+        OndaMenuItem {
+            text: bridge.translate("Ajustar tom")
+            onTriggered: pitchPopup.open()
         }
         OndaMenuItem {
             text: bridge.translate("Equalizador")
@@ -70,6 +104,52 @@ OndaScrollView {
             page.currentLine = String(frame.active);
         }
     }
+    Popup {
+        id: pitchPopup
+        objectName: "playbackPitchPopup"
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: Math.min(360, parent.width - 32)
+        modal: true
+        focus: true
+        padding: 16
+        background: Card { tintPopup: true }
+        contentItem: ColumnLayout {
+            RowLayout {
+                Layout.fillWidth: true
+                Label {
+                    Layout.fillWidth: true
+                    text: bridge.translate("Tom") + " · " + (toneControl.value > 0 ? "+" : "") + Math.round(toneControl.value) + " st"
+                    color: bridge.palette.text
+                }
+                ActionButton {
+                    text: bridge.translate("Restaurar tom")
+                    objectName: "unifiedPitchReset"
+                    enabled: toneControl.value !== 0
+                    onClicked: workspace.setOption("pitch_shift", 0)
+                }
+            }
+            OndaSlider {
+                id: toneControl
+                objectName: "unifiedPitchSlider"
+                Layout.fillWidth: true
+                from: -12
+                to: 12
+                stepSize: 1
+                value: workspace.optionValue(workspace.optionsRevision, "pitch_shift")
+                Accessible.name: bridge.translate("Tom")
+                onMoved: if (!pressed) workspace.setOption("pitch_shift", Math.round(value))
+                onPressedChanged: if (!pressed) workspace.setOption("pitch_shift", Math.round(value))
+            }
+            Label {
+                Layout.fillWidth: true
+                text: bridge.translate("Altera o tom sem mudar a velocidade.")
+                color: bridge.palette.muted
+                font.pixelSize: 12
+                wrapMode: Text.Wrap
+            }
+        }
+    }
     EqualizerPopup {
         id: equalizer
     }
@@ -94,11 +174,11 @@ OndaScrollView {
                 placeholderText: bridge.translate("Música, artista ou link de música, álbum ou playlist")
                 selectByMouse: true
                 color: bridge.palette.text
-                placeholderTextColor: bridge.palette.muted
+                placeholderTextColor: Qt.tint(bridge.palette.muted, Qt.alpha(bridge.palette.text, .45 * (query.Window.window?.controlTintLevel ?? 0)))
                 font.pixelSize: Math.round(14 * bridge.fontScale)
                 background: Rectangle {
                     radius: 8
-                    color: bridge.palette.surface
+                    color: Qt.alpha(bridge.palette.surface, 1 - .36 * (query.Window.window?.controlTintLevel ?? 0))
                     border.color: query.activeFocus ? bridge.palette.accent : bridge.palette.line
                     border.width: query.activeFocus ? 2 : 1
                 }
@@ -277,6 +357,7 @@ OndaScrollView {
         }
         Card {
             objectName: "playbackTrackCard"
+            color: page.adjustmentSurface
             Layout.fillWidth: true
             implicitHeight: trackLayout.implicitHeight + (page.trackCardSize === "Muito pequeno" ? 8 : 20)
             clip: true
@@ -393,12 +474,19 @@ OndaScrollView {
                 ToolTip.text: bridge.translate("Tamanho do card principal")
             }
         }
+        ActionButton {
+            readonly property int pitch: workspace.optionValue(workspace.optionsRevision, "pitch_shift")
+            visible: pitch !== 0
+            text: bridge.translate("Tom") + " " + (pitch > 0 ? "+" : "") + pitch + " st"
+            onClicked: pitchPopup.open()
+        }
         GridLayout {
             Layout.fillWidth: true
             columns: page.availableWidth >= 1100 ? 3 : page.availableWidth >= 700 ? 2 : 1
             columnSpacing: 16
             rowSpacing: 16
             UnifiedEffectsCard {
+                color: page.adjustmentSurface
                 visible: page.adjustmentsExpanded
                 Layout.fillWidth: true
                 Layout.fillHeight: true
@@ -406,6 +494,7 @@ OndaScrollView {
             }
             Card {
                 objectName: "playbackJukeboxCard"
+                color: page.adjustmentSurface
                 visible: page.adjustmentsExpanded
                 Layout.fillWidth: true
                 Layout.fillHeight: true
@@ -489,6 +578,7 @@ OndaScrollView {
                 }
             }
             UnifiedQueue {
+                color: page.adjustmentSurface
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 Layout.preferredWidth: 330

@@ -1,10 +1,12 @@
 import QtQuick
+import QtQuick.Window
 import QtQuick.Controls
 import QtQuick.Layouts
 
 Button {
     id: control
     property bool primary: false
+    property real secondaryTintStrength: .48
     property bool compact: false
     property string symbol: ""
     implicitHeight: Math.max(compact ? 28 : 34, Math.round((compact ? 32 : 42) * bridge.spacing))
@@ -25,7 +27,7 @@ Button {
     }
     background: Rectangle {
         radius: 8
-        color: control.primary ? (control.hovered ? bridge.palette.accent_hover : bridge.palette.accent) : (control.hovered ? bridge.palette.hover : bridge.palette.surface)
+        color: Qt.alpha(control.primary ? (control.hovered ? bridge.palette.accent_hover : bridge.palette.accent) : (control.hovered ? bridge.palette.hover : bridge.palette.surface), 1 - (control.primary ? .08 : control.secondaryTintStrength) * (control.Window.window?.controlTintLevel ?? 0))
         border.width: control.activeFocus ? 2 : 1
         border.color: control.activeFocus ? (control.primary ? bridge.palette.accent_text : bridge.palette.accent) : control.primary ? "transparent" : bridge.palette.line
         Behavior on color {

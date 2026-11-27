@@ -39,7 +39,11 @@ Canvas {
             c.stroke();
         }
         var g = glyph;
-        if (g === "mini") {
+        if (g === "section-start") {
+            path([16, 5, 8, 5, 8, 19, 16, 19]);
+        } else if (g === "section-end") {
+            path([8, 5, 16, 5, 16, 19, 8, 19]);
+        } else if (g === "mini") {
             c.strokeRect(3, 4, 18, 16);
             c.strokeRect(11, 11, 8, 7);
         } else if (g === "music") {

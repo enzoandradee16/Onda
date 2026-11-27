@@ -608,6 +608,8 @@ def jukebox_action(action, config):
             config.get('normal', False),
             config.get('equalizer'),
             effects=config.get('effects'),
+            repeat_range=config.get('repeat_range'),
+            repeat_cache=config.get('repeat_cache'),
         )
         if not getattr(_local, 'raw_pcm', False):
             part['pcm'] = base64.b64encode(part['pcm']).decode('ascii')

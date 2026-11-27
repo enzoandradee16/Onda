@@ -24,6 +24,8 @@ GROUPS = {
         'history_view': 'Exibição do histórico',
         'theme_mode': 'Modo claro, escuro ou sistema',
         'theme_accent': 'Cor de destaque',
+        'theme_background': 'Cor de fundo',
+        'album_player_background': 'Usar a cor do álbum no fundo',
         'interface_font': 'Fonte da interface',
         'interface_font_size': 'Alterar tamanho da fonte',
         'queue_view': 'Exibição da fila',

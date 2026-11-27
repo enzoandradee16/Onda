@@ -3,6 +3,7 @@ import QtQuick.Shapes
 
 Item {
     id: mark
+    property color ink: bridge.palette.accent
     implicitWidth: 76
     implicitHeight: 50
     Shape {
@@ -15,7 +16,7 @@ Item {
             yScale: mark.height / 64
         }
         ShapePath {
-            strokeColor: bridge.palette.accent
+            strokeColor: mark.ink
             strokeWidth: 4.5
             capStyle: ShapePath.RoundCap
             joinStyle: ShapePath.RoundJoin

@@ -34,7 +34,7 @@ Popup {
         hex.text = initialColor;
         readHex(initialColor);
     }
-    background: Card {}
+    background: Card { tintPopup: true }
     contentItem: ColumnLayout {
         spacing: 12
         Label {

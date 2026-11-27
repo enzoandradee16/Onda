@@ -17,6 +17,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.Canvas
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
@@ -217,7 +218,7 @@ import org.json.JSONObject
                                 actions = false
                                 if (remote.connected) RemotePlaybackRuntime.command(
                                     "queue_clear"
-                                ) else controller.clearPlaybackQueue()
+                                ) else controller.clearPlaybackQueue(keepCurrent = true)
                             }
                         )
                         DropdownMenuItem(text = { UiText("Fechar fila") }, onClick = {
@@ -267,7 +268,8 @@ import org.json.JSONObject
                         Surface(
                             shape = RoundedCornerShape(14.dp),
                             color = MaterialTheme.colorScheme.surfaceContainerLow,
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                            contentColor = MaterialTheme.colorScheme.onSurface,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = .24f)),
                             modifier = Modifier.fillMaxWidth().testTag("queue-current-card")
                         ) {
                             PlaybackQueueTrack(currentRow, vm, true, false, {
@@ -366,7 +368,7 @@ import org.json.JSONObject
                                             }
                                             if (actual >= 0) controller.playQueued(actual)
                                         }
-                                    }, Modifier.testTag("queue-track-" + record.optString("_queue_id")), onRemoved = {
+                                    }, Modifier.testTag("queue-track-" + record.optString("_queue_id")).padding(horizontal = 8.dp), onRemoved = {
                                         if (remote.connected) remoteUndo =
                                             true
                                     }) {
@@ -501,7 +503,13 @@ import org.json.JSONObject
                 UiText("Remover", color = MaterialTheme.colorScheme.onErrorContainer)
             }
         }
-    ) { Surface(color = MaterialTheme.colorScheme.background) { content() } }
+    ) {
+        Surface(
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
+            contentColor = MaterialTheme.colorScheme.onSurface,
+            shape = RoundedCornerShape(10.dp)
+        ) { content() }
+    }
 }
 
 @Composable private fun PlaybackQueueTab(
@@ -571,6 +579,9 @@ import org.json.JSONObject
         ?: model?.optDouble("duration")?.toLong()
         ?: 0L
     val colors = MaterialTheme.colorScheme
+    val rowSurface = colors.surfaceContainerLow
+    fun readable(ink: Color): Color = ink.takeIf { accentContrast(it, rowSurface) >= 4.5f } ?: colors.onSurface
+    val secondaryInk = readable(colors.onSurfaceVariant)
     Row(
         modifier.fillMaxWidth().clickable(enabled = !current, onClick = play).padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -596,14 +607,14 @@ import org.json.JSONObject
                 record.optString("title"),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
-                color = if (current) colors.primary else colors.onSurface,
+                color = if (current) readable(colors.primary) else colors.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
             Text(
                 artist,
                 style = MaterialTheme.typography.bodySmall,
-                color = colors.onSurfaceVariant,
+                color = secondaryInk,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -622,9 +633,9 @@ import org.json.JSONObject
                 style = MaterialTheme.typography.labelSmall,
                 color = if (preparation ==
                     "Erro"
-                ) colors.error else if (preparation ==
+                ) readable(colors.error) else if (preparation ==
                     "Pronta"
-                ) colors.primary else colors.onSurfaceVariant,
+                ) readable(colors.primary) else secondaryInk,
                 maxLines = 2
             )
             if (preparation == "Erro" &&
@@ -632,7 +643,7 @@ import org.json.JSONObject
             ) UiErrorText(
                 record.getString("_error"),
                 style = MaterialTheme.typography.bodySmall,
-                color = colors.error,
+                color = readable(colors.error),
                 maxLines = 2
             )
             if (preparation == "Erro" && !current && !recent &&
@@ -642,7 +653,7 @@ import org.json.JSONObject
         if (duration > 0) Text(
             mediaClock(duration),
             style = MaterialTheme.typography.labelSmall,
-            color = colors.onSurfaceVariant
+            color = secondaryInk
         )
         Box {
             IconButton(onClick = {
@@ -740,7 +751,9 @@ internal fun PlaybackQueueSheet(vm: OndaViewModel, close: () -> Unit) {
     ModalBottomSheet(
         onDismissRequest = close,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = MaterialTheme.colorScheme.surface
+        containerColor = MaterialTheme.colorScheme.surface,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        tonalElevation = 0.dp
     ) {
         Box(
             Modifier.fillMaxWidth().fillMaxHeight(.85f).navigationBarsPadding().testTag("expanded-player-queue-sheet")

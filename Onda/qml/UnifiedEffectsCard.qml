@@ -92,39 +92,6 @@ Card {
                 Accessible.name: bridge.translate("Efeitos")
             }
         }
-        RowLayout {
-            Layout.fillWidth: true
-            Label {
-                Layout.fillWidth: true
-                text: bridge.translate("Tom") + " · " + (toneControl.value > 0 ? "+" : "") + Math.round(toneControl.value) + " st"
-                color: bridge.palette.text
-            }
-            ActionButton {
-                text: bridge.translate("Restaurar tom")
-                objectName: "unifiedPitchReset"
-                enabled: toneControl.value !== 0
-                onClicked: workspace.setOption("pitch_shift", 0)
-            }
-        }
-        OndaSlider {
-            id: toneControl
-            objectName: "unifiedPitchSlider"
-            Layout.fillWidth: true
-            from: -12
-            to: 12
-            stepSize: 1
-            value: workspace.optionValue(workspace.optionsRevision, "pitch_shift")
-            Accessible.name: bridge.translate("Tom")
-            onMoved: if (!pressed) workspace.setOption("pitch_shift", Math.round(value))
-            onPressedChanged: if (!pressed) workspace.setOption("pitch_shift", Math.round(value))
-        }
-        Label {
-            Layout.fillWidth: true
-            text: bridge.translate("Altera o tom sem mudar a velocidade.")
-            color: bridge.palette.muted
-            font.pixelSize: 12
-            wrapMode: Text.Wrap
-        }
         Label {
             visible: !!bridge.stateValue(bridge.stateRevision, "effects_error")
             Layout.fillWidth: true

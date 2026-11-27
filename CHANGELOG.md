@@ -1,8 +1,10 @@
 # Histórico de versões
 
-## 1.3.1 — 2026-11-19
+## 1.3.1 — 2026-11-26
 
-- Versão de manutenção, mantendo os recursos da versão 1.3.0.
+- Repetição por trecho com marcadores arrastáveis e integração com o Jukebox.
+- Cores de fundo e destaque baseadas na capa, com transições e contraste ajustado.
+- Ajustes de navegação, fila e controles de reprodução no Windows e no Android.
 - Windows 1.3.1.0; Android 1.3.1, código 39.
 
 ## 1.3.0 — 2026-11-16

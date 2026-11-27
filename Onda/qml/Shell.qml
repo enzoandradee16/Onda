@@ -14,8 +14,82 @@ Pane {
     width: 1360; height: 900
     readonly property var inlineTasks: ({downloads:["image_gallery_manifest"],queue:["image_gallery_manifest"],catalog:["search"],playlists:["collection","compare_collection","check_matches"],converter:["convert","detect_silence"],effects:["effects_export","effects_search","effects_load","effects_queue_info","effects_collection"],images:["image_preview","image_export","image_gallery_manifest"],metadata:["audio_edit","audio_identify","normalize_preview"]})[workspace.currentPage] || []
     readonly property var remainingTasks: workspace.activityValue(workspace.statusRevision,"busy").filter(function(name) { return app.inlineTasks.indexOf(name)<0 && workspace.activityValue(workspace.statusRevision,"background").indexOf(name)<0 })
+    readonly property list<Item> popupTintLayers: [firstLayer, secondLayer]
+    readonly property real controlTintLevel: Math.min(1, firstLayer.opacity + secondLayer.opacity)
+    component TransportButton: PlaybackButton { secondaryTintStrength: .72 }
     padding: 0
-    background: Rectangle { color: bridge.palette.bg }
+    background: Rectangle {
+        color: bridge.palette.bg
+        Item {
+            id: albumBackground
+            objectName: "albumPageBackground"
+            anchors.fill: parent
+            readonly property color baseColor: bridge.palette.bg
+            readonly property bool dark: .2126 * baseColor.r + .7152 * baseColor.g + .0722 * baseColor.b < .5
+            readonly property string artwork: bridge.currentMetadata.cover_url || bridge.stateValue(bridge.stateRevision, "cover") || ""
+            readonly property string requestedSource: {
+                if (workspace.preferences.album_player_background) {
+                    const mode = dark ? "album-dark" : "album-light"
+                    return artwork ? workspace.backdropUrl(artwork).replace("image://backdrop/", "image://backdrop/" + mode + "/") : ""
+                }
+                const hex = workspace.preferences.theme_background
+                if (!hex || bridge.palette.mode === "Alto contraste")
+                    return ""
+                return "image://backdrop/" + (dark ? "color-dark/" : "color-light/") + hex.slice(1)
+            }
+            property Image currentLayer: null
+            readonly property bool tinted: firstLayer.opacity > 0 || secondLayer.opacity > 0
+
+            function loadArtwork() {
+                if (!workspace.preferences.album_player_background || !requestedSource)
+                    bridge.setAlbumAccentSource("")
+                if (!requestedSource) {
+                    currentLayer = null
+                    return
+                }
+                if (currentLayer && currentLayer.source.toString() === requestedSource)
+                    return
+                let incoming = currentLayer === firstLayer ? secondLayer : firstLayer
+                incoming.source = requestedSource
+                activate(incoming)
+            }
+
+            function activate(layer) {
+                if (layer.source.toString() !== requestedSource || layer === currentLayer)
+                    return
+                if (layer.status === Image.Error) {
+                    bridge.setAlbumAccentSource("")
+                    currentLayer = null
+                } else if (layer.status === Image.Ready) {
+                    layer.z = 1
+                    if (currentLayer)
+                        currentLayer.z = 0
+                    currentLayer = layer
+                    if (workspace.preferences.album_player_background)
+                        bridge.setAlbumAccentSource(layer.source.toString())
+                }
+            }
+
+            onRequestedSourceChanged: loadArtwork()
+            Component.onCompleted: loadArtwork()
+
+            component AlbumLayer: Image {
+                anchors.fill: parent
+                asynchronous: true
+                opacity: albumBackground.currentLayer === this ? 1 : 0
+                onStatusChanged: albumBackground.activate(this)
+                Behavior on opacity {
+                    NumberAnimation { duration: bridge.animations ? 700 : 0; easing.type: Easing.InOutCubic }
+                }
+            }
+            AlbumLayer { id: firstLayer }
+            AlbumLayer { id: secondLayer }
+        }
+    }
+    readonly property color playbackSurface: albumBackground.tinted
+        ? Qt.alpha(bridge.palette.surface, .32) : bridge.palette.surface
+    readonly property color adjustmentSurface: albumBackground.tinted
+        ? Qt.alpha(bridge.palette.surface, .42) : bridge.palette.surface
     font.family: bridge.interfaceFamily; font.pixelSize: Math.round(14*bridge.fontScale)
     palette.window: bridge.palette.bg
     palette.windowText: bridge.palette.text
@@ -34,7 +108,14 @@ Pane {
         opacity: 0
         Component.onCompleted: opacity=1
         Behavior on opacity { NumberAnimation { duration: bridge.animations ? 220 : 0; easing.type: Easing.OutCubic } }
-        Sidebar { id: sidebar; resizing: resizeMouse.pressed; resizeWidth: resizeMouse.draftWidth; onSettingsRequested: workspace.showSettings() }
+        Sidebar {
+            id: sidebar
+            albumTinted: albumBackground.tinted
+            color: albumTinted ? "transparent" : bridge.palette.bg
+            resizing: resizeMouse.pressed
+            resizeWidth: resizeMouse.draftWidth
+            onSettingsRequested: workspace.showSettings()
+        }
         Rectangle {
             Layout.preferredWidth: 6; Layout.fillHeight: true; color: resizeMouse.containsMouse ? bridge.palette.accent : bridge.palette.line
             MouseArea { id: resizeMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.SplitHCursor; property real initialX; property real initialWidth; property real draftWidth: 220
@@ -78,9 +159,21 @@ Pane {
                 }
             }
             WorkspaceView { objectName: "workspaceArea"; visible: workspace.currentPage !== "jukebox"; Layout.fillWidth: true; Layout.fillHeight: true; Layout.leftMargin: 24; Layout.rightMargin: 24; Layout.bottomMargin: 16 }
-            JukeboxView { id: jukebox; visible: workspace.currentPage === "jukebox"; Layout.fillWidth: true; Layout.fillHeight: true; Layout.leftMargin: 24; Layout.rightMargin: 24 }
+            Loader {
+                visible: workspace.currentPage === "jukebox"
+                active: opened
+                property bool opened: false
+                onVisibleChanged: if (visible) opened = true
+                Component.onCompleted: if (visible) opened = true
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                Layout.leftMargin: 24
+                Layout.rightMargin: 24
+                sourceComponent: JukeboxView { adjustmentSurface: app.adjustmentSurface }
+            }
             Card {
                 objectName: "jukeboxMiniPlayer"
+                color: app.playbackSurface
                 visible: workspace.currentPage !== "jukebox" && bridge.stateValue(bridge.stateRevision,"playing")
                 Layout.fillWidth: true; Layout.leftMargin: 24; Layout.rightMargin: 24; Layout.bottomMargin: 20
                 implicitHeight: width<1000 ? 180 : 76
@@ -103,13 +196,13 @@ Pane {
                         Label { Layout.fillWidth: true; text: bridge.stateValue(bridge.stateRevision,"title"); color: bridge.palette.text; elide: Text.ElideRight; font.bold: true }
                         Label { Layout.fillWidth: true; text: [bridge.stateValue(bridge.stateRevision,"artist"),bridge.stateValue(bridge.stateRevision,"album")].filter(Boolean).join(" · "); color: bridge.palette.muted; elide: Text.ElideRight }
                     }
-                    PlaybackButton {
+                    TransportButton {
                         glyph: bridge.stateValue(bridge.stateRevision,"paused") ? "play" : "pause"
                         Accessible.name: bridge.translate(bridge.stateValue(bridge.stateRevision,"paused") ? "Retomar" : "Pausar")
                         onClicked: bridge.playPause()
                     }
-                    PlaybackButton { glyph: "next"; Accessible.name: bridge.translate("Próxima música"); ToolTip.visible: hovered; ToolTip.text: Accessible.name; enabled: bridge.queueCount>0 && (bridge.queueRepeat==="Todas" || bridge.playbackControls.current+1<bridge.queueCount); onClicked: bridge.nextTrack() }
-                    PlaybackButton { glyph: "stop"; Accessible.name: bridge.translate("Parar"); ToolTip.visible: hovered; ToolTip.text: Accessible.name; onClicked: bridge.stop() }
+                    TransportButton { glyph: "next"; Accessible.name: bridge.translate("Próxima música"); ToolTip.visible: hovered; ToolTip.text: Accessible.name; enabled: bridge.queueCount>0 && (bridge.queueRepeat==="Todas" || bridge.playbackControls.current+1<bridge.queueCount); onClicked: bridge.nextTrack() }
+                    TransportButton { glyph: "stop"; Accessible.name: bridge.translate("Parar"); ToolTip.visible: hovered; ToolTip.text: Accessible.name; onClicked: bridge.stop() }
                     ActionButton {
                         implicitWidth: 44; Accessible.name: bridge.translate("Equalizador")
                         ToolTip.visible: hovered; ToolTip.text: Accessible.name
@@ -133,16 +226,16 @@ Pane {
                     }
                     MicrophoneButton { onClicked: { if (lyricsWindow.visible) lyricsWindow.close(); else lyricsWindow.open() } }
                     TimerButton { onClicked: miniTimers.open() }
-                    PlaybackButton { glyph: "mini"; Accessible.name: bridge.translate("Mini player"); ToolTip.visible: hovered; ToolTip.text: Accessible.name; onClicked: {floatingPlayer.openPlayer()} }
-                    PlaybackButton { glyph: "queue"; Accessible.name: bridge.translate("Fila"); ToolTip.visible: hovered; ToolTip.text: Accessible.name; onClicked: {workspace.setOption("jukeboxQueueOpen",true)} }
-                    PlaybackButton {objectName:"compactPlaybackDevicesButton";glyph:"devices";primary:remoteControl.state.connected;Accessible.name:bridge.translate("Dispositivos");ToolTip.visible:hovered;ToolTip.text:Accessible.name;property bool devicesOpenOnPress:false;onPressed:devicesOpenOnPress=devicesPopup.visible || Date.now()-devicesPopup.closedAt<100;onClicked:{if(devicesOpenOnPress||devicesPopup.visible)devicesPopup.close();else devicesPopup.open();devicesOpenOnPress=false}}
+                    TransportButton { glyph: "mini"; Accessible.name: bridge.translate("Mini player"); ToolTip.visible: hovered; ToolTip.text: Accessible.name; onClicked: {floatingPlayer.openPlayer()} }
+                    TransportButton { glyph: "queue"; Accessible.name: bridge.translate("Fila"); ToolTip.visible: hovered; ToolTip.text: Accessible.name; onClicked: {workspace.setOption("jukeboxQueueOpen",true)} }
+                    TransportButton {objectName:"compactPlaybackDevicesButton";glyph:"devices";primary:remoteControl.state.connected;Accessible.name:bridge.translate("Dispositivos");ToolTip.visible:hovered;ToolTip.text:Accessible.name;property bool devicesOpenOnPress:false;onPressed:devicesOpenOnPress=devicesPopup.visible || Date.now()-devicesPopup.closedAt<100;onClicked:{if(devicesOpenOnPress||devicesPopup.visible)devicesPopup.close();else devicesPopup.open();devicesOpenOnPress=false}}
                 }
             }
             Rectangle {
                 id: sharedPlaybackBar
                 readonly property bool compact:width<1100
                 objectName: "jukeboxPlaybackBar"
-                visible: workspace.currentPage === "jukebox"; Layout.fillWidth: true; implicitHeight: sharedPlaybackBar.compact ? 214 : 118; color: bridge.palette.surface
+                visible: workspace.currentPage === "jukebox"; Layout.fillWidth: true; implicitHeight: sharedPlaybackBar.compact ? 214 : 118; color: app.playbackSurface
                 Rectangle { anchors.top: parent.top; width: parent.width; height: 1; color: bridge.palette.line }
                 Item {
                     objectName: "jukeboxPlaybackControls"
@@ -162,39 +255,75 @@ Pane {
                         id: jukeboxTransport
                         objectName: "jukeboxPlaybackControlsTransport"
                         anchors.horizontalCenter: parent.horizontalCenter; anchors.horizontalCenterOffset:sharedPlaybackBar.compact ? 0 : -Math.max(0,jukeboxTransport.width/2+playbackExtras.width+36-parent.width/2); y: sharedPlaybackBar.compact ? 64 : (parent.height-height)/2; spacing: Math.round(12*bridge.spacing)
-                    PlaybackButton {objectName:"playbackEqualizerButton";implicitWidth:44;glyph:"equalizer";Accessible.name:bridge.translate("Equalizador");ToolTip.visible:hovered;ToolTip.text:Accessible.name;onClicked:miniEqualizer.open()}
-                    TimerButton {implicitWidth:44;onClicked:miniTimers.open()}
-                    PlaybackButton {implicitWidth:44;glyph:"shuffle";primary:bridge.queueShuffle;Accessible.name:bridge.translate("Reprodução aleatória");onClicked:bridge.setQueueShuffle(!bridge.queueShuffle)}
-                    PlaybackButton {implicitWidth:44; glyph: "previous"; Accessible.name: bridge.translate("Retroceder"); enabled: bridge.stateValue(bridge.stateRevision,"ready"); onClicked: bridge.previousTrack() }
-                    PlaybackButton {implicitWidth:44;
+                    TransportButton {objectName:"playbackEqualizerButton";implicitWidth:44;glyph:"equalizer";Accessible.name:bridge.translate("Equalizador");ToolTip.visible:hovered;ToolTip.text:Accessible.name;onClicked:miniEqualizer.open()}
+                    TimerButton {secondaryTintStrength:.72;implicitWidth:44;onClicked:miniTimers.open()}
+                    TransportButton {implicitWidth:44;glyph:"shuffle";primary:bridge.queueShuffle;Accessible.name:bridge.translate("Reprodução aleatória");onClicked:bridge.setQueueShuffle(!bridge.queueShuffle)}
+                    TransportButton {implicitWidth:44; glyph: "previous"; Accessible.name: bridge.translate("Retroceder"); enabled: bridge.stateValue(bridge.stateRevision,"ready"); onClicked: bridge.previousTrack() }
+                    TransportButton {implicitWidth:44;
                         primary: true
                         glyph: bridge.stateValue(bridge.stateRevision,"playing") && !bridge.stateValue(bridge.stateRevision,"paused") ? "pause" : "play"
                         Accessible.name: bridge.translate(bridge.stateValue(bridge.stateRevision,"playing") ? (bridge.stateValue(bridge.stateRevision,"paused") ? "Retomar" : "Pausar") : "Reproduzir")
                         enabled: (bridge.stateValue(bridge.stateRevision,"ready") || bridge.queueCount>0) && (!bridge.stateValue(bridge.stateRevision,"busy") || bridge.stateValue(bridge.stateRevision,"playing"))
                         onClicked: bridge.playPause()
                     }
-                    PlaybackButton {implicitWidth:44; glyph: "next"; Accessible.name: bridge.translate("Avançar"); enabled: bridge.queueCount>0 && (bridge.queueRepeat==="Todas" || bridge.playbackControls.current+1<bridge.queueCount); onClicked: bridge.nextTrack() }
-                    PlaybackButton {objectName:"playbackRepeatButton";implicitWidth:44;glyph:bridge.queueRepeat==="Uma"?"repeat-one":"repeat";primary:bridge.queueRepeat!=="Desativada";Accessible.name:bridge.translate("Repetição")+": "+bridge.translate(bridge.queueRepeat);ToolTip.visible:hovered;ToolTip.text:Accessible.name;onClicked:bridge.setQueueRepeat(bridge.queueRepeat==="Desativada"?"Todas":bridge.queueRepeat==="Todas"?"Uma":"Desativada")}
+                    TransportButton {implicitWidth:44; glyph: "next"; Accessible.name: bridge.translate("Avançar"); enabled: bridge.queueCount>0 && (bridge.queueRepeat==="Todas" || bridge.playbackControls.current+1<bridge.queueCount); onClicked: bridge.nextTrack() }
+                    TransportButton {objectName:"playbackRepeatButton";implicitWidth:44;glyph:bridge.queueRepeat==="Uma"?"repeat-one":"repeat";primary:bridge.queueRepeat!=="Desativada";Accessible.name:bridge.translate("Repetição")+": "+bridge.translate(bridge.queueRepeat);ToolTip.visible:hovered;ToolTip.text:Accessible.name;onClicked:bridge.setQueueRepeat(bridge.queueRepeat==="Desativada"?"Todas":bridge.queueRepeat==="Todas"?"Uma":"Desativada")}
                     }
                     RowLayout {
                         id:playbackExtras;objectName:"unifiedPlaybackExtras"
                         anchors.right: parent.right; anchors.rightMargin: 24; y: sharedPlaybackBar.compact ? 116 : (parent.height-height)/2
-                        width: sharedPlaybackBar.compact ? Math.min(parent.width-48,520) : Math.max(220,parent.width/2-jukeboxTransport.width/2-48); spacing: Math.round(6*bridge.spacing)
-                    MicrophoneButton {implicitWidth:44;onClicked:{if(lyricsWindow.visible)lyricsWindow.close();else lyricsWindow.open()}}
-                    PlaybackButton {implicitWidth:44;glyph:"queue";Accessible.name:bridge.translate("Fila");onClicked:{workspace.setOption("jukeboxQueueOpen",true)}}
-                    PlaybackButton {objectName:"playbackDevicesButton";implicitWidth:44;glyph:"devices";primary:remoteControl.state.connected;Accessible.name:bridge.translate("Dispositivos");ToolTip.visible:hovered;ToolTip.text:Accessible.name;property bool devicesOpenOnPress:false;onPressed:devicesOpenOnPress=devicesPopup.visible || Date.now()-devicesPopup.closedAt<100;onClicked:{if(devicesOpenOnPress||devicesPopup.visible)devicesPopup.close();else devicesPopup.open();devicesOpenOnPress=false}}
-                    PlaybackButton {implicitWidth:44; glyph: "mini"; Accessible.name: bridge.translate("Mini player"); ToolTip.visible: hovered; ToolTip.text: Accessible.name; onClicked: {floatingPlayer.openPlayer()} }
-                    PlaybackButton {glyph:"volume";implicitWidth:36;Accessible.name:bridge.translate("Volume");onClicked:compactVolume.open()}
+                        width: sharedPlaybackBar.compact ? Math.min(parent.width-48,520) : Math.max(382,parent.width/2-jukeboxTransport.width/2-48); spacing: Math.round(6*bridge.spacing)
+                    MicrophoneButton {secondaryTintStrength:.72;objectName:"playbackLyricsButton";implicitWidth:44;onClicked:{if(lyricsWindow.visible)lyricsWindow.close();else lyricsWindow.open()}}
+                    TransportButton {implicitWidth:44;glyph:"queue";Accessible.name:bridge.translate("Fila");onClicked:{workspace.setOption("jukeboxQueueOpen",true)}}
+                    TransportButton {objectName:"playbackDevicesButton";implicitWidth:44;glyph:"devices";primary:remoteControl.state.connected;Accessible.name:bridge.translate("Dispositivos");ToolTip.visible:hovered;ToolTip.text:Accessible.name;property bool devicesOpenOnPress:false;onPressed:devicesOpenOnPress=devicesPopup.visible || Date.now()-devicesPopup.closedAt<100;onClicked:{if(devicesOpenOnPress||devicesPopup.visible)devicesPopup.close();else devicesPopup.open();devicesOpenOnPress=false}}
+                    TransportButton {implicitWidth:44; glyph: "mini"; Accessible.name: bridge.translate("Mini player"); ToolTip.visible: hovered; ToolTip.text: Accessible.name; onClicked: {floatingPlayer.openPlayer()} }
+                    TransportButton {glyph:"volume";implicitWidth:36;Accessible.name:bridge.translate("Volume");onClicked:compactVolume.open()}
                     OndaSlider { id: volume;  Layout.fillWidth: true; Layout.preferredWidth: 150; Layout.maximumWidth: 200; Layout.minimumWidth: 50; value: bridge.playbackParams.volume; Accessible.name: bridge.translate("Volume");onMoved:bridge.setParams(bridge.playbackParams.variation,bridge.playbackParams.smooth,value,bridge.playbackParams.normal) }
                     Item {Layout.fillWidth:true;Layout.minimumWidth:0;Layout.preferredWidth:0}
+                    RowLayout {
+                        id: sectionActions
+                        spacing: 4
+                        enabled: bridge.stateValue(bridge.stateRevision, "ready") && bridge.sourceDuration > 0
+                        readonly property var marks: bridge.repeatSectionMarks
+                        Repeater {
+                            model: ["section-start", "section-end", "close"]
+                            delegate: TransportButton {
+                                required property int index
+                                required property string modelData
+                                implicitWidth: 36
+                                glyph: modelData
+                                readonly property bool marked: (sectionActions.marks[index] ?? -1) >= 0
+                                primary: marked
+                                enabled: index < 2 || sectionActions.marks.length > 0
+                                Accessible.name: bridge.translate(index === 0 ? (marked ? "Limpar início" : "Marcar início") : index === 1 ? (marked ? "Limpar fim" : "Marcar fim") : "Limpar trecho")
+                                ToolTip.visible: hovered
+                                ToolTip.text: Accessible.name
+                                onClicked: {
+                                    if (index === 0) {
+                                        if (marked) bridge.clearSectionStart();
+                                        else bridge.markSectionStart();
+                                    } else if (index === 1) {
+                                        if (marked) bridge.clearSectionEnd();
+                                        else bridge.markSectionEnd();
+                                    } else {
+                                        bridge.clearSection();
+                                    }
+                                }
+                            }
+                        }
+                    }
                     }
                 }
                 RowLayout {
+                    id: timelineRow
                     anchors.left:parent.left;anchors.right:parent.right;anchors.bottom:parent.bottom;anchors.leftMargin:24;anchors.rightMargin:24;anchors.bottomMargin:10;height:28;spacing:12
                     Label {text:workspace.clock(playbackTimeline.pressed?playbackTimeline.previewPosition:bridge.sourcePosition);color:bridge.palette.muted}
                     OndaSlider {
                         id:playbackTimeline;objectName:"playbackTimeline";property real previewPosition:0;bufferedValue:bridge.sourceBufferedEnd
                         Layout.fillWidth:true;from:0;to:Math.max(1,bridge.sourceDuration)
+                        markedRange: bridge.repeatSection
+                        markedPoints: bridge.repeatSectionMarks
+                        onMarkedPointMoved: function (index, value) { bridge.moveSectionPoint(index, value); }
                         enabled:bridge.stateValue(bridge.stateRevision,"ready");Accessible.name:bridge.translate("Posição na música")
                         Binding {target:playbackTimeline;property:"value";value:bridge.sourcePosition;when:!playbackTimeline.pressed;restoreMode:Binding.RestoreNone}
                         onMoved:{previewPosition=value;if(!pressed)bridge.seekSeconds(value)}
@@ -213,7 +342,7 @@ Pane {
     }
     Popup {
         id:compactVolume;parent:Overlay.overlay;anchors.centerIn:parent;padding:20;focus:true
-        background:Card {}
+        background: Card { tintPopup: true }
         contentItem:RowLayout {
             Label {text:bridge.translate("Volume");color:bridge.palette.text}
             OndaSlider {implicitWidth:240;value:bridge.playbackParams.volume;Accessible.name:bridge.translate("Volume");onMoved:bridge.setParams(bridge.playbackParams.variation,bridge.playbackParams.smooth,value,bridge.playbackParams.normal)}
@@ -226,7 +355,7 @@ Pane {
         objectName: "appearancePopup"
         parent: Overlay.overlay; anchors.centerIn: parent
         width: 390; padding: 24; modal: true; focus: true
-        background: Card { }
+        background: Card { tintPopup: true }
         enter: Transition { NumberAnimation { property: "opacity"; from: 0; to: 1; duration: bridge.animations ? 160 : 0 } }
         contentItem: ColumnLayout {
             spacing: Math.round(14*bridge.spacing)
@@ -253,7 +382,7 @@ Pane {
         property string heading: ""; property string body: ""
         TextMetrics { id: messageMeasure; font: messageText.font; text: messagePopup.body }
         TextMetrics { id: headingMeasure; font: messageHeading.font; text: messagePopup.heading }
-        background: Card {}
+        background: Card { tintPopup: true }
         contentItem: ColumnLayout { spacing: 12
             Label { id: messageHeading; wrapMode: Text.Wrap; text: messagePopup.heading; font.pixelSize: Math.round(22*bridge.fontScale); color: bridge.palette.text; Layout.fillWidth: true }
             OndaScrollView { Layout.fillWidth: true; Layout.fillHeight: true; contentWidth: availableWidth; clip: true; TextArea { id: messageText; width: parent.availableWidth; padding: 0; textFormat: Text.PlainText; text: bridge.translate(messagePopup.body); readOnly: true; wrapMode: Text.Wrap; selectByMouse: true; color: bridge.palette.text } }
@@ -271,7 +400,7 @@ Pane {
         x:Math.max(12,(parent.width-width)/2);y:Math.max(12,parent.height-height-140)
         width:Math.min(400,parent.width-24);padding:14;modal:false;closePolicy:Popup.NoAutoClose
         visible:bridge.canUndoQueueRemoval
-        background:Card {}
+        background: Card { tintPopup: true }
         contentItem:RowLayout {
             Label {text:bridge.translate("Música removida da fila");color:bridge.palette.text;Layout.fillWidth:true;wrapMode:Text.Wrap}
             ActionButton {text:bridge.translate("Desfazer");onClicked:bridge.undoQueueRemoval()}

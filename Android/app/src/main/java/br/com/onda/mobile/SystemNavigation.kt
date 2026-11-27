@@ -4,6 +4,9 @@ import android.os.Build
 import android.view.Window
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.window.DialogWindowProvider
 import androidx.core.view.WindowCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -37,6 +40,26 @@ import androidx.activity.compose.LocalActivity
         onDispose { decor.viewTreeObserver.removeOnGlobalLayoutListener(listener) }
     }
     return visible
+}
+
+@Composable
+@Suppress("DEPRECATION")
+internal fun ApplyPlayerSystemBars(top: Color, bottom: Color) {
+    val window = (LocalView.current.parent as? DialogWindowProvider)?.window ?: return
+    SideEffect {
+        window.statusBarColor = android.graphics.Color.TRANSPARENT
+        window.navigationBarColor = android.graphics.Color.TRANSPARENT
+        if (Build.VERSION.SDK_INT >= 28) window.navigationBarDividerColor = android.graphics.Color.TRANSPARENT
+        if (Build.VERSION.SDK_INT >= 29) {
+            window.isStatusBarContrastEnforced = false
+            window.isNavigationBarContrastEnforced = false
+        }
+        val controller = WindowCompat.getInsetsController(window, window.decorView)
+        controller.isAppearanceLightStatusBars = top.luminance() > .179f
+        // Android 6 cannot draw dark navigation icons over a light background.
+        if (Build.VERSION.SDK_INT >= 26) controller.isAppearanceLightNavigationBars = bottom.luminance() > .179f
+        else if (bottom.luminance() > .179f) window.navigationBarColor = android.graphics.Color.BLACK
+    }
 }
 
 @Suppress("DEPRECATION")

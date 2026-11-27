@@ -10,6 +10,7 @@ Popup {
     width: Math.min(740, parent.width - 48)
     height: Math.min(520, parent.height - 70)
     modal: false
+    closePolicy: Popup.CloseOnEscape
     focus: true
     padding: 24
     property var frame: ({
@@ -20,7 +21,7 @@ Popup {
         })
     property var lyricLines: []
     property int lyricRevision: -1
-    background: Card {}
+    background: Card { tintPopup: true }
     Timer {
         interval: 80
         running: popup.opened

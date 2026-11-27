@@ -39,8 +39,10 @@ class _Buffered:
             self.offset = 0
             if self.start_phase:
                 frames = len(self.part['pcm']) // 4
+                lower, upper = self.part.get('clip_phase', (0.0, 1.0))
+                phase = max(0.0, (self.start_phase - lower) / max(1e-9, upper - lower))
                 self.offset = (
-                    min(max(0, frames - 1), round(frames * self.start_phase)) * 4
+                    min(max(0, frames - 1), round(frames * phase)) * 4
                 )
                 self.start_phase = 0.0
         return (len(self.part['pcm']) - self.offset) // 4
@@ -51,10 +53,12 @@ class _Buffered:
         start = self.offset // 4
         part['pcm'] = part['pcm'][self.offset : self.offset + frames * 4]
         self.offset += frames * 4
+        lower, upper = part.get('clip_phase', (0.0, 1.0))
+        span = upper - lower
         part.update(
             seconds=frames / RATE,
-            phase_start=start / max(1, total),
-            phase_end=(start + frames) / max(1, total),
+            phase_start=lower + span * start / max(1, total),
+            phase_end=lower + span * (start + frames) / max(1, total),
             edge_completed=start + frames == total,
             beat_seconds=total / RATE,
         )
@@ -115,7 +119,11 @@ class Stream:
         self.current.start_phase = max(0.0, min(0.999999, float(phase)))
         return True
 
-    def chunk(self, *args, **kwargs):
+    def chunk(self, *args, repeat_cache=None, **kwargs):
+        if repeat_cache is not None and (
+            self.incoming is not None or self.current.cache != str(repeat_cache)
+        ):
+            kwargs = dict(kwargs, repeat_range=None)
         count = self.current.fill(args, kwargs)
         if self.incoming is not None:
             count = min(

@@ -570,12 +570,15 @@ ColumnLayout {
         readonly property string selectionModel: page.history ? "history" : page.catalog ? "catalog" : "playlists"
         property int selectionRevision: 0
         readonly property int selectedCount: workspace.checkedMusicCount(selectionRevision, selectionModel)
+        function updateSelectionCount() {
+            selectionRevision++;
+        }
         Connections {
             target: page.history ? workspace.historyModel : page.catalog ? workspace.catalogModel : workspace.collectionFilterModel
-            function onDataChanged() { batchActions.selectionRevision++; }
-            function onModelReset() { batchActions.selectionRevision++; }
-            function onRowsInserted() { batchActions.selectionRevision++; }
-            function onRowsRemoved() { batchActions.selectionRevision++; }
+            function onDataChanged() { Qt.callLater(batchActions.updateSelectionCount); }
+            function onModelReset() { Qt.callLater(batchActions.updateSelectionCount); }
+            function onRowsInserted() { Qt.callLater(batchActions.updateSelectionCount); }
+            function onRowsRemoved() { Qt.callLater(batchActions.updateSelectionCount); }
         }
         visible: !page.spotifyBrowsing && selectedCount > 0
         Layout.fillWidth: true

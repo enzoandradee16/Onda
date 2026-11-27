@@ -14,7 +14,7 @@ Popup {
     focus: true
     onOpened: workspace.suspendShortcuts(true)
     onClosed: workspace.suspendShortcuts(false)
-    background: Card {}
+    background: Card { tintPopup: true }
     contentItem: ColumnLayout {
         RowLayout {
             Layout.fillWidth: true

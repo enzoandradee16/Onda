@@ -14,9 +14,9 @@ class TabPreferenceTests(unittest.TestCase):
             [
                 'effects',
                 'catalog',
+                'playlists',
                 'downloads',
                 'queue',
-                'playlists',
                 'history',
                 'images',
                 'converter',

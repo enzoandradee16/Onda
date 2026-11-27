@@ -6,6 +6,7 @@ ColumnLayout {
     id: root
     objectName: "settingField_" + field.key
     required property var field
+    property color secondaryText: bridge.palette.muted
     property bool settings: false
     property bool showCategory: false
     signal categoryRequested(string category)
@@ -58,7 +59,7 @@ ColumnLayout {
     Label {
         visible: root.field.kind !== "bool"
         text: bridge.translate(root.field.label)
-        color: bridge.palette.muted
+        color: root.secondaryText
         wrapMode: Text.Wrap
         Layout.fillWidth: true
         Layout.minimumWidth: 0
@@ -113,11 +114,43 @@ ColumnLayout {
         visible: active
         Layout.fillWidth: true
         sourceComponent: Component {
-            AccentSelector {
-                value: String(root.current || "Verde-Água")
-                onSelected: function (color) {
-                    root.save(color);
+            ColumnLayout {
+                AccentSelector {
+                    Layout.fillWidth: true
+                    enabled: !workspace.preferences.album_player_background
+                    value: String(root.current || "Verde-Água")
+                    onSelected: function (color) { root.save(color) }
                 }
+                Label {
+                    visible: workspace.preferences.album_player_background
+                    text: bridge.translate("O destaque acompanha a cor do álbum.")
+                    color: root.secondaryText
+                    Layout.fillWidth: true
+                    wrapMode: Text.Wrap
+                }
+            }
+        }
+    }
+    Loader {
+        active: root.field.key === "theme_background"
+        visible: active
+        Layout.fillWidth: true
+        sourceComponent: RowLayout {
+            ActionButton {
+                text: bridge.translate("Escolher cor") + (root.current ? " · " + root.current : "")
+                onClicked: backgroundPicker.open()
+            }
+            ActionButton {
+                visible: !!root.current
+                text: bridge.translate("Restaurar padrão")
+                onClicked: root.save("")
+            }
+            CustomAccentPopup {
+                id: backgroundPicker
+                titleText: "Cor de fundo"
+                themePreview: false
+                initialColor: String(root.current || bridge.palette.bg)
+                onSelected: function (color) { root.save(color) }
             }
         }
     }
@@ -201,7 +234,7 @@ ColumnLayout {
     Label {
         visible: !!root.field.hint
         text: bridge.translate(root.field.hint || "")
-        color: bridge.palette.muted
+        color: root.secondaryText
         wrapMode: Text.Wrap
         Layout.fillWidth: true
         Layout.minimumWidth: 0
@@ -210,7 +243,7 @@ ColumnLayout {
     Label {
         visible: root.settings && root.field.key === "discord_presence_enabled"
         text: workspace.discordStatus
-        color: bridge.palette.muted
+        color: root.secondaryText
         wrapMode: Text.Wrap
         Layout.fillWidth: true
         Layout.minimumWidth: 0

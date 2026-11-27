@@ -79,8 +79,8 @@ def create_application(*, complete=True):
     engine.addImageProvider("platform", PlatformIcons())
     from qt_backdrop_ui import PlaybackBackdrop
 
-    engine.addImageProvider("backdrop", PlaybackBackdrop())
     bridge = JukeboxBridge(parent=engine)
+    engine.addImageProvider("backdrop", PlaybackBackdrop(bridge.albumAccentReady.emit))
     workspace = DesktopWorkspace(bridge, parent=engine)
     engine.workspace = workspace
     engine.rootContext().setContextProperty('bridge', bridge)

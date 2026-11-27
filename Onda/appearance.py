@@ -73,7 +73,8 @@ def blend(first, second, amount):
 
 
 def palette(
-    mode='Seguir o sistema', accent='Verde-Água', separators=False, light_borders=True
+    mode='Seguir o sistema', accent='Verde-Água', separators=False, light_borders=True,
+    *, album_accent=''
 ):
     mode = system_mode() if mode == 'Seguir o sistema' else mode
     light = mode in ('Claro', 'Claro puro')
@@ -99,11 +100,19 @@ def palette(
             muted='#595959',
         )
     colors['accent'] = ACCENTS.get(accent, ACCENTS['Verde-Água'])[int(light)]
-    from custom_accent import normalize_color, readable_accent, accent_ink
+    from custom_accent import normalize_color, readable_accent, accent_ink, backdrop_opacity
 
-    custom = normalize_color(accent)
+    album_color = normalize_color(album_accent)
+    custom = album_color or normalize_color(accent)
     if custom:
-        colors['accent'] = readable_accent(custom, not light)
+        if album_color:
+            rgb = blend(album_color, '#ffffff', .28) if not light else album_color
+            channels = tuple(int(rgb[i : i + 2], 16) for i in (1, 3, 5))
+            alpha = round(255 * backdrop_opacity(channels, not light)) / 255
+            background = blend(colors['bg'], rgb, alpha)
+            colors['accent'] = readable_accent(custom, not light, background)
+        else:
+            colors['accent'] = readable_accent(custom, not light)
     colors.update(
         mode=mode,
         accent_text=(

@@ -15,7 +15,7 @@ Popup {
     closePolicy: Popup.NoAutoClose
     property var selection: ({})
     readonly property var report: workspace.choice
-    background: Card {}
+    background: Card { tintPopup: true }
     Connections {
         target: workspace
         function onChoiceChanged() {

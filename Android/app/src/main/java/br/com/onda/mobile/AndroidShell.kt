@@ -1,5 +1,7 @@
 package br.com.onda.mobile
 
+import androidx.compose.foundation.background
+
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.*
@@ -352,7 +354,10 @@ import androidx.compose.ui.graphics.drawscope.rotate
 @Composable internal fun OndaAppBar(onAppearance: () -> Unit, onSettings: () -> Unit) {
     val accent = MaterialTheme.colorScheme.primary
     Row(
-        Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 24.dp, vertical = 8.dp),
+        Modifier.fillMaxWidth()
+            .background(MaterialTheme.colorScheme.background)
+            .statusBarsPadding()
+            .padding(horizontal = 24.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         OndaBrandMark(Modifier.size(44.dp, 36.dp), accent)
